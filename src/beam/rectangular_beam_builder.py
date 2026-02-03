@@ -1,6 +1,7 @@
 from .rectangular_beam import RectangularBeam
 from indeterminatebeam.loading import Load
 from indeterminatebeam import Support
+from properties.concrete_properties import Fck
 
 class RectangularBeamBuilder:
     """Builder class for creating rectangular beam instances."""
@@ -13,23 +14,21 @@ class RectangularBeamBuilder:
         self._loads = []
         self._supports = []
         
-    # TODO conferir na norma se existem constraints para width e height
-    def set_cross_section(self, width: int, height: int):
-        """Set the width and height of the beam's cross-section (cm)."""
+    # TODO conferir na norma se existem constraints
+    def set_cross_section(self, width: float, height: float):
+        """Set the width and height of the beam's cross-section (m)."""
         self._width = width
         self._height = height
         return self
         
-    def set_length(self, length: int):
-        """Set the length of the beam (cm)."""
+    # TODO conferir na norma se existem constraints
+    def set_length(self, length: float):
+        """Set the length of the beam (m)."""
         self._length = length
         return self
         
-    # TODO conferir se esses valores de fck batem com a norma
-    def set_fck(self, fck: int):
+    def set_fck(self, fck: Fck):
         """Set the material properties of the beam (MPa)."""
-        if not 25 <= fck <= 90:
-            raise ValueError(f"fck must be between 25 and 90, got {fck}")
         self._fck = fck
         return self
     
@@ -53,7 +52,6 @@ class RectangularBeamBuilder:
         self._supports = supports
         return self
         
-    # FIXME this is AI generated, and its is wrong
     def build(self):
         """Build and return the rectangular beam instance."""
         if self._width is None or self._height is None:
@@ -65,8 +63,7 @@ class RectangularBeamBuilder:
             width=self._width,
             height=self._height,
             length=self._length,
-            material=self._material,
-            concrete_fck=self._concrete_fck if hasattr(self, '_concrete_fck') else None,
-            steel_fyk=self._steel_fyk if hasattr(self, '_steel_fyk') else None,
-            cover=self._cover if hasattr(self, '_cover') else None
+            fck=self._fck,
+            loads=self._loads,
+            supports=self._supports
         )

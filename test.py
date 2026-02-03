@@ -25,3 +25,7 @@ load_3 = PointTorque(2*10**3, 3.5)
 beam.add_loads(load_1,load_2,load_3)
 
 beam.analyse()  
+print(beam._bending_moments)
+
+for i in range(0, 800):
+    print(f"Bending moment at x={i} m: {beam.get_bending_moment(i)} N.m")
