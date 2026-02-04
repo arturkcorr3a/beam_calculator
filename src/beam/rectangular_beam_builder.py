@@ -16,14 +16,14 @@ class RectangularBeamBuilder:
         
     # TODO conferir na norma se existem constraints
     def set_cross_section(self, width: float, height: float):
-        """Set the width and height of the beam's cross-section (m)."""
+        """Set the width and height of the beam's cross-section (cm)."""
         self._width = width
         self._height = height
         return self
         
     # TODO conferir na norma se existem constraints
     def set_length(self, length: float):
-        """Set the length of the beam (m)."""
+        """Set the length of the beam (cm)."""
         self._length = length
         return self
         

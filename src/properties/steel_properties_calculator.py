@@ -1,2 +1,2 @@
 class SteelPropertiesCalculator:
-    pass  # FIXME implement using @staticmethod
+    pass  # IMPLEMENT using @staticmethod

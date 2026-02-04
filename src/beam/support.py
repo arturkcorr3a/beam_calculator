@@ -13,4 +13,4 @@ class PillarSupport(Support):
         """
         super().__init__(position, support_type)
         # TODO set beam-pillar coherence
-        # FIXME define type and calculate spring constant
+        # IMPLEMENT define type and calculate spring constant

@@ -1,6 +1,6 @@
 from beam.rectangular_beam import RectangularBeam
 
-LOAD_FACTOR = 1.4 # FIXME conferir
+LOAD_FACTOR = 1.4 # CONFIRM
 
 def design_bending_moment(bending_moment: float) -> float:
     """
@@ -22,4 +22,4 @@ def max_design_bending_moment(beam: RectangularBeam) -> float:
     :return: Maximum design bending moment, in Nm
     :rtype: float
     """
-    pass  # FIXME implement
+    pass  # IMPLEMENT

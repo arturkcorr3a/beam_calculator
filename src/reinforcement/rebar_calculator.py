@@ -1,5 +1,5 @@
 from beam.rectangular_beam import RectangularBeam
-from loads.internal_forces import max_design_bending_moment, design_bending_moment
+from reinforcement.internal_forces import max_design_bending_moment, design_bending_moment
 
 class RebarCalculator:
     """
@@ -20,46 +20,52 @@ class RebarCalculator:
 
     def update_bending_moment(self, bending_moment: float) -> None:
         """
-        Update the design bending moment.
+        Updates the bending moment for rebar calculation.
         
-        :param design_bending_moment: Design bending moment
-        :type design_bending_moment: float
+        :param bending_moment: Design bending moment
+        :type bending_moment: float
         """
         self.design_bending_moment = design_bending_moment(bending_moment)
 
     def calculate(self) -> None:
-        self.rebar_area = self.required_rebar_area()
+        self.rebar_area = self.calculate_required_rebar_area()
+        pass  # IMPLEMENT
         # TODO calcultions to choose rebar
         # TODO self.rebar = Rebar(...)
         
-    def required_rebar_area(self) -> float:
+    def calculate_required_rebar_area(self) -> float:
         """
         Calculate the required rebar area for a rectangular beam, ensuring it falls within the allowable limits.
         """
-        calculated_rebar_area = self.calculated_rebar_area()
-        if calculated_rebar_area > self.max_rebar_area():
-            raise ValueError('Required rebar area ({}) exceeds maximum allowable limit.')
-        return max(calculated_rebar_area, self.min_rebar_area())
+        calculated_rebar_area = self.calculate_rebar_area()
+        minimum_rebar_area = self.calculate_min_tension_rebar_area()
+        maximum_rebar_area = self.calculate_max_rebar_area()
 
-    def calculated_rebar_area(self) -> float:
+        if calculated_rebar_area > maximum_rebar_area:
+            raise ValueError('Required rebar area exceeds maximum allowable limit.')
+        return max(calculated_rebar_area, minimum_rebar_area)
+
+    def calculate_rebar_area(self) -> float:
         # TODO casos de armadura dupla ou simples
-        pass  # FIXME implement
+        pass  # IMPLEMENT
 
-    def min_rebar_area(self) -> float:
-        pass  # FIXME implement
+    def calculate_min_tension_rebar_area(self) -> float:
+        """
+        Minimum tension rebar area, according to ABNT NBR 6118 - Section 17.3.5.2.1
+        """
+        # apenas para armadura de tração
+        pass  # IMPLEMENT
 
-    def max_rebar_area(self) -> float:
-        pass  # FIXME implement
+    def calculate_max_rebar_area(self) -> float:
+        """
+        Maximum rebar area according to ABNT NBR 6118 - Section 17.3.5.2.4
+        """
+        # 4 per cent of cross-sectional area
+        return 0.04 * self.beam._A 
 
+    @property
     def is_singly_reinforced(self) -> bool:
         """
         Determines if the given rectangular beam can be classified as singly reinforced for the provided design bending moment.
-        
-        :param beam: a rectangular beam 
-        :type beam: RectangularBeam
-        :param design_bending_moment: Design bending moment
-        :type design_bending_moment: float
-        :return: True if the beam is singly reinforced for the given design bending moment, False otherwise
-        :rtype: bool
         """
-        return design_bending_moment <= max_design_bending_moment(beam)
+        return self.design_bending_moment <= max_design_bending_moment(self.beam)
