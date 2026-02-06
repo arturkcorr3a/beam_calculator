@@ -82,12 +82,12 @@ class RebarCalculator:
     
     def calculate_y_limit(self) -> float:
         """
-        Calculates the 
+        Calculates the maximmum depth of the equivalent rectangular stress block to maintain the deformation domain 3 (the limit is to turn to 4, as domain 2 would also be ok), based on ABNT NBR 6118 - Section 17.2.2. 
         """
-        lambda_c = self.beam.concrete.calculate_lambda_c()
-        epsilon_cu = self.beam.concrete.calculate_epsilon_cu()
+        lambda_c = self.beam.concrete.lambda_c()
+        epsilon_cu = self.beam.concrete.epsilon_cu()
         steel_elastic_modulus = self.beam.steel.elastic_modulus
-        fyd = self.beam.steel.calculate_fyd()
+        fyd = self.beam.steel.fyd()
         d = self.calculate_effective_depth() # CONFIRM if this makes sense 
         return lambda_c * ( (epsilon_cu*steel_elastic_modulus) / (fyd + epsilon_cu*steel_elastic_modulus) ) * d
     

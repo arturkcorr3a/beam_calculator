@@ -17,8 +17,9 @@ class Steel(Enum):
         """
         return 210_000
     
-    def calculate_fyd(self) -> float:
+    @property
+    def fyd(self) -> float:
         """
-        Calculates the design strength of steel (fyd) in MPa, based on ABNT NBR 6118 - Section ? 
+        The design strength of steel (fyd) in MPa, based on ABNT NBR 6118 - Section ? 
         """ # CONFIRM section - it does not seem to be in 6118:2023
         return self.value / GAMMA_S
