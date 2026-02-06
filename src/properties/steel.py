@@ -10,7 +10,8 @@ class Steel(Enum):
     CA50 = 500
     CA60 = 600
 
-    def get_elastic_modulus(self) -> float:
+    @property
+    def elastic_modulus(self) -> float:
         """
         Returns the elastic modulus of steel (E_s) in MPa, based on ABNT NBR 6118 - Section 8.3.5.
         """

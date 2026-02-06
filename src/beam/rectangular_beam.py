@@ -4,7 +4,8 @@ from indeterminatebeam import Beam, Support
 from indeterminatebeam.loading import Load
 
 from properties.section_properties_calculator import SectionPropertiesCalculator
-from src.properties.concrete import Concrete, concrete
+from src.properties.concrete import Concrete
+from src.properties.steel import Steel
 
 # CONFIRM if these are all correct
 UNITS = {'length': 'cm', 
@@ -25,7 +26,7 @@ class RectangularBeam(Beam):
     
     # NOTE: when change, also change in RectangularBeamBuilder
     def __init__(self, length: float, width: float, height: float, 
-                 concrete: Concrete, supports: List[Support], loads: List[Load]):
+                 concrete: Concrete, steel: Steel, supports: List[Support], loads: List[Load]):
         """
         Initialize a rectangular beam, with the analysis done.
         
@@ -46,7 +47,8 @@ class RectangularBeam(Beam):
         self.length = length
         self.width = width
         self.height = height
-        self.fck = concrete.value
+        self.concrete = concrete
+        self.steel = steel
 
         self.add_loads(loads)
         self.add_supports(supports)
@@ -61,3 +63,10 @@ class RectangularBeam(Beam):
     def update_units(self) -> None:
         for key, unit in UNITS.items():
             super().update_units(key, unit)
+
+    @property
+    def nominal_covering(self) -> float:
+        """
+        Returns the nominal covering (cm) for the beam with class 2 exposure, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
+        """
+        return 3.0

@@ -1,5 +1,7 @@
 from beam.rectangular_beam import RectangularBeam
 from reinforcement.internal_forces import max_design_bending_moment, design_bending_moment
+from src.reinforcement.reinforcement import Reinforcement
+from typing import Optional
 
 class RebarCalculator:
     """
@@ -17,6 +19,7 @@ class RebarCalculator:
         """
         self.beam = beam
         self.design_bending_moment = design_bending_moment(bending_moment)
+        self.rebar: Optional[Reinforcement] = None
 
     def update_bending_moment(self, bending_moment: float) -> None:
         """
@@ -76,3 +79,23 @@ class RebarCalculator:
         Determines if the given rectangular beam can be classified as singly reinforced for the provided design bending moment.
         """
         return self.design_bending_moment <= max_design_bending_moment(self.beam)
+    
+    def calculate_y_limit(self) -> float:
+        """
+        Calculates the 
+        """
+        lambda_c = self.beam.concrete.calculate_lambda_c()
+        epsilon_cu = self.beam.concrete.calculate_epsilon_cu()
+        steel_elastic_modulus = self.beam.steel.elastic_modulus
+        fyd = self.beam.steel.calculate_fyd()
+        d = self.calculate_effective_depth() # CONFIRM if this makes sense 
+        return lambda_c * ( (epsilon_cu*steel_elastic_modulus) / (fyd + epsilon_cu*steel_elastic_modulus) ) * d
+    
+    def calculate_effective_depth(self) -> float:
+        """
+        Calculates the effective depth (d) of the beam, considering the nominal covering and reinforcements.
+        """
+        covering = self.beam.nominal_covering
+        if self.rebar is None:
+            return self.beam.height - covering # FIXME find heuristic for first guess
+        return self.beam.height - covering - self.rebar.get_distance_for_effective_depth_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation

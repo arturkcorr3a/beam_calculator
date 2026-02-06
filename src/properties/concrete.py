@@ -23,7 +23,7 @@ class Concrete(Enum):
     C85 = 85
     C90 = 90
 
-    def get_concrete_group(self) -> int:
+    def concrete_group(self) -> int:
         """
         Based on ABNT NBR 8953 concrete groups classification.
         """
@@ -36,7 +36,7 @@ class Concrete(Enum):
         Calculates the initial elastic modulus of concrete (E_ci) in MPa, based on ABNT NBR 6118 - Section 8.2.8, for granite and gneiss aggregate.
         """
         alpha_e = 1,0 # for granite and gneiss aggregate
-        concrete_group = self.get_concrete_group()
+        concrete_group = self.concrete_group()
         if concrete_group == 1:
             return alpha_e * 5600 * sqrt(self.value)
         return 21.5 * 10**3 * alpha_e * cbrt(self.value / 10 + 1.25)
