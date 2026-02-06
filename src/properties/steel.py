@@ -1,6 +1,6 @@
 from enum import Enum
 
-
+GAMMA_S = 1.15  # CONFIRM Partial safety factor for steel
 
 class Steel(Enum):
     """
@@ -10,8 +10,14 @@ class Steel(Enum):
     CA50 = 500
     CA60 = 600
 
-class SteelPropertiesCalculator:
-    """
-    Calculates properties specific to steel reinforcement.
-    """
-    pass
+    def get_elastic_modulus(self) -> float:
+        """
+        Returns the elastic modulus of steel (E_s) in MPa, based on ABNT NBR 6118 - Section 8.3.5.
+        """
+        return 210_000
+    
+    def calculate_fyd(self) -> float:
+        """
+        Calculates the design strength of steel (fyd) in MPa, based on ABNT NBR 6118 - Section ? 
+        """ # CONFIRM section - it does not seem to be in 6118:2023
+        return self.value / GAMMA_S
