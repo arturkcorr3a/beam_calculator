@@ -1,7 +1,7 @@
 from .rectangular_beam import RectangularBeam
 from indeterminatebeam.loading import Load
 from indeterminatebeam import Support
-from properties.concrete_properties import Fck
+from src.properties.concrete import Concrete
 
 class RectangularBeamBuilder:
     """Builder class for creating rectangular beam instances."""
@@ -10,7 +10,7 @@ class RectangularBeamBuilder:
         self._width = None
         self._height = None
         self._length = None
-        self._fck = 40 # Default concrete strength at 40 MPa
+        self._concrete = Concrete.C40 # Default concrete strength at 40 MPa
         self._loads = []
         self._supports = []
         
@@ -27,9 +27,9 @@ class RectangularBeamBuilder:
         self._length = length
         return self
         
-    def set_fck(self, fck: Fck):
+    def set_concrete(self, concrete: Concrete):
         """Set the material properties of the beam (MPa)."""
-        self._fck = fck
+        self._concrete = concrete
         return self
     
     def add_load(self, load: Load):
@@ -63,7 +63,7 @@ class RectangularBeamBuilder:
             width=self._width,
             height=self._height,
             length=self._length,
-            fck=self._fck,
+            concrete=self._concrete,
             loads=self._loads,
             supports=self._supports
         )

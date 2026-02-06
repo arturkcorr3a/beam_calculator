@@ -46,8 +46,15 @@ class RebarCalculator:
         return max(calculated_rebar_area, minimum_rebar_area)
 
     def calculate_rebar_area(self) -> float:
-        # TODO casos de armadura dupla ou simples
-        pass  # IMPLEMENT
+        if self.is_singly_reinforced:
+            return self.calculate_single_reinforcement_rebar_area()
+        return self.calculate_double_reinforcement_rebar_area()
+
+    def calculate_single_reinforcement_rebar_area(self) -> float:
+        pass # IMPLEMENT
+
+    def calculate_double_reinforcement_rebar_area(self) -> float:
+        pass # IMPLEMENT
 
     def calculate_min_tension_rebar_area(self) -> float:
         """
