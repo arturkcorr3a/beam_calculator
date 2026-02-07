@@ -89,6 +89,7 @@ class RebarCalculator:
         steel_elastic_modulus = self.beam.steel.elastic_modulus
         fyd = self.beam.steel.fyd()
         d = self.calculate_effective_depth() # CONFIRM if this makes sense 
+
         return lambda_c * ( (epsilon_cu*steel_elastic_modulus) / (fyd + epsilon_cu*steel_elastic_modulus) ) * d
     
     def calculate_max_y_ductility(self) -> float:
@@ -113,3 +114,15 @@ class RebarCalculator:
         if self.rebar is None:
             return self.beam.height - covering - 1.25/2# FIXME find heuristic for first guess
         return self.beam.height - covering - self.rebar.get_distance_for_effective_depth_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+    
+    def calculate_max_bending_moment(self) -> float:
+        """
+        Calculates the maximum bending moment that the beam can resist with single reinforcement, for the current rebar configuration (due to effective depth and maximum y)
+        """ # CONFIRM the return units
+        alpha_c = self.beam.concrete.alpha_c
+        eta_c = self.beam.concrete.eta_c
+        fcd = self.beam.concrete.fcd
+        bw = self.beam.width
+        y_max = self.calculate_max_y()
+        d = self.calculate_effective_depth()
+        return alpha_c * eta_c * fcd * bw * y_max * (d - y_max * 0.5)
