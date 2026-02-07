@@ -37,9 +37,8 @@ class Concrete(Enum):
         """
         The initial elastic modulus of concrete (E_ci) in MPa, based on ABNT NBR 6118 - Section 8.2.8, for granite and gneiss aggregate.
         """
-        alpha_e = 1,0 # for granite and gneiss aggregate
-        concrete_group = self.concrete_group
-        if concrete_group == 1:
+        alpha_e = 1.0 # for granite and gneiss aggregate
+        if self.concrete_group == 1:
             return alpha_e * 5600 * sqrt(self.value)
         return 21.5 * 10**3 * alpha_e * cbrt(self.value / 10 + 1.25)
 
@@ -50,8 +49,7 @@ class Concrete(Enum):
         """
         alpha_i = 0.8 + 0.2 * (self.value / 80)
         alpha_i = min(alpha_i, 1.0)
-        eci = self.eci
-        return alpha_i * eci
+        return alpha_i * self.eci
     
     @property
     def g_c(self) -> float:
@@ -90,10 +88,7 @@ class Concrete(Enum):
         """
         Calculates the equivalent uniform stress in concrete in MPa, based on ABNT NBR 6118 - Section 17.2.2.
         """
-        alpha_c = self.alpha_c
-        eta_c = self.eta_c
-        fcd = self.fcd
-        return alpha_c * eta_c * fcd
+        return self.alpha_c * self.eta_c * self.fcd
     
     @property
     def lambda_c(self) -> float:

@@ -91,11 +91,25 @@ class RebarCalculator:
         d = self.calculate_effective_depth() # CONFIRM if this makes sense 
         return lambda_c * ( (epsilon_cu*steel_elastic_modulus) / (fyd + epsilon_cu*steel_elastic_modulus) ) * d
     
+    def calculate_max_y_ductility(self) -> float:
+        """
+        Maximum depth of the equivalent rectangular stress block (y) to maintain ductility, based on ABNT NBR 6118 - Section 14.6.4.3.
+        """
+        if self.beam.concrete.value <= 50:
+            return 0.45 * self.beam.concrete.lambda_c() * self.calculate_effective_depth()
+        return 0.35 * self.beam.concrete.lambda_c() * self.calculate_effective_depth()
+    
+    def calculate_max_y(self) -> float:
+        """
+        Calculates the maximum depth of the equivalent rectangular stress block (y) to maintain both the deformation domain 3 and ductility.
+        """
+        return min(self.calculate_y_limit(), self.calculate_max_y_ductility())    
+    
     def calculate_effective_depth(self) -> float:
         """
         Calculates the effective depth (d) of the beam, considering the nominal covering and reinforcements.
         """
         covering = self.beam.nominal_covering
         if self.rebar is None:
-            return self.beam.height - covering # FIXME find heuristic for first guess
+            return self.beam.height - covering - 1.25/2# FIXME find heuristic for first guess
         return self.beam.height - covering - self.rebar.get_distance_for_effective_depth_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
