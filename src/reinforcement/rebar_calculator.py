@@ -3,6 +3,7 @@ from reinforcement.internal_forces import max_design_bending_moment, design_bend
 from src.reinforcement.reinforcement import Reinforcement
 from typing import Optional
 from math import sqrt
+from functools import cached_property
 
 class RebarCalculator:
     """
@@ -30,6 +31,7 @@ class RebarCalculator:
         :type bending_moment: float
         """
         self.design_bending_moment = design_bending_moment(bending_moment)
+        del self.max_bending_moment
 
     def calculate(self) -> None:
         self.rebar_area = self.calculate_required_rebar_area()
@@ -52,7 +54,7 @@ class RebarCalculator:
     def calculate_rebar_area(self) -> float:
         if self.is_singly_reinforced:
             return self.calculate_as1()
-        return self.calculate_as2()
+        # return self.calculate_as2()
 
     def calculate_min_tension_rebar_area(self) -> float:
         """
@@ -83,7 +85,7 @@ class RebarCalculator:
         epsilon_cu = self.beam.concrete.epsilon_cu()
         steel_elastic_modulus = self.beam.steel.elastic_modulus
         fyd = self.beam.steel.fyd()
-        d = self.calculate_effective_depth() # CONFIRM if this makes sense 
+        d = self.d() # CONFIRM if this makes sense 
 
         return lambda_c * ( (epsilon_cu*steel_elastic_modulus) / (fyd + epsilon_cu*steel_elastic_modulus) ) * d
     
@@ -92,8 +94,8 @@ class RebarCalculator:
         Maximum depth of the equivalent rectangular stress block (y) to maintain ductility, based on ABNT NBR 6118 - Section 14.6.4.3.
         """
         if self.beam.concrete.value <= 50:
-            return 0.45 * self.beam.concrete.lambda_c() * self.calculate_effective_depth()
-        return 0.35 * self.beam.concrete.lambda_c() * self.calculate_effective_depth()
+            return 0.45 * self.beam.concrete.lambda_c() * self.d()
+        return 0.35 * self.beam.concrete.lambda_c() * self.d()
     
     def calculate_max_y(self) -> float:
         """
@@ -101,7 +103,8 @@ class RebarCalculator:
         """
         return min(self.calculate_y_limit(), self.calculate_max_y_ductility())    
     
-    def calculate_effective_depth(self) -> float:
+    @cached_property
+    def d(self) -> float:
         """
         Calculates the effective depth (d) of the beam, considering the nominal covering and reinforcements.
         """
@@ -110,7 +113,8 @@ class RebarCalculator:
             return self.beam.height - covering - 1.25/2# FIXME find heuristic for first guess
         return self.beam.height - covering - self.rebar.get_distance_for_effective_depth_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
     
-    def calculate_max_bending_moment(self) -> float:
+    @cached_property
+    def max_bending_moment(self) -> float:
         """
         Calculates the maximum bending moment that the beam can resist with single reinforcement, for the current rebar configuration (due to effective depth and maximum y)
         """ # CONFIRM the return units
@@ -119,28 +123,22 @@ class RebarCalculator:
         fcd = self.beam.concrete.fcd
         bw = self.beam.width
         y_max = self.calculate_max_y()
-        d = self.calculate_effective_depth()
+        d = self.d()
         return alpha_c * eta_c * fcd * bw * y_max * (d - y_max * 0.5)
-    
-    def set_max_bending_moment(self) -> None:
-        """
-        Sets the maximum bending moment that the beam can resist with single reinforcement, for the current rebar configuration (due to effective depth and maximum y)
-        """ 
-        # So it doesn't have unnecessary calculations
-        self.max_bending_moment = self.calculate_max_bending_moment()
 
     def calculate_actual_y(self) -> float:
         """
         Calculates the actual depth of the equivalent rectangular stress block (y) (cm) for the current effective depth and design bending moment. Based on equilibrium of internal forces and moment.
         """
-        d = self.calculate_effective_depth()
+        d = self.d()
         alpha_c = self.beam.concrete.alpha_c
         eta_c = self.beam.concrete.eta_c
         fcd = self.beam.concrete.fcd
         bw = self.beam.width
         return d - sqrt(d**2 - (2 * self.design_bending_moment)/(alpha_c * eta_c * fcd * bw))
     
-    def calculate_and_set_as1(self) -> float:
+    @cached_property
+    def calculate_as1(self) -> float:
         """
         Calculates the required tensioned rebar area (As1) for the current design bending moment, based on the actual depth of the equivalent rectangular stress block (y) and equilibrium of internal forces.
         """ # CONFIRM the return units
@@ -149,5 +147,4 @@ class RebarCalculator:
         fcd = self.beam.concrete.fcd
         bw = self.beam.width
         y = self.calculate_actual_y() if self.is_singly_reinforced else self.calculate_max_y()
-        self.as1 = (alpha_c * eta_c * fcd * bw * y) / (self.beam.steel.fyd())
-        return self.as1
+        return (alpha_c * eta_c * fcd * bw * y) / (self.beam.steel.fyd())
