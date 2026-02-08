@@ -126,3 +126,10 @@ class RebarCalculator:
         y_max = self.calculate_max_y()
         d = self.calculate_effective_depth()
         return alpha_c * eta_c * fcd * bw * y_max * (d - y_max * 0.5)
+    
+    def set_max_bending_moment(self) -> None:
+        """
+        Sets the maximum bending moment that the beam can resist with single reinforcement, for the current rebar configuration (due to effective depth and maximum y)
+        """ 
+        # So it doesn't have unnecessary calculations
+        self.max_bending_moment = self.calculate_max_bending_moment()
