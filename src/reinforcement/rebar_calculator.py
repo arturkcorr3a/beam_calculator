@@ -2,6 +2,7 @@ from beam.rectangular_beam import RectangularBeam
 from reinforcement.internal_forces import max_design_bending_moment, design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
 from typing import Optional
+from math import sqrt
 
 class RebarCalculator:
     """
@@ -50,14 +51,8 @@ class RebarCalculator:
 
     def calculate_rebar_area(self) -> float:
         if self.is_singly_reinforced:
-            return self.calculate_single_reinforcement_rebar_area()
-        return self.calculate_double_reinforcement_rebar_area()
-
-    def calculate_single_reinforcement_rebar_area(self) -> float:
-        pass # IMPLEMENT
-
-    def calculate_double_reinforcement_rebar_area(self) -> float:
-        pass # IMPLEMENT
+            return self.calculate_as1()
+        return self.calculate_as2()
 
     def calculate_min_tension_rebar_area(self) -> float:
         """
@@ -133,3 +128,26 @@ class RebarCalculator:
         """ 
         # So it doesn't have unnecessary calculations
         self.max_bending_moment = self.calculate_max_bending_moment()
+
+    def calculate_actual_y(self) -> float:
+        """
+        Calculates the actual depth of the equivalent rectangular stress block (y) (cm) for the current effective depth and design bending moment. Based on equilibrium of internal forces and moment.
+        """
+        d = self.calculate_effective_depth()
+        alpha_c = self.beam.concrete.alpha_c
+        eta_c = self.beam.concrete.eta_c
+        fcd = self.beam.concrete.fcd
+        bw = self.beam.width
+        return d - sqrt(d**2 - (2 * self.design_bending_moment)/(alpha_c * eta_c * fcd * bw))
+    
+    def calculate_and_set_as1(self) -> float:
+        """
+        Calculates the required tensioned rebar area (As1) for the current design bending moment, based on the actual depth of the equivalent rectangular stress block (y) and equilibrium of internal forces.
+        """ # CONFIRM the return units
+        alpha_c = self.beam.concrete.alpha_c
+        eta_c = self.beam.concrete.eta_c
+        fcd = self.beam.concrete.fcd
+        bw = self.beam.width
+        y = self.calculate_actual_y() if self.is_singly_reinforced else self.calculate_max_y()
+        self.as1 = (alpha_c * eta_c * fcd * bw * y) / (self.beam.steel.fyd())
+        return self.as1
