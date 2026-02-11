@@ -5,6 +5,7 @@ from typing import Optional
 from math import sqrt
 from functools import cached_property
 
+# TODO review how many times each method/property is called to evaluate propper use of cached or calculated properties
 class RebarCalculator:
     """
     Class responsible for calculating the required rebar area for a rectangular beam.
@@ -22,6 +23,7 @@ class RebarCalculator:
         self.beam = beam
         self.design_bending_moment = design_bending_moment(bending_moment)
         self.rebar: Optional[Reinforcement] = None
+        self.calculate()
 
     def update_bending_moment(self, bending_moment: float) -> None:
         """
@@ -32,33 +34,31 @@ class RebarCalculator:
         """
         self.design_bending_moment = design_bending_moment(bending_moment)
         del self.max_bending_moment
+        self.calculate()
 
     def calculate(self) -> None:
-        self.rebar_area = self.calculate_required_rebar_area()
-        pass  # IMPLEMENT
-        # TODO calcultions to choose rebar
-        # TODO self.rebar = Rebar(...)
+        self.calculate_and_set_required_reinforcement()
+        # TODO choose rebars
+        # TODO recalculate with effective d and d' from chosen rebars
         
-    def calculate_required_rebar_area(self) -> float:
+    def calculate_and_set_required_reinforcement(self) -> None:
         """
         Calculate the required rebar area for a rectangular beam, ensuring it falls within the allowable limits.
         """
-        calculated_rebar_area = self.calculate_rebar_area()
-        minimum_rebar_area = self.calculate_min_tension_rebar_area()
-        maximum_rebar_area = self.calculate_max_rebar_area()
-
-        if calculated_rebar_area > maximum_rebar_area:
+        self.tensioned_rebar_area = max(self.tensioned_rebar_area, self.min_tension_rebar_area) 
+        if (self.tensioned_rebar_area + self.compressed_rebar_area) > self.max_rebar_area:
             raise ValueError('Required rebar area exceeds maximum allowable limit.')
-        return max(calculated_rebar_area, minimum_rebar_area)
 
-    def calculate_min_tension_rebar_area(self) -> float:
+    @property
+    def min_tension_rebar_area(self) -> float:
         """
         Minimum tension rebar area, according to ABNT NBR 6118 - Section 17.3.5.2.1
         """
         # apenas para armadura de tração
         pass  # IMPLEMENT
 
-    def calculate_max_rebar_area(self) -> float:
+    @property
+    def max_rebar_area(self) -> float:
         """
         Maximum rebar area according to ABNT NBR 6118 - Section 17.3.5.2.4
         """
@@ -92,7 +92,8 @@ class RebarCalculator:
             return 0.45 * self.beam.concrete.lambda_c() * self.d()
         return 0.35 * self.beam.concrete.lambda_c() * self.d()
     
-    def calculate_max_y(self) -> float:
+    @cached_property
+    def max_y(self) -> float:
         """
         Calculates the maximum depth of the equivalent rectangular stress block (y) to maintain both the deformation domain 3 and ductility.
         """
@@ -117,7 +118,7 @@ class RebarCalculator:
         eta_c = self.beam.concrete.eta_c
         fcd = self.beam.concrete.fcd
         bw = self.beam.width
-        y_max = self.calculate_max_y()
+        y_max = self.max_y()
         d = self.d()
         return alpha_c * eta_c * fcd * bw * y_max * (d - y_max * 0.5)
 
@@ -141,14 +142,14 @@ class RebarCalculator:
         eta_c = self.beam.concrete.eta_c
         fcd = self.beam.concrete.fcd
         bw = self.beam.width
-        y = self.calculate_actual_y() if self.is_singly_reinforced else self.calculate_max_y()
+        y = self.calculate_actual_y() if self.is_singly_reinforced else self.max_y()
         return (alpha_c * eta_c * fcd * bw * y) / (self.beam.steel.fyd())
     
     def calculate_epsilon_s2(self) -> float:
         # TODO docstring
         epsilon_cu = self.beam.concrete.epsilon_cu
         lambda_c = self.beam.concrete.lambda_c
-        max_y = self.calculate_max_y()
+        max_y = self.max_y()
         return epsilon_cu * (max_y - lambda_c * self.d_compressed()) / max_y
 
     @cached_property
@@ -185,8 +186,9 @@ class RebarCalculator:
     
     def calculate_delta_as(self) -> float:
         # TODO docstring
-        return self.compressed_rebar_area * (self.beam.steel.fyd() / self.calculate_sigma_s2()) # CONFIRM the formula
+        return self.compressed_rebar_area * (self.beam.steel.fyd() / self.corrected_sigma_s2) # CONFIRM the formula -> acho q ta errado
 
+    @cached_property
     def tensioned_rebar_area(self) -> float:
         # TODO docstring
         return self.as1 + self.calculate_delta_as() if not self.is_singly_reinforced else self.as1
