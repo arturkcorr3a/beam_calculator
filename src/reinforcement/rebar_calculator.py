@@ -51,11 +51,6 @@ class RebarCalculator:
             raise ValueError('Required rebar area exceeds maximum allowable limit.')
         return max(calculated_rebar_area, minimum_rebar_area)
 
-    def calculate_rebar_area(self) -> float:
-        if self.is_singly_reinforced:
-            return self.calculate_as1()
-        # return self.calculate_as2()
-
     def calculate_min_tension_rebar_area(self) -> float:
         """
         Minimum tension rebar area, according to ABNT NBR 6118 - Section 17.3.5.2.1
@@ -111,7 +106,7 @@ class RebarCalculator:
         covering = self.beam.nominal_covering
         if self.rebar is None:
             return self.beam.height - covering - 1.25/2# FIXME find heuristic for first guess
-        return self.beam.height - covering - self.rebar.get_distance_for_effective_depth_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+        return self.beam.height - covering - self.rebar.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
     
     @cached_property
     def max_bending_moment(self) -> float:
@@ -138,7 +133,7 @@ class RebarCalculator:
         return d - sqrt(d**2 - (2 * self.design_bending_moment)/(alpha_c * eta_c * fcd * bw))
     
     @cached_property
-    def calculate_as1(self) -> float:
+    def as1(self) -> float:
         """
         Calculates the required tensioned rebar area (As1) for the current design bending moment, based on the actual depth of the equivalent rectangular stress block (y) and equilibrium of internal forces.
         """ # CONFIRM the return units
@@ -148,3 +143,50 @@ class RebarCalculator:
         bw = self.beam.width
         y = self.calculate_actual_y() if self.is_singly_reinforced else self.calculate_max_y()
         return (alpha_c * eta_c * fcd * bw * y) / (self.beam.steel.fyd())
+    
+    def calculate_epsilon_s2(self) -> float:
+        # TODO docstring
+        epsilon_cu = self.beam.concrete.epsilon_cu
+        lambda_c = self.beam.concrete.lambda_c
+        max_y = self.calculate_max_y()
+        return epsilon_cu * (max_y - lambda_c * self.d_compressed()) / max_y
+
+    @cached_property
+    def d_compressed(self) -> float:
+        """
+        Calculates the distance from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
+        """
+        covering = self.beam.nominal_covering
+        if self.rebar is None:
+            return covering + 1.25/2 # FIXME find heuristic for first guess
+        return covering + self.rebar.get_distance_for_compressed_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+    
+    def calculate_sigma_s2(self) -> float:
+        # TODO docstring
+        calculated_sigma_s2 = self.calculate_epsilon_s2() * self.beam.steel.elastic_modulus
+        max_sigma_s2 = self.beam.steel.fyd()
+        return min(calculated_sigma_s2, max_sigma_s2)
+
+    @cached_property
+    def corrected_sigma_s2(self) -> float:
+        # TODO docstring
+        sigma_s2 = self.calculate_sigma_s2()
+        return sigma_s2 - self.beam.concrete.calculate_uniform_stress()
+
+    def calculate_delta_bending_moment(self) -> float:
+        # TODO docstring
+        return self.design_bending_moment - self.max_bending_moment
+
+    @cached_property
+    def compressed_rebar_area(self) -> float:
+        # TODO docstring
+        delta_moment = self.calculate_delta_bending_moment()
+        return delta_moment / (self.corrected_sigma_s2 * (self.d() - self.d_compressed()))
+    
+    def calculate_delta_as(self) -> float:
+        # TODO docstring
+        return self.compressed_rebar_area * (self.beam.steel.fyd() / self.calculate_sigma_s2()) # CONFIRM the formula
+
+    def tensioned_rebar_area(self) -> float:
+        # TODO docstring
+        return self.as1 + self.calculate_delta_as() if not self.is_singly_reinforced else self.as1
