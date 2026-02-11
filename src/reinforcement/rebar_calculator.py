@@ -22,7 +22,8 @@ class RebarCalculator:
         """
         self.beam = beam
         self.design_bending_moment = design_bending_moment(bending_moment)
-        self.rebar: Optional[Reinforcement] = None
+        self.tensioned_reinforcement: Reinforcement
+        self.compressed_reinforcement: Optional[Reinforcement]
         self.calculate()
 
     def update_bending_moment(self, bending_moment: float) -> None:
@@ -38,8 +39,11 @@ class RebarCalculator:
 
     def calculate(self) -> None:
         self.calculate_and_set_required_reinforcement()
-        # TODO choose rebars
+        self.tensioned_reinforcement = Reinforcement(self.tensioned_rebar_area, self.beam.steel)
+        if not self.is_singly_reinforced:
+            self.compressed_reinforcement = Reinforcement(self.compressed_rebar_area, self.beam.steel)
         # TODO recalculate with effective d and d' from chosen rebars
+            # iteractive calculation
         
     def calculate_and_set_required_reinforcement(self) -> None:
         """
@@ -99,8 +103,6 @@ class RebarCalculator:
         # TODO docstring
         return self.compressed_rebar_area * (self.beam.steel.fyd() / self.corrected_sigma_s2) # CONFIRM the formula -> acho q ta errado
     
-    ### Auxiliary Property Calculations ############################################## TODO study split this to a different file to enhance readability?   
-    
     @cached_property
     def max_y(self) -> float:
         """
@@ -134,9 +136,9 @@ class RebarCalculator:
         Calculates the effective depth (d) of the beam, considering the nominal covering and reinforcements.
         """
         covering = self.beam.nominal_covering
-        if self.rebar is None:
+        if self.tensioned_reinforcement is None:
             return self.beam.height - covering - 1.25/2 # FIXME find heuristic for first guess
-        return self.beam.height - covering - self.rebar.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+        return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
     
     @property
     def max_bending_moment(self) -> float:
@@ -175,9 +177,9 @@ class RebarCalculator:
         Calculates the distance from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
         covering = self.beam.nominal_covering
-        if self.rebar is None:
+        if self.tensioned_reinforcement is None:
             return covering + 1.25/2 # FIXME find heuristic for first guess
-        return covering + self.rebar.get_distance_for_compressed_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+        return covering + self.tensioned_reinforcement.get_distance_for_compressed_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
     
     def calculate_sigma_s2(self) -> float:
         # TODO docstring
