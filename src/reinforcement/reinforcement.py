@@ -1,17 +1,6 @@
-# IMPLEMENT class Rebar with necessary information
-# IMPLEMENT include required x provided
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 from math import pi
 from src.properties.steel import Steel
-
-# CONFIRM these sizes, they are probably wrong
-# FIXME perhaps move this to Steel class
-AVAILABLE_REBAR_SIZES = {
-    Steel.CA25: [5, 8, 10, 12.5, 16, 20, 25, 32, 40],
-    Steel.CA50: [5, 8, 10, 12.5, 16, 20, 25, 32, 40],
-    Steel.CA60: [5, 8, 10, 12.5, 16, 20, 25, 32, 40]
-}
 
 class Reinforcement:
     def __init__(self, required_area: float, steel: Steel):
@@ -23,6 +12,7 @@ class Reinforcement:
 
     def choose(self) -> None:
         # TODO implement a method to choose the rebar sizes based on the required area and available sizes
+        # IMPLEMENT
         pass
 
     def get_distance_for_d_calculation(self) -> float:

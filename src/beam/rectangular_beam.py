@@ -53,12 +53,10 @@ class RectangularBeam(Beam):
         self.add_loads(loads)
         self.add_supports(supports)
 
-        self.update_units() # TODO test these
+        self.update_units() # TODO test these to see if the units match (unit testing should do it)
         self.analyse()
 
-    # TODO get_bending_moment wrapper methods (may have util methods, like max bending moment position)
-    # TODO get_shear_force wrapper methods (may have util methods, like max shear force position)
-    # TODO get normal_force wrapper methods (may have util methods, like max normal force position)
+    # TODO extract bending moment to perform calculations
 
     def update_units(self) -> None:
         for key, unit in UNITS.items():

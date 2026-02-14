@@ -5,7 +5,7 @@ from typing import Optional
 from math import sqrt
 from functools import cached_property
 
-# TODO review how many times each method/property is called to evaluate propper use of cached or calculated properties
+# FIXME review how many times each method/property is called to evaluate propper use of cached or calculated properties
 class RebarCalculator:
     """
     Class responsible for calculating the required rebar area for a rectangular beam.
