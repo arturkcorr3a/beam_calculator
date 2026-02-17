@@ -3,7 +3,7 @@ from typing import Optional, List
 from indeterminatebeam import Beam, Support
 from indeterminatebeam.loading import Load
 
-from properties.section_properties_calculator import SectionPropertiesCalculator
+from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 
@@ -40,8 +40,8 @@ class RectangularBeam(Beam):
         """
         calculated_moment_of_inertia = SectionPropertiesCalculator.moment_of_inertia(width, height)
         area = SectionPropertiesCalculator.cross_sectional_area(width, height)
-        shear_modulus = concrete.g_c()
-        elastic_modulus = concrete.ecs()
+        shear_modulus = concrete.g_c
+        elastic_modulus = concrete.ecs
         super().__init__(length, shear_modulus, elastic_modulus, calculated_moment_of_inertia, area)
 
         self.length = length

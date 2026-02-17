@@ -1,5 +1,5 @@
-from beam.rectangular_beam import RectangularBeam
-from reinforcement.internal_forces import max_design_bending_moment, design_bending_moment
+from src.beam.rectangular_beam import RectangularBeam
+from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
 from typing import Optional
 from math import sqrt
@@ -17,14 +17,13 @@ class RebarCalculator:
         
         :param beam: a rectangular beam 
         :type beam: RectangularBeam
-        :param design_bending_moment: Design bending moment
-        :type design_bending_moment: float
+        :param bending_moment: Design bending moment
+        :type bending_moment: float
         """
         self.beam = beam
         self.design_bending_moment = design_bending_moment(bending_moment)
-        self.tensioned_reinforcement: Reinforcement
-        self.compressed_reinforcement: Optional[Reinforcement]
-        self.calculate()
+        self.tensioned_reinforcement: Optional[Reinforcement] = None
+        self.compressed_reinforcement: Optional[Reinforcement] = None
 
     def update_bending_moment(self, bending_moment: float) -> None:
         """
@@ -74,7 +73,7 @@ class RebarCalculator:
         """
         Determines if the given rectangular beam can be classified as singly reinforced for the provided design bending moment.
         """
-        return self.design_bending_moment <= max_design_bending_moment(self.beam)
+        return self.design_bending_moment <= max_design_bending_moment(self.beam, self.d, self.max_y)
 
     @cached_property
     def tensioned_rebar_area(self) -> float:
@@ -114,11 +113,11 @@ class RebarCalculator:
         """
         Calculates the maximmum depth of the equivalent rectangular stress block to maintain the deformation domain 3 (the limit is to turn to 4, as domain 2 would also be ok), based on ABNT NBR 6118 - Section 17.2.2. 
         """
-        lambda_c = self.beam.concrete.lambda_c()
-        epsilon_cu = self.beam.concrete.epsilon_cu()
+        lambda_c = self.beam.concrete.lambda_c
+        epsilon_cu = self.beam.concrete.epsilon_cu
         steel_elastic_modulus = self.beam.steel.elastic_modulus
-        fyd = self.beam.steel.fyd()
-        d = self.d() # CONFIRM if this makes sense 
+        fyd = self.beam.steel.fyd
+        d = self.d # CONFIRM if this makes sense 
 
         return lambda_c * ( (epsilon_cu*steel_elastic_modulus) / (fyd + epsilon_cu*steel_elastic_modulus) ) * d
     
@@ -127,8 +126,8 @@ class RebarCalculator:
         Maximum depth of the equivalent rectangular stress block (y) to maintain ductility, based on ABNT NBR 6118 - Section 14.6.4.3.
         """
         if self.beam.concrete.value <= 50:
-            return 0.45 * self.beam.concrete.lambda_c() * self.d()
-        return 0.35 * self.beam.concrete.lambda_c() * self.d()
+            return 0.45 * self.beam.concrete.lambda_c * self.d
+        return 0.35 * self.beam.concrete.lambda_c * self.d
     
     @cached_property
     def d(self) -> float:
