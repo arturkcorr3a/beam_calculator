@@ -9,9 +9,9 @@ def test_concrete_group(concrete_fck_25: Concrete):
     expected_group = 1
     assert concrete_fck_25.concrete_group == expected_group, "For concrete with fck 25 MPa, the concrete group should be 1"
 
-def test_fcd(concrete_fck_25: Concrete):
-    expected_fcd = 25 / 1.4
-    assert concrete_fck_25.fcd == pytest.approx(expected_fcd), "For concrete with fck 25 MPa, fcd should be approximately 17.86 MPa"
+def test_eci(concrete_fck_25: Concrete):
+    # IMPLEMENT
+    pass
 
 def test_ecs(concrete_fck_25: Concrete):
     # IMPLEMENT
@@ -20,6 +20,10 @@ def test_ecs(concrete_fck_25: Concrete):
 def test_g_c(concrete_fck_25: Concrete):
     # IMPLEMENT
     pass
+
+def test_fcd(concrete_fck_25: Concrete):
+    expected_fcd = 25 / 1.4
+    assert concrete_fck_25.fcd == pytest.approx(expected_fcd), "For concrete with fck 25 MPa, fcd should be approximately 17.86 MPa"
 
 def test_alpha_c(concrete_fck_25: Concrete):
     expected_alpha_c = 0.85
@@ -37,4 +41,10 @@ def test_lambda_c(concrete_fck_25: Concrete):
     expected_lambda_c = 0.8
     assert concrete_fck_25.lambda_c == pytest.approx(expected_lambda_c), "For concrete with fck 25 MPa, lambda_c should be 0.8"
 
-# IMPLEMENT test for epsilon_c2 and epsilon_cu
+def test_epsilon_c2(concrete_fck_25: Concrete):
+    # IMPLEMENT
+    pass
+
+def test_epsilon_cu(concrete_fck_25: Concrete):
+    # IMPLEMENT
+    pass
