@@ -5,11 +5,11 @@ GAMMA_S = 1.15  # CONFIRM Partial safety factor for steel
 
 class Steel(Enum):
     """
-    Possible steel yield strengths (fy) in MPa, based on ABNT NBR 6118 - Section 8.3.1.
+    Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.
     """
-    CA25 = 250
-    CA50 = 500
-    CA60 = 600
+    CA25 = 25
+    CA50 = 50
+    CA60 = 60
 
     @property
     def elastic_modulus(self) -> int:
@@ -21,7 +21,7 @@ class Steel(Enum):
     @property
     def fyd(self) -> float:
         """
-        The design strength of steel (fyd) in MPa, based on ABNT NBR 6118 - Section ? 
+        The design strength of steel (fyd) in kN/cm², based on ABNT NBR 6118 - Section ? 
         """ # CONFIRM section - it does not seem to be in 6118:2023
         return self.value / GAMMA_S
     

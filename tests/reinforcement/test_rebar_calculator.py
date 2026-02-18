@@ -21,7 +21,7 @@ def calculator() -> RebarCalculator:
 def test_max_rebar_area(calculator: RebarCalculator):
     expected_max_area = 48 # cm^2
     actual_max_area = calculator.max_rebar_area
-    assert actual_max_area == expected_max_area, "Max rebar area for 20x60 cm beam should be 48 cm^2"
+    assert expected_max_area == pytest.approx(actual_max_area), "Max rebar area for 20x60 cm beam should be 48 cm^2"
 
 def test_is_singly_reinforced(calculator: RebarCalculator):
     assert not calculator.is_singly_reinforced, "Beam should NOT be singly reinforced for the given bending moment and properties"

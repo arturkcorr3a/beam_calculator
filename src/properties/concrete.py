@@ -80,13 +80,13 @@ class Concrete(Enum):
     @property
     def fcd(self) -> float:
         """
-        The design compressive strength of concrete (fcd) in MPa, based on ABNT NBR 6118 - Section 12.3.3. Considers only normal action combinations (fator 1.4)
+        The design compressive strength of concrete (fcd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.3. Considers only normal action combinations (fator 1.4)
         """
-        return self.value / GAMMA_C
+        return (self.value / 10) / GAMMA_C
     
     def calculate_uniform_stress(self) -> float:
         """
-        Calculates the equivalent uniform stress in concrete in MPa, based on ABNT NBR 6118 - Section 17.2.2.
+        Calculates the equivalent uniform stress in concrete in kN/cm², based on ABNT NBR 6118 - Section 17.2.2.
         """
         return self.alpha_c * self.eta_c * self.fcd
     

@@ -19,10 +19,12 @@ def max_design_bending_moment(beam: RectangularBeam, d: int, y_max: int) -> floa
     
     :param beam: a rectangular beam 
     :type beam: RectangularBeam
-    :return: Maximum design bending moment, in kN.m
+    :param d: effective depth of the beam (cm)
+    :type d: int
+    :param y_max: maximum depth of the equivalent rectangular stress block (cm)
+    :type y_max: int
+    :return: Maximum design bending moment, in kN.cm
     :rtype: float
     """
-    uniform_stress = beam.concrete.calculate_uniform_stress()
-    max_design_bending_moment = uniform_stress * beam.width * y_max * (d - 0.5* y_max)
-    print(max_design_bending_moment)
-    return max_design_bending_moment
+    uniform_stress = beam.concrete.calculate_uniform_stress() # kN/cm²
+    return uniform_stress * beam.width * y_max * (d - 0.5* y_max)
