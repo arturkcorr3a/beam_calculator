@@ -88,7 +88,7 @@ class RebarCalculator:
         Calculates the required compressed rebar area (cm²), As2, for double reinforcement cases, based on the difference between the design bending moment and the maximum bending moment that the beam can resist with single reinforcement, and the current rebar configuration.
         """
         delta_moment = self.calculate_delta_bending_moment() #kN.cm
-        return delta_moment / (self.corrected_sigma_s2 * (self.d() - self.d_compressed()))
+        return delta_moment / (self.corrected_sigma_s2 * (self.d - self.d_compressed))
 
     @cached_property
     def as1(self) -> float:
@@ -104,7 +104,7 @@ class RebarCalculator:
         """
         Calculates the additional tensioned rebar area (cm²) required when the beam is not singly reinforced, based on the stress in the compressed reinforcement and the current rebar configuration.
         """
-        return (self.compressed_rebar_area * self.beam.steel.fyd) / self.corrected_sigma_s2
+        return (self.compressed_rebar_area * self.corrected_sigma_s2) / self.beam.steel.fyd
     
     @cached_property
     def max_y(self) -> float:
@@ -150,8 +150,8 @@ class RebarCalculator:
         """
         uniform_stress = self.beam.concrete.calculate_uniform_stress() # kN/cm²
         bw = self.beam.width  # cm
-        y_max = self.max_y() # cm
-        d = self.d() # cm
+        y_max = self.max_y # cm
+        d = self.d # cm
         return uniform_stress * bw * y_max * (d - y_max * 0.5) # kN.cm
 
     @property
@@ -170,7 +170,7 @@ class RebarCalculator:
         """
         epsilon_cu = self.beam.concrete.epsilon_cu # no unit
         lambda_c = self.beam.concrete.lambda_c # no unit
-        return epsilon_cu * (self.max_y - lambda_c * self.d_compressed()) / self.max_y
+        return epsilon_cu * (self.max_y - lambda_c * self.d_compressed) / self.max_y
 
     @cached_property
     def d_compressed(self) -> float:
