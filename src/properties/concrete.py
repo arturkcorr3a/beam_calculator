@@ -1,5 +1,5 @@
 from enum import Enum
-from math import sqrt, cbrt
+from math import sqrt, cbrt, log
 
 GAMMA_C = 1.4  # CONFIRM Partial safety factor for concrete 
 
@@ -119,3 +119,26 @@ class Concrete(Enum):
         if self.value <= 50:
             return 3.5e-3
         return 2.6e-3 + 35e-3 * ((90 - self.value)/100)**4
+    
+    @property
+    def fct_m(self) -> float:
+        """
+        The mean tensile strength of concrete (fctm) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
+        """
+        if self.value <= 50:
+            return (0.3 * self.value**(2/3)) / 10
+        return (2.12 * log(1 + 0.1 * (self.value +8))) / 10
+    
+    @property
+    def fctk_sup(self) -> float:
+        """
+        The upper characteristic tensile strength of concrete (f_ctk_sup) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
+        """
+        return 1.3 * self.fct_m
+    
+    @property
+    def fctk_inf(self) -> float:
+        """
+        The lower characteristic tensile strength of concrete (f_ctk_inf) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
+        """
+        return 0.7 * self.fct_m

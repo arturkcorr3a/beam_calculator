@@ -1,5 +1,6 @@
 from src.beam.rectangular_beam import RectangularBeam
-from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment
+from src.properties.section_properties_calculator import SectionPropertiesCalculator as section_calculator
+from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment, min_design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
 from typing import Optional
 from math import sqrt
@@ -53,13 +54,21 @@ class RebarCalculator:
         if (self.tensioned_rebar_area + self.compressed_rebar_area) > self.max_rebar_area:
             raise ValueError('Required rebar area exceeds maximum allowable limit.')
 
+    #FIXME this is failing the tests
     @property
     def min_tension_rebar_area(self) -> float:
         """
         Minimum tension rebar area (cm²), according to ABNT NBR 6118 - Section 17.3.5.2.1
-        """
+        """ 
         # apenas para armadura de tração
-        pass  # IMPLEMENT
+        md_min = min_design_bending_moment(self.beam, self.max_y) # kN.cm
+        calculator = RebarCalculator(self.beam, 0)
+        calculator.design_bending_moment = md_min
+        calculator.d = self.d # cm
+        calculated_min = calculator.as1 # cm^2
+        absolute_min = 0.15/100 * self.beam.width * self.beam.height
+        RebarCalculator.logger(f"Calculated minimum tension rebar area: {calculated_min:.4f} cm², Absolute minimum tension rebar area: {absolute_min:.4f} cm²")
+        return max(calculated_min, absolute_min)
 
     @property
     def max_rebar_area(self) -> float:
@@ -159,7 +168,7 @@ class RebarCalculator:
         """
         Calculates the actual depth of the equivalent rectangular stress block (y) (cm) for the current effective depth and design bending moment. Based on equilibrium of internal forces and moment.
         """
-        d = self.d() # cm
+        d = self.d # cm
         uniform_stress = self.beam.concrete.calculate_uniform_stress() # kN/cm²
         bw = self.beam.width # cm
         return d - sqrt(d**2 - (2 * self.design_bending_moment)/(uniform_stress * bw))

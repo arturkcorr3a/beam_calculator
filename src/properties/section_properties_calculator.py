@@ -6,13 +6,20 @@ class SectionPropertiesCalculator:
     @staticmethod
     def moment_of_inertia(width: int, height: int) -> float:
         """
-        Calculates moment of inertia for rectangular section (cm, cm -> cm⁴).
+        Calculates moment of inertia (I) for rectangular section (cm, cm -> cm⁴).
         """
         return (width * height**3) / 12
 
     @staticmethod
     def cross_sectional_area(width: int, height: int) -> float:
         """
-        Calculates cross-sectional area for rectangular section (cm, cm -> cm²).
+        Calculates cross-sectional area (A) for rectangular section (cm, cm -> cm²).
         """
         return width * height
+    
+    @staticmethod
+    def gross_section_modulus(width: int, height: int) -> float:
+        """
+        Calculates the gross section modulus (W_0) for rectangular section (cm, cm -> cm³).
+        """ # CONFIRM if the distance from neutral line to de edge is h/2 or y_max
+        return (width * height**2) / 6.0

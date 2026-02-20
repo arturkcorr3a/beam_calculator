@@ -32,11 +32,10 @@ def test_max_bending_moment(calculator: RebarCalculator):
     assert pytest.approx(expected_max_bending_moment) == pytest.approx(actual_max_bending_moment), "Calculated max bending moment should match the expected value of 28103.04 cm"
 
 def test_min_tension_rebar_area(calculator: RebarCalculator):
-    # expected_min_tension__rebararea = 1.8 # cm^2
-    # actual_min_area = calculator.min_tension_rebar_area
-    # assert pytest.approx(expected_min_tension__rebararea) == pytest.approx(actual_min_area), "Min tension rebar area for 20x60 cm beam should be 1.8 cm^2"
-    # IMPLEMENT may be the commented values, but should check
-    pass
+    expected_min_tension__rebararea = 1.7999999999999998
+ # cm^2
+    actual_min_area = calculator.min_tension_rebar_area
+    assert pytest.approx(expected_min_tension__rebararea) == pytest.approx(actual_min_area), "Min tension rebar area for 20x60 cm beam should be 1.7999999999999998 cm^2"
 
 def test_max_rebar_area(calculator: RebarCalculator):
     expected_max_area = 48 # cm^2

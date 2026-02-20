@@ -49,3 +49,14 @@ def test_epsilon_cu(concrete_fck_25: Concrete):
     expected_epsilon_cu = 3.5 / 1_000
     assert concrete_fck_25.epsilon_cu == pytest.approx(expected_epsilon_cu), "For concrete with fck 25 MPa, epsilon_cu should be 0.0035"
     
+def test_fct_m(concrete_fck_25: Concrete):
+    expected_fct_m = 0.25649639200150454
+    assert concrete_fck_25.fct_m == pytest.approx(expected_fct_m), "For concrete with fck 25 MPa, fct_m should be 0.25649639200150454 kN/cm²"
+
+def test_fctk_sup(concrete_fck_25: Concrete):
+    expected_fctk_sup = 0.3334453096019559
+    assert concrete_fck_25.fctk_sup == pytest.approx(expected_fctk_sup), "For concrete with fck 25 MPa, fctk_sup should be 0.3334453096019559 kN/cm²"
+
+def test_fctk_inf(concrete_fck_25: Concrete):
+    expected_fctk_inf = 0.17954747440105318
+    assert concrete_fck_25.fctk_inf == pytest.approx(expected_fctk_inf), "For concrete with fck 25 MPa, fctk_inf should be 0.17954747440105318 kN/cm²"
