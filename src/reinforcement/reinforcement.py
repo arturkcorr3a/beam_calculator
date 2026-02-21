@@ -17,7 +17,6 @@ class Reinforcement:
         # IMPLEMENT
         pass
 
-
     @property
     def horizontal_spacing(self) -> float:
         # IMPLEMENT
@@ -29,6 +28,9 @@ class Reinforcement:
         pass
 
     def get_distance_for_d_calculation(self) -> float:
+        """
+        Returns the centroid for the reinforcement relative to itself (cm)
+        """
         weighted_centroids = 0
         weights = 0
         for index, layer in enumerate(self.chosen_bars):
@@ -36,9 +38,12 @@ class Reinforcement:
                 layer_centroid, layer_weight = self.get_layer_absolute_centroid_with_weight(index)
                 weighted_centroids += layer_centroid * layer_weight
                 weights += layer_weight
-        return weighted_centroids / weights if weights != 0 else 0
+        return (weighted_centroids / weights) / 10 if weights != 0 else 0
 
     def get_layer_absolute_centroid_with_weight(self, layer: int) -> Tuple[float, float]:
+        """
+        Returns the absolute centroid for each layer, considering the spacing and previous layers
+        """
         layer_centroid, layer_weigth = self.get_layer_relative_centroid_with_weight(layer)
         match layer:
             case 0:
@@ -61,9 +66,7 @@ class Reinforcement:
         weighted_centroids = 0
         weights = 0
         for bar in layer:
-            weighted_centroids += self.get_bar_area(bar) * (bar / 2)
-            weights += self.get_bar_area(bar)
+            weighted_centroids += self.steel.get_area(bar) * (bar / 2)
+            weights += self.steel.get_area(bar)
         return (weighted_centroids / weights, weights) if weights != 0 else (0,0)
             
-    def get_bar_area(self, diameter: float) -> float:
-        return self.steel.get_area(diameter)
