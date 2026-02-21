@@ -1,7 +1,7 @@
 from enum import Enum
 from math import sqrt, cbrt, log
 
-GAMMA_C = 1.4  # CONFIRM Partial safety factor for concrete 
+GAMMA_C = 1.4  # ABNT NBR 6118 - Section 12.4.1
 
 class Concrete(Enum):
     """

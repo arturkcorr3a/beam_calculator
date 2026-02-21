@@ -1,8 +1,10 @@
 from enum import Enum
 from typing import List
+from functools import cached_property
 
-GAMMA_S = 1.15  # CONFIRM Partial safety factor for steel
+GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
 
+# CONFIRM posso limitar somente ao CA-50, já que o CA-25 é praticamente obsoleto e o CA-60 é classificado como fio e não barra?
 class Steel(Enum):
     """
     Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.
@@ -21,17 +23,62 @@ class Steel(Enum):
     @property
     def fyd(self) -> float:
         """
-        The design strength of steel (fyd) in kN/cm², based on ABNT NBR 6118 - Section ? 
-        """ # CONFIRM section - it does not seem to be in 6118:2023
+        The design strength of steel (fyd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.1 
+        """
         return self.value / GAMMA_S
     
-    # CONFIRM these sizes, they are probably wrong
-    def available_sizes(self) -> List[int]:
-        match self.name:
+    @cached_property
+    def available_sizes(self) -> List[float]:
+        """
+        Returns a list of available rebar sizes (diameters in mm) for the given steel type, based on ABNT NBR 7480.
+        """
+        match self:
             case Steel.CA25:
-                return [5, 8, 10, 12.5, 16, 20, 25, 32, 40]
+                return [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
+            case Steel.CA50:
+                return [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
             case Steel.CA60:
-                return [5, 8, 10, 12.5, 16, 20, 25, 32, 40]
-            case Steel.CA60:
-                return [5, 8, 10, 12.5, 16, 20, 25, 32, 40]
+                return [3.4, 3.8, 4.2, 4.6, 5.0, 5.5, 6.0, 6.4, 7.0, 8.0, 9.5, 10.0]
         return []
+    
+    def is_size_available(self, diameter: float) -> bool:
+        """
+        Checks if a given rebar diameter (in mm) is available for the steel type.
+        """
+        return diameter in self.available_sizes
+    
+    def get_area(self, diameter: float) -> float:
+        """
+        Returns the cross-sectional area (in cm²) of a rebar with the given diameter (in mm), based on ABNT NBR 7480.
+        """
+        bar_areas = {
+            6.3: 31.2,
+            8.0: 50.3,
+            10.0: 78.5,
+            12.5: 122.7,
+            16.0: 201.1,
+            20.0: 314.2,
+            22.0: 380.1,
+            25.0: 490.9,
+            32.0: 804.2,
+            40.0: 1256.6
+        }
+        wire_areas = {
+            3.4: 9.1,
+            3.8: 11.3,
+            4.2: 13.9,
+            4.6: 16.6,
+            5.0: 19.6,
+            5.5: 23.8,
+            6.0: 28.3,
+            6.4: 32.2,
+            7.0: 38.5,
+            8.0: 50.3,
+            9.5: 70.9,
+            10.0: 78.5
+        }
+        if not self.is_size_available(diameter):
+            raise ValueError(f"Diameter {diameter} mm is not available for steel type {self.name}.")
+        if self == Steel.CA25 or self == Steel.CA50:
+            return bar_areas[diameter]
+        return wire_areas[diameter]

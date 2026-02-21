@@ -6,7 +6,6 @@ from typing import Optional
 from math import sqrt
 from functools import cached_property
 
-# FIXME review how many times each method/property is called to evaluate propper use of cached or calculated properties
 class RebarCalculator:
     """
     Class responsible for calculating the required rebar area for a rectangular beam.
@@ -26,6 +25,7 @@ class RebarCalculator:
         self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
         self.tensioned_reinforcement: Optional[Reinforcement] = None
         self.compressed_reinforcement: Optional[Reinforcement] = None
+        # TODO add stirrups
 
     def update_bending_moment(self, bending_moment: float) -> None:
         """
@@ -54,7 +54,6 @@ class RebarCalculator:
         if (self.tensioned_rebar_area + self.compressed_rebar_area) > self.max_rebar_area:
             raise ValueError('Required rebar area exceeds maximum allowable limit.')
 
-    #FIXME this is failing the tests
     @property
     def min_tension_rebar_area(self) -> float:
         """
@@ -67,7 +66,6 @@ class RebarCalculator:
         calculator.d = self.d # cm
         calculated_min = calculator.as1 # cm^2
         absolute_min = 0.15/100 * self.beam.width * self.beam.height
-        RebarCalculator.logger(f"Calculated minimum tension rebar area: {calculated_min:.4f} cm², Absolute minimum tension rebar area: {absolute_min:.4f} cm²")
         return max(calculated_min, absolute_min)
 
     @property
@@ -147,6 +145,7 @@ class RebarCalculator:
         """
         Calculates the effective depth (cm) of the beam, considering the nominal covering and reinforcements.
         """
+        # TODO include stirrup
         covering = self.beam.nominal_covering # cm
         if self.tensioned_reinforcement is None:
             return self.beam.height - covering - 1.25/2 # FIXME find heuristic for first guess
@@ -186,10 +185,11 @@ class RebarCalculator:
         """
         Calculates the distance (cm) from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
+        # TODO include stirrup
         covering = self.beam.nominal_covering # cm
         if self.tensioned_reinforcement is None:
             return covering + 1.25/2 # FIXME find heuristic for first guess
-        return covering + self.tensioned_reinforcement.get_distance_for_compressed_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+        return covering + self.compressed_reinforcement.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
     
     def calculate_sigma_s2(self) -> float:
         """
