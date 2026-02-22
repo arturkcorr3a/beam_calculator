@@ -2,30 +2,56 @@ from typing import List, Tuple
 from math import pi
 from src.properties.steel import Steel
 
+MAX_AGGREGATE_SIZE = 2.5 # CONFIRM value for this, its a random value for now, but it should be based on a solid reference
+
 class Reinforcement:
     """
     Defines the longitudinal reinforcement, by layer.
     """
-    def __init__(self, required_area: float, steel: Steel):
-        self.required_area = required_area
+    def __init__(self, steel: Steel):
         self.steel = steel
         self.chosen_bars: Tuple[List[float],List[float],List[float]] = ([], [], []) # list of chosen rebar sizes per layer
-        self.total_area = 0.0 # total area of the chosen rebars
+        self.is_chosen = False
+        self.choose()
+
+    def set_required_area(self, required_area: float) -> None:
+        self.required_area = required_area
         self.choose()
 
     def choose(self) -> None:
         # IMPLEMENT
+        self.is_chosen = True
         pass
 
     @property
     def horizontal_spacing(self) -> float:
-        # IMPLEMENT
-        pass
+        """
+        The minimum horizontal spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
+        """
+        return max(self.max_bar, 2, 1.2*MAX_AGGREGATE_SIZE)
 
     @property
     def vertical_spacing(self) -> float:
-        # IMPLEMENT
-        pass
+        """
+        The minimum vertical spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
+        """
+        return max(self.max_bar, 2, 0.5*MAX_AGGREGATE_SIZE)
+
+    @property
+    def max_bar(self) -> float:
+        """Returns the maximum diameter of the chosen bars (cm)"""
+        return max([max(layer) for layer in self.chosen_bars if layer]) if any(self.chosen_bars) / 10 else 0.0
+
+    @property
+    def total_area(self) -> float:
+        """
+        Returns the total area of the chosen reinforcement (cm²)
+        """
+        total_area = 0
+        for layer in self.chosen_bars:
+            for bar in layer:
+                total_area += self.steel.get_area(bar)
+        return total_area
 
     def get_distance_for_d_calculation(self) -> float:
         """

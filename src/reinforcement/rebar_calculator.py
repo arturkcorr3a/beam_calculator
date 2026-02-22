@@ -23,8 +23,8 @@ class RebarCalculator:
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
         self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
-        self.tensioned_reinforcement: Optional[Reinforcement] = None
-        self.compressed_reinforcement: Optional[Reinforcement] = None
+        self.tensioned_reinforcement = Reinforcement(self.beam.steel)
+        self.compressed_reinforcement = Reinforcement(self.beam.steel)
         # TODO add stirrups
 
     def update_bending_moment(self, bending_moment: float) -> None:
@@ -36,15 +36,35 @@ class RebarCalculator:
         """
         bending_moment_in_kncm = bending_moment * 100
         self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
-        del self.max_bending_moment
+        self.cleanup()
+
+    def cleanup(self) -> None:
+        """
+        Clears all cached properties to reset the internal state.
+        This is useful when updating beam or bending moment properties.
+        """
+        cached_properties = [
+            'tensioned_rebar_area',
+            'compressed_rebar_area',
+            'as1',
+            'max_y',
+            'd',
+            'd_compressed',
+            'corrected_sigma_s2'
+        ]
+        for prop in cached_properties:
+            if hasattr(self, prop):
+                delattr(self, prop)
 
     def calculate(self) -> None:
-        self.calculate_and_set_required_reinforcement()
-        self.tensioned_reinforcement = Reinforcement(self.tensioned_rebar_area, self.beam.steel)
-        if not self.is_singly_reinforced:
-            self.compressed_reinforcement = Reinforcement(self.compressed_rebar_area, self.beam.steel)
-        # TODO recalculate with effective d and d' from chosen rebars
-            # iteractive calculation
+        current_d = 0.0
+        while abs(current_d - self.d) > 0.1:
+            current_d = self.d
+            self.cleanup()
+            self.calculate_and_set_required_reinforcement()
+            self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
+            if not self.is_singly_reinforced:
+                self.compressed_reinforcement.set_required_area(self.compressed_rebar_area)
         
     def calculate_and_set_required_reinforcement(self) -> None:
         """
@@ -59,7 +79,6 @@ class RebarCalculator:
         """
         Minimum tension rebar area (cm²), according to ABNT NBR 6118 - Section 17.3.5.2.1
         """ 
-        # apenas para armadura de tração
         md_min = min_design_bending_moment(self.beam, self.max_y) # kN.cm
         calculator = RebarCalculator(self.beam, 0)
         calculator.design_bending_moment = md_min
@@ -147,7 +166,7 @@ class RebarCalculator:
         """
         # TODO include stirrup
         covering = self.beam.nominal_covering # cm
-        if self.tensioned_reinforcement is None:
+        if self.tensioned_reinforcement.is_chosen:
             return self.beam.height - covering - 1.25/2 # FIXME find heuristic for first guess
         return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
     
@@ -187,7 +206,7 @@ class RebarCalculator:
         """
         # TODO include stirrup
         covering = self.beam.nominal_covering # cm
-        if self.tensioned_reinforcement is None:
+        if self.tensioned_reinforcement.is_chosen:
             return covering + 1.25/2 # FIXME find heuristic for first guess
         return covering + self.compressed_reinforcement.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
     

@@ -80,5 +80,5 @@ class Steel(Enum):
         if not self.is_size_available(diameter):
             raise ValueError(f"Diameter {diameter} mm is not available for steel type {self.name}.")
         if self == Steel.CA25 or self == Steel.CA50:
-            return bar_areas[diameter]
-        return wire_areas[diameter]
+            return bar_areas[diameter] / 100  # convert from mm² to cm²
+        return wire_areas[diameter] / 100 # convert from mm² to cm²
