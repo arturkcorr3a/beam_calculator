@@ -1,6 +1,7 @@
 from typing import List, Tuple
-from math import pi
-from src.properties.steel import Steel
+from math import ceil
+from src.beam.rectangular_beam import RectangularBeam
+from collections import Counter
 
 MAX_AGGREGATE_SIZE = 2.5 # CONFIRM value for this, its a random value for now, but it should be based on a solid reference
 
@@ -8,8 +9,9 @@ class Reinforcement:
     """
     Defines the longitudinal reinforcement, by layer.
     """
-    def __init__(self, steel: Steel):
-        self.steel = steel
+    def __init__(self, beam: RectangularBeam):
+        self.beam = beam
+        self.steel = beam.steel
         self.chosen_bars: Tuple[List[float],List[float],List[float]] = ([], [], []) # list of chosen rebar sizes per layer
         self.is_chosen = False
         self.choose()
@@ -19,39 +21,24 @@ class Reinforcement:
         self.choose()
 
     def choose(self) -> None:
-        # IMPLEMENT
+        optimal_reinforcement = self.choose_optimal_reinforcement()
+        self.distribute_bars_in_layers(optimal_reinforcement)
         self.is_chosen = True
-        pass
 
-    @property
-    def horizontal_spacing(self) -> float:
+    def calculate_necessary_bars(self, diameter: float) -> int:
+        return ceil(self.required_area / self.steel.get_area(diameter))
+
+    def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """
         The minimum horizontal spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(self.max_bar, 2, 1.2*MAX_AGGREGATE_SIZE)
-
-    @property
-    def vertical_spacing(self) -> float:
+        return max(bar_diameter, 2, 1.2*MAX_AGGREGATE_SIZE)
+    
+    def get_vertical_spacing(self, bar_diameter: float) -> float:
         """
         The minimum vertical spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(self.max_bar, 2, 0.5*MAX_AGGREGATE_SIZE)
-
-    @property
-    def max_bar(self) -> float:
-        """Returns the maximum diameter of the chosen bars (cm)"""
-        return max([max(layer) for layer in self.chosen_bars if layer]) if any(self.chosen_bars) / 10 else 0.0
-
-    @property
-    def total_area(self) -> float:
-        """
-        Returns the total area of the chosen reinforcement (cm²)
-        """
-        total_area = 0
-        for layer in self.chosen_bars:
-            for bar in layer:
-                total_area += self.steel.get_area(bar)
-        return total_area
+        return max(bar_diameter, 2, 0.5*MAX_AGGREGATE_SIZE)
 
     def get_distance_for_d_calculation(self) -> float:
         """
@@ -75,9 +62,9 @@ class Reinforcement:
             case 0:
                 return layer_centroid, layer_weigth
             case 1:
-                return (layer_centroid + self.vertical_spacing + max(self.chosen_bars[0])), layer_weigth
+                return (layer_centroid + self.get_vertical_spacing + max(self.chosen_bars[0])), layer_weigth
             case 2:
-                return (layer_centroid + 2 * self.vertical_spacing + max(self.chosen_bars[0]) + max(self.chosen_bars[1])), layer_weigth
+                return (layer_centroid + 2 * self.get_vertical_spacing + max(self.chosen_bars[0]) + max(self.chosen_bars[1])), layer_weigth
             case _:
                 raise ValueError("Layer index must be between 0 and 2.")
 
@@ -95,4 +82,101 @@ class Reinforcement:
             weighted_centroids += self.steel.get_area(bar) * (bar / 2)
             weights += self.steel.get_area(bar)
         return (weighted_centroids / weights, weights) if weights != 0 else (0,0)
+
+
+    def choose_optimal_reinforcement(self, max_bar_types: int = 2, min_bars: int = 2) -> List[float]:
+        # TODO achar uma referência disso para colocar no trabalho? (do problema da moeda)
+        """
+        Optimizes the reinforcement selection using dynamic programming (based on the coin change problem).
+        Finds the combination with minimum number of bars that meets the required area,
+        limiting the number of different bar types for practical construction.
+        
+        Args:
+            max_bar_types: Maximum number of different bar diameters allowed (default: 2)
+            min_bars: Minimum number of bars required (default: 2)
             
+        Returns:
+            List of chosen bar diameters
+        """
+        # Support functions
+        def initialize_dp_table() -> Tuple[List, int, int]:
+            """Initialize the dynamic programming table for reinforcement optimization."""
+            target_area_int = int(self.required_area * 100)
+            max_bar_area_int = int(max(self.steel.get_area(d) for d in self.steel.available_sizes) * 100)
+            limit = target_area_int + max_bar_area_int
+            
+            dp = [None] * (limit + 1)
+            dp[0] = []
+            return dp, target_area_int, limit
+
+        def is_valid_combination(combination: List[float], max_bar_types: int, min_bars: int) -> bool:
+            """Check if a bar combination meets the diversity and minimum requirements."""
+            has_enough_bars = len(combination) >= min_bars
+            has_allowable_bar_types = len(set(combination)) <= max_bar_types
+            return has_enough_bars and has_allowable_bar_types
+
+        def should_update_dp(dp: List, index: int, new_combination: List[float]) -> bool:
+            """Determine if the new combination is better than the existing one."""
+            if dp[index] is None:
+             return True 
+            
+            # Prefer combinations with fewer bars
+            if len(new_combination) < len(dp[index]):
+              return True
+            
+            # For same number of bars, prefer symmetrical arrangements
+            return Reinforcement.is_symmetrical(new_combination)
+
+        def find_optimal_solution(dp: List, target_area_int: int, limit: int) -> List[float]:
+            """Find the first valid result that meets or exceeds the required area."""
+            for i in range(target_area_int, limit + 1):
+                if dp[i] is not None and Reinforcement.is_symmetrical(dp[i]):
+                    return sorted(dp[i], reverse=True)
+            raise ValueError("No valid reinforcement combination found within the limit.")
+        
+        # Actual function logic
+        dp, target_area_int, limit = initialize_dp_table()
+        
+        for i in range(limit):
+            if dp[i] is not None:
+                for diameter in self.steel.available_sizes:
+                    area_int = int(self.steel.get_area(diameter) * 100)
+                    new_index = i + area_int
+                    
+                    if new_index <= limit:
+                        new_combination = dp[i] + [diameter]
+                        
+                        if is_valid_combination(new_combination, max_bar_types, min_bars):
+                            if should_update_dp(dp, new_index, new_combination):
+                                dp[new_index] = new_combination
+        
+        return find_optimal_solution(dp, target_area_int, limit)
+    
+    def distribute_bars_in_layers(self, optimal_reinforcement: List[float]) -> None:
+        fits_in_one_layer = self.check_for_enough_space(optimal_reinforcement)
+        if fits_in_one_layer:
+            self.chosen_bars = (optimal_reinforcement, [], [])
+        # IMPLEMENT se não der em uma camada, distribuir, tentando manter a simetria
+
+    def check_for_enough_space(self, optimal_reinforcement: List[float]) -> bool:
+        max_diameter = max(optimal_reinforcement)
+        required_spacing = self.get_horizontal_spacing(max_diameter)
+
+        total_bar_width = sum(optimal_reinforcement)
+        total_spacing = (len(optimal_reinforcement) - 1) * required_spacing
+        total_width_needed = total_bar_width + total_spacing
+
+        available_width = self.beam.width - 2 * self.beam.nominal_covering
+        return total_width_needed <= available_width
+
+    @staticmethod
+    def is_symmetrical(combination: List[float]) -> bool:
+        """Check if a bar combination can be arranged symmetrically."""
+        if len(combination) % 2 == 0:
+            # Even number of bars - check if counts are even for each diameter
+            counts = Counter(combination)
+            return all(count % 2 == 0 for count in counts.values())
+        # Odd number of bars - one diameter can have odd count (will be centered)
+        counts = Counter(combination)
+        odd_counts = sum(1 for count in counts.values() if count % 2 != 0)
+        return odd_counts <= 1
