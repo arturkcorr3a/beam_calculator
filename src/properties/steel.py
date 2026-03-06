@@ -5,6 +5,7 @@ from functools import cached_property
 GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
 
 # CONFIRM posso limitar somente ao CA-50, já que o CA-25 é praticamente obsoleto e o CA-60 é classificado como fio e não barra?
+# CONFIRM posso limitar a barras mais convencionais?
 class Steel(Enum):
     """
     Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.
@@ -82,3 +83,5 @@ class Steel(Enum):
         if self == Steel.CA25 or self == Steel.CA50:
             return bar_areas[diameter] / 100  # convert from mm² to cm²
         return wire_areas[diameter] / 100 # convert from mm² to cm²
+    
+    

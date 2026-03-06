@@ -167,8 +167,8 @@ class RebarCalculator:
         # TODO include stirrup
         covering = self.beam.nominal_covering # cm
         if self.tensioned_reinforcement.is_chosen:
-            return self.beam.height - covering - 1.25/2 # FIXME find heuristic for first guess
-        return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+            return self.beam.height - covering - 1.25/2 # FIXME find heuristic for first guess -> usar valores máximos para garantir que o d seja o menor possível, e depois ir aumentando se necessário para otimizar
+        return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation()
     
     @property
     def max_bending_moment(self) -> float:
