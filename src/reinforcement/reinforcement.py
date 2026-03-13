@@ -7,7 +7,6 @@ MAX_AGGREGATE_SIZE = 2.5 # CONFIRM valor e referência disso, para colocar no #P
 MAX_BAR_TYPES = 3
 MAX_LAYERS = 3
 
-# TODO guardar várias opções de reforço escolhido
 class Reinforcement:
     """
     Defines the longitudinal reinforcement, by layer.
@@ -17,18 +16,26 @@ class Reinforcement:
         self.steel = beam.steel
         self.chosen_bars: List[List[float]] = [[] for _ in range(MAX_LAYERS)] # list of chosen rebar sizes per layer
         self.is_chosen = False
+        self.rebar_choice_options = []
 
     def set_required_area(self, required_area: float) -> None:
         self.required_area = required_area
         self.choose()
 
     def choose(self) -> None:
-        # FIXME quando tiver várias opções, fazer while com try-catch dentro para pegar os erros
         if self.required_area is None:
             raise ValueError("Required area must be set before choosing reinforcement.")
-        optimal_reinforcement = self.choose_optimal_reinforcement()
-        self.distribute_bars_in_layers(optimal_reinforcement)
-        # TODO fazer uma outra função que organiza as barras da camada, mantendo simetrico
+        self.choose_optimal_reinforcement_options()
+        for optimal_reinforcement in self.rebar_choice_options:
+            try:
+                self.distribute_bars_in_layers(optimal_reinforcement)
+                self.arrange_bars()
+                break
+            except ValueError:
+                optimal_reinforcement = self.rebar_choice_options.pop(0)
+            self.distribute_bars_in_layers(optimal_reinforcement)
+        if len(self.chosen_bars[0]) == 0:
+            raise ValueError("No valid reinforcement combination found.")
         self.is_chosen = True
 
     def calculate_necessary_bars(self, diameter: float) -> int:
@@ -90,7 +97,7 @@ class Reinforcement:
         return (weighted_centroids / weights, weights) if weights != 0 else (0,0)
 
     # REFACTOR tirar essa função para outra classe, por organização?
-    def choose_optimal_reinforcement(self, max_bar_types: int = MAX_BAR_TYPES, min_bars: int = 2) -> List[float]:
+    def choose_optimal_reinforcement_options(self, max_bar_types: int = MAX_BAR_TYPES, min_bars: int = 2) -> None:
         # PAPER achar uma referência disso para colocar no trabalho? (do problema da moeda)
         """
         Optimizes the reinforcement selection using dynamic programming (based on the coin change problem).
@@ -102,7 +109,7 @@ class Reinforcement:
             min_bars: Minimum number of bars required (default: 2)
             
         Returns:
-            List of chosen bar diameters
+            Nothing, but updates self.rebar_choice_options with the optimal combinations found.
         """
         # Support functions
         def initialize_dp_table() -> Tuple[List, int, int]:
@@ -124,7 +131,7 @@ class Reinforcement:
         def should_update_dp(dp: List, index: int, new_combination: List[float]) -> bool:
             """Determine if the new combination is better than the existing one."""
             # TODO adicionar preferência para combinações que não usem diâmetro de 40 (é muito pouco usual)
-            # PAPER comentar isso no trabalho
+            # PAPER comentar isso no trabalho (preferência para combinações que não usem diâmetro de 40 (é muito pouco usual))
             if dp[index] is None:
              return True 
             
@@ -135,12 +142,15 @@ class Reinforcement:
             # For same number of bars, prefer symmetrical arrangements
             return Reinforcement.is_symmetrical(new_combination)
 
-        def find_optimal_solution(dp: List, target_area_int: int, limit: int) -> List[float]:
-            """Find the first valid result that meets or exceeds the required area."""
+        def find_optimal_solutions(dp: List, target_area_int: int, limit: int) -> None:
+            """Find the first 10 valid results that meets or exceeds the required area. Saves them in self.rebar_choice_options.and returns the best one."""
             for i in range(target_area_int, limit + 1):
                 if dp[i] is not None and Reinforcement.is_symmetrical(dp[i]):
-                    return sorted(dp[i], reverse=True)
-            raise ValueError("No valid reinforcement combination found within the limit.")
+                    self.rebar_choice_options.append(sorted(dp[i], reverse=True))
+                    if len(self.rebar_choice_options) == 10:
+                         return None
+            if len(self.rebar_choice_options) == 0:
+                raise ValueError("No valid reinforcement combination found within the limit.")
         
         # Actual function logic
         dp, target_area_int, limit = initialize_dp_table()
@@ -158,9 +168,10 @@ class Reinforcement:
                             if should_update_dp(dp, new_index, new_combination):
                                 dp[new_index] = new_combination
         
-        return find_optimal_solution(dp, target_area_int, limit)
+        return find_optimal_solutions(dp, target_area_int, limit)
     
     def distribute_bars_in_layers(self, optimal_reinforcement: List[float]) -> None:
+        # TODO docstring
         # REFACTOR organizar melhor esse código com funções auxiliares
         if self.check_for_enough_space(optimal_reinforcement):
             self.chosen_bars = (optimal_reinforcement, [], [])
@@ -177,6 +188,7 @@ class Reinforcement:
             else:
                 while count > 0:
                     if current_layer >= MAX_LAYERS:
+                        self.clear_chosen_bars()
                         raise ValueError("Cannot distribute bars within the maximum number of layers.")
                     if self.check_for_enough_space(self.chosen_bars[current_layer] + [diameter]): 
                         self.chosen_bars[current_layer].append(diameter)
@@ -184,7 +196,31 @@ class Reinforcement:
                     else:
                         current_layer += 1
 
+    def arrange_bars(self) -> None:
+        """
+        Arranges the bars for every layer to maintain symmetry and proper spacing, improving constructability.
+        This function should be called after distributing bars in layers, to ensure that the arrangement is optimized
+        """
+        for layer in self.chosen_bars:
+            self.arrange_bars_in_layer(layer)
+
+    def arrange_bars_in_layer(self, layer: int) -> None:
+        """
+        Arranges the bars within a specific layer to maintain symmetry and proper spacing.
+        """
+        # IMPLEMENT organizar as barras para melhorar construção
+        pass
+
+    def clear_chosen_bars(self) -> None:
+        """
+        Clears the chosen bars, resetting the state for a new attempt at distribution.
+        """
+        self.chosen_bars = [[] for _ in range(MAX_LAYERS)]
+
     def check_for_enough_space(self, optimal_reinforcement: List[float]) -> bool:
+        """
+        Checks if there is enough space for a reinforcement choice within a layer.
+        """
         max_diameter = max(optimal_reinforcement)
         required_spacing = self.get_horizontal_spacing(max_diameter)
 
