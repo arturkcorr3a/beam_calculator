@@ -6,6 +6,8 @@ GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
 
 # CONFIRM posso limitar somente ao CA-50, já que o CA-25 é praticamente obsoleto e o CA-60 é classificado como fio e não barra?
 # CONFIRM posso limitar a barras mais convencionais?
+# deixar padrão CA-50 p todo o calculo
+# pos deixr 40 junttmas nãapreferenciar
 class Steel(Enum):
     """
     Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.

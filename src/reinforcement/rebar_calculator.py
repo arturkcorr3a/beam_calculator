@@ -23,8 +23,8 @@ class RebarCalculator:
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
         self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
-        self.tensioned_reinforcement = Reinforcement(self.beam.steel)
-        self.compressed_reinforcement = Reinforcement(self.beam.steel)
+        self.tensioned_reinforcement = Reinforcement(self.beam)
+        self.compressed_reinforcement = Reinforcement(self.beam)
         # TODO add stirrups
 
     def update_bending_moment(self, bending_moment: float) -> None:
@@ -166,7 +166,7 @@ class RebarCalculator:
         """
         # TODO include stirrup
         covering = self.beam.nominal_covering # cm
-        if self.tensioned_reinforcement.is_chosen:
+        if not self.tensioned_reinforcement.is_chosen:
             return self.beam.height - covering - 1.25/2 # FIXME find heuristic for first guess -> usar valores máximos para garantir que o d seja o menor possível, e depois ir aumentando se necessário para otimizar
         return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation()
     

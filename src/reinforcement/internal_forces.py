@@ -1,7 +1,7 @@
 from src.beam.rectangular_beam import RectangularBeam
 from src.properties.section_properties_calculator import SectionPropertiesCalculator as SPC
 
-LOAD_FACTOR = 1.4 # CONFIRM
+LOAD_FACTOR = 1.4 # CONFIRM decidir se vai ser casos espeíficos ou se vaão ser dados de entrada com valor parão.
 
 def design_bending_moment(bending_moment: float) -> float:
     """

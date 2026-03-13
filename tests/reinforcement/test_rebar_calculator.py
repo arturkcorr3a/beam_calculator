@@ -1,13 +1,14 @@
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.beam.rectangular_beam import RectangularBeam
 import pytest
 from unittest.mock import Mock
 
 @pytest.fixture
 def calculator() -> RebarCalculator:
     # Create a stub RectangularBeam
-    beam = Mock()
+    beam = Mock(spec=RectangularBeam)
     beam.width = 20  # cm
     beam.height = 60  # cm
     beam.concrete = Concrete.C25
