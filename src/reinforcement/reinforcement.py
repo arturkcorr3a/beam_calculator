@@ -3,8 +3,11 @@ from math import ceil
 from src.beam.rectangular_beam import RectangularBeam
 from collections import Counter
 
-MAX_AGGREGATE_SIZE = 2.5 # CONFIRM value for this, its a random value for now, but it should be based on a solid reference
+MAX_AGGREGATE_SIZE = 2.5 # CONFIRM valor e referência disso, para colocar no #PAPER
+MAX_BAR_TYPES = 3
+MAX_LAYERS = 3
 
+# TODO guardar várias opções de reforço escolhido
 class Reinforcement:
     """
     Defines the longitudinal reinforcement, by layer.
@@ -12,17 +15,20 @@ class Reinforcement:
     def __init__(self, beam: RectangularBeam):
         self.beam = beam
         self.steel = beam.steel
-        self.chosen_bars: Tuple[List[float],List[float],List[float]] = ([], [], []) # list of chosen rebar sizes per layer
+        self.chosen_bars: List[List[float]] = [[] for _ in range(MAX_LAYERS)] # list of chosen rebar sizes per layer
         self.is_chosen = False
-        self.choose()
 
     def set_required_area(self, required_area: float) -> None:
         self.required_area = required_area
         self.choose()
 
     def choose(self) -> None:
+        # FIXME quando tiver várias opções, fazer while com try-catch dentro para pegar os erros
+        if self.required_area is None:
+            raise ValueError("Required area must be set before choosing reinforcement.")
         optimal_reinforcement = self.choose_optimal_reinforcement()
         self.distribute_bars_in_layers(optimal_reinforcement)
+        # TODO fazer uma outra função que organiza as barras da camada, mantendo simetrico
         self.is_chosen = True
 
     def calculate_necessary_bars(self, diameter: float) -> int:
@@ -83,9 +89,9 @@ class Reinforcement:
             weights += self.steel.get_area(bar)
         return (weighted_centroids / weights, weights) if weights != 0 else (0,0)
 
-
-    def choose_optimal_reinforcement(self, max_bar_types: int = 2, min_bars: int = 2) -> List[float]:
-        # TODO achar uma referência disso para colocar no trabalho? (do problema da moeda)
+    # REFACTOR tirar essa função para outra classe, por organização?
+    def choose_optimal_reinforcement(self, max_bar_types: int = MAX_BAR_TYPES, min_bars: int = 2) -> List[float]:
+        # PAPER achar uma referência disso para colocar no trabalho? (do problema da moeda)
         """
         Optimizes the reinforcement selection using dynamic programming (based on the coin change problem).
         Finds the combination with minimum number of bars that meets the required area,
@@ -117,6 +123,8 @@ class Reinforcement:
 
         def should_update_dp(dp: List, index: int, new_combination: List[float]) -> bool:
             """Determine if the new combination is better than the existing one."""
+            # TODO adicionar preferência para combinações que não usem diâmetro de 40 (é muito pouco usual)
+            # PAPER comentar isso no trabalho
             if dp[index] is None:
              return True 
             
@@ -153,10 +161,28 @@ class Reinforcement:
         return find_optimal_solution(dp, target_area_int, limit)
     
     def distribute_bars_in_layers(self, optimal_reinforcement: List[float]) -> None:
-        fits_in_one_layer = self.check_for_enough_space(optimal_reinforcement)
-        if fits_in_one_layer:
+        # REFACTOR organizar melhor esse código com funções auxiliares
+        if self.check_for_enough_space(optimal_reinforcement):
             self.chosen_bars = (optimal_reinforcement, [], [])
-        # IMPLEMENT se não der em uma camada, distribuir, tentando manter a simetria
+            return None
+
+        diameters_count = Counter(optimal_reinforcement)
+        diameters_sorted = sorted(diameters_count.items(), key=lambda x: x[0], reverse=True) # sort by diameter, larger first
+        current_layer = 0
+        for diameter, count in diameters_sorted:
+             # check if all bars of this diameter can fit in one layer
+            if self.check_for_enough_space(self.chosen_bars[current_layer] + [diameter] * count):
+                self.chosen_bars[current_layer].extend([diameter] * count)
+                current_layer += 1
+            else:
+                while count > 0:
+                    if current_layer >= MAX_LAYERS:
+                        raise ValueError("Cannot distribute bars within the maximum number of layers.")
+                    if self.check_for_enough_space(self.chosen_bars[current_layer] + [diameter]): 
+                        self.chosen_bars[current_layer].append(diameter)
+                        count -= 1
+                    else:
+                        current_layer += 1
 
     def check_for_enough_space(self, optimal_reinforcement: List[float]) -> bool:
         max_diameter = max(optimal_reinforcement)
@@ -169,6 +195,8 @@ class Reinforcement:
         available_width = self.beam.width - 2 * self.beam.nominal_covering
         return total_width_needed <= available_width
 
+    # REFACTOR se é estático e eu criar outra classe pra escolher, esse pode ir junto
+    # TODO reaproveitar isso na função de organizar as barras na camada, para manter simétrico
     @staticmethod
     def is_symmetrical(combination: List[float]) -> bool:
         """Check if a bar combination can be arranged symmetrically."""
