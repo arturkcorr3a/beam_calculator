@@ -25,7 +25,7 @@ class RebarCalculator:
         self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
         self.tensioned_reinforcement = Reinforcement(self.beam)
         self.compressed_reinforcement = Reinforcement(self.beam)
-        # TODO add stirrups
+        # TODO adicionar alguma referência ao estribo para os cálculos de altura útil d e d'
 
     def update_bending_moment(self, bending_moment: float) -> None:
         """
@@ -164,10 +164,11 @@ class RebarCalculator:
         """
         Calculates the effective depth (cm) of the beam, considering the nominal covering and reinforcements.
         """
-        # TODO include stirrup
+        # TODO incluir estribo no chute inicial
         covering = self.beam.nominal_covering # cm
         if not self.tensioned_reinforcement.is_chosen:
-            return self.beam.height - covering - 1.25/2 # FIXME find heuristic for first guess -> usar valores máximos para garantir que o d seja o menor possível, e depois ir aumentando se necessário para otimizar
+            # FIXME melhorar chute inicial: usar valores máximos para garantir que o d seja o menor possível, e depois ir aumentando se necessário para otimizar
+            return self.beam.height - covering - 1.25/2
         return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation()
     
     @property
@@ -204,11 +205,13 @@ class RebarCalculator:
         """
         Calculates the distance (cm) from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
-        # TODO include stirrup
+        # TODO incluir estribo no chute inicial
         covering = self.beam.nominal_covering # cm
         if self.tensioned_reinforcement.is_chosen:
-            return covering + 1.25/2 # FIXME find heuristic for first guess
-        return covering + self.compressed_reinforcement.get_distance_for_d_calculation() # CONFIRM if this makes sense after Reinforcement class full implementation
+            # FIXME melhorar chute inicial: usar valores máximos para garantir que o d seja o menor possível, e depois ir aumentando se necessário para otimizar
+            return covering + 1.25/2
+        return covering + self.compressed_reinforcement.get_distance_for_d_calculation()
+        # CONFIRM se não tem erros depois da implementação completa da classe Reinforcement
     
     def calculate_sigma_s2(self) -> float:
         """

@@ -12,5 +12,4 @@ class PillarSupport(Support):
             support_type: Type of support ('fixed', 'pinned', 'roller')
         """
         super().__init__(position, support_type)
-        # TODO set beam-pillar coherence
-        # IMPLEMENT define type and calculate spring constant
+        # TODO fazer a coerência pilar-viga (achar constante)

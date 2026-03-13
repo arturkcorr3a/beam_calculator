@@ -14,7 +14,7 @@ class RectangularBeamBuilder:
         self._loads = []
         self._supports = []
         
-    # TODO conferir na norma se existem constraints
+    # CONFIRM na norma se existem constraints da relação da seção (por exemplo, para não ser viga-parede)
     def set_cross_section(self, width: float, height: float):
         """Set the width and height of the beam's cross-section (cm)."""
         self._width = width

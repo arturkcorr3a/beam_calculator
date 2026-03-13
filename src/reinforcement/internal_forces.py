@@ -1,7 +1,9 @@
 from src.beam.rectangular_beam import RectangularBeam
 from src.properties.section_properties_calculator import SectionPropertiesCalculator as SPC
 
-LOAD_FACTOR = 1.4 # CONFIRM decidir se vai ser casos espeíficos ou se vaão ser dados de entrada com valor parão.
+# TODO adicionar seção da norma disso para o #PAPER
+# TODO trocar isso para lógica de escolha baseado na situação com #CAO gamma_f
+LOAD_FACTOR = 1.4 
 
 def design_bending_moment(bending_moment: float) -> float:
     """

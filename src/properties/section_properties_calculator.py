@@ -21,5 +21,6 @@ class SectionPropertiesCalculator:
     def gross_section_modulus(width: int, height: int) -> float:
         """
         Calculates the gross section modulus (W_0) for rectangular section (cm, cm -> cm³).
-        """ # CONFIRM if the distance from neutral line to de edge is h/2 or y_max
+        """ 
+        # CONFIRM se a distância da L.N. até a borda is h/2 or y_max (se é da Linha neutra real ou equivalente)
         return (width * height**2) / 6.0

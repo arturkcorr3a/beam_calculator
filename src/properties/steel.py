@@ -4,10 +4,7 @@ from functools import cached_property
 
 GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
 
-# CONFIRM posso limitar somente ao CA-50, já que o CA-25 é praticamente obsoleto e o CA-60 é classificado como fio e não barra?
-# CONFIRM posso limitar a barras mais convencionais?
-# deixar padrão CA-50 p todo o calculo
-# pos deixr 40 junttmas nãapreferenciar
+# TODO escolher um único aço para o dimensionamento: deixar o CA-50 como padrão e CA-25 e CA-60 como plano B (configuração adicional opcional) #CAO tipo aço
 class Steel(Enum):
     """
     Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.

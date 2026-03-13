@@ -7,17 +7,19 @@ from src.properties.section_properties_calculator import SectionPropertiesCalcul
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 
-# CONFIRM if these are all correct
-UNITS = {'length': 'cm', 
-        'force': 'kN',
-        'moment': 'Nm',
-        'distributed': 'N/m',
-        'stiffness': 'N/m', 
-        'A': 'cm2', 
-        'G': 'MPa', 
-        'E': 'MPa',
-        'I': 'cm4',
-        'deflection': 'm'}
+# CONFIRM se essas unidades estão certas
+UNITS = {
+    'length': 'cm', 
+    'force': 'kN',
+    'moment': 'Nm',
+    'distributed': 'N/m',
+    'stiffness': 'N/m', 
+    'A': 'cm2', 
+    'G': 'MPa', 
+    'E': 'MPa',
+    'I': 'cm4',
+    'deflection': 'm'
+}
 
 class RectangularBeam(Beam):
     """
@@ -53,11 +55,12 @@ class RectangularBeam(Beam):
         self.add_loads(loads)
         self.add_supports(supports)
 
-        self.update_units() # TODO test these to see if the units match (unit testing should do it)
+        self.update_units() 
         self.analyse()
 
-    # TODO extract bending moment to perform calculations
+    # TODO extrair o momento para cálculo do reforço
 
+    # TODO testar se as unidades estão funcionando normalmente e se estão coerentes
     def update_units(self) -> None:
         for key, unit in UNITS.items():
             super().update_units(key, unit)
