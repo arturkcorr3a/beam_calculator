@@ -4,6 +4,9 @@ from math import sin, cos, pi
 
 STIRRUP_ANGLE = pi/2  # 90 degrees, angle of stirrups with respect to beam axis (Model 1 from NBR 6118)
 
+# CONFIRM tamanho do vibrador convencional
+MIN_SPACING = 5.0  # cm, minimum stirrup spacing to ensure passage of the vibrator - NB 6118 - Section 18.3.3.2
+
 
 class StirrupCalculator:
     """Calculate required stirrup reinforcement for rectangular beams using Model 1 (NBR 6118 - Section 17.4)."""
@@ -17,7 +20,7 @@ class StirrupCalculator:
     def calculate(self) -> Tuple[float, float]:
         """Calculate required stirrup area and spacing for a given design shear force and effective depth."""
         self.verify_compressed_strut_resistance()
-        return self.required_stirrup_ratio  # cm²/cm
+        return self.required_ratio  # cm²/cm
     
     def verify_compressed_strut_resistance(self) -> None:
         """Verify that the design shear force does not exceed the compressed strut resistance (V_Rd2). NBR 6118 - Section 17.4.2.2."""
@@ -40,7 +43,7 @@ class StirrupCalculator:
         return 0.6 * fctd * bw * self.effective_depth  # kN
 
     @property
-    def required_stirrup_contribution(self) -> float:
+    def required_contribution(self) -> float:
         """Required shear resistance from stirrups (V_sw) in kN. NBR 6118 - Section 17.4.2.2."""
         vc = self.concrete_contribution  # kN
         
@@ -48,19 +51,25 @@ class StirrupCalculator:
         return max(vsw_required, 0)
 
     @property
-    def required_stirrup_ratio(self) -> float:
+    def required_ratio(self) -> float:
         """Required stirrup reinforcement ratio (A_sw/s) in cm²/cm. NBR 6118 - Section 17.4.2.2."""
-        vsw_required = self.required_stirrup_contribution  # kN
+        vsw_required = self.required_contribution  # kN
         fywd = self.beam.steel.fywd  # kN/cm²
         asw_s = vsw_required / (0.9 * self.effective_depth * fywd * (sin(STIRRUP_ANGLE) + cos(STIRRUP_ANGLE)))  # cm²/cm
-        asw_s_min = self.minimum_stirrup_ratio  # cm²/cm
+        asw_s_min = self.minimum_ratio  # cm²/cm
         return max(asw_s, asw_s_min)
 
     @property
-    def minimum_stirrup_ratio(self) -> float:
+    def minimum_ratio(self) -> float:
         """Minimum stirrup reinforcement ratio (A_sw_min/s) in cm²/cm. NBR 6118 - Section 17.4.1.1.1."""
         fct_m = self.beam.concrete.fct_m  # MPa
         fywk = self.beam.steel.fywk  # kN/cm²
         bw = self.beam.width  # cm
         return 0.2 * fct_m / fywk * bw * sin(STIRRUP_ANGLE)  # cm²/cm
-
+    
+    @property
+    def max_spacing(self) -> float:
+        """Calculate maximum stirrup spacing (s_max) in cm. NBR 6118 - Section 18.3.3.2"""
+        if self.design_shear_force <= 0.67*self.compressed_strut_resistance:
+            return min(0.6 * self.effective_depth, 30.0)  # cm
+        return min(0.3 * self.effective_depth, 30.0)  # cm
