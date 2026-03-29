@@ -142,3 +142,19 @@ class Concrete(Enum):
         The lower characteristic tensile strength of concrete (f_ctk_inf) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
         """
         return 0.7 * self.fct_m
+    
+    @property
+    def fctd(self) -> float:
+        """
+        The design tensile strength of concrete (fctd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.3.
+        Considers the lower characteristic tensile strength divided by the safety factor for concrete (gamma_c = 1.4).
+        """
+        return self.fctk_inf / GAMMA_C
+    
+    # CONFIRM o que é o alpha_v2 
+    @property
+    def alpha_v2(self) -> float:
+        """
+        The alpha_v2 factor for shear design of concrete, for stirrup calculation with model 1, based on ABNT NBR 6118 - Section 17.4.2.2.
+        """
+        return 1.0 - (self.value / 250)

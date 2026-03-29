@@ -171,7 +171,9 @@ class Reinforcement:
         return find_optimal_solutions(dp, target_area_int, limit)
     
     def distribute_bars_in_layers(self, optimal_reinforcement: List[float]) -> None:
-        # TODO docstring
+        """
+        Gets the optimal reinforcement combination chosen and distributes the bars in layers, ensuring that the spacing and constructability requirements are met.
+        """
         # REFACTOR organizar melhor esse código com funções auxiliares
         if self.check_for_enough_space(optimal_reinforcement):
             self.chosen_bars = (optimal_reinforcement, [], [])

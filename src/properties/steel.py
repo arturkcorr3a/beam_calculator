@@ -41,6 +41,20 @@ class Steel(Enum):
                 return [3.4, 3.8, 4.2, 4.6, 5.0, 5.5, 6.0, 6.4, 7.0, 8.0, 9.5, 10.0]
         return []
     
+    @property
+    def fywd(self) -> float:
+        """
+        The design strength of steel (fywd) in kN/cm², based on ABNT NBR 6118 - Section 17.4.2.2 
+        """
+        return min(self.fyd, 43.5)
+    
+    @property
+    def fywk(self) -> float:
+        """
+        The characteristic strength of steel (fywk) in kN/cm², based on ABNT NBR 6118 - Section 17.4.1.1.1
+        """
+        return min(self.value, 50)
+    
     def is_size_available(self, diameter: float) -> bool:
         """
         Checks if a given rebar diameter (in mm) is available for the steel type.
@@ -82,5 +96,3 @@ class Steel(Enum):
         if self == Steel.CA25 or self == Steel.CA50:
             return bar_areas[diameter] / 100  # convert from mm² to cm²
         return wire_areas[diameter] / 100 # convert from mm² to cm²
-    
-    
