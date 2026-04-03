@@ -5,7 +5,7 @@ from math import sin, cos, pi
 STIRRUP_ANGLE = pi/2  # 90 degrees, angle of stirrups with respect to beam axis (Model 1 from NBR 6118)
 
 # CONFIRM tamanho do vibrador convencional
-MIN_SPACING = 5.0  # cm, minimum stirrup spacing to ensure passage of the vibrator - NB 6118 - Section 18.3.3.2
+MIN_SPACING = 5.0  # cm, minimum stirrup spacing to ensure passage of the vibrator - NBR 6118 - Section 18.3.3.2
 
 
 class StirrupCalculator:

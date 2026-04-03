@@ -1,12 +1,15 @@
+from typing import Optional
+
 from src.beam.rectangular_beam import RectangularBeam
-from src.reinforcement.stirrup_calculator import MIN_SPACING, RectangularBeam
+from src.reinforcement.stirrup_calculator import MIN_SPACING, StirrupCalculator
+from math import pi
 
 MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 18..3.3.2)
 
 class Stirrups:
     """Class to manage stirrup reinforcement properties."""
     ''
-    def __init__(self, beam: RectangularBeam):
+    def __init__(self, beam: RectangularBeam, calculator: StirrupCalculator):
         """
         Initialize Stirrups.
         """
@@ -14,6 +17,7 @@ class Stirrups:
         self.spacing = None  # cm, to be calculated
         self.diameter = None  # cm, to be calculated
         self.steel = beam.steel  # Access steel properties from the beam
+        self.calculator = calculator  # Access stirrup calculation methods
     
     def set_required_ratio(self, required_ratio: float) -> None:
         """
@@ -28,10 +32,53 @@ class Stirrups:
         """
         return self.beam.width / 10 # cm
     
-    def choose(self) -> None:
+    def choose(self) -> tuple[float, float]:
         """
         Choose the diameter and spacing of stirrup bars based on the required reinforcement ratio, minimum spacing, and maximum diameter.
         """
-        # IMPLEMENT setar espaçamento máximo e escolher a bitola que atenda
-        # iterar diminuindo o espaçamento para encontrar o ratio mais próximo do necessário (otimização)
-        pass
+        options = []
+
+        spacing = self.calculator.max_spacing
+        diameter = self.pick_diameter_for_spacing(self.spacing)
+        if diameter is not None:
+            options.append((spacing, diameter))
+
+        while spacing > MIN_SPACING:
+            spacing -= 1
+            diameter = self.pick_diameter_for_spacing(spacing)
+            if diameter is not None:
+                options.append((spacing, diameter))
+
+        best_option = Stirrups._pick_best_option(options)
+        self.spacing, self.diameter = best_option
+        return best_option
+
+    @staticmethod
+    def _pick_best_option(options):
+            """
+            Choose the option with the best ratio
+            """
+            option_ratios = [(spacing, diameter,Stirrups.calculate_ratio(diameter, spacing)) for spacing, diameter in options]
+            option_ratios.sort(key=lambda x: x[2], reverse=True)  # Sort by ratio, descending
+            return option_ratios[0][:2]  # Return spacing and diameter of the best option
+
+    def pick_diameter_for_spacing(self, spacing: float) -> Optional[float]:
+        """
+        Pick the diameter (mm) of stirrup bars for a given spacing to meet the required reinforcement ratio.
+        """
+        for diameter in self.steel.available_sizes:
+            diameter = max(diameter, MIN_DIAMETER)  # Ensure diameter is at least the minimum
+            if diameter > self.max_diameter:
+                continue 
+            ratio = Stirrups.calculate_ratio(diameter, spacing)
+            if ratio >= self.required_ratio:
+                return diameter
+        return None
+    
+    @staticmethod
+    def calculate_ratio(diameter: float, spacing: float) -> float:
+        """
+        Calculate the reinforcement ratio (A_sw/s) for a given diameter (mm) and spacing (cm) of stirrup bars.
+        """
+        area = pi * (diameter/10 / 2)**2  # cm²
+        return 2 * area / spacing  # cm²/cm, factor 2 for two legs of the stirrup
