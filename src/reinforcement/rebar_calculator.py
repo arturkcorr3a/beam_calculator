@@ -1,5 +1,4 @@
 from src.beam.rectangular_beam import RectangularBeam
-from src.properties.section_properties_calculator import SectionPropertiesCalculator as section_calculator
 from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment, min_design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrups import Stirrups
@@ -205,13 +204,9 @@ class RebarCalculator:
         """
         Calculates the distance (cm) from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
-        # TODO incluir estribo no chute inicial
         covering = self.beam.nominal_covering # cm
-        if self.tensioned_reinforcement.is_chosen:
-            # FIXME melhorar chute inicial: usar valores máximos para garantir que o d seja o menor possível, e depois ir aumentando se necessário para otimizar
-            return covering + 1.25/2
-        return covering + self.compressed_reinforcement.get_distance_for_d_calculation()
-        # CONFIRM se não tem erros depois da implementação completa da classe Reinforcement
+        stirrup_diameter = self.stirrups.diameter if self.stirrups.diameter is not None else DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION # cm
+        return covering + stirrup_diameter + self.compressed_reinforcement.get_distance_for_d_calculation()
     
     def calculate_sigma_s2(self) -> float:
         """
