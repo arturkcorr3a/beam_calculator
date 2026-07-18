@@ -93,6 +93,6 @@ def test_tensioned_rebar_area(calculator: RebarCalculator):
 
 def test_calculate_and_set_required_reinforcement(calculator: RebarCalculator):
     expected_tensioned_rebar_area = 18.488886153846155 # cm^2
-    calculator.calculate_and_set_required_reinforcement()
+    calculator.calculate_and_set_required_tensioned_rebar_area()
     actual_tensioned_rebar_area = calculator.tensioned_rebar_area
     assert pytest.approx(expected_tensioned_rebar_area) == pytest.approx(actual_tensioned_rebar_area), "After calculating and setting required reinforcement, the total area of tension reinforcement (As) should be 18.488886153846155 cm^2 for the given properties and bending moment.\nAlso, it shouldn't throw any exceptions during the calculation and setting process."

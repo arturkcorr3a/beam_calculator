@@ -2,16 +2,19 @@ from src.beam.rectangular_beam import RectangularBeam
 from src.properties.section_properties_calculator import SectionPropertiesCalculator as section_calculator
 from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment, min_design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
-from typing import Optional
+from src.reinforcement.stirrups import Stirrups
 from math import sqrt
 from functools import cached_property
+
+# TODO encontrar uma referencia disso na bibliografia (apenas um chute inicial)
+DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = 1.0  # cm, default diameter of stirrup bars if not chosen (10 mm)
 
 class RebarCalculator:
     """
     Class responsible for calculating the required rebar area for a rectangular beam.
     """
     
-    def __init__(self, beam: RectangularBeam, bending_moment: float):
+    def __init__(self, beam: RectangularBeam, bending_moment: float, stirrups: Stirrups):
         """
         Initialize the RebarCalculator with a rectangular beam and its design bending moment.
         
@@ -25,7 +28,7 @@ class RebarCalculator:
         self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
         self.tensioned_reinforcement = Reinforcement(self.beam)
         self.compressed_reinforcement = Reinforcement(self.beam)
-        # TODO adicionar alguma referência ao estribo para os cálculos de altura útil d e d'
+        self.stirrups = stirrups
 
     def update_bending_moment(self, bending_moment: float) -> None:
         """
@@ -61,12 +64,12 @@ class RebarCalculator:
         while abs(current_d - self.d) > 0.1:
             current_d = self.d
             self.cleanup()
-            self.calculate_and_set_required_reinforcement()
+            self.calculate_and_set_required_tensioned_rebar_area()
             self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
             if not self.is_singly_reinforced:
                 self.compressed_reinforcement.set_required_area(self.compressed_rebar_area)
         
-    def calculate_and_set_required_reinforcement(self) -> None:
+    def calculate_and_set_required_tensioned_rebar_area(self) -> None:
         """
         Calculate the required rebar area for a rectangular beam, ensuring it falls within the allowable limits.
         """
@@ -164,12 +167,9 @@ class RebarCalculator:
         """
         Calculates the effective depth (cm) of the beam, considering the nominal covering and reinforcements.
         """
-        # TODO incluir estribo no chute inicial
         covering = self.beam.nominal_covering # cm
-        if not self.tensioned_reinforcement.is_chosen:
-            # FIXME melhorar chute inicial: usar valores máximos para garantir que o d seja o menor possível, e depois ir aumentando se necessário para otimizar
-            return self.beam.height - covering - 1.25/2
-        return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation()
+        stirrup_diameter = self.stirrups.diameter if self.stirrups.diameter is not None else DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION # cm
+        return self.beam.height - covering - self.tensioned_reinforcement.get_distance_for_d_calculation() - stirrup_diameter
     
     @property
     def max_bending_moment(self) -> float:

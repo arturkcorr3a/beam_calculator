@@ -7,6 +7,9 @@ MAX_AGGREGATE_SIZE = 2.5 # CONFIRM valor e referência disso, para colocar no #P
 MAX_BAR_TYPES = 3
 MAX_LAYERS = 3
 
+# TODO encontrar em alguma bibliografia um bom chute inicial para ter embasamento no trabalho e saber justificar
+DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0 # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen 
+
 class Reinforcement:
     """
     Defines the longitudinal reinforcement, by layer.
@@ -57,6 +60,8 @@ class Reinforcement:
         """
         Returns the centroid for the reinforcement relative to itself (cm)
         """
+        if not self.is_chosen:
+            return DEFAULT_DISTANCE_FOR_D_CALCULATION
         weighted_centroids = 0
         weights = 0
         for index, layer in enumerate(self.chosen_bars):
