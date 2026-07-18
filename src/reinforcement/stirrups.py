@@ -17,12 +17,7 @@ class Stirrups:
         self.diameter = None  # cm, to be calculated
         self.steel = beam.steel  # Access steel properties from the beam
         self.calculator = calculator  # Access stirrup calculation methods
-    
-    def set_required_ratio(self, required_ratio: float) -> None:
-        """
-        Set the required stirrup reinforcement ratio (A_sw/s) in cm²/cm.
-        """
-        self.required_ratio = required_ratio
+        self.required_ratio = None  # cm²/cm, to be calculated
 
     @property
     def max_diameter(self) -> float:
@@ -30,6 +25,14 @@ class Stirrups:
         Calculate the maximum diameter of stirrup bars (phi_max) in cm, based on the required reinforcement ratio and minimum spacing.
         """
         return self.beam.width / 10 # cm
+    
+    def calculate_and_choose(self, effective_depth: float) -> tuple[float, float]:
+        """
+        Calculate the required stirrup reinforcement ratio and choose the appropriate diameter and spacing of stirrup bars.
+        """
+        self.calculator.calculate(effective_depth)
+        self.required_ratio = self.calculator.required_ratio  # cm²/cm
+        return self.choose()  # Returns (spacing, diameter) in cm
     
     def choose(self) -> tuple[float, float]:
         """

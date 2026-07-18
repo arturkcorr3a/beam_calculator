@@ -67,6 +67,7 @@ class RebarCalculator:
             self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
             if not self.is_singly_reinforced:
                 self.compressed_reinforcement.set_required_area(self.compressed_rebar_area)
+            self.stirrups.calculate_and_choose(self.d)
         
     def calculate_and_set_required_tensioned_rebar_area(self) -> None:
         """

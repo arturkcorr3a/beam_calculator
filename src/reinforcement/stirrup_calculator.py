@@ -11,14 +11,15 @@ MIN_SPACING = 5.0  # cm, minimum stirrup spacing to ensure passage of the vibrat
 class StirrupCalculator:
     """Calculate required stirrup reinforcement for rectangular beams using Model 1 (NBR 6118 - Section 17.4)."""
 
-    def __init__(self, beam: RectangularBeam, effective_depth: float, design_shear_force: float):
+    def __init__(self, beam: RectangularBeam, design_shear_force: float):
         """Initialize with a rectangular beam."""
         self.beam = beam
-        self.effective_depth = effective_depth
+        self.effective_depth = None
         self.design_shear_force = design_shear_force
 
-    def calculate(self) -> Tuple[float, float]:
+    def calculate(self, effective_depth: float) -> Tuple[float, float]:
         """Calculate required stirrup area and spacing for a given design shear force and effective depth."""
+        self.effective_depth = effective_depth
         self.verify_compressed_strut_resistance()
         return self.required_ratio  # cm²/cm
     
