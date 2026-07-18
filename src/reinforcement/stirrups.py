@@ -8,7 +8,6 @@ MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 1
 
 class Stirrups:
     """Class to manage stirrup reinforcement properties."""
-    ''
     def __init__(self, beam: RectangularBeam, calculator: StirrupCalculator):
         """
         Initialize Stirrups.
@@ -55,12 +54,12 @@ class Stirrups:
 
     @staticmethod
     def _pick_best_option(options):
-            """
-            Choose the option with the best ratio
-            """
-            option_ratios = [(spacing, diameter,Stirrups.calculate_ratio(diameter, spacing)) for spacing, diameter in options]
-            option_ratios.sort(key=lambda x: x[2], reverse=True)  # Sort by ratio, descending
-            return option_ratios[0][:2]  # Return spacing and diameter of the best option
+        """
+        Choose the option with the best ratio
+        """
+        option_ratios = [(spacing, diameter,Stirrups.calculate_ratio(diameter, spacing)) for spacing, diameter in options]
+        option_ratios.sort(key=lambda x: x[2], reverse=True)  # Sort by ratio, descending
+        return option_ratios[0][:2]  # Return spacing and diameter of the best option
 
     def pick_diameter_for_spacing(self, spacing: float) -> Optional[float]:
         """
