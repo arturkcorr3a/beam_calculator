@@ -39,11 +39,12 @@ calculator.calculate()
 compressed = calculator.compressed_reinforcement
 tensioned = calculator.tensioned_reinforcement
 
-tensioned.print_report()
+tensioned.print_report("Tensioned")
 stirrups.print_report()
 
 if compressed.is_chosen:
-    print(f"Compressed rebar area: {compressed.required_area} cm²")
+    compressed.print_report("Compressed")
+
 # beam.print_results_table()
 
 # fig1 = beam.plot_beam_external()

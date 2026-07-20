@@ -1,5 +1,7 @@
-from typing import List, Tuple
+from typing import List, Literal, Tuple
 from math import ceil
+
+from numpy.strings import upper
 from src.beam.rectangular_beam import RectangularBeam
 from collections import Counter
 
@@ -254,11 +256,26 @@ class Reinforcement:
         odd_counts = sum(1 for count in counts.values() if count % 2 != 0)
         return odd_counts <= 1
     
-    def print_report(self) -> None:
+    def print_report(self, type: Literal["Tensioned", "Compressed"]) -> None:
         """
         Prints a report of the chosen reinforcement, including the required area, chosen bars per layer, and whether the reinforcement is chosen.
         """
-        print(f"Required area: {self.required_area} cm²")
+        
+        def print_layer(layer: List[float], layer_index: int) -> None:
+            if layer:
+                layer_count = Counter(layer)
+                formatted_bars = " + ".join(
+                    f"{count} Φ {int(diameter) if float(diameter).is_integer() else diameter}"
+                    for diameter, count in sorted(layer_count.items(), key=lambda item: item[0], reverse=True)
+                )
+                print(f"Layer {layer_index + 1}: {formatted_bars}")
+            else:
+                print(f"Layer {layer_index + 1}: No bars")
+
+        print("\n------------------------------------------------------------")
+        print(f"{upper(type)} REINFORCEMENT")
+        print("------------------------------------------------------------")
+        print(f"Required area: {self.required_area:.3f} cm²")
         for i, layer in enumerate(self.chosen_bars):
-            print(f"Layer {i+1}: {layer}")
-        print(f"Actual reinforcement area: {sum(self.steel.get_area(d) for layer in self.chosen_bars for d in layer)} cm²")
+            print_layer(layer, i)
+        print(f"Actual reinforcement area: {sum(self.steel.get_area(d) for layer in self.chosen_bars for d in layer):.3f} cm²")
