@@ -41,7 +41,7 @@ class Stirrups:
         options = []
 
         spacing = self.calculator.max_spacing
-        diameter = self.pick_diameter_for_spacing(self.spacing)
+        diameter = self.pick_diameter_for_spacing(spacing)
         if diameter is not None:
             options.append((spacing, diameter))
 
@@ -69,7 +69,7 @@ class Stirrups:
         Pick the diameter (mm) of stirrup bars for a given spacing to meet the required reinforcement ratio.
         """
         for diameter in self.steel.available_sizes:
-            diameter = max(diameter, MIN_DIAMETER)  # Ensure diameter is at least the minimum
+            diameter = max(diameter/10, MIN_DIAMETER)  # cm; Ensure diameter is at least the minimum
             if diameter > self.max_diameter:
                 continue 
             ratio = Stirrups.calculate_ratio(diameter, spacing)
@@ -80,7 +80,16 @@ class Stirrups:
     @staticmethod
     def calculate_ratio(diameter: float, spacing: float) -> float:
         """
-        Calculate the reinforcement ratio (A_sw/s) for a given diameter (mm) and spacing (cm) of stirrup bars.
+        Calculate the reinforcement ratio (A_sw/s) for a given diameter (cm) and spacing (cm) of stirrup bars.
         """
-        area = pi * (diameter/10 / 2)**2  # cm²
+        area = pi * (diameter / 2)**2  # cm²
         return 2 * area / spacing  # cm²/cm, factor 2 for two legs of the stirrup
+    
+    def print_report(self) -> None:
+        """
+        Print a report of the chosen stirrup reinforcement, including the required ratio, chosen diameter, and spacing.
+        """
+        print(f"Required stirrup reinforcement ratio: {self.required_ratio:.4f} cm²/cm")
+        print(f"Chosen stirrup diameter: {self.diameter/10.0:.2f} mm")
+        print(f"Chosen stirrup spacing: {self.spacing:.2f} cm")
+        print(f"Actual stirrup reinforcement ratio: {Stirrups.calculate_ratio(self.diameter, self.spacing):.4f} cm²/cm")

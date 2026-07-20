@@ -127,11 +127,9 @@ class Reinforcement:
             dp[0] = []
             return dp, target_area_int, limit
 
-        def is_valid_combination(combination: List[float], max_bar_types: int, min_bars: int) -> bool:
-            """Check if a bar combination meets the diversity and minimum requirements."""
-            has_enough_bars = len(combination) >= min_bars
-            has_allowable_bar_types = len(set(combination)) <= max_bar_types
-            return has_enough_bars and has_allowable_bar_types
+        def is_valid_combination(combination: List[float], max_bar_types: int) -> bool:
+            """Check whether a partial bar combination can still be extended."""
+            return len(set(combination)) <= max_bar_types
 
         def should_update_dp(dp: List, index: int, new_combination: List[float]) -> bool:
             """Determine if the new combination is better than the existing one."""
@@ -150,7 +148,7 @@ class Reinforcement:
         def find_optimal_solutions(dp: List, target_area_int: int, limit: int) -> None:
             """Find the first 10 valid results that meets or exceeds the required area. Saves them in self.rebar_choice_options.and returns the best one."""
             for i in range(target_area_int, limit + 1):
-                if dp[i] is not None and Reinforcement.is_symmetrical(dp[i]):
+                if dp[i] is not None and len(dp[i]) >= min_bars and Reinforcement.is_symmetrical(dp[i]):
                     self.rebar_choice_options.append(sorted(dp[i], reverse=True))
                     if len(self.rebar_choice_options) == 10:
                          return None
@@ -169,19 +167,19 @@ class Reinforcement:
                     if new_index <= limit:
                         new_combination = dp[i] + [diameter]
                         
-                        if is_valid_combination(new_combination, max_bar_types, min_bars):
+                        if is_valid_combination(new_combination, max_bar_types):
                             if should_update_dp(dp, new_index, new_combination):
                                 dp[new_index] = new_combination
         
         return find_optimal_solutions(dp, target_area_int, limit)
-    
+
     def distribute_bars_in_layers(self, optimal_reinforcement: List[float]) -> None:
         """
         Gets the optimal reinforcement combination chosen and distributes the bars in layers, ensuring that the spacing and constructability requirements are met.
         """
         # REFACTOR organizar melhor esse código com funções auxiliares
         if self.check_for_enough_space(optimal_reinforcement):
-            self.chosen_bars = (optimal_reinforcement, [], [])
+            self.chosen_bars = [optimal_reinforcement, [], []]
             return None
 
         diameters_count = Counter(optimal_reinforcement)
@@ -228,10 +226,14 @@ class Reinforcement:
         """
         Checks if there is enough space for a reinforcement choice within a layer.
         """
-        max_diameter = max(optimal_reinforcement)
+        if not optimal_reinforcement:
+            return True
+
+        diameters_in_cm = [diameter / 10 for diameter in optimal_reinforcement]
+        max_diameter = max(diameters_in_cm)
         required_spacing = self.get_horizontal_spacing(max_diameter)
 
-        total_bar_width = sum(optimal_reinforcement)
+        total_bar_width = sum(diameters_in_cm)
         total_spacing = (len(optimal_reinforcement) - 1) * required_spacing
         total_width_needed = total_bar_width + total_spacing
 
@@ -251,3 +253,12 @@ class Reinforcement:
         counts = Counter(combination)
         odd_counts = sum(1 for count in counts.values() if count % 2 != 0)
         return odd_counts <= 1
+    
+    def print_report(self) -> None:
+        """
+        Prints a report of the chosen reinforcement, including the required area, chosen bars per layer, and whether the reinforcement is chosen.
+        """
+        print(f"Required area: {self.required_area} cm²")
+        for i, layer in enumerate(self.chosen_bars):
+            print(f"Layer {i+1}: {layer}")
+        print(f"Actual reinforcement area: {sum(self.steel.get_area(d) for layer in self.chosen_bars for d in layer)} cm²")

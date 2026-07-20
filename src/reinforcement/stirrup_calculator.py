@@ -25,7 +25,7 @@ class StirrupCalculator:
     
     def verify_compressed_strut_resistance(self) -> None:
         """Verify that the design shear force does not exceed the compressed strut resistance (V_Rd2). NBR 6118 - Section 17.4.2.2."""
-        if self.design_shear_force <= self.compressed_strut_resistance:
+        if self.design_shear_force > self.compressed_strut_resistance:
             raise ValueError(f"Design shear force (V_Sd = {self.design_shear_force:.2f} kN) exceeds compressed strut resistance (V_Rd2 = {self.compressed_strut_resistance:.2f} kN). Design not verified.")
 
     @property

@@ -1,6 +1,7 @@
 from src.beam.rectangular_beam import RectangularBeam
 from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment, min_design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 from math import sqrt
 from functools import cached_property
@@ -19,8 +20,10 @@ class RebarCalculator:
         
         :param beam: a rectangular beam 
         :type beam: RectangularBeam
-        :param bending_moment: Design bending moment (kN.m)
+        :param bending_moment: Characteristic bending moment (kN.m)
         :type bending_moment: float
+        :param stirrups: Stirrups instance for the beam
+        :type stirrups: Stirrups
         """
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
@@ -83,7 +86,13 @@ class RebarCalculator:
         Minimum tension rebar area (cm²), according to ABNT NBR 6118 - Section 17.3.5.2.1
         """ 
         md_min = min_design_bending_moment(self.beam, self.max_y) # kN.cm
-        calculator = RebarCalculator(self.beam, 0)
+
+        # CONFIRM aqui, o mínimo de área é calculado com o momento = 0. Conferir na norma o que diz sobre o cálculo do estribo nesse caso, agora ue eu inseri essa dependência de colocar o estribo para instanciar uma calculadora
+        # Talvez fazer um método estático na calculadora que faz um 'dummy' para essa conta 
+        stirrup_calculator = StirrupCalculator(self.beam, 0)
+        stirrups = Stirrups(self.beam, stirrup_calculator)
+        calculator = RebarCalculator(self.beam, 0, stirrups)
+        
         calculator.design_bending_moment = md_min
         calculator.d = self.d # cm
         calculated_min = calculator.as1 # cm^2
