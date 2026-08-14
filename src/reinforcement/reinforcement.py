@@ -5,12 +5,10 @@ from numpy.strings import upper
 from src.beam.rectangular_beam import RectangularBeam
 from collections import Counter
 
-MAX_AGGREGATE_SIZE = 2.5 # CONFIRM valor e referência disso, para colocar no #PAPER
-MAX_BAR_TYPES = 3
-MAX_LAYERS = 3
+from src.config import app_config
 
 # TODO encontrar em alguma bibliografia um bom chute inicial para ter embasamento no trabalho e saber justificar
-DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0 # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen 
+DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0 # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
 
 class Reinforcement:
     """
@@ -19,7 +17,7 @@ class Reinforcement:
     def __init__(self, beam: RectangularBeam):
         self.beam = beam
         self.steel = beam.steel
-        self.chosen_bars: List[List[float]] = [[] for _ in range(MAX_LAYERS)] # list of chosen rebar sizes per layer
+        self.chosen_bars: List[List[float]] = [[] for _ in range(app_config.max_layers)] # list of chosen rebar sizes per layer
         self.is_chosen = False
         self.rebar_choice_options = []
 
@@ -50,13 +48,13 @@ class Reinforcement:
         """
         The minimum horizontal spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(bar_diameter, 2, 1.2*MAX_AGGREGATE_SIZE)
+        return max(bar_diameter, 2, 1.2*app_config.max_aggregate_size)
     
     def get_vertical_spacing(self, bar_diameter: float) -> float:
         """
         The minimum vertical spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(bar_diameter, 2, 0.5*MAX_AGGREGATE_SIZE)
+        return max(bar_diameter, 2, 0.5*app_config.max_aggregate_size)
 
     def get_distance_for_d_calculation(self) -> float:
         """
@@ -104,7 +102,7 @@ class Reinforcement:
         return (weighted_centroids / weights, weights) if weights != 0 else (0,0)
 
     # REFACTOR tirar essa função para outra classe, por organização?
-    def choose_optimal_reinforcement_options(self, max_bar_types: int = MAX_BAR_TYPES, min_bars: int = 2) -> None:
+    def choose_optimal_reinforcement_options(self, max_bar_types: int = None, min_bars: int = 2) -> None:
         # PAPER achar uma referência disso para colocar no trabalho? (do problema da moeda)
         """
         Optimizes the reinforcement selection using dynamic programming (based on the coin change problem).
@@ -158,6 +156,9 @@ class Reinforcement:
                 raise ValueError("No valid reinforcement combination found within the limit.")
         
         # Actual function logic
+        if max_bar_types is None:
+            max_bar_types = app_config.max_bar_types
+
         dp, target_area_int, limit = initialize_dp_table()
         
         for i in range(limit):
@@ -194,7 +195,7 @@ class Reinforcement:
                 current_layer += 1
             else:
                 while count > 0:
-                    if current_layer >= MAX_LAYERS:
+                    if current_layer >= app_config.max_layers:
                         self.clear_chosen_bars()
                         raise ValueError("Cannot distribute bars within the maximum number of layers.")
                     if self.check_for_enough_space(self.chosen_bars[current_layer] + [diameter]): 
@@ -222,7 +223,7 @@ class Reinforcement:
         """
         Clears the chosen bars, resetting the state for a new attempt at distribution.
         """
-        self.chosen_bars = [[] for _ in range(MAX_LAYERS)]
+        self.chosen_bars = [[] for _ in range(app_config.max_layers)]
 
     def check_for_enough_space(self, optimal_reinforcement: List[float]) -> bool:
         """
