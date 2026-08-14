@@ -50,6 +50,19 @@ from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 from src.config import app_config
+from src.gui.theme import (
+    DARK_ACCENT,
+    DARK_BG_INPUT,
+    DARK_BG_MAIN,
+    DARK_BG_PANEL,
+    DARK_BORDER,
+    DARK_DANGER,
+    DARK_TEXT_MUTED,
+    DARK_TEXT_PRIMARY,
+    DARK_WARNING,
+    apply_dark_theme,
+    style_figure,
+)
 
 # Self-weight of reinforced concrete (ABNT NBR 6118). kN/m3.
 CONCRETE_UNIT_WEIGHT = 25.0
@@ -196,17 +209,20 @@ class SectionDialog(QDialog):
         canvas.draw()
 
     def _draw(self, fig: Figure, beam: RectangularBeam, calculator) -> None:
+        style_figure(fig, DARK_BG_MAIN)
         w = beam.width
         h = beam.height
         cov = beam.nominal_covering
 
         ax = fig.add_subplot(111)
+        ax.set_facecolor(DARK_BG_MAIN)
         ax.set_aspect("equal")
         ax.axis("off")
 
+        # Beam concrete section
         ax.add_patch(mpatches.Rectangle(
             (0, 0), w, h,
-            facecolor="#d6e4f0", edgecolor="#2c3e50", linewidth=1.8,
+            facecolor=DARK_BG_PANEL, edgecolor=DARK_ACCENT, linewidth=2.0,
         ))
 
         stirrup_d_cm = calculator.stirrups.diameter
@@ -215,7 +231,7 @@ class SectionDialog(QDialog):
         ax.add_patch(mpatches.FancyBboxPatch(
             (sx0, sy0), sw, sh,
             boxstyle="round,pad=0",
-            facecolor="none", edgecolor="#555", linewidth=1.2, linestyle="--",
+            facecolor="none", edgecolor="#bb9af7", linewidth=1.4, linestyle="--",
         ))
 
         stirrup_spacing = calculator.stirrups.spacing
@@ -223,7 +239,7 @@ class SectionDialog(QDialog):
         ax.text(
             w / 2, h + 0.8,
             f"Estribo: Φ{stirrup_diam_mm} c/{stirrup_spacing:.0f} cm",
-            ha="center", va="bottom", fontsize=8, color="#444",
+            ha="center", va="bottom", fontsize=8, color=DARK_TEXT_PRIMARY,
         )
 
         def draw_bar_row(y_center: float, bars: list, label_side: str) -> None:
@@ -243,12 +259,12 @@ class SectionDialog(QDialog):
                 cx = x_start + (i + 1) * spacing
                 ax.add_patch(mpatches.Circle(
                     (cx, y_center), r,
-                    facecolor="#7f8c8d", edgecolor="#2c3e50", linewidth=0.8,
+                    facecolor=DARK_ACCENT, edgecolor="#ffffff", linewidth=0.8,
                 ))
             lx = -1.0 if label_side == "left" else w + 1.0
             ha = "right" if label_side == "left" else "left"
             ax.annotate(label, xy=(lx, y_center),
-                        fontsize=8, ha=ha, va="center", color="#2c3e50")
+                        fontsize=8, ha=ha, va="center", color=DARK_TEXT_PRIMARY)
 
         chosen = calculator.tensioned_reinforcement.chosen_bars
         for layer_idx, layer in enumerate(chosen):
@@ -278,16 +294,16 @@ class SectionDialog(QDialog):
                 y = h - cov - stirrup_d_cm - max_bar_r - layer_idx * (2 * max_bar_r + 0.5)
                 draw_bar_row(y, layer, "right")
 
-        arrow_kw = dict(arrowstyle="<->", color="#2c3e50", lw=0.8)
+        arrow_kw = dict(arrowstyle="<->", color=DARK_ACCENT, lw=1.0)
         y_dim = -2.5
         ax.annotate("", xy=(0, y_dim), xytext=(w, y_dim), arrowprops=arrow_kw)
         ax.text(w / 2, y_dim - 0.6, f"b = {w:.0f} cm",
-                ha="center", va="top", fontsize=8, color="#2c3e50")
+                ha="center", va="top", fontsize=8, color=DARK_TEXT_PRIMARY)
 
         x_dim = w + 2.5
         ax.annotate("", xy=(x_dim, 0), xytext=(x_dim, h), arrowprops=arrow_kw)
         ax.text(x_dim + 0.4, h / 2, f"h = {h:.0f} cm",
-                ha="left", va="center", fontsize=8, color="#2c3e50", rotation=90)
+                ha="left", va="center", fontsize=8, color=DARK_TEXT_PRIMARY, rotation=90)
 
         ax.set_xlim(-6, w + 6)
         ax.set_ylim(y_dim - 2, h + 3)
@@ -314,6 +330,7 @@ class DiagramsDialog(QDialog):
         canvas.draw()
 
     def _draw(self, fig: Figure, beam: RectangularBeam) -> None:
+        style_figure(fig, DARK_BG_MAIN)
         moments = beam.get_bending_moments()
         shears = beam.get_shear_forces()
         xs = [i / 100.0 for i in range(len(moments))]
@@ -322,20 +339,22 @@ class DiagramsDialog(QDialog):
         ax_v = fig.add_subplot(212)
 
         moments_inv = [-m for m in moments]
-        ax_m.plot(xs, moments_inv, color="#2c6fbb", linewidth=1.6)
-        ax_m.fill_between(xs, moments_inv, color="#2c6fbb", alpha=0.15)
-        ax_m.axhline(0, color="#888", linewidth=0.8)
-        ax_m.set_ylabel("M [kN.m]")
-        ax_m.set_title("Bending moment diagram", fontsize=10)
-        ax_m.grid(True, alpha=0.3)
+        ax_m.set_facecolor(DARK_BG_INPUT)
+        ax_m.plot(xs, moments_inv, color=DARK_ACCENT, linewidth=1.8)
+        ax_m.fill_between(xs, moments_inv, color=DARK_ACCENT, alpha=0.25)
+        ax_m.axhline(0, color=DARK_BORDER, linewidth=0.8)
+        ax_m.set_ylabel("M [kN.m]", color=DARK_TEXT_PRIMARY)
+        ax_m.set_title("Bending moment diagram", fontsize=10, color=DARK_TEXT_PRIMARY)
+        ax_m.grid(True, alpha=0.35, color=DARK_BORDER)
 
-        ax_v.plot(xs, shears, color="#c0392b", linewidth=1.6)
-        ax_v.fill_between(xs, shears, color="#c0392b", alpha=0.15)
-        ax_v.axhline(0, color="#888", linewidth=0.8)
-        ax_v.set_ylabel("V [kN]")
-        ax_v.set_xlabel("position along beam [m]")
-        ax_v.set_title("Shear force diagram", fontsize=10)
-        ax_v.grid(True, alpha=0.3)
+        ax_v.set_facecolor(DARK_BG_INPUT)
+        ax_v.plot(xs, shears, color=DARK_DANGER, linewidth=1.8)
+        ax_v.fill_between(xs, shears, color=DARK_DANGER, alpha=0.25)
+        ax_v.axhline(0, color=DARK_BORDER, linewidth=0.8)
+        ax_v.set_ylabel("V [kN]", color=DARK_TEXT_PRIMARY)
+        ax_v.set_xlabel("position along beam [m]", color=DARK_TEXT_PRIMARY)
+        ax_v.set_title("Shear force diagram", fontsize=10, color=DARK_TEXT_PRIMARY)
+        ax_v.grid(True, alpha=0.35, color=DARK_BORDER)
 
 
 # ------------------------------------------------------------ main window ---
@@ -345,6 +364,7 @@ class BeamCalculatorWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
+        apply_dark_theme()
         self.setWindowTitle("Reinforced Concrete Beam Calculator")
         self.resize(900, 620)
 
@@ -429,7 +449,7 @@ class BeamCalculatorWindow(QMainWindow):
         form.addRow("Concrete:", self.concrete_input)
 
         self.self_weight_label = QLabel()
-        self.self_weight_label.setStyleSheet("font-weight: bold;")
+        self.self_weight_label.setStyleSheet("font-weight: bold; color: #7aa2f7;")
         form.addRow("Self-weight load:", self.self_weight_label)
 
         layout.addWidget(inputs_group)
@@ -527,48 +547,54 @@ class BeamCalculatorWindow(QMainWindow):
         height = self.height_input.value()
 
         fig = self.schematic_figure
+        style_figure(fig, DARK_BG_PANEL)
         fig.clear()
         ax = fig.add_subplot(111)
+        ax.set_facecolor(DARK_BG_PANEL)
 
         length_cm = max(length_m * 100.0, 1e-6)
         bar_h = max(min(height / length_cm, 0.18), 0.05)
         y0 = 0.0
 
+        # Beam element
         ax.add_patch(mpatches.Rectangle(
             (0.0, y0), 1.0, bar_h,
-            facecolor="#c9d6e5", edgecolor="#33475b", linewidth=1.5,
+            facecolor="#2d3f66", edgecolor=DARK_ACCENT, linewidth=1.8,
         ))
 
+        # Pinned supports
         tri_h = bar_h * 1.2
         tri_w = 0.05
         for x in (0.0, 1.0):
             ax.add_patch(mpatches.Polygon(
                 [(x - tri_w, y0 - tri_h), (x + tri_w, y0 - tri_h), (x, y0)],
-                closed=True, facecolor="#8a5a2b", edgecolor="#4d3010",
+                closed=True, facecolor=DARK_WARNING, edgecolor="#ff9e3b",
             ))
             ax.plot([x - tri_w * 1.6, x + tri_w * 1.6],
-                    [y0 - tri_h, y0 - tri_h], color="#4d3010", linewidth=1.2)
+                    [y0 - tri_h, y0 - tri_h], color="#ff9e3b", linewidth=1.4)
 
+        # Distributed load arrows
         arrow_top = bar_h + tri_h
         n_arrows = 9
         for i in range(n_arrows):
             x = i / (n_arrows - 1)
             ax.annotate("", xy=(x, bar_h), xytext=(x, arrow_top),
-                        arrowprops=dict(arrowstyle="->", color="#c0392b", lw=1.2))
-        ax.plot([0.0, 1.0], [arrow_top, arrow_top], color="#c0392b", lw=1.4)
+                        arrowprops=dict(arrowstyle="->", color=DARK_DANGER, lw=1.2))
+        ax.plot([0.0, 1.0], [arrow_top, arrow_top], color=DARK_DANGER, lw=1.4)
         ax.text(0.5, arrow_top + tri_h * 0.4,
                 f"self-weight q = {self._self_weight():.2f} kN/m",
-                ha="center", va="bottom", color="#c0392b", fontsize=9)
+                ha="center", va="bottom", color=DARK_DANGER, fontsize=9)
 
+        # Dimension annotation
         dim_y = y0 - tri_h * 2.0
         ax.annotate("", xy=(0.0, dim_y), xytext=(1.0, dim_y),
-                    arrowprops=dict(arrowstyle="<->", color="#33475b", lw=1.0))
+                    arrowprops=dict(arrowstyle="<->", color=DARK_ACCENT, lw=1.0))
         ax.text(0.5, dim_y - tri_h * 0.5, f"L = {length_m:.2f} m",
-                ha="center", va="top", color="#33475b", fontsize=9)
+                ha="center", va="top", color=DARK_TEXT_PRIMARY, fontsize=9)
 
         ax.set_title(
             f"Bi-supported beam  |  section {width:.0f} × {height:.0f} cm (W × H)",
-            fontsize=10,
+            fontsize=10, color=DARK_TEXT_PRIMARY,
         )
         ax.set_xlim(-0.12, 1.12)
         ax.set_ylim(dim_y - tri_h * 1.6, arrow_top + tri_h * 1.6)

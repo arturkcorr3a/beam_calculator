@@ -38,6 +38,20 @@ from src.pavement.slab import Slab
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.config import app_config
+from src.gui.theme import (
+    DARK_ACCENT,
+    DARK_BG_INPUT,
+    DARK_BG_MAIN,
+    DARK_BG_PANEL,
+    DARK_BORDER,
+    DARK_DANGER,
+    DARK_SUCCESS,
+    DARK_TEXT_MUTED,
+    DARK_TEXT_PRIMARY,
+    DARK_WARNING,
+    apply_dark_theme,
+    style_figure,
+)
 
 _CM_PER_M = 100.0
 
@@ -59,6 +73,7 @@ class PavementWindow(QMainWindow):
 
     def __init__(self, parent: QWidget = None) -> None:
         super().__init__(parent)
+        apply_dark_theme()
         self.setWindowTitle("Pavement Designer")
         self.resize(1150, 720)
 
@@ -381,14 +396,14 @@ class PavementWindow(QMainWindow):
         try:
             self._pavement.validate()
             self._validate_label.setText("Structure is valid.")
-            self._validate_label.setStyleSheet("color: green; font-weight: bold;")
+            self._validate_label.setStyleSheet(f"color: {DARK_SUCCESS}; font-weight: bold;")
         except ValueError as exc:
             self._validate_label.setText(str(exc))
-            self._validate_label.setStyleSheet("color: red;")
+            self._validate_label.setStyleSheet(f"color: {DARK_DANGER};")
 
     def _reset_validation_state(self) -> None:
         self._validate_label.setText("Not validated yet.")
-        self._validate_label.setStyleSheet("color: grey;")
+        self._validate_label.setStyleSheet(f"color: {DARK_TEXT_MUTED};")
 
     def _update_pillar_hints(self) -> None:
         ids = list(self._pavement.pillars.keys())
@@ -403,13 +418,15 @@ class PavementWindow(QMainWindow):
 
     def _redraw_canvas(self) -> None:
         fig = self._figure
+        style_figure(fig, DARK_BG_MAIN)
         fig.clear()
         ax = fig.add_subplot(111)
+        ax.set_facecolor(DARK_BG_INPUT)
         ax.set_aspect("equal")
-        ax.set_xlabel("X (m)")
-        ax.set_ylabel("Y (m)")
-        ax.set_title("Floor Plan — Top View", fontsize=10)
-        ax.grid(True, alpha=0.25, linestyle="--")
+        ax.set_xlabel("X (m)", color=DARK_TEXT_PRIMARY)
+        ax.set_ylabel("Y (m)", color=DARK_TEXT_PRIMARY)
+        ax.set_title("Floor Plan — Top View", fontsize=10, color=DARK_TEXT_PRIMARY)
+        ax.grid(True, alpha=0.3, linestyle="--", color=DARK_BORDER)
 
         pillars = self._pavement.pillars
         beams = self._pavement.beams
@@ -418,7 +435,7 @@ class PavementWindow(QMainWindow):
         if not pillars:
             ax.text(0.5, 0.5, "Add pillars to see the floor plan",
                     ha="center", va="center", transform=ax.transAxes,
-                    color="#aaa", fontsize=11)
+                    color=DARK_TEXT_MUTED, fontsize=11)
             self._canvas.draw_idle()
             return
 
@@ -434,12 +451,12 @@ class PavementWindow(QMainWindow):
                     y0, y1 = ys[0] / _CM_PER_M, ys[1] / _CM_PER_M
                     ax.add_patch(mpatches.Rectangle(
                         (x0, y0), x1 - x0, y1 - y0,
-                        facecolor="#d4e8c2", edgecolor="#6aaa3a",
-                        linewidth=1.0, alpha=0.55, zorder=1,
+                        facecolor="#164e63", edgecolor="#22d3ee",
+                        linewidth=1.0, alpha=0.45, zorder=1,
                     ))
                     ax.text((x0 + x1) / 2, (y0 + y1) / 2, slab.id,
                             ha="center", va="center", fontsize=8,
-                            color="#3a7a1a", zorder=2)
+                            color="#67e8f9", zorder=2)
 
         # --- beams ---
         for beam in beams.values():
@@ -450,7 +467,7 @@ class PavementWindow(QMainWindow):
             ys_b = [p.y / _CM_PER_M for p in pts]
             x_spread = max(xs_b) - min(xs_b)
             y_spread = max(ys_b) - min(ys_b)
-            color = "#2c6fbb" if x_spread >= y_spread else "#e67e22"
+            color = DARK_ACCENT if x_spread >= y_spread else "#ff9e64"
             ax.plot(xs_b, ys_b, color=color, linewidth=2.5, zorder=3,
                     solid_capstyle="round")
 
@@ -465,12 +482,12 @@ class PavementWindow(QMainWindow):
             px, py = p.x / _CM_PER_M, p.y / _CM_PER_M
             ax.add_patch(mpatches.Rectangle(
                 (px - vis_half, py - vis_half), 2 * vis_half, 2 * vis_half,
-                facecolor="#2c3e50", edgecolor="#1a252f",
+                facecolor=DARK_WARNING, edgecolor="#ff9e3b",
                 linewidth=1.0, zorder=4,
             ))
             ax.text(px, py + vis_half * 1.6, p.id,
                     ha="center", va="bottom", fontsize=8,
-                    color="#2c3e50", fontweight="bold", zorder=5)
+                    color=DARK_TEXT_PRIMARY, fontweight="bold", zorder=5)
 
         # --- axes limits with padding ---
         pad = max(x_range, y_range) * 0.12 + vis_half * 3
@@ -479,12 +496,13 @@ class PavementWindow(QMainWindow):
 
         # --- legend ---
         legend_handles = [
-            mpatches.Patch(facecolor="#2c3e50", label="Pillar"),
-            mpatches.Patch(color="#2c6fbb", label="Beam (X-dir)"),
-            mpatches.Patch(color="#e67e22", label="Beam (Y-dir)"),
-            mpatches.Patch(facecolor="#d4e8c2", edgecolor="#6aaa3a", label="Slab"),
+            mpatches.Patch(facecolor=DARK_WARNING, edgecolor="#ff9e3b", label="Pillar"),
+            mpatches.Patch(color=DARK_ACCENT, label="Beam (X-dir)"),
+            mpatches.Patch(color="#ff9e64", label="Beam (Y-dir)"),
+            mpatches.Patch(facecolor="#164e63", edgecolor="#22d3ee", label="Slab"),
         ]
         ax.legend(handles=legend_handles, loc="upper right", fontsize=8,
-                  framealpha=0.8)
+                  facecolor=DARK_BG_PANEL, edgecolor=DARK_BORDER, labelcolor=DARK_TEXT_PRIMARY,
+                  framealpha=0.9)
 
         self._canvas.draw_idle()
