@@ -3,7 +3,8 @@ import os
 from collections import Counter
 from typing import Optional
 
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
+from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
@@ -44,10 +45,10 @@ class ReportExporter:
 
         # Calculate provided areas
         self.total_as_provided = sum(
-            self.steel.get_area(d) for layer in self.tensioned.chosen_bars for d in layer
+            SectionPropertiesCalculator.circular_cross_sectional_area(d) for layer in self.tensioned.chosen_bars for d in layer
         )
         self.total_as2_provided = sum(
-            self.steel.get_area(d) for layer in self.compressed.chosen_bars for d in layer
+            SectionPropertiesCalculator.circular_cross_sectional_area(d) for layer in self.compressed.chosen_bars for d in layer
         ) if (self.compressed.is_chosen and not self.calculator.is_singly_reinforced) else 0.0
 
         self.actual_stirrup_ratio = Stirrups.calculate_ratio(self.stirrups.diameter, self.stirrups.spacing)
@@ -128,6 +129,7 @@ class ReportExporter:
         """Exports the calculation data to a CSV file."""
         data = self._get_structured_data()
         filepath = os.path.abspath(filename)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(filepath, mode="w", newline="", encoding="utf-8-sig") as csvfile:
             writer = csv.writer(csvfile, delimiter=";")
             writer.writerow(["Etapa / Categoria", "Parâmetro", "Valor", "Unidade", "Detalhes / Status"])
@@ -144,6 +146,7 @@ class ReportExporter:
         from matplotlib.backends.backend_pdf import PdfPages
 
         filepath = os.path.abspath(filename)
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
         data = self._get_structured_data()
 
         with PdfPages(filepath) as pdf:
@@ -296,7 +299,7 @@ class ReportExporter:
         for i, layer in enumerate(self.tensioned.chosen_bars):
             if layer:
                 layer_count = Counter(layer)
-                layer_area = sum(self.steel.get_area(d) for d in layer)
+                layer_area = sum(SectionPropertiesCalculator.circular_cross_sectional_area(d) for d in layer)
                 formatted_bars = " + ".join(
                     f"{count} Φ {int(d) if float(d).is_integer() else d} mm"
                     for d, count in sorted(layer_count.items(), key=lambda item: item[0], reverse=True)

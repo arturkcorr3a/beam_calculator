@@ -26,7 +26,7 @@ class Steel(Enum):
         The design strength of steel (fyd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.1 
         """
         return self.value / GAMMA_S
-    
+
     @cached_property
     def available_sizes(self) -> List[float]:
         """
@@ -60,39 +60,3 @@ class Steel(Enum):
         Checks if a given rebar diameter (in mm) is available for the steel type.
         """
         return diameter in self.available_sizes
-    
-    def get_area(self, diameter: float) -> float:
-        """
-        Returns the cross-sectional area (in cm²) of a rebar with the given diameter (in mm), based on ABNT NBR 7480.
-        """
-        bar_areas = {
-            6.3: 31.2,
-            8.0: 50.3,
-            10.0: 78.5,
-            12.5: 122.7,
-            16.0: 201.1,
-            20.0: 314.2,
-            22.0: 380.1,
-            25.0: 490.9,
-            32.0: 804.2,
-            40.0: 1256.6
-        }
-        wire_areas = {
-            3.4: 9.1,
-            3.8: 11.3,
-            4.2: 13.9,
-            4.6: 16.6,
-            5.0: 19.6,
-            5.5: 23.8,
-            6.0: 28.3,
-            6.4: 32.2,
-            7.0: 38.5,
-            8.0: 50.3,
-            9.5: 70.9,
-            10.0: 78.5
-        }
-        if not self.is_size_available(diameter):
-            raise ValueError(f"Diameter {diameter} mm is not available for steel type {self.name}.")
-        if self == Steel.CA25 or self == Steel.CA50:
-            return bar_areas[diameter] / 100  # convert from mm² to cm²
-        return wire_areas[diameter] / 100 # convert from mm² to cm²

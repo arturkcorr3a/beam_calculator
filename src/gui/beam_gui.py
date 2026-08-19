@@ -15,6 +15,8 @@ from collections import Counter
 from typing import List
 
 import matplotlib
+
+from src.properties.section_properties_calculator import SectionPropertiesCalculator
 matplotlib.use("QtAgg")  # ensure the Qt backend before importing the canvas
 import matplotlib.patches as mpatches
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -43,7 +45,7 @@ from PySide6.QtWidgets import (
 
 from indeterminatebeam import Support, DistributedLoadV
 
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.rebar_calculator import RebarCalculator
@@ -94,7 +96,7 @@ def format_reinforcement(reinforcement, title: str) -> str:
             lines.append(f"Layer {index + 1}: No bars")
 
     actual_area = sum(
-        reinforcement.steel.get_area(d)
+        SectionPropertiesCalculator.circular_cross_sectional_area(d)
         for layer in reinforcement.chosen_bars
         for d in layer
     )
