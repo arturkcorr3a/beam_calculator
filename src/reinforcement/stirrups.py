@@ -1,6 +1,6 @@
 from typing import Optional
 
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
 from src.reinforcement.stirrup_calculator import MIN_SPACING, StirrupCalculator
 from math import pi
 

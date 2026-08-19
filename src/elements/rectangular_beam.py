@@ -39,7 +39,7 @@ class RectangularBeam(Beam):
             loads: List of indeterminatebeam.Load instances
         """
         calculated_moment_of_inertia = SectionPropertiesCalculator.moment_of_inertia(width, height)
-        area = SectionPropertiesCalculator.cross_sectional_area(width, height)
+        area = SectionPropertiesCalculator.rectangular_cross_sectional_area(width, height)
         shear_modulus = concrete.g_c
         elastic_modulus = concrete.ecs
         

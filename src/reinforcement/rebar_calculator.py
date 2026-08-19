@@ -1,4 +1,4 @@
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
 from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment, min_design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrup_calculator import StirrupCalculator
@@ -67,6 +67,7 @@ class RebarCalculator:
             current_d = self.d
             self.cleanup()
             self.calculate_and_set_required_tensioned_rebar_area()
+            breakpoint()
             self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
             if not self.is_singly_reinforced:
                 self.compressed_reinforcement.set_required_area(self.compressed_rebar_area)

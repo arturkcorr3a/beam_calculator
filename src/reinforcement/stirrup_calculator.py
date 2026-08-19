@@ -1,4 +1,4 @@
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
 from typing import Tuple
 from math import sin, cos, pi
 

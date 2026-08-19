@@ -1,7 +1,7 @@
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
 import pytest
 from unittest.mock import Mock
 

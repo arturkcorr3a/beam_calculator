@@ -1,4 +1,4 @@
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
 from src.properties.section_properties_calculator import SectionPropertiesCalculator as SPC
 
 # TODO adicionar seção da norma disso para o #PAPER
