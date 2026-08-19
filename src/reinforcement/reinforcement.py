@@ -2,10 +2,12 @@ from typing import List, Literal, Tuple
 from math import ceil
 
 from numpy.strings import upper
-from src.beam.rectangular_beam import RectangularBeam
+from src.elements.rectangular_beam import RectangularBeam
 from collections import Counter
 
 from src.config import app_config
+from src.properties.section_properties_calculator import SectionPropertiesCalculator as section
+from src.reinforcement.rebar_chooser import RebarChooser
 
 # TODO encontrar em alguma bibliografia um bom chute inicial para ter embasamento no trabalho e saber justificar
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0 # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
@@ -28,21 +30,22 @@ class Reinforcement:
     def choose(self) -> None:
         if self.required_area is None:
             raise ValueError("Required area must be set before choosing reinforcement.")
-        self.choose_optimal_reinforcement_options()
-        for optimal_reinforcement in self.rebar_choice_options:
+        
+        rebar_chooser = RebarChooser(self.steel, self.required_area)
+        self.rebar_choice_options = rebar_chooser.solutions_per_diameter
+        # FIXME review this logic of one solution per key
+        # TODO review values() usage
+        for optimal_reinforcement in self.rebar_choice_options.values():
             try:
                 self.distribute_bars_in_layers(optimal_reinforcement)
                 self.arrange_bars()
                 break
             except ValueError:
-                optimal_reinforcement = self.rebar_choice_options.pop(0)
-            self.distribute_bars_in_layers(optimal_reinforcement)
+                continue
         if len(self.chosen_bars[0]) == 0:
+            breakpoint()
             raise ValueError("No valid reinforcement combination found.")
         self.is_chosen = True
-
-    def calculate_necessary_bars(self, diameter: float) -> int:
-        return ceil(self.required_area / self.steel.get_area(diameter))
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """
@@ -97,84 +100,10 @@ class Reinforcement:
         weighted_centroids = 0
         weights = 0
         for bar in layer:
-            weighted_centroids += self.steel.get_area(bar) * (bar / 2)
-            weights += self.steel.get_area(bar)
+            area = section.circular_cross_sectional_area(bar)
+            weighted_centroids += area * (bar / 2)
+            weights += area
         return (weighted_centroids / weights, weights) if weights != 0 else (0,0)
-
-    # REFACTOR tirar essa função para outra classe, por organização?
-    def choose_optimal_reinforcement_options(self, max_bar_types: int = None, min_bars: int = 2) -> None:
-        # PAPER achar uma referência disso para colocar no trabalho? (do problema da moeda)
-        """
-        Optimizes the reinforcement selection using dynamic programming (based on the coin change problem).
-        Finds the combination with minimum number of bars that meets the required area,
-        limiting the number of different bar types for practical construction.
-        
-        Args:
-            max_bar_types: Maximum number of different bar diameters allowed (default: 2)
-            min_bars: Minimum number of bars required (default: 2)
-            
-        Returns:
-            Nothing, but updates self.rebar_choice_options with the optimal combinations found.
-        """
-        # Support functions
-        def initialize_dp_table() -> Tuple[List, int, int]:
-            """Initialize the dynamic programming table for reinforcement optimization."""
-            target_area_int = int(self.required_area * 100)
-            max_bar_area_int = int(max(self.steel.get_area(d) for d in self.steel.available_sizes) * 100)
-            limit = target_area_int + max_bar_area_int
-            
-            dp = [None] * (limit + 1)
-            dp[0] = []
-            return dp, target_area_int, limit
-
-        def is_valid_combination(combination: List[float], max_bar_types: int) -> bool:
-            """Check whether a partial bar combination can still be extended."""
-            return len(set(combination)) <= max_bar_types
-
-        def should_update_dp(dp: List, index: int, new_combination: List[float]) -> bool:
-            """Determine if the new combination is better than the existing one."""
-            # TODO adicionar preferência para combinações que não usem diâmetro de 40 (é muito pouco usual)
-            # PAPER comentar isso no trabalho (preferência para combinações que não usem diâmetro de 40 (é muito pouco usual))
-            if dp[index] is None:
-             return True 
-            
-            # Prefer combinations with fewer bars
-            if len(new_combination) < len(dp[index]):
-              return True
-            
-            # For same number of bars, prefer symmetrical arrangements
-            return Reinforcement.is_symmetrical(new_combination)
-
-        def find_optimal_solutions(dp: List, target_area_int: int, limit: int) -> None:
-            """Find the first 10 valid results that meets or exceeds the required area. Saves them in self.rebar_choice_options.and returns the best one."""
-            for i in range(target_area_int, limit + 1):
-                if dp[i] is not None and len(dp[i]) >= min_bars and Reinforcement.is_symmetrical(dp[i]):
-                    self.rebar_choice_options.append(sorted(dp[i], reverse=True))
-                    if len(self.rebar_choice_options) == 10:
-                         return None
-            if len(self.rebar_choice_options) == 0:
-                raise ValueError("No valid reinforcement combination found within the limit.")
-        
-        # Actual function logic
-        if max_bar_types is None:
-            max_bar_types = app_config.max_bar_types
-
-        dp, target_area_int, limit = initialize_dp_table()
-        
-        for i in range(limit):
-            if dp[i] is not None:
-                for diameter in self.steel.available_sizes:
-                    area_int = int(self.steel.get_area(diameter) * 100)
-                    new_index = i + area_int
-                    
-                    if new_index <= limit:
-                        new_combination = dp[i] + [diameter]
-                        
-                        if is_valid_combination(new_combination, max_bar_types):
-                            if should_update_dp(dp, new_index, new_combination):
-                                dp[new_index] = new_combination
-        
-        return find_optimal_solutions(dp, target_area_int, limit)
 
     def distribute_bars_in_layers(self, optimal_reinforcement: List[float]) -> None:
         """
@@ -256,7 +185,8 @@ class Reinforcement:
         counts = Counter(combination)
         odd_counts = sum(1 for count in counts.values() if count % 2 != 0)
         return odd_counts <= 1
-    
+
+    # REFACTOR extract this maybe
     def print_report(self, type: Literal["Tensioned", "Compressed"]) -> None:
         """
         Prints a report of the chosen reinforcement, including the required area, chosen bars per layer, and whether the reinforcement is chosen.
@@ -279,4 +209,4 @@ class Reinforcement:
         print(f"Required area: {self.required_area:.3f} cm²")
         for i, layer in enumerate(self.chosen_bars):
             print_layer(layer, i)
-        print(f"Actual reinforcement area: {sum(self.steel.get_area(d) for layer in self.chosen_bars for d in layer):.3f} cm²")
+        print(f"Actual reinforcement area: {sum(section.circular_cross_sectional_area(d) for layer in self.chosen_bars for d in layer):.3f} cm²")

@@ -16,7 +16,7 @@ def test_moment_of_inertia(width_20: int, height_60: int):
 
 def test_cross_sectional_area(width_20: int, height_60: int):
     expected_area = 1_200
-    actual_area = SPC.cross_sectional_area(width_20, height_60)
+    actual_area = SPC.rectangular_cross_sectional_area(width_20, height_60)
     assert actual_area == expected_area, "Cross-sectional area for a 20 cm x 60 cm section should be 1,200 cm²"
 
 def test_gross_section_modulus(width_20: int, height_60: int):
