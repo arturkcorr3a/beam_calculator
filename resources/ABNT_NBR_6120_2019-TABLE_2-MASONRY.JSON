@@ -1,0 +1,333 @@
+{
+  "title": "Table 2 - Masonry",
+  "reference": "ABNT NBR 6120:2019",
+  "description": "Nominal characteristic values for the self-weight of masonry walls (structural and non-bearing) based on nominal thickness and coating thickness per face.",
+  "units": {
+    "nominal_thickness": "cm",
+    "coating_weight_per_face": "kN/m²"
+  },
+  "structural_masonry": [
+    {
+      "type": "Hollow concrete block (Classes A and B - ABNT NBR 6136)",
+      "thicknesses": [
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 2.0,
+            "1_cm": 2.3,
+            "2_cm": 2.7
+          }
+        },
+        {
+          "nominal": 19.0,
+          "coating_weight_per_face": {
+            "0_cm": 2.7,
+            "1_cm": 3.0,
+            "2_cm": 3.4
+          }
+        }
+      ]
+    },
+    {
+      "type": "Hollow ceramic block with solid walls (Vertical holes - ABNT NBR 15270-1)",
+      "thicknesses": [
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 2.0,
+            "1_cm": 2.3,
+            "2_cm": 2.7
+          }
+        }
+      ]
+    },
+    {
+      "type": "Hollow ceramic block with hollow walls (Vertical holes - ABNT NBR 15270-1)",
+      "thicknesses": [
+        {
+          "nominal": 9.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.1,
+            "1_cm": 1.5,
+            "2_cm": 1.9
+          }
+        },
+        {
+          "nominal": 11.5,
+          "coating_weight_per_face": {
+            "0_cm": 1.4,
+            "1_cm": 1.8,
+            "2_cm": 2.2
+          }
+        },
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.7,
+            "1_cm": 2.1,
+            "2_cm": 2.5
+          }
+        },
+        {
+          "nominal": 19.0,
+          "coating_weight_per_face": {
+            "0_cm": 2.3,
+            "1_cm": 2.7,
+            "2_cm": 3.1
+          }
+        }
+      ]
+    },
+    {
+      "type": "Solid ceramic brick (ABNT NBR 15270-1)",
+      "thicknesses": [
+        {
+          "nominal": 9.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.6,
+            "1_cm": 2.0,
+            "2_cm": 2.4
+          }
+        },
+        {
+          "nominal": 11.5,
+          "coating_weight_per_face": {
+            "0_cm": 2.1,
+            "1_cm": 2.5,
+            "2_cm": 2.9
+          }
+        },
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 2.5,
+            "1_cm": 2.9,
+            "2_cm": 3.3
+          }
+        },
+        {
+          "nominal": 19.0,
+          "coating_weight_per_face": {
+            "0_cm": 3.4,
+            "1_cm": 3.8,
+            "2_cm": 4.2
+          }
+        }
+      ]
+    },
+    {
+      "type": "Hollow calcium silicate block (Class E - ABNT NBR 14974-1)",
+      "thicknesses": [
+        {
+          "nominal": 9.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.1,
+            "1_cm": 1.5,
+            "2_cm": 1.9
+          }
+        },
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.5,
+            "1_cm": 1.9,
+            "2_cm": 2.3
+          }
+        },
+        {
+          "nominal": 19.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.9,
+            "1_cm": 2.3,
+            "2_cm": 2.7
+          }
+        }
+      ]
+    },
+    {
+      "type": "Perforated calcium silicate block (Classes E, F and G - ABNT NBR 14974-1)",
+      "thicknesses": [
+        {
+          "nominal": 11.5,
+          "coating_weight_per_face": {
+            "0_cm": 1.9,
+            "1_cm": 2.3,
+            "2_cm": 2.7
+          }
+        },
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 2.1,
+            "1_cm": 2.5,
+            "2_cm": 2.9
+          }
+        },
+        {
+          "nominal": 17.5,
+          "coating_weight_per_face": {
+            "0_cm": 2.8,
+            "1_cm": 3.2,
+            "2_cm": 3.6
+          }
+        }
+      ]
+    }
+  ],
+  "non_bearing_masonry": [
+    {
+      "type": "Hollow concrete block (Class C - ABNT NBR 6136)",
+      "thicknesses": [
+        {
+          "nominal": 6.5,
+          "coating_weight_per_face": {
+            "0_cm": 1.0,
+            "1_cm": 1.4,
+            "2_cm": 1.8
+          }
+        },
+        {
+          "nominal": 9.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.1,
+            "1_cm": 1.5,
+            "2_cm": 1.9
+          }
+        },
+        {
+          "nominal": 11.5,
+          "coating_weight_per_face": {
+            "0_cm": 1.3,
+            "1_cm": 1.7,
+            "2_cm": 2.1
+          }
+        },
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.4,
+            "1_cm": 1.8,
+            "2_cm": 2.2
+          }
+        },
+        {
+          "nominal": 19.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.8,
+            "1_cm": 2.2,
+            "2_cm": 2.6
+          }
+        }
+      ]
+    },
+    {
+      "type": "Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)",
+      "thicknesses": [
+        {
+          "nominal": 9.0,
+          "coating_weight_per_face": {
+            "0_cm": 0.7,
+            "1_cm": 1.1,
+            "2_cm": 1.6
+          }
+        },
+        {
+          "nominal": 11.5,
+          "coating_weight_per_face": {
+            "0_cm": 0.9,
+            "1_cm": 1.3,
+            "2_cm": 1.7
+          }
+        },
+        {
+          "nominal": 14.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.1,
+            "1_cm": 1.5,
+            "2_cm": 1.9
+          }
+        },
+        {
+          "nominal": 19.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.4,
+            "1_cm": 1.8,
+            "2_cm": 2.3
+          }
+        }
+      ]
+    },
+    {
+      "type": "Autoclaved aerated concrete block (Class C25 - ABNT NBR 13438)",
+      "thicknesses": [
+        {
+          "nominal": 7.5,
+          "coating_weight_per_face": {
+            "0_cm": 0.5,
+            "1_cm": 0.9,
+            "2_cm": 1.3
+          }
+        },
+        {
+          "nominal": 10.0,
+          "coating_weight_per_face": {
+            "0_cm": 0.6,
+            "1_cm": 1.0,
+            "2_cm": 1.4
+          }
+        },
+        {
+          "nominal": 12.5,
+          "coating_weight_per_face": {
+            "0_cm": 0.8,
+            "1_cm": 1.2,
+            "2_cm": 1.6
+          }
+        },
+        {
+          "nominal": 15.0,
+          "coating_weight_per_face": {
+            "0_cm": 0.9,
+            "1_cm": 1.3,
+            "2_cm": 1.7
+          }
+        },
+        {
+          "nominal": 17.5,
+          "coating_weight_per_face": {
+            "0_cm": 1.1,
+            "1_cm": 1.5,
+            "2_cm": 1.9
+          }
+        },
+        {
+          "nominal": 20.0,
+          "coating_weight_per_face": {
+            "0_cm": 1.2,
+            "1_cm": 1.6,
+            "2_cm": 2.0
+          }
+        }
+      ]
+    },
+    {
+      "type": "Glass block (decorative, non-fire-rated)",
+      "thicknesses": [
+        {
+          "nominal": 8.0,
+          "coating_weight_per_face": {
+            "0_cm": 0.8,
+            "1_cm": null,
+            "2_cm": null
+          }
+        }
+      ]
+    }
+  ],
+  "weight_composition_notes": [
+    "vertical and horizontal laying mortar made of lime, cement, and sand, with 1 cm thickness and a specific weight of 19 kN/m³;",
+    "rendering/plastering with an average specific weight of 19 kN/m³;",
+    "proportion of one half-block for every three whole blocks;",
+    "no filling of voids (with grout, etc.)."
+  ]
+}

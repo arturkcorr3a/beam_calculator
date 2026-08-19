@@ -158,3 +158,10 @@ class Concrete(Enum):
         The alpha_v2 factor for shear design of concrete, for stirrup calculation with model 1, based on ABNT NBR 6118 - Section 17.4.2.2.
         """
         return 1.0 - (self.value / 250)
+
+    @staticmethod
+    def density(reinforced: bool = True) -> float:
+        """
+        Concrete density in kN/m³, based on ABNT NBR 6118 - Section 8.2.2.
+        """
+        return 25.0 if reinforced else 24.0
