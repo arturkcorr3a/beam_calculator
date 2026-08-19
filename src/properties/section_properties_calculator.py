@@ -1,3 +1,6 @@
+from math import pi
+
+
 class SectionPropertiesCalculator:
     """
     Calculates geometric properties of cross-sections.
@@ -11,11 +14,18 @@ class SectionPropertiesCalculator:
         return (width * height**3) / 12
 
     @staticmethod
-    def cross_sectional_area(width: int, height: int) -> float:
+    def rectangular_cross_sectional_area(width: int, height: int) -> float:
         """
         Calculates cross-sectional area (A) for rectangular section (cm, cm -> cm²).
         """
         return width * height
+
+    @staticmethod
+    def circular_cross_sectional_area(diameter: float) -> float:
+        """
+        Calculates cross-sectional area (A) for circular section (cm -> cm²).
+        """
+        return (pi * (diameter ** 2)) / 4.0
     
     @staticmethod
     def gross_section_modulus(width: int, height: int) -> float:
