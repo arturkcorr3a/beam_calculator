@@ -1,4 +1,4 @@
-from src.data.nbr6120_2019.table2 import TABLE_2
+from src.data.nbr6120_2019.table_2.data import TABLE_2
 from src.properties.concrete import Concrete
 
 

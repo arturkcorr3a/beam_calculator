@@ -4,7 +4,7 @@ Hardcoded values matching the normative table.  Each helper builds one
 ``MasonryType`` to keep the top-level instantiation readable.
 """
 
-from src.data.nbr6120_2019.model import MasonryType, Table2, Thickness
+from src.data.nbr6120_2019.table_2.model import MasonryType, Table2, Thickness
 
 # ── Structural masonry ──────────────────────────────────────────────────────
 
