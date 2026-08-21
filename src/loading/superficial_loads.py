@@ -1,3 +1,5 @@
+from src.config import app_config
+from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.data.nbr6120_2019.table_4.data import TABLE_4
 from src.data.nbr6120_2019.table_7.data import TABLE_7
 from src.data.nbr6120_2019.table_8.data import TABLE_8
@@ -10,6 +12,8 @@ class SuperficialLoads:
     def get_concrete_element_own_weight(thickness: float, reinforced: bool = True) -> float:
         """
         Calculate the own weight of a superficial concrete element (kN/m²).
+
+        Based on concrete density from ABNT NBR 6120:2019, Table 1.
 
         Args:
             thickness (float): The thickness of the concrete element in meters.
@@ -28,6 +32,8 @@ class SuperficialLoads:
         """
         Calculate the weight of infill (kN/m²).
 
+        Based on ABNT NBR 6120:2019, Table 7.
+
         Args:
             material_description (str): The description of the infill material.
 
@@ -41,11 +47,13 @@ class SuperficialLoads:
         """
         Calculate the ceiling weight load (kN/m²).
 
+        Based on ABNT NBR 6120:2019, Table 8.
+
         Args:
             material_description (str): The description of the ceiling material.
 
         Returns:
-            float: The ceiling load in kN/m².
+            float: The ceiling weight load in kN/m².
         """
         return TABLE_8.find_material(material_description).weight
 
@@ -54,12 +62,30 @@ class SuperficialLoads:
         """
         Calculate the top finnish weight load (kN/m²).
 
+        Based on ABNT NBR 6120:2019, Table 4.
+
         Args:
             material_description (str): The description of the top finnish material.
+            thickness (float): The thickness of the top finnish in cm.
 
         Returns:
-            float: The top finnish load in kN/m².
+            float: The top finnish weight load in kN/m².
         """
-        return TABLE_4.find_material(material_description).get_weight()
+        return TABLE_4.find_material(material_description).get_weight(thickness)
 
-    # TODO variable loads
+    @staticmethod
+    def get_variable_usage_load(local: str) -> float:
+        """
+        Calculate the variable usage load for a specific location (kN/m²).
+
+        Based on ABNT NBR 6120:2019, Table 10.
+
+        Args:
+            local (str): The description of the location.
+
+        Returns:
+            float: The variable usage load in kN/m².
+        """
+        building_category = app_config.building_category
+
+        return TABLE_10.find_category(building_category).get_location_load(local)

@@ -19,6 +19,14 @@ class BuildingCategory:
     description: str
     locations: tuple[LocationLoad, ...]
 
+    def get_location_load(self, description: str) -> float:
+        """Get the load for a specific location by (partial, case-insensitive) description match."""
+        query = description.lower()
+        for loc in self.locations:
+            if query in loc.description.lower():
+                return loc.distributed_load
+        raise KeyError(f"No location matching '{description}' was found.")
+
 
 @dataclass(frozen=True)
 class Table10:

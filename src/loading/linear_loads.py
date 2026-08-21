@@ -6,7 +6,7 @@ class LinearLoads:
     @staticmethod
     def get_concrete_element_own_weight(area: float, reinforced: bool = True) -> float:
         """
-        Calculate the own weight of a linear concrete element (kN;m).
+        Calculate the own weight of a linear concrete element (kN/m).
 
         Args:
             area (float): The area of the concrete element in square meters.
