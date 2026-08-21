@@ -1,3 +1,4 @@
+from src.data.nbr6120_2019.table2 import TABLE_2
 from src.properties.concrete import Concrete
 
 
@@ -20,8 +21,17 @@ class LinearLoads:
         return own_weight
 
     @staticmethod
-    def get_wall_load():
-        # TODO: Implement wall load calculation based on the wall's dimensions and material properties. 
-        # Tabela 2 da ABN NBT 6120 - acho que vou ter que fazer um JSONzao ou um dataclass ou um dicionario pra conseguir navegar
-        # Ver limitações e documentar!!!!!
-        pass
+    def get_wall_load(structural: bool, masonry_type: str, nominal_thickness: float, coating_thickness: int, wall_height: float) -> float:
+        """Calculate the linear load (kN/m) of a masonry wall on a beam, based on ABNT NBR 6120:2019 - Section 5.4 - Table 2.
+
+        Args:
+            structural: True for structural masonry, False for non-bearing.
+            masonry_type: Masonry description (e.g. ``"hollow concrete block"``).
+            nominal_thickness: Wall thickness in cm.
+            coating_thickness: Coating thickness per face (0, 1, or 2 cm).
+            wall_height: Wall height in meters.
+
+        Returns:
+            Distributed linear wall load in kN/m.
+        """
+        return TABLE_2.find_masonry_type(masonry_type, structural).get_thickness(nominal_thickness).get_weight(coating_thickness) * wall_height
