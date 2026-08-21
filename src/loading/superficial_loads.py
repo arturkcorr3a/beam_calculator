@@ -1,4 +1,4 @@
-from src.config import app_config
+from src.config import APP_CONFIG
 from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.data.nbr6120_2019.table_4.data import TABLE_4
 from src.data.nbr6120_2019.table_7.data import TABLE_7
@@ -86,6 +86,6 @@ class SuperficialLoads:
         Returns:
             float: The variable usage load in kN/m².
         """
-        building_category = app_config.building_category
+        building_category = APP_CONFIG.building_category
 
         return TABLE_10.find_category(building_category).get_location_load(local)

@@ -20,4 +20,4 @@ class AppConfig:
     building_category: str = "Residential buildings"
 
 
-app_config = AppConfig()
+APP_CONFIG = AppConfig()

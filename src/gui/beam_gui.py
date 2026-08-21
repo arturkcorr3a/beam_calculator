@@ -51,7 +51,7 @@ from src.properties.steel import Steel
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
-from src.config import app_config
+from src.config import APP_CONFIG
 from src.gui.theme import (
     DARK_ACCENT,
     DARK_BG_INPUT,
@@ -134,25 +134,25 @@ class ConfigDialog(QDialog):
         self.steel_input = QComboBox()
         for steel in Steel:
             self.steel_input.addItem(steel.name, steel)
-        self.steel_input.setCurrentText(app_config.default_steel)
+        self.steel_input.setCurrentText(APP_CONFIG.default_steel)
         form.addRow("Steel:", self.steel_input)
 
         self.max_aggregate_size_input = QDoubleSpinBox()
         self.max_aggregate_size_input.setRange(0.5, 10.0)
         self.max_aggregate_size_input.setDecimals(1)
         self.max_aggregate_size_input.setSingleStep(0.5)
-        self.max_aggregate_size_input.setValue(app_config.max_aggregate_size)
+        self.max_aggregate_size_input.setValue(APP_CONFIG.max_aggregate_size)
         self.max_aggregate_size_input.setSuffix(" cm")
         form.addRow("Max aggregate size:", self.max_aggregate_size_input)
 
         self.max_bar_types_input = QSpinBox()
         self.max_bar_types_input.setRange(1, 5)
-        self.max_bar_types_input.setValue(app_config.max_bar_types)
+        self.max_bar_types_input.setValue(APP_CONFIG.max_bar_types)
         form.addRow("Max bar types:", self.max_bar_types_input)
 
         self.max_layers_input = QSpinBox()
         self.max_layers_input.setRange(1, 5)
-        self.max_layers_input.setValue(app_config.max_layers)
+        self.max_layers_input.setValue(APP_CONFIG.max_layers)
         form.addRow("Max layers:", self.max_layers_input)
 
         layout.addWidget(form_group)
@@ -163,10 +163,10 @@ class ConfigDialog(QDialog):
         layout.addWidget(buttons)
 
     def _apply(self) -> None:
-        app_config.default_steel = self.steel_input.currentText()
-        app_config.max_aggregate_size = self.max_aggregate_size_input.value()
-        app_config.max_bar_types = self.max_bar_types_input.value()
-        app_config.max_layers = self.max_layers_input.value()
+        APP_CONFIG.default_steel = self.steel_input.currentText()
+        APP_CONFIG.max_aggregate_size = self.max_aggregate_size_input.value()
+        APP_CONFIG.max_bar_types = self.max_bar_types_input.value()
+        APP_CONFIG.max_layers = self.max_layers_input.value()
         self.accept()
 
 
@@ -447,7 +447,7 @@ class BeamCalculatorWindow(QMainWindow):
         self.concrete_input = QComboBox()
         for concrete in Concrete:
             self.concrete_input.addItem(concrete.name, concrete)
-        self.concrete_input.setCurrentText(app_config.default_concrete)
+        self.concrete_input.setCurrentText(APP_CONFIG.default_concrete)
         form.addRow("Concrete:", self.concrete_input)
 
         self.self_weight_label = QLabel()
@@ -608,7 +608,7 @@ class BeamCalculatorWindow(QMainWindow):
     def run_analysis(self) -> None:
         length_cm, width, height = self._current_geometry()
         concrete: Concrete = self.concrete_input.currentData()
-        steel: Steel = Steel[app_config.default_steel]
+        steel: Steel = Steel[APP_CONFIG.default_steel]
 
         try:
             support_a = Support(0, (1, 1, 0))

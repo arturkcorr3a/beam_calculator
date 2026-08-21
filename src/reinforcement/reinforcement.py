@@ -5,7 +5,7 @@ from numpy.strings import upper
 from src.elements.rectangular_beam import RectangularBeam
 from collections import Counter
 
-from src.config import app_config
+from src.config import APP_CONFIG
 from src.properties.section_properties_calculator import SectionPropertiesCalculator as section
 from src.reinforcement.rebar_chooser import RebarChooser
 
@@ -19,7 +19,7 @@ class Reinforcement:
     def __init__(self, beam: RectangularBeam):
         self.beam = beam
         self.steel = beam.steel
-        self.chosen_bars: List[List[float]] = [[] for _ in range(app_config.max_layers)] # list of chosen rebar sizes per layer
+        self.chosen_bars: List[List[float]] = [[] for _ in range(APP_CONFIG.max_layers)] # list of chosen rebar sizes per layer
         self.is_chosen = False
         self.rebar_choice_options = []
 
@@ -51,13 +51,13 @@ class Reinforcement:
         """
         The minimum horizontal spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(bar_diameter, 2, 1.2*app_config.max_aggregate_size)
+        return max(bar_diameter, 2, 1.2*APP_CONFIG.max_aggregate_size)
     
     def get_vertical_spacing(self, bar_diameter: float) -> float:
         """
         The minimum vertical spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(bar_diameter, 2, 0.5*app_config.max_aggregate_size)
+        return max(bar_diameter, 2, 0.5*APP_CONFIG.max_aggregate_size)
 
     def get_distance_for_d_calculation(self) -> float:
         """
@@ -124,7 +124,7 @@ class Reinforcement:
                 current_layer += 1
             else:
                 while count > 0:
-                    if current_layer >= app_config.max_layers:
+                    if current_layer >= APP_CONFIG.max_layers:
                         self.clear_chosen_bars()
                         raise ValueError("Cannot distribute bars within the maximum number of layers.")
                     if self.check_for_enough_space(self.chosen_bars[current_layer] + [diameter]): 
@@ -152,7 +152,7 @@ class Reinforcement:
         """
         Clears the chosen bars, resetting the state for a new attempt at distribution.
         """
-        self.chosen_bars = [[] for _ in range(app_config.max_layers)]
+        self.chosen_bars = [[] for _ in range(APP_CONFIG.max_layers)]
 
     def check_for_enough_space(self, optimal_reinforcement: List[float]) -> bool:
         """
