@@ -128,7 +128,7 @@ TABLE_2 = Table2(
         "thickness per face."
     ),
     units={
-        "nominalThicknesshickness": "cm",
+        "nominal_thickness": "cm",
         "coating_weight_per_face": "kN/m²",
     },
     structural_masonry=_STRUCTURAL_MASONRY,

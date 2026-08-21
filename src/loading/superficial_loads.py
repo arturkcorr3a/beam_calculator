@@ -58,9 +58,9 @@ class SuperficialLoads:
         return TABLE_8.find_material(material_description).weight
 
     @staticmethod
-    def get_top_finnish_weight(material_description: str, thickness: float) -> float:
+    def get_top_finish_weight(material_description: str, thickness: float) -> float:
         """
-        Calculate the top finnish weight load (kN/m²).
+        Calculate the top finish weight load (kN/m²).
 
         Based on ABNT NBR 6120:2019, Table 4.
 

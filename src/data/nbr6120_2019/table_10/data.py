@@ -609,7 +609,7 @@ _CATEGORIES = (
         ),
     ),
     BuildingCategory(
-        description="Balconies, sacadas, verandas, and terraces",
+        description="Balconies, verandas, and terraces",
         locations=(
             LocationLoad(
                 description="Residential",
@@ -792,7 +792,7 @@ _CATEGORIES = (
         description="Technical areas",
         locations=(
             LocationLoad(
-                description="Header pipe area (barrilete)",
+                description="Header pipe area",
                 distributed_load=1.5,
                 notes=("a", "c"),
             ),
@@ -827,7 +827,7 @@ _CATEGORIES = (
                 notes=("a", "c"),
             ),
             LocationLoad(
-                description="UPS rooms (sala de no-breaks)",
+                description="UPS rooms",
                 distributed_load=7.5,
                 notes=("a", "c"),
             ),
@@ -904,7 +904,7 @@ _CATEGORIES = (
         ),
     ),
     BuildingCategory(
-        description="Lobbies and entrances (vestíbulos de acesso)",
+        description="Lobbies and entrances",
         locations=(
             LocationLoad(
                 description="Residential, hotels, and hospitals (common use)",
@@ -1064,7 +1064,7 @@ _CATEGORIES = (
         ),
     ),
     BuildingCategory(
-        description="Roofs (coberturas)",
+        description="Roofs",
         locations=(
             LocationLoad(
                 description="With access only for maintenance or inspection",
@@ -1124,7 +1124,7 @@ _FOOTNOTES = {
         "Depending on the case, additional loads must be provided due to future changes, for example: glass enclosure, floor leveling, change of use, etc."
     ),
     "j": (
-        "At the edges of balconies, verandas, sacadas, and terraces with guardrails, provide a variable load of 2 kN/m, in addition to the self-weight of the guardrail. Also consider variable horizontal forces in accordance with 6.3."
+        "At the edges of balconies, verandas, and terraces with guardrails, provide a variable load of 2 kN/m, in addition to the self-weight of the guardrail. Also consider variable horizontal forces in accordance with 6.3."
     ),
     "k": (
         "The action of the equipment as a concentrated load must be verified, represented by a uniformly distributed load of 18.5 kN/m² only on the projection of the equipment (0.9 m x 0.6 m)."

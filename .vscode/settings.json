@@ -3,4 +3,8 @@
     "terminal.integrated.env.linux": {
         "PYTHONPATH": "${workspaceFolder}"
     },
+    "cSpell.words": [
+        "ABNT",
+        "Autoclaved"
+    ],
 }
