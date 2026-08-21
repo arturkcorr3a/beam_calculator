@@ -37,7 +37,7 @@ from src.pavement.continuous_beam import ContinuousBeam
 from src.pavement.slab import Slab
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.config import app_config
+from src.config import APP_CONFIG
 from src.gui.theme import (
     DARK_ACCENT,
     DARK_BG_INPUT,
@@ -135,13 +135,13 @@ class PavementWindow(QMainWindow):
         self._cfg_concrete = QComboBox()
         for c in Concrete:
             self._cfg_concrete.addItem(c.name, c)
-        self._cfg_concrete.setCurrentText(app_config.pavement_concrete)
+        self._cfg_concrete.setCurrentText(APP_CONFIG.pavement_concrete)
         form.addRow("Concrete:", self._cfg_concrete)
 
         self._cfg_steel = QComboBox()
         for s in Steel:
             self._cfg_steel.addItem(s.name, s)
-        self._cfg_steel.setCurrentText(app_config.pavement_steel)
+        self._cfg_steel.setCurrentText(APP_CONFIG.pavement_steel)
         form.addRow("Steel:", self._cfg_steel)
 
         return group

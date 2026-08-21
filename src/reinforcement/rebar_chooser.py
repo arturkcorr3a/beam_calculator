@@ -3,7 +3,7 @@ from itertools import combinations
 from math import ceil
 from typing import Dict, Set, Tuple
 from src.elements.rebar import Rebar
-from src.config import app_config
+from src.config import APP_CONFIG
 from src.properties.steel import Steel
 
 class RebarChooser:
@@ -34,7 +34,7 @@ class RebarChooser:
         """
         possible_combinations = set()
 
-        for i in range(1, app_config.max_bar_types + 1):
+        for i in range(1, APP_CONFIG.max_bar_types + 1):
             possible_combinations.update(combinations(self.steel.available_sizes, i))
 
         return possible_combinations

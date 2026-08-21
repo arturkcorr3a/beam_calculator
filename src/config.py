@@ -17,5 +17,7 @@ class AppConfig:
     pavement_concrete: str = "C30"
     pavement_steel: str = "CA50"
 
+    building_category: str = "Residential buildings"
 
-app_config = AppConfig()
+
+APP_CONFIG = AppConfig()
