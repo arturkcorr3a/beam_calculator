@@ -45,10 +45,10 @@ class ReportExporter:
 
         # Calculate provided areas
         self.total_as_provided = sum(
-            SectionPropertiesCalculator.circular_cross_sectional_area(d) for layer in self.tensioned.chosen_bars for d in layer
+            d.area_cm2 for layer in self.tensioned.chosen_bars for d in layer
         )
         self.total_as2_provided = sum(
-            SectionPropertiesCalculator.circular_cross_sectional_area(d) for layer in self.compressed.chosen_bars for d in layer
+            d.area_cm2 for layer in self.compressed.chosen_bars for d in layer
         ) if (self.compressed.is_chosen and not self.calculator.is_singly_reinforced) else 0.0
 
         self.actual_stirrup_ratio = Stirrups.calculate_ratio(self.stirrups.diameter, self.stirrups.spacing)
@@ -56,7 +56,7 @@ class ReportExporter:
     def _get_structured_data(self):
         """Builds a structured dictionary of all calculation steps."""
         # Longitudinal bars summary string
-        tension_bars_list = [d for layer in self.tensioned.chosen_bars for d in layer]
+        tension_bars_list = [d.diameter_mm for layer in self.tensioned.chosen_bars for d in layer]
         tension_bars_count = Counter(tension_bars_list)
         tension_bars_str = " + ".join(
             f"{count} Φ {int(d) if float(d).is_integer() else d} mm"
@@ -65,7 +65,7 @@ class ReportExporter:
 
         compression_bars_str = "N/A"
         if self.compressed.is_chosen and not self.calculator.is_singly_reinforced:
-            comp_bars_list = [d for layer in self.compressed.chosen_bars for d in layer]
+            comp_bars_list = [d.diameter_mm for layer in self.compressed.chosen_bars for d in layer]
             comp_bars_count = Counter(comp_bars_list)
             compression_bars_str = " + ".join(
                 f"{count} Φ {int(d) if float(d).is_integer() else d} mm"
@@ -298,8 +298,8 @@ class ReportExporter:
         print(f"\n  3.3. Detalhamento da Armadura Longitudinal de Tração:")
         for i, layer in enumerate(self.tensioned.chosen_bars):
             if layer:
-                layer_count = Counter(layer)
-                layer_area = sum(SectionPropertiesCalculator.circular_cross_sectional_area(d) for d in layer)
+                layer_count = Counter([d.diameter_mm for d in layer])
+                layer_area = sum(d.area_cm2 for d in layer)
                 formatted_bars = " + ".join(
                     f"{count} Φ {int(d) if float(d).is_integer() else d} mm"
                     for d, count in sorted(layer_count.items(), key=lambda item: item[0], reverse=True)
@@ -315,7 +315,7 @@ class ReportExporter:
             print(f"\n  3.4. Detalhamento da Armadura Longitudinal de Compressão:")
             for i, layer in enumerate(self.compressed.chosen_bars):
                 if layer:
-                    layer_count = Counter(layer)
+                    layer_count = Counter([d.diameter_mm for d in layer])
                     formatted_bars = " + ".join(
                         f"{count} Φ {int(d) if float(d).is_integer() else d} mm"
                         for d, count in sorted(layer_count.items(), key=lambda item: item[0], reverse=True)
@@ -349,7 +349,7 @@ class ReportExporter:
         print(f"       - Verificação (Asw/s) >= Nec     : {'OK (Atende)' if self.actual_stirrup_ratio >= self.stirrup_calculator.required_ratio else 'NÃO ATENDE'}")
 
         # --- RESUMO FINAL ---
-        tension_bars_list = [d for layer in self.tensioned.chosen_bars for d in layer]
+        tension_bars_list = [d.diameter_mm for layer in self.tensioned.chosen_bars for d in layer]
         print("\n" + sep_major)
         print(" " * 28 + "RESUMO DO DETALHAMENTO")
         print(sep_major)
@@ -359,7 +359,7 @@ class ReportExporter:
             for d, count in sorted(Counter(tension_bars_list).items(), key=lambda item: item[0], reverse=True)
         ) + f"  (As = {self.total_as_provided:.2f} cm²)")
         if self.compressed.is_chosen and not self.calculator.is_singly_reinforced:
-            comp_bars_list = [d for layer in self.compressed.chosen_bars for d in layer]
+            comp_bars_list = [d.diameter_mm for layer in self.compressed.chosen_bars for d in layer]
             print(f"  • Armadura Superior (Compressão): " + " + ".join(
                 f"{count} Φ {int(d) if float(d).is_integer() else d} mm"
                 for d, count in sorted(Counter(comp_bars_list).items(), key=lambda item: item[0], reverse=True)

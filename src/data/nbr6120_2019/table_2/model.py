@@ -5,7 +5,7 @@ from typing import Optional, overload
 
 @dataclass(frozen=True)
 class Thickness:
-    """Self-weight (kN/m²) for a givem nominal wall thickness with its associated coating thickness per face."""
+    """Self-weight (kN/m²) for a given nominal wall thickness with its associated coating thickness per face."""
 
     nominal_cm: float
     zero_cm: float

@@ -67,7 +67,6 @@ class RebarCalculator:
             current_d = self.d
             self.cleanup()
             self.calculate_and_set_required_tensioned_rebar_area()
-            breakpoint()
             self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
             if not self.is_singly_reinforced:
                 self.compressed_reinforcement.set_required_area(self.compressed_rebar_area)

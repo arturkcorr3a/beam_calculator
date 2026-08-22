@@ -46,7 +46,8 @@ class RebarChooser:
         :return: The best combination of rebar sizes.
         """
         # TODO implment coin dp for combo -> returning it in a dumb way for now
-        necessary_bars = ceil(self.required_area / combination[0])
+        dummy_bar = Rebar(combination[0], self.steel)
+        necessary_bars = ceil(self.required_area / dummy_bar.area_cm2)
         bars = [Rebar(combination[0], self.steel) for _ in range(necessary_bars)]
         return tuple(bars)
 

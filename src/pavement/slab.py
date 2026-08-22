@@ -18,8 +18,7 @@ class Slab:
     beams must exist in the pavement. Load distribution (one-way vs two-way)
     is determined automatically from the lx/ly ratio per NBR 6118 §14.
 
-    Material (concrete) and thickness are project-level settings. Surface loads
-    will be defined separately when the load model is implemented.
+    Material (concrete) and thickness are project-level settings. Surface loads will be defined separately when the load model is implemented.
 
     Attributes:
         id: Unique identifier (e.g. "S1")

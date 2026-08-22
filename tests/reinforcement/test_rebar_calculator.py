@@ -17,7 +17,8 @@ def calculator() -> RebarCalculator:
     beam.nominal_covering = 3  # cm
     
     bending_moment = 272  # kN.m
-    calculator = RebarCalculator(beam, bending_moment)
+    stirrups = Mock()
+    calculator = RebarCalculator(beam, bending_moment, stirrups)
     calculator.d = 56  # cm (effective depth)
     calculator.d_compressed = 4  # cm (distance from compression face to centroid of compression reinforcement)
     return calculator

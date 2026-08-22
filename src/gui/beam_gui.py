@@ -84,7 +84,7 @@ def format_reinforcement(reinforcement, title: str) -> str:
 
     for index, layer in enumerate(reinforcement.chosen_bars):
         if layer:
-            layer_count = Counter(layer)
+            layer_count = Counter([d.diameter_mm for d in layer])
             formatted = " + ".join(
                 f"{count} Φ {_format_diameter(diameter)}"
                 for diameter, count in sorted(
@@ -96,7 +96,7 @@ def format_reinforcement(reinforcement, title: str) -> str:
             lines.append(f"Layer {index + 1}: No bars")
 
     actual_area = sum(
-        SectionPropertiesCalculator.circular_cross_sectional_area(d)
+        d.area_cm2
         for layer in reinforcement.chosen_bars
         for d in layer
     )
@@ -251,13 +251,13 @@ class SectionDialog(QDialog):
             inner_w = sw - 2 * stirrup_d_cm
             spacing = inner_w / (n + 1)
             x_start = sx0 + stirrup_d_cm
-            counts = Counter(bars)
+            counts = Counter([d.diameter_mm for d in bars])
             label = " + ".join(
                 f"{cnt}Φ{int(d) if float(d).is_integer() else d}"
                 for d, cnt in sorted(counts.items(), key=lambda x: x[0], reverse=True)
             )
-            for i, d_mm in enumerate(bars):
-                r = d_mm / 10 / 2
+            for i, bar in enumerate(bars):
+                r = bar.diameter_mm / 10 / 2
                 cx = x_start + (i + 1) * spacing
                 ax.add_patch(mpatches.Circle(
                     (cx, y_center), r,
@@ -272,17 +272,17 @@ class SectionDialog(QDialog):
         for layer_idx, layer in enumerate(chosen):
             if not layer:
                 continue
-            max_bar_r = max(d / 10 / 2 for d in layer)
+            max_bar_r = max(d.diameter_mm / 10 / 2 for d in layer)
             if layer_idx == 0:
                 y = cov + stirrup_d_cm + max_bar_r
             else:
                 prev = chosen[layer_idx - 1]
-                prev_r = max(d / 10 / 2 for d in prev) if prev else 0
+                prev_r = max(d.diameter_mm / 10 / 2 for d in prev) if prev else 0
                 spacing_v = cov / 2
                 y_prev = cov + stirrup_d_cm + prev_r
                 for li in range(1, layer_idx):
                     li_bars = chosen[li - 1]
-                    li_r = max(d / 10 / 2 for d in li_bars) if li_bars else 0
+                    li_r = max(d.diameter_mm / 10 / 2 for d in li_bars) if li_bars else 0
                     y_prev += 2 * li_r + spacing_v
                 y = y_prev + 2 * prev_r + spacing_v + max_bar_r
             draw_bar_row(y, layer, "left")
@@ -292,7 +292,7 @@ class SectionDialog(QDialog):
             for layer_idx, layer in enumerate(comp.chosen_bars):
                 if not layer:
                     continue
-                max_bar_r = max(d / 10 / 2 for d in layer)
+                max_bar_r = max(d.diameter_mm / 10 / 2 for d in layer)
                 y = h - cov - stirrup_d_cm - max_bar_r - layer_idx * (2 * max_bar_r + 0.5)
                 draw_bar_row(y, layer, "right")
 

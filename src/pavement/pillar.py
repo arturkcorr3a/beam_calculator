@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-# TODO this was AI-generated code to make the UI work, improve it
 @dataclass
 class Pillar:
     """

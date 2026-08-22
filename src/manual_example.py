@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from src.elements.rectangular_beam import RectangularBeam
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -82,8 +84,9 @@ exporter = ReportExporter(
 exporter.print_to_console()
 
 # Export reports
-csv_path = exporter.export_csv("results/aug-14/report-v2.csv")
-pdf_path = exporter.export_pdf("results/aug-14/report-v2.pdf")
+today = datetime.now().strftime("%b-%d").lower()
+csv_path = exporter.export_csv(f"results/{today}/report.csv")
+pdf_path = exporter.export_pdf(f"results/{today}/report.pdf")
 
 print("[ARQUIVOS EXPORTADOS COM SUCESSO]")
 print(f"  • CSV: {csv_path}")

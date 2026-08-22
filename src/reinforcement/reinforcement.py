@@ -2,6 +2,7 @@ from typing import List, Literal, Tuple
 from math import ceil
 
 from numpy.strings import upper
+from src.elements.rebar import Rebar
 from src.elements.rectangular_beam import RectangularBeam
 from collections import Counter
 
@@ -19,7 +20,7 @@ class Reinforcement:
     def __init__(self, beam: RectangularBeam):
         self.beam = beam
         self.steel = beam.steel
-        self.chosen_bars: List[List[float]] = [[] for _ in range(APP_CONFIG.max_layers)] # list of chosen rebar sizes per layer
+        self.chosen_bars: List[List[Rebar]] = [[] for _ in range(APP_CONFIG.max_layers)] # list of chosen rebar sizes per layer
         self.is_chosen = False
         self.rebar_choice_options = []
 
@@ -43,7 +44,6 @@ class Reinforcement:
             except ValueError:
                 continue
         if len(self.chosen_bars[0]) == 0:
-            breakpoint()
             raise ValueError("No valid reinforcement combination found.")
         self.is_chosen = True
 
@@ -83,9 +83,12 @@ class Reinforcement:
             case 0:
                 return layer_centroid, layer_weigth
             case 1:
-                return (layer_centroid + self.get_vertical_spacing + max(self.chosen_bars[0])), layer_weigth
+                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0]) / 10
+                return (layer_centroid + self.get_vertical_spacing(max_dia_0) + max_dia_0), layer_weigth
             case 2:
-                return (layer_centroid + 2 * self.get_vertical_spacing + max(self.chosen_bars[0]) + max(self.chosen_bars[1])), layer_weigth
+                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0]) / 10
+                max_dia_1 = max(b.diameter_mm for b in self.chosen_bars[1]) / 10
+                return (layer_centroid + 2 * self.get_vertical_spacing(max_dia_0) + max_dia_0 + max_dia_1), layer_weigth
             case _:
                 raise ValueError("Layer index must be between 0 and 2.")
 
@@ -100,35 +103,38 @@ class Reinforcement:
         weighted_centroids = 0
         weights = 0
         for bar in layer:
-            area = section.circular_cross_sectional_area(bar)
-            weighted_centroids += area * (bar / 2)
+            area = bar.area_cm2
+            bar_diameter_cm = bar.diameter_mm / 10
+            weighted_centroids += area * (bar_diameter_cm / 2)
             weights += area
         return (weighted_centroids / weights, weights) if weights != 0 else (0,0)
 
-    def distribute_bars_in_layers(self, optimal_reinforcement: List[float]) -> None:
+    def distribute_bars_in_layers(self, optimal_reinforcement: List[Rebar]) -> None:
         """
         Gets the optimal reinforcement combination chosen and distributes the bars in layers, ensuring that the spacing and constructability requirements are met.
         """
         # REFACTOR organizar melhor esse código com funções auxiliares
         if self.check_for_enough_space(optimal_reinforcement):
-            self.chosen_bars = [optimal_reinforcement, [], []]
+            self.chosen_bars = [list(optimal_reinforcement), [], []]
             return None
 
-        diameters_count = Counter(optimal_reinforcement)
+        diameters_count = Counter([bar.diameter_mm for bar in optimal_reinforcement])
         diameters_sorted = sorted(diameters_count.items(), key=lambda x: x[0], reverse=True) # sort by diameter, larger first
         current_layer = 0
         for diameter, count in diameters_sorted:
              # check if all bars of this diameter can fit in one layer
-            if self.check_for_enough_space(self.chosen_bars[current_layer] + [diameter] * count):
-                self.chosen_bars[current_layer].extend([diameter] * count)
+            bars_to_add = [Rebar(diameter, self.steel) for _ in range(count)]
+            if self.check_for_enough_space(self.chosen_bars[current_layer] + bars_to_add):
+                self.chosen_bars[current_layer].extend(bars_to_add)
                 current_layer += 1
             else:
                 while count > 0:
                     if current_layer >= APP_CONFIG.max_layers:
                         self.clear_chosen_bars()
                         raise ValueError("Cannot distribute bars within the maximum number of layers.")
-                    if self.check_for_enough_space(self.chosen_bars[current_layer] + [diameter]): 
-                        self.chosen_bars[current_layer].append(diameter)
+                    bar_to_add = Rebar(diameter, self.steel)
+                    if self.check_for_enough_space(self.chosen_bars[current_layer] + [bar_to_add]): 
+                        self.chosen_bars[current_layer].append(bar_to_add)
                         count -= 1
                     else:
                         current_layer += 1
@@ -154,14 +160,14 @@ class Reinforcement:
         """
         self.chosen_bars = [[] for _ in range(APP_CONFIG.max_layers)]
 
-    def check_for_enough_space(self, optimal_reinforcement: List[float]) -> bool:
+    def check_for_enough_space(self, optimal_reinforcement: List[Rebar]) -> bool:
         """
         Checks if there is enough space for a reinforcement choice within a layer.
         """
         if not optimal_reinforcement:
             return True
 
-        diameters_in_cm = [diameter / 10 for diameter in optimal_reinforcement]
+        diameters_in_cm = [bar.diameter_mm / 10 for bar in optimal_reinforcement]
         max_diameter = max(diameters_in_cm)
         required_spacing = self.get_horizontal_spacing(max_diameter)
 
@@ -175,14 +181,14 @@ class Reinforcement:
     # REFACTOR se é estático e eu criar outra classe pra escolher, esse pode ir junto
     # TODO reaproveitar isso na função de organizar as barras na camada, para manter simétrico
     @staticmethod
-    def is_symmetrical(combination: List[float]) -> bool:
+    def is_symmetrical(combination: List[Rebar]) -> bool:
         """Check if a bar combination can be arranged symmetrically."""
         if len(combination) % 2 == 0:
             # Even number of bars - check if counts are even for each diameter
-            counts = Counter(combination)
+            counts = Counter([bar.diameter_mm for bar in combination])
             return all(count % 2 == 0 for count in counts.values())
         # Odd number of bars - one diameter can have odd count (will be centered)
-        counts = Counter(combination)
+        counts = Counter([bar.diameter_mm for bar in combination])
         odd_counts = sum(1 for count in counts.values() if count % 2 != 0)
         return odd_counts <= 1
 
@@ -192,9 +198,9 @@ class Reinforcement:
         Prints a report of the chosen reinforcement, including the required area, chosen bars per layer, and whether the reinforcement is chosen.
         """
         
-        def print_layer(layer: List[float], layer_index: int) -> None:
+        def print_layer(layer: List[Rebar], layer_index: int) -> None:
             if layer:
-                layer_count = Counter(layer)
+                layer_count = Counter([bar.diameter_mm for bar in layer])
                 formatted_bars = " + ".join(
                     f"{count} Φ {int(diameter) if float(diameter).is_integer() else diameter}"
                     for diameter, count in sorted(layer_count.items(), key=lambda item: item[0], reverse=True)
@@ -209,4 +215,4 @@ class Reinforcement:
         print(f"Required area: {self.required_area:.3f} cm²")
         for i, layer in enumerate(self.chosen_bars):
             print_layer(layer, i)
-        print(f"Actual reinforcement area: {sum(section.circular_cross_sectional_area(d) for layer in self.chosen_bars for d in layer):.3f} cm²")
+        print(f"Actual reinforcement area: {sum(bar.area_cm2 for layer in self.chosen_bars for bar in layer):.3f} cm²")
