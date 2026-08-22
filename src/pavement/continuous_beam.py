@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from itertools import count
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -26,15 +27,21 @@ class ContinuousBeam:
     settings, not per-beam. Width is the only geometry input required here.
 
     Attributes:
-        id: Unique identifier (e.g. "B1")
+        id: Automatically generated unique identifier (e.g. "V1")
         pillar_ids: Ordered list of pillar IDs along the beam axis (≥2)
         width: Cross-section width / bw (cm)
         height: Cross-section height / h (cm) — pre-calculated, see calculate_height()
     """
-    id: str
     pillar_ids: list[str]
     width: float
     height: float = 0.0
+    id: str = field(default=None)
+
+    _counter = count(1)  # Class-level counter for auto-generating IDs
+
+    def __post_init__(self):
+        if self.id is None:
+            self.id = f"V{next(self._counter)}"  # Auto-generate ID if not provided
 
     def calculate_height(self) -> float:
         """Placeholder for pre-dimensioning height calculation (to be implemented)."""

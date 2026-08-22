@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from itertools import count
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -21,14 +22,20 @@ class Slab:
     Material (concrete) and thickness are project-level settings. Surface loads will be defined separately when the load model is implemented.
 
     Attributes:
-        id: Unique identifier (e.g. "S1")
+        id: Automatically generated unique identifier (e.g. "L1")
         corner_pillar_ids: Tuple of 4 pillar IDs — order is arbitrary,
             the system identifies corners by their coordinates.
         thickness: Slab thickness (cm) — pre-calculated, see calculate_thickness()
     """
-    id: str
     corner_pillar_ids: tuple[str, str, str, str]
     thickness: float = 0.0
+    id: str = field(default=None) 
+
+    _counter = count(1)  # Class-level counter for auto-generating IDs
+
+    def __post_init__(self):
+        if self.id is None:
+            self.id = f"L{next(self._counter)}"  # Auto-generate ID if not provided
 
     def calculate_thickness(self, pillar_registry: dict[str, Pillar]) -> float:
         """Placeholder for pre-dimensioning thickness calculation (to be implemented)."""
