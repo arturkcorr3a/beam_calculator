@@ -17,13 +17,12 @@ class Pillar:
     y: float
     width: float
     depth: float
-    id: str = field(default=None)  
+    id: str = field(default=None, init=False)  
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
-        if self.id is None:
-            self.id = f"P{next(self._counter)}"  # Auto-generate ID if not provided
+        self.id = f"P{next(self._counter)}"  # Auto-generate ID if not provided
 
     def get_x_range(self) -> tuple[float, float]:
         """Returns the x-coordinate range of the pillar based on its width."""

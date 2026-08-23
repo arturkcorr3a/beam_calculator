@@ -1,147 +1,259 @@
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from itertools import count
-from typing import TYPE_CHECKING
+from typing import Optional
 
-if TYPE_CHECKING:
-    from src.pavement.pillar import Pillar
+from src.pavement.pillar import Pillar
 
-_COLLINEARITY_TOLERANCE = 0.01  # cm
+from src.pavement.utils import (
+    TOLERANCE,
+    Alignment,
+    Axis,
+    between,
+    get_pillar_perpendicular_range,
+    round_up_to_multiple_of_5,
+    x_coord,
+    y_coord,
+)
 
-# FIXME This was AI-generated code to make the UI work, improve it
-# TODO mash it with RectangularBeam
+# PAPER encontrar referência desses valores, acho que não tem na norma, mas deve ter na literatura clássica
+BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
+
+@dataclass
+class Span:
+    """
+    One span of a ContinuousBeam — the segment between two consecutive pillars.
+
+    supported_slab_ids is populated by Pavement.validate() after slab resolution;
+    a span on an interior edge will list both adjacent slabs.
+    """
+    beam: ContinuousBeam
+    start_pillar_id: str
+    end_pillar_id: str
+
+    def get_length(self, pillar_registry: dict[str, Pillar]) -> float:
+        """Returns the span's length (cm) from the supporting pillars."""
+        axis = self.beam.axis
+        start_pillar = pillar_registry[self.start_pillar_id]
+        end_pillar = pillar_registry[self.end_pillar_id]
+        if axis == Axis.X:
+            return abs(end_pillar.x - start_pillar.x)
+        elif axis == Axis.Y:
+            return abs(end_pillar.y - start_pillar.y)
+        else:
+            raise ValueError("Invalid axis for length calculation.")
+
+# TODO merge with ContinuousBeam class in src/pavement/continuous_beam.py in some way (or reference one via the other)
 @dataclass
 class ContinuousBeam:
-    """
-    Represents a continuous RC beam running through 2 or more collinear pillars.
 
-    pillar_ids lists the supporting pillars in order along the beam axis.
-    The system auto-sorts them by coordinate on construction — users may supply
-    them in any order.
+    """A structural beam spanning multiple pillars along a single axis (X or Y).
 
-    All pillars must share the same x-coordinate (Y-direction beam) or the same
-    y-coordinate (X-direction beam). No diagonal beams are allowed.
-
-    Material (concrete, steel) and cross-section height are project-level
-    settings, not per-beam. Width is the only geometry input required here.
-
-    Attributes:
-        id: Automatically generated unique identifier (e.g. "V1")
-        pillar_ids: Ordered list of pillar IDs along the beam axis (≥2)
-        width: Cross-section width / bw (cm)
-        height: Cross-section height / h (cm) — pre-calculated, see calculate_height()
+    Resolves its own axis, centerline, and width-wise pillar support from pillar_ids and reference_pillar_id via resolve_and_validate(), and exposes the resulting spans between consecutive pillars.
     """
     pillar_ids: list[str]
+    reference_pillar_id: str   
     width: float
-    height: float = 0.0
-    id: str = field(default=None)
+    alignment: Alignment
+    height: float = 0
+
+    id: str = field(default=None, init=False) # Auto-generated
+    axis: Optional[Axis] = field(default=None, init=False)
+    centerline: Optional[float] = field(default=None, init=False)
+    spans: list[Span] = field(default_factory=list, init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
-        if self.id is None:
-            self.id = f"V{next(self._counter)}"  # Auto-generate ID if not provided
+        self.id = f"V{next(self._counter)}"
+        self.height = self.width # Start with a square section, just so it is not zero until it is calculated
+        self._validate_reference_pillar()
+        self._validate_pillar_count()
 
-    def calculate_height(self) -> float:
-        """Placeholder for pre-dimensioning height calculation (to be implemented)."""
-        raise NotImplementedError("Beam height pre-calculation is not yet implemented.")
-
-    def spans(self) -> list[tuple[str, str]]:
-        """Returns each consecutive pillar pair as a (start_id, end_id) span."""
-        return [(self.pillar_ids[i], self.pillar_ids[i + 1])
-                for i in range(len(self.pillar_ids) - 1)]
-
-    def contains_pillar_pair(self, pid_a: str, pid_b: str) -> bool:
-        """Returns True if both pillar IDs appear as consecutive entries."""
-        return (pid_a, pid_b) in self.spans() or (pid_b, pid_a) in self.spans()
-
-    # ------------------------------------------------------------------
-    # Validation helpers (called by Pavement.validate())
-    # ------------------------------------------------------------------
-
-    def validate_pillar_count(self) -> None:
+    
+    def _validate_pillar_count(self) -> None:
         if len(self.pillar_ids) < 2:
-            raise ValueError(
-                f"Beam '{self.id}' must have at least 2 pillars, "
-                f"got {len(self.pillar_ids)}."
-            )
+            raise ValueError(f"Beam '{self.id}' must have at least 2 pillars.")
 
-    def sort_and_validate_collinearity(self, pillar_registry: dict[str, Pillar]) -> None:
+    def _validate_reference_pillar(self) -> None:
+        """Ensures the reference pillar is included in the beam's pillar_ids."""
+        if self.reference_pillar_id not in self.pillar_ids:
+            raise ValueError("Reference pillar ID must be included in the beam's pillar_ids.")
+
+    def clear_resolved(self) -> None:
+        """Clears resolved attributes to force re-calculation. To be called after changes to the pavement"""
+        self.axis = None
+        self.centerline = None
+        self.spans = []
+
+    # PAPER encontrar referência desses valores (BEAM_HEIGHT_ESTIMATION_FACTOR), acho que não tem na norma, mas deve ter na literatura clássica (sei que é entre 12 e 15)
+    def estipulate_height(self, pillar_registry: dict[str, Pillar]) -> float:
+        """Pre-dimensioning height calculation."""
+        max_height = 0
+        for span in self.spans:
+            length = span.get_length(pillar_registry)
+            proposed_height = length / BEAM_HEIGHT_ESTIMATION_FACTOR
+            max_height = max(max_height, proposed_height)
+        self.height = round_up_to_multiple_of_5(max_height)
+        return self.height
+
+    def resolve_and_validate(self, pillar_registry: dict[str, Pillar]) -> None:
         """
-        Sorts pillar_ids by coordinate and verifies collinearity.
-        Mutates self.pillar_ids in-place.
+        Resolves the beam's axis, centerline, and validates that all pillars support the entire beam width and no pillars are skipped.
         """
-        pillars = [pillar_registry[pid] for pid in self.pillar_ids]
+        self._validate_pillars_exist(pillar_registry)
+        self._determine_axis(pillar_registry)
+        self._validate_alignment()
+        self._determine_centerline(pillar_registry)
+        self._validate_all_pillars_support_the_whole_beam_width(pillar_registry)
+        self._validate_no_skipped_pillars(pillar_registry)
+        self._build_resolved_spans()
 
-        xs = {p.x for p in pillars}
-        ys = {p.y for p in pillars}
+    # ------------------------------------------------------------------
+    # Validation helpers
+    # ------------------------------------------------------------------
 
-        x_spread = max(xs) - min(xs)
-        y_spread = max(ys) - min(ys)
+    def _validate_pillars_exist(self, pillar_registry: dict[str, Pillar]) -> None:
+        """Ensures all pillar_ids exist in the provided pillar_registry."""
+        for pillar_id in self.pillar_ids:
+            if pillar_id not in pillar_registry:
+                raise ValueError(f"Beam '{self.id}': pillar '{pillar_id}' does not exist in the registry.")
 
-        if x_spread <= _COLLINEARITY_TOLERANCE and y_spread <= _COLLINEARITY_TOLERANCE:
-            raise ValueError(
-                f"Beam '{self.id}': all pillars are at the same position."
-            )
+    def _determine_axis(self, pillar_registry: dict[str, Pillar]) -> Axis:
+        """
+        Determines the axis of the beam based on the spread of its pillars and sorts the pillar IDs accordingly.
+        """
+        pillars = [pillar_registry[id] for id in self.pillar_ids]
+        
+        x_coords = [pillar.x for pillar in pillars]
+        y_coords = [pillar.y for pillar in pillars]
+        x_spread = max(x_coords) - min(x_coords)
+        y_spread = max(y_coords) - min(y_coords)
 
-        if x_spread <= _COLLINEARITY_TOLERANCE:
-            # Vertical beam (Y-direction): sort by y
-            self.pillar_ids = [
-                p.id for p in sorted(pillars, key=lambda p: p.y)
-            ]
-        elif y_spread <= _COLLINEARITY_TOLERANCE:
-            # Horizontal beam (X-direction): sort by x
-            self.pillar_ids = [
-                p.id for p in sorted(pillars, key=lambda p: p.x)
-            ]
+        if x_spread >= y_spread:
+            axis = Axis.X
+            self.pillar_ids = [pillar.id for pillar in sorted(pillars, key=lambda pillar: pillar.x)]
         else:
-            raise ValueError(
-                f"Beam '{self.id}' is diagonal: pillars must all share the same "
-                f"x-coordinate or the same y-coordinate."
-            )
+            axis = Axis.Y
+            self.pillar_ids = [pillar.id for pillar in sorted(pillars, key=lambda pillar: pillar.y)]
 
-    def validate_no_skipped_pillars(self, pillar_registry: dict[str, Pillar]) -> None:
+        self.axis = axis
+        return axis
+    
+    def _validate_alignment(self) -> None:
+        """Validates that the beam's alignment is compatible with its axis."""
+        if self.axis is None:
+            raise ValueError(f"Beam '{self.id}' has no axis set. Can't validate alignment.")
+        if self.alignment is None:
+            raise ValueError(f"Beam '{self.id}' has no alignment set.")
+        self.alignment.validate(self.axis)
+
+    def _determine_centerline(self, pillar_registry: dict[str, Pillar]) -> float:
+        """
+        Calculates the centerline coordinate (cm) of the beam based on its axis, alignment and reference pillar.
+        """
+        reference_pillar = pillar_registry[self.reference_pillar_id]
+        if self.axis == Axis.X:
+            pillar_reach = reference_pillar.get_y_range()
+            match self.alignment:
+                case Alignment.TOP:
+                    centerline = pillar_reach[1] - self.width / 2
+                case Alignment.BOTTOM:
+                    centerline = pillar_reach[0] + self.width / 2
+                case Alignment.CENTER:
+                    centerline = reference_pillar.y
+                case _:
+                    raise ValueError(f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'")
+        elif self.axis == Axis.Y:
+            pillar_reach = reference_pillar.get_x_range()
+            match self.alignment:
+                case Alignment.LEFT:
+                    centerline = pillar_reach[0] + self.width / 2
+                case Alignment.RIGHT:
+                    centerline = pillar_reach[1] - self.width / 2
+                case Alignment.CENTER:
+                    centerline = reference_pillar.x
+                case _:
+                    raise ValueError(f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'")
+        else:
+            raise ValueError(f"Beam '{self.id}' has no axis set. Can't calculate centerline.")
+        self.centerline = centerline
+        return centerline
+
+    def _validate_all_pillars_support_the_whole_beam_width(self, pillar_registry: dict[str, Pillar]) -> None:
+        """
+        Validates that each pillar's perpendicular cross-section fully contains the beam's width band.
+        """
+        if self.axis is None or self.centerline is None:
+            raise ValueError(f"Beam '{self.id}' has no axis or centerline set. Can't validate pillar support.")
+        
+        beam_low, beam_high = self._get_range()
+        
+        for pillar_id in self.pillar_ids:
+            pillar = pillar_registry[pillar_id]
+            pillar_low, pillar_high = get_pillar_perpendicular_range(pillar, self.axis)
+            if pillar_low > beam_low + TOLERANCE or pillar_high < beam_high - TOLERANCE:
+                raise ValueError(
+                    f"Beam '{self.id}': pillar '{pillar.id}' cross-section "
+                    f"[{pillar_low:.4f}, {pillar_high:.4f}] cm does not fully cover the beam "
+                    f"width band [{beam_low:.4f}, {beam_high:.4f}] cm "
+                )
+
+    def _get_range(self) -> tuple[float, float]:
+        """Returns the coordinates range of the beam perpendicular to its axis (min, max)."""
+        beam_low = self.centerline - self.width / 2
+        beam_high = self.centerline + self.width / 2
+        return (beam_low, beam_high)
+
+    def _validate_no_skipped_pillars(self, pillar_registry: dict[str, Pillar]) -> None:
         """
         Ensures no pillar on the same axis line is omitted from pillar_ids.
-        Must be called after sort_and_validate_collinearity().
         """
-        anchors = [pillar_registry[pid] for pid in self.pillar_ids]
-        xs = {p.x for p in anchors}
-        ys = {p.y for p in anchors}
+        anchors = [pillar_registry[pillar_id] for pillar_id in self.pillar_ids]
+        pillars_on_same_line = self._pillars_touching_beam(pillar_registry, axis=self.axis)
 
-        is_x_beam = len(ys) == 1
-        fixed_coord = next(iter(ys)) if is_x_beam else next(iter(xs))
-
-        # Find all pillars in the registry that lie on this axis line
-        if is_x_beam:
-            on_line = [
-                p for p in pillar_registry.values()
-                if abs(p.y - fixed_coord) <= _COLLINEARITY_TOLERANCE
-            ]
-            on_line.sort(key=lambda p: p.x)
-            coord_key = lambda p: p.x  # noqa: E731
+        if self.axis == Axis.X:
+            pillars_on_same_line.sort(key=x_coord)
+            coord_key = x_coord
+            start_coord = anchors[0].x
+            end_coord = anchors[-1].x
         else:
-            on_line = [
-                p for p in pillar_registry.values()
-                if abs(p.x - fixed_coord) <= _COLLINEARITY_TOLERANCE
-            ]
-            on_line.sort(key=lambda p: p.y)
-            coord_key = lambda p: p.y  # noqa: E731
+            pillars_on_same_line.sort(key=y_coord)
+            coord_key = y_coord
+            start_coord = anchors[0].y
+            end_coord = anchors[-1].y
 
-        beam_ids = set(self.pillar_ids)
-        start_coord = coord_key(pillar_registry[self.pillar_ids[0]])
-        end_coord = coord_key(pillar_registry[self.pillar_ids[-1]])
-
+        beam_pillar_ids = set(self.pillar_ids)
         skipped = [
-            p for p in on_line
-            if p.id not in beam_ids
-            and start_coord <= coord_key(p) <= end_coord
+            pillar for pillar in pillars_on_same_line
+            if pillar.id not in beam_pillar_ids
+            and between(coord_key(pillar), start_coord, end_coord)
         ]
 
         if skipped:
-            names = ", ".join(f"'{p.id}'" for p in skipped)
-            raise ValueError(
-                f"Beam '{self.id}' skips pillar(s) {names} that lie on the same "
-                f"axis line between its endpoints."
+            skipped_pillar_ids = ", ".join(f"'{pillar.id}'" for pillar in skipped)
+            raise ValueError(f"Beam '{self.id}' skips pillar(s) {skipped_pillar_ids} that lie on the same  axis line between its endpoints.")
+
+    def _pillars_touching_beam(self, pillar_registry: dict[str, Pillar], axis: Axis) -> list[Pillar]:
+        """
+        Finds every pillar whose position or cross-section footprint intersects the beam.
+        """
+        beam_low, beam_high = self._get_range()
+
+        def touches_beam(pillar: Pillar) -> bool:
+            pillar_low, pillar_high = get_pillar_perpendicular_range(pillar, axis)
+            if between(pillar_low, beam_low, beam_high) or between(pillar_high, beam_low, beam_high):
+                return True
+            return False
+
+        return [pillar for pillar in pillar_registry.values() if touches_beam(pillar)]
+
+    def _build_resolved_spans(self) -> None:
+        """Builds resolved_spans from the sorted pillar_ids."""
+        self.spans = [
+            Span(
+                beam=self,
+                start_pillar_id=self.pillar_ids[i],
+                end_pillar_id=self.pillar_ids[i + 1],
             )
+            for i in range(len(self.pillar_ids) - 1)
+        ]
