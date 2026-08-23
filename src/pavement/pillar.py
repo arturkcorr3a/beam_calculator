@@ -24,3 +24,13 @@ class Pillar:
     def __post_init__(self):
         if self.id is None:
             self.id = f"P{next(self._counter)}"  # Auto-generate ID if not provided
+
+    def get_x_range(self) -> tuple[float, float]:
+        """Returns the x-coordinate range of the pillar based on its width."""
+        half = self.width / 2
+        return (self.x - half, self.x + half)
+
+    def get_y_range(self) -> tuple[float, float]:
+        """Returns the y-coordinate range of the pillar based on its depth."""
+        half = self.depth / 2
+        return (self.y - half, self.y + half)
