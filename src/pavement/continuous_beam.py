@@ -56,10 +56,10 @@ class ContinuousBeam:
     alignment: Alignment
     height: float = 0
 
-    id: str = field(default=None, init=False) # Auto-generated
+    id: str = field(default="", init=False)
     axis: Optional[Axis] = field(default=None, init=False)
     centerline: Optional[float] = field(default=None, init=False)
-    spans: list[Span] = field(default_factory=list, init=False)
+    spans: list[Span] = field(default_factory=list[Span], init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -143,8 +143,6 @@ class ContinuousBeam:
         """Validates that the beam's alignment is compatible with its axis."""
         if self.axis is None:
             raise ValueError(f"Beam '{self.id}' has no axis set. Can't validate alignment.")
-        if self.alignment is None:
-            raise ValueError(f"Beam '{self.id}' has no alignment set.")
         self.alignment.validate(self.axis)
 
     def _determine_centerline(self, pillar_registry: dict[str, Pillar]) -> float:
@@ -200,6 +198,8 @@ class ContinuousBeam:
 
     def _get_range(self) -> tuple[float, float]:
         """Returns the coordinates range of the beam perpendicular to its axis (min, max)."""
+        if self.centerline is None:
+            raise ValueError(f"Beam '{self.id}' has no centerline set. Can't calculate range.")
         beam_low = self.centerline - self.width / 2
         beam_high = self.centerline + self.width / 2
         return (beam_low, beam_high)
@@ -208,6 +208,9 @@ class ContinuousBeam:
         """
         Ensures no pillar on the same axis line is omitted from pillar_ids.
         """
+        if self.axis is None:
+            raise ValueError(f"Beam '{self.id}' has no axis set. Can't validate skipped pillars.")
+        
         anchors = [pillar_registry[pillar_id] for pillar_id in self.pillar_ids]
         pillars_on_same_line = self._pillars_touching_beam(pillar_registry, axis=self.axis)
 

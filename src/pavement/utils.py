@@ -28,11 +28,11 @@ class Alignment(Enum):
             raise ValueError(f"Alignment '{self.value}' is not valid for vertical (Y-axis) beams.")
 
     @staticmethod
-    def get_horizontal() -> Set[Alignment, Alignment, Alignment]:
+    def get_horizontal() -> Set[Alignment]:
         return {Alignment.TOP, Alignment.CENTER, Alignment.BOTTOM}
 
     @staticmethod
-    def get_vertical() -> Set[Alignment, Alignment, Alignment]:
+    def get_vertical() -> Set[Alignment]:
         return {Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT}
 
 def approx_equal(a: float, b: float) -> bool:

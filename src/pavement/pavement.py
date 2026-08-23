@@ -21,9 +21,9 @@ class Pavement:
         beams:   Mapping of beam ID → ContinuousBeam
         slabs:   Mapping of slab ID → Slab
     """
-    pillars: dict[str, Pillar] = field(default_factory=dict)
-    beams: dict[str, ContinuousBeam] = field(default_factory=dict)
-    slabs: dict[str, Slab] = field(default_factory=dict)
+    pillars: dict[str, Pillar] = field(default_factory=dict[str, Pillar])
+    beams: dict[str, ContinuousBeam] = field(default_factory=dict[str, ContinuousBeam])
+    slabs: dict[str, Slab] = field(default_factory=dict[str, Slab])
 
     # ------------------------------------------------------------------
     # Builder helpers

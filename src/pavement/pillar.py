@@ -17,7 +17,7 @@ class Pillar:
     y: float
     width: float
     depth: float
-    id: str = field(default=None, init=False)  
+    id: str = field(default="", init=False)  
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
