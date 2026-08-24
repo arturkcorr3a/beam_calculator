@@ -35,9 +35,6 @@ class Alignment(Enum):
     def get_vertical() -> Set[Alignment]:
         return {Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT}
 
-def approx_equal(a: float, b: float) -> bool:
-    return abs(a - b) <= TOLERANCE
-
 def between(value: float, low: float, high: float) -> bool:
     """Evaluates if value is between low and high, inclusive, with a tolerance."""
     return low - TOLERANCE <= value <= high + TOLERANCE

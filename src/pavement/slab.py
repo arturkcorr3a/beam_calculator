@@ -1,139 +1,118 @@
-from __future__ import annotations
-
 from dataclasses import dataclass, field
+from enum import Enum
 from itertools import count
-from typing import TYPE_CHECKING
+from typing import Literal, cast
 
-if TYPE_CHECKING:
-    from src.pavement.pillar import Pillar
+from src.pavement.pillar import Pillar
+from src.pavement.continuous_beam import ContinuousBeam, Span
 
-_COORD_TOLERANCE = 0.01  # cm
+# TODO review this value and look for references in NBR 6118 (or other source)
+SLAB_MIN_THICKNESS = 8.0  # cm
 
-# FIXME This was AI-generated code to make the UI work, improve it
+type EdgeKey = Literal["bottom", "top", "left", "right"]
+type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
+
+class Edge(str, Enum):
+    BOTTOM = "bottom"
+    TOP = "top"
+    LEFT = "left"
+    RIGHT = "right"
+
 @dataclass
 class Slab:
-    """
-    Represents a two-way RC slab bounded by exactly 4 corner pillars.
+    """Representation of a rectangular concrete slab bounded by four corner pillars.
 
-    The 4 pillars must form an axis-aligned rectangle and all 4 perimeter
-    beams must exist in the pavement. Load distribution (one-way vs two-way)
-    is determined automatically from the lx/ly ratio per NBR 6118 §14.
-
-    Material (concrete) and thickness are project-level settings. Surface loads will be defined separately when the load model is implemented.
-
-    Attributes:
-        id: Automatically generated unique identifier (e.g. "L1")
-        corner_pillar_ids: Tuple of 4 pillar IDs — order is arbitrary,
-            the system identifies corners by their coordinates.
-        thickness: Slab thickness (cm) — pre-calculated, see calculate_thickness()
+    The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams. Thickness is a preliminary value and its pre-dimensioning calculation is not implemented.
     """
     corner_pillar_ids: tuple[str, str, str, str]
-    thickness: float = 0.0
-    id: str = field(default=None) 
+    thickness: float = SLAB_MIN_THICKNESS
+
+    id: str = field(default="", init=False) 
+    supporting_beam_ids: list[str] = field(default_factory=list[str], init=False)
+    edge_spans: dict[Edge, list[Span]] = field(default_factory=dict[Edge, list[Span]], init=False)
+    corners_pillar_dict: dict[CornerKey, Pillar] = field(default_factory=dict[CornerKey, Pillar], init=False)
+    edges_beam_dict: dict[Edge, ContinuousBeam] = field(default_factory=dict[Edge, ContinuousBeam], init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
-        if self.id is None:
-            self.id = f"L{next(self._counter)}"  # Auto-generate ID if not provided
+        self.id = f"L{next(self._counter)}"  # Auto-generate ID if not provided
+        self._validate_pillar_count()
 
+    def clear_resolved(self) -> None:
+        self.supporting_beam_ids = []
+        self.edge_spans = {}
+        self.corners_pillar_dict = {}
+        self.edges_beam_dict = {}
+
+    def _validate_pillar_count(self) -> None:
+        if len(self.corner_pillar_ids) != 4:
+            raise ValueError(f"Slab '{self.id}' must have exactly 4 corner pillars.")
+
+    # IMPLEMENT this is going to be more complex (pre-dimensioning is done through ELS analysis)
     def calculate_thickness(self, pillar_registry: dict[str, Pillar]) -> float:
         """Placeholder for pre-dimensioning thickness calculation (to be implemented)."""
         raise NotImplementedError("Slab thickness pre-calculation is not yet implemented.")
 
-    # ------------------------------------------------------------------
-    # Derived geometry (populated by Pavement.validate())
-    # ------------------------------------------------------------------
+    @property
+    def dimensions(self) -> tuple[float, float]:
+        """X and y dimensions of the slab (cm)."""
+        x_dimension = cast(float, self.edges_beam_dict[Edge.RIGHT].centerline) - cast(float, self.edges_beam_dict[Edge.LEFT].centerline)
+        y_dimension = cast(float, self.edges_beam_dict[Edge.TOP].centerline) - cast(float, self.edges_beam_dict[Edge.BOTTOM].centerline)
+        return (x_dimension, y_dimension)
 
-    def _corners(self, pillar_registry: dict[str, Pillar]) -> list[Pillar]:
-        return [pillar_registry[pid] for pid in self.corner_pillar_ids]
-
-    def dimensions(self, pillar_registry: dict[str, Pillar]) -> tuple[float, float]:
-        """Returns (lx, ly) where lx ≤ ly (cm)."""
-        corners = self._corners(pillar_registry)
-        xs = sorted({p.x for p in corners})
-        ys = sorted({p.y for p in corners})
-        lx = xs[1] - xs[0]
-        ly = ys[1] - ys[0]
-        return (lx, ly) if lx <= ly else (ly, lx)
-
-    def is_two_way(self, pillar_registry: dict[str, Pillar]) -> bool:
-        """Returns True when lx/ly > 0.5 (NBR 6118 §14 criterion)."""
-        lx, ly = self.dimensions(pillar_registry)
-        return (lx / ly) > 0.5
+    def resolve_and_validate(self, pillar_registry: dict[str, Pillar], beam_registry: dict[str, ContinuousBeam]) -> None:
+        """Resolves supporting beams and validates the slab's rectangle."""
+        self._validate_pillars_exist(pillar_registry)
+        self._map_pillars_to_corners(pillar_registry)
+        self._resolve_supporting_beams(beam_registry)
 
     # ------------------------------------------------------------------
-    # Validation helpers (called by Pavement.validate())
+    # Validation helpers
     # ------------------------------------------------------------------
 
-    def validate_rectangle(self, pillar_registry: dict[str, Pillar]) -> None:
-        """Checks that the 4 pillars form an axis-aligned rectangle."""
-        if len(self.corner_pillar_ids) != 4:
-            raise ValueError(
-                f"Slab '{self.id}' must have exactly 4 corner pillars."
-            )
+    def _validate_pillars_exist(self, pillar_registry: dict[str, Pillar]) -> None:
+        """Ensures all pillar_ids exist in the provided pillar_registry."""
+        for pillar_id in self.corner_pillar_ids:
+            if pillar_id not in pillar_registry:
+                raise ValueError(f"Beam '{self.id}': pillar '{pillar_id}' does not exist in the registry.")
 
-        corners = self._corners(pillar_registry)
-        xs = sorted({p.x for p in corners})
-        ys = sorted({p.y for p in corners})
+    def _map_pillars_to_corners(self, pillar_registry: dict[str, Pillar]) -> None:
+        """Maps each of the 4 corner pillar IDs to its position: top/bottom-left/right."""        
+        pillars = [pillar_registry[pillar_id] for pillar_id in self.corner_pillar_ids]
+        pillars = sorted(pillars, key=lambda pillar: pillar.y, reverse=True)
+        top, bottom = pillars[0:2], pillars[2:4]
+        top_left, top_right = sorted(top, key=lambda pillar: pillar.x)
+        bottom_left, bottom_right = sorted(bottom, key=lambda pillar: pillar.x)
+        self.corners_pillar_dict = {
+            "bottom_left": bottom_left,
+            "top_left": top_left,
+            "bottom_right": bottom_right,
+            "top_right": top_right,
+        }
 
-        if len(xs) != 2 or len(ys) != 2:
-            raise ValueError(
-                f"Slab '{self.id}': the 4 corner pillars must form an "
-                f"axis-aligned rectangle (2 distinct x-coords and 2 distinct y-coords)."
-            )
+    def _resolve_supporting_beams(self, beam_registry: dict[str, ContinuousBeam]) -> None:
+        """Resolves the supporting beams (and respective spans) for each edge of the slab and populates edges_beam_dict."""
+        for edge_key in Edge:
+            self._resolve_edge(edge_key, beam_registry)
 
-        expected_coords = {(xs[0], ys[0]), (xs[0], ys[1]),
-                           (xs[1], ys[0]), (xs[1], ys[1])}
-        actual_coords = {(p.x, p.y) for p in corners}
+    def _resolve_edge(self, edge_key: Edge, beam_registry: dict[str, ContinuousBeam]) -> ContinuousBeam:
+        "Finds the beam (and respective spans) that supports a given edge of the slab and populates edges_beam_dict."
+        corner_edge_dict: dict[Edge, tuple[CornerKey, CornerKey]] = {
+            Edge.TOP: ("top_left", "top_right"),
+            Edge.BOTTOM: ("bottom_left", "bottom_right"),
+            Edge.LEFT: ("top_left", "bottom_left"),
+            Edge.RIGHT: ("top_right", "bottom_right"),
+        }
 
-        if actual_coords != expected_coords:
-            raise ValueError(
-                f"Slab '{self.id}': pillar positions do not form a valid rectangle."
-            )
+        corner_1, corner_2 = corner_edge_dict[edge_key]
+        corner_pillar_1 = self.corners_pillar_dict[corner_1]
+        corner_pillar_2 = self.corners_pillar_dict[corner_2]
 
-    def validate_perimeter_beams(
-        self,
-        pillar_registry: dict[str, Pillar],
-        beam_registry: dict,
-    ) -> None:
-        """
-        Checks that all 4 perimeter beams exist.
-        A perimeter beam exists when some ContinuousBeam contains both
-        adjacent corner pillars as a consecutive span.
-        """
-        corners = self._corners(pillar_registry)
-        xs = sorted({p.x for p in corners})
-        ys = sorted({p.y for p in corners})
-
-        # Identify the 4 corners by position
-        def pillar_at(x: float, y: float) -> str:
-            for p in corners:
-                if abs(p.x - x) <= _COORD_TOLERANCE and abs(p.y - y) <= _COORD_TOLERANCE:
-                    return p.id
-            raise ValueError(
-                f"Slab '{self.id}': no corner pillar found at ({x}, {y})."
-            )
-
-        bl = pillar_at(xs[0], ys[0])  # bottom-left
-        br = pillar_at(xs[1], ys[0])  # bottom-right
-        tl = pillar_at(xs[0], ys[1])  # top-left
-        tr = pillar_at(xs[1], ys[1])  # top-right
-
-        required_edges = [
-            (bl, br, "bottom"),
-            (tl, tr, "top"),
-            (bl, tl, "left"),
-            (br, tr, "right"),
-        ]
-
-        for pid_a, pid_b, side in required_edges:
-            has_beam = any(
-                b.contains_pillar_pair(pid_a, pid_b)
-                for b in beam_registry.values()
-            )
-            if not has_beam:
-                raise ValueError(
-                    f"Slab '{self.id}': missing {side} perimeter beam "
-                    f"between pillars '{pid_a}' and '{pid_b}'."
-                )
+        for beam in beam_registry.values():
+            if beam.contains_pillar(corner_pillar_1.id) and beam.contains_pillar(corner_pillar_2.id):
+                self.edges_beam_dict[edge_key] = beam
+                spans = beam.get_spans_between(corner_pillar_1.id, corner_pillar_2.id)
+                self.edge_spans[edge_key] = spans
+                return beam
+        raise ValueError(f"Slab '{self.id}': No valid beam found for {edge_key} edge.")

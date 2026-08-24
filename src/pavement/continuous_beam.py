@@ -15,7 +15,7 @@ from src.pavement.utils import (
     y_coord,
 )
 
-# PAPER encontrar referência desses valores, acho que não tem na norma, mas deve ter na literatura clássica
+# PAPER find reference for these values, I think they are not in NBR 6118, but should be in the classical literature
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
 
 @dataclass
@@ -41,6 +41,10 @@ class Span:
             return abs(end_pillar.y - start_pillar.y)
         else:
             raise ValueError("Invalid axis for length calculation.")
+
+    def contains_pillar(self, pillar_id: str) -> bool:
+        """Checks if the span contains a specific pillar ID."""
+        return pillar_id == self.start_pillar_id or pillar_id == self.end_pillar_id
 
 # TODO merge with ContinuousBeam class in src/pavement/continuous_beam.py in some way (or reference one via the other)
 @dataclass
@@ -68,8 +72,7 @@ class ContinuousBeam:
         self.height = self.width # Start with a square section, just so it is not zero until it is calculated
         self._validate_reference_pillar()
         self._validate_pillar_count()
-
-    
+   
     def _validate_pillar_count(self) -> None:
         if len(self.pillar_ids) < 2:
             raise ValueError(f"Beam '{self.id}' must have at least 2 pillars.")
@@ -85,7 +88,7 @@ class ContinuousBeam:
         self.centerline = None
         self.spans = []
 
-    # PAPER encontrar referência desses valores (BEAM_HEIGHT_ESTIMATION_FACTOR), acho que não tem na norma, mas deve ter na literatura clássica (sei que é entre 12 e 15)
+    # PAPER find reference for these values (BEAM_HEIGHT_ESTIMATION_FACTOR), I think they are not in NBR 6118, but should be in the classical literature (I know it's between 12 and 15)
     def estipulate_height(self, pillar_registry: dict[str, Pillar]) -> float:
         """Pre-dimensioning height calculation."""
         max_height = 0
@@ -107,6 +110,35 @@ class ContinuousBeam:
         self._validate_all_pillars_support_the_whole_beam_width(pillar_registry)
         self._validate_no_skipped_pillars(pillar_registry)
         self._build_resolved_spans()
+
+    def contains_pillar(self, pillar_id: str) -> bool:
+        """Checks if the beam contains a specific pillar ID."""
+        return pillar_id in self.pillar_ids
+
+    def get_spans_between(self, start_pillar_id: str, end_pillar_id: str) -> list[Span]:
+        """Returns all the spans between two pillars."""
+        spans: list[Span] = []
+
+        if start_pillar_id not in self.pillar_ids or end_pillar_id not in self.pillar_ids:
+            raise ValueError(f"Both pillars must be part of the beam's pillar_ids. Given: '{start_pillar_id}', '{end_pillar_id}'")
+
+        start_index = self.pillar_ids.index(start_pillar_id)
+        end_index = self.pillar_ids.index(end_pillar_id)
+
+        if start_index > end_index:
+            start_index, end_index = end_index, start_index
+
+        sublist = self.pillar_ids[start_index:end_index + 1]
+
+        for i in range(len(sublist) - 1):
+            pillar_a = sublist[i]
+            pillar_b = sublist[i + 1]
+            for span in self.spans:
+                if span.contains_pillar(pillar_a) and span.contains_pillar(pillar_b):
+                    spans.append(span)
+                    break
+
+        return spans
 
     # ------------------------------------------------------------------
     # Validation helpers
