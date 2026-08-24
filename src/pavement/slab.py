@@ -12,7 +12,7 @@ SLAB_MIN_THICKNESS = 8.0  # cm
 type EdgeKey = Literal["bottom", "top", "left", "right"]
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
 
-class Edge(str, Enum):
+class Edges(str, Enum):
     BOTTOM = "bottom"
     TOP = "top"
     LEFT = "left"
@@ -29,9 +29,9 @@ class Slab:
 
     id: str = field(default="", init=False) 
     supporting_beam_ids: list[str] = field(default_factory=list[str], init=False)
-    edge_spans: dict[Edge, list[Span]] = field(default_factory=dict[Edge, list[Span]], init=False)
+    edge_spans: dict[Edges, list[Span]] = field(default_factory=dict[Edges, list[Span]], init=False)
     corners_pillar_dict: dict[CornerKey, Pillar] = field(default_factory=dict[CornerKey, Pillar], init=False)
-    edges_beam_dict: dict[Edge, ContinuousBeam] = field(default_factory=dict[Edge, ContinuousBeam], init=False)
+    edges_beam_dict: dict[Edges, ContinuousBeam] = field(default_factory=dict[Edges, ContinuousBeam], init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -57,8 +57,8 @@ class Slab:
     @property
     def dimensions(self) -> tuple[float, float]:
         """X and y dimensions of the slab (cm)."""
-        x_dimension = cast(float, self.edges_beam_dict[Edge.RIGHT].centerline) - cast(float, self.edges_beam_dict[Edge.LEFT].centerline)
-        y_dimension = cast(float, self.edges_beam_dict[Edge.TOP].centerline) - cast(float, self.edges_beam_dict[Edge.BOTTOM].centerline)
+        x_dimension = cast(float, self.edges_beam_dict[Edges.RIGHT].centerline) - cast(float, self.edges_beam_dict[Edges.LEFT].centerline)
+        y_dimension = cast(float, self.edges_beam_dict[Edges.TOP].centerline) - cast(float, self.edges_beam_dict[Edges.BOTTOM].centerline)
         return (x_dimension, y_dimension)
 
     def resolve_and_validate(self, pillar_registry: dict[str, Pillar], beam_registry: dict[str, ContinuousBeam]) -> None:
@@ -66,6 +66,7 @@ class Slab:
         self._validate_pillars_exist(pillar_registry)
         self._map_pillars_to_corners(pillar_registry)
         self._resolve_supporting_beams(beam_registry)
+        self._add_slab_to_spans()
 
     # ------------------------------------------------------------------
     # Validation helpers
@@ -93,26 +94,32 @@ class Slab:
 
     def _resolve_supporting_beams(self, beam_registry: dict[str, ContinuousBeam]) -> None:
         """Resolves the supporting beams (and respective spans) for each edge of the slab and populates edges_beam_dict."""
-        for edge_key in Edge:
-            self._resolve_edge(edge_key, beam_registry)
+        for edge in Edges:
+            self._resolve_edge(edge, beam_registry)
 
-    def _resolve_edge(self, edge_key: Edge, beam_registry: dict[str, ContinuousBeam]) -> ContinuousBeam:
+    def _resolve_edge(self, edge: Edges, beam_registry: dict[str, ContinuousBeam]) -> ContinuousBeam:
         "Finds the beam (and respective spans) that supports a given edge of the slab and populates edges_beam_dict."
-        corner_edge_dict: dict[Edge, tuple[CornerKey, CornerKey]] = {
-            Edge.TOP: ("top_left", "top_right"),
-            Edge.BOTTOM: ("bottom_left", "bottom_right"),
-            Edge.LEFT: ("top_left", "bottom_left"),
-            Edge.RIGHT: ("top_right", "bottom_right"),
+        corner_edge_dict: dict[Edges, tuple[CornerKey, CornerKey]] = {
+            Edges.TOP: ("top_left", "top_right"),
+            Edges.BOTTOM: ("bottom_left", "bottom_right"),
+            Edges.LEFT: ("top_left", "bottom_left"),
+            Edges.RIGHT: ("top_right", "bottom_right"),
         }
 
-        corner_1, corner_2 = corner_edge_dict[edge_key]
+        corner_1, corner_2 = corner_edge_dict[edge]
         corner_pillar_1 = self.corners_pillar_dict[corner_1]
         corner_pillar_2 = self.corners_pillar_dict[corner_2]
 
         for beam in beam_registry.values():
             if beam.contains_pillar(corner_pillar_1.id) and beam.contains_pillar(corner_pillar_2.id):
-                self.edges_beam_dict[edge_key] = beam
+                self.edges_beam_dict[edge] = beam
                 spans = beam.get_spans_between(corner_pillar_1.id, corner_pillar_2.id)
-                self.edge_spans[edge_key] = spans
+                self.edge_spans[edge] = spans
                 return beam
-        raise ValueError(f"Slab '{self.id}': No valid beam found for {edge_key} edge.")
+        raise ValueError(f"Slab '{self.id}': No valid beam found for {edge} edge.")
+
+    def _add_slab_to_spans(self) -> None:
+        """Adds the slab ID to the span's supported_slab_ids."""
+        for edge in Edges:
+            for span in self.edge_spans[edge]:
+                span.add_supported_slab(self.id)
