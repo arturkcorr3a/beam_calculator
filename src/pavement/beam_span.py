@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from src.pavement.continuous_beam import ContinuousBeam
+from src.pavement.slab import Slab
 from src.pavement.utils import Axis
 from src.pavement.pillar import Pillar
 
@@ -17,7 +18,7 @@ class Span:
     beam: ContinuousBeam
     start_pillar_id: str
     end_pillar_id: str
-    supported_slab_ids: tuple[Optional[str], Optional[str]] = field(default_factory=tuple[Optional[str], Optional[str]], init=False)
+    supported_slabs: tuple[Optional[Slab], Optional[Slab]] = field(default_factory=tuple[Optional[Slab], Optional[Slab]], init=False)
 
     def get_length(self, pillar_registry: dict[str, Pillar]) -> float:
         """Returns the span's length (cm) from the supporting pillars."""
@@ -35,11 +36,20 @@ class Span:
         """Checks if the span contains a specific pillar ID."""
         return pillar_id == self.start_pillar_id or pillar_id == self.end_pillar_id
 
-    def add_supported_slab(self, slab_id: str) -> None:
-        """Adds a slab ID to the supported_slab_ids tuple."""
-        if self.supported_slab_ids[0] is None:
-            self.supported_slab_ids = (slab_id, self.supported_slab_ids[1])
-        elif self.supported_slab_ids[1] is None:
-            self.supported_slab_ids = (self.supported_slab_ids[0], slab_id)
+    def add_supported_slab(self, slab: Slab) -> None:
+        """Adds a slab to the supported_slab_ids tuple."""
+        if self.supported_slabs[0] is None:
+            self.supported_slabs = (slab, self.supported_slabs[1])
+        elif self.supported_slabs[1] is None:
+            self.supported_slabs = (self.supported_slabs[0], slab)
         else:
             raise ValueError(f"Span between '{self.start_pillar_id}' and '{self.end_pillar_id}' already supports two slabs.")
+
+    def get_other_supported_slab(self, slab: Slab) -> Optional[Slab]:
+        """Returns the other supported slab, given one of them."""
+        if self.supported_slabs[0] == slab:
+            return self.supported_slabs[1]
+        elif self.supported_slabs[1] == slab:
+            return self.supported_slabs[0]
+        else:
+            raise ValueError(f"Slab '{slab.id}' is not supported by this span.") 

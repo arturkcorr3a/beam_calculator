@@ -35,7 +35,7 @@ class Slab:
 
     def _setup_edges(self) -> None:
         """Initializes the edges dictionary with SlabEdge instances for each edge."""
-        self.edges = {edge: SlabEdge(edge) for edge in Edges}
+        self.edges = {edge: SlabEdge(edge, self) for edge in Edges}
 
     def clear_resolved(self) -> None:
         self.supporting_beam_ids = []
@@ -117,7 +117,7 @@ class Slab:
         raise ValueError(f"Slab '{self.id}': No valid beam found for {edge} edge.")
 
     def _add_slab_to_spans(self) -> None:
-        """Adds the slab ID to the span's supported_slab_ids."""
+        """Adds the slab to the span's supported_slabs."""
         for edge in Edges:
             for span in self.edges[edge].spans:
-                span.add_supported_slab(self.id)
+                span.add_supported_slab(self)

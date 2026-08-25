@@ -4,8 +4,14 @@ from enum import Enum
 from typing import Literal, Optional
 
 from src.pavement.continuous_beam import ContinuousBeam, Span
+from src.pavement.pillar import Pillar
+from src.pavement.slab import Slab
 
 type SupportCondition = Literal["pinned", "fixed"]
+
+# PAPER get reference for this method of resolving support
+THICKNESS_DIFFERENCE_FIXED_THRESHOLD = 2.0  # cm
+FIXED_RATIO_THRESHOLD = 0.8 
 
 class Edges(str, Enum):
     BOTTOM = "bottom"
@@ -17,6 +23,7 @@ class Edges(str, Enum):
 class SlabEdge:
     edge: Edges
     _beam: Optional[ContinuousBeam] = field(default=None, init=False)
+    slab: Slab
     spans: list[Span] = field(default_factory=list[Span], init=False)
     support_condition: SupportCondition = field(default="pinned", init=False)
 
@@ -40,3 +47,23 @@ class SlabEdge:
     def resolve_spans(self, spans: list[Span]) -> None:
         """Resolves the spans along this edge."""
         self.spans = spans
+
+    # PAPER get reference for this method of resolving support
+    def resolve_support_condition(self, pillar_registry: dict[str, Pillar]) -> None:
+        """Resolves the support condition for this edge, based on the thickness difference between adjacent slabs."""
+        supported_length = 0
+        fixed_length = 0
+        for span in self.spans:
+            other_slab = span.get_other_supported_slab(self.slab)
+            if other_slab is None:
+                supported_length += span.get_length(pillar_registry)
+            elif other_slab.thickness > self.slab.thickness:
+                fixed_length += span.get_length(pillar_registry)
+            elif abs(other_slab.thickness - self.slab.thickness) <= THICKNESS_DIFFERENCE_FIXED_THRESHOLD: # the other slab is at least 2 cm thinner than this slab
+                fixed_length += span.get_length(pillar_registry)
+            else:
+                supported_length += span.get_length(pillar_registry)
+
+        total_length = supported_length + fixed_length
+        if fixed_length / total_length > 0.8:
+            self.support_condition = "fixed"
