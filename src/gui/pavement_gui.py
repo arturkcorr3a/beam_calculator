@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
 
 from src.pavement.pavement import Pavement
 from src.pavement.pillar import Pillar
-from src.pavement.continuous_beam import ContinuousBeam
+from src.pavement.continuous_beam import Alignment, ContinuousBeam
 from src.pavement.slab import Slab
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -213,6 +213,20 @@ class PavementWindow(QMainWindow):
         self._b_width = _spin(5, 200, 1, 5, 20.0, " cm")
         form.addRow("Width (bw):", self._b_width)
 
+        self._b_alignment = QComboBox()
+        for al in Alignment:
+            self._b_alignment.addItem(al.value, al)
+        self._b_alignment.setCurrentText(Alignment.CENTER.value)
+        form.addRow("Alignment:", self._b_alignment)
+
+        align_hint = QLabel(
+            "top/center/bottom → horizontal beam\n"
+            "left/center/right → vertical beam"
+        )
+        align_hint.setStyleSheet("color: #555; font-size: 10px;")
+        align_hint.setWordWrap(True)
+        form.addRow("", align_hint)
+
         add_btn = QPushButton("Add Beam")
         add_btn.clicked.connect(self._add_beam)
         form.addRow(add_btn)
@@ -341,9 +355,16 @@ class PavementWindow(QMainWindow):
             self._show_warning("A beam needs at least 2 pillar IDs (comma-separated).")
             return
 
-        beam = ContinuousBeam(id=bid, pillar_ids=pillar_ids, width=self._b_width.value())
+        beam = ContinuousBeam(
+            id=bid,
+            pillar_ids=pillar_ids,
+            width=self._b_width.value(),
+            alignment=self._b_alignment.currentData(),
+        )
         self._pavement.add_beam(beam)
-        self._beam_list.addItem(f"{bid}  [{', '.join(pillar_ids)}]  bw={beam.width:.0f} cm")
+        self._beam_list.addItem(
+            f"{bid}  [{', '.join(pillar_ids)}]  bw={beam.width:.0f} cm  align={beam.alignment.value}"
+        )
         self._b_id.clear()
         self._b_pillars.clear()
         self._reset_validation_state()
