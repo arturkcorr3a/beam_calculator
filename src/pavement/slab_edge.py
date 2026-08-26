@@ -26,6 +26,7 @@ class SlabEdge:
     slab: Slab
     spans: list[Span] = field(default_factory=list[Span], init=False)
     support_condition: SupportCondition = field(default="pinned", init=False)
+    influence_area: float = field(default=0.0, init=False) 
 
     @property
     def beam(self) -> ContinuousBeam:

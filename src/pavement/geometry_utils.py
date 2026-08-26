@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 import math
-from typing import Set
+from typing import List, Set
 from src.pavement.pillar import Pillar
 
 TOLERANCE = 0.001  # cm
@@ -60,3 +61,19 @@ def x_coord(pillar: Pillar) -> float:
 
 def y_coord(pillar: Pillar) -> float:
     return pillar.y
+
+# FIXME analyze if this will still be needed, if not, remove it
+@dataclass
+class Point:
+    x: float
+    y: float
+
+# FIXME analyze if this will still be needed, if not, remove it
+def calculate_polygon_area(vertices: List[Point]) -> float:
+    """Calculates the polygon area from its vertices."""
+    area = 0.0
+    n = len(vertices)
+    for i in range(n):
+        j = (i + 1) % n
+        area += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y
+    return abs(area) / 2.0

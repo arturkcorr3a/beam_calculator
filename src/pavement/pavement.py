@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import List, Optional
 
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam
@@ -53,3 +54,27 @@ class Pavement:
         # 3. Slab pass
         for slab in self.slabs.values():
             slab.resolve_and_validate(self.pillars, self.beams)
+
+    def pre_size_beams(self) -> None:
+        """
+        Pre-sizes all beams based on the maximum span length of their spans.
+        """
+        for beam in self.beams.values():
+            beam.pre_size(self.pillars)
+
+    def pre_size_slabs(self) -> None:
+        """
+        Pre-sizes all slabs based on the maximum span length of their spans.
+        """
+        changed: List[Optional[bool]] = [None] * len(self.slabs)
+        while False in changed or None in changed:
+            for i, slab in enumerate(self.slabs.values()):
+                changed[i] = slab.pre_size()
+
+    def unload_slabs_on_beams(self) -> None:
+        """
+        Unloads all slabs on their supporting beams, calculating the load and adding it to the supporting spans.
+        """
+        for slab in self.slabs.values():
+            slab.unload_on_supporting_spans()
+

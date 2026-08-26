@@ -3,7 +3,7 @@ from typing import Optional
 
 from src.pavement.continuous_beam import ContinuousBeam
 from src.pavement.slab import Slab
-from src.pavement.utils import Axis
+from src.pavement.geometry_utils import Axis
 from src.pavement.pillar import Pillar
 
 

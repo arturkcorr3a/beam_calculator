@@ -5,7 +5,7 @@ from typing import Optional
 from src.pavement.beam_span import Span
 from src.pavement.pillar import Pillar
 
-from src.pavement.utils import (
+from src.pavement.geometry_utils import (
     TOLERANCE,
     Alignment,
     Axis,
@@ -62,7 +62,7 @@ class ContinuousBeam:
         self.spans = []
 
     # PAPER find reference for these values (BEAM_HEIGHT_ESTIMATION_FACTOR), I think they are not in NBR 6118, but should be in the classical literature (I know it's between 12 and 15)
-    def estipulate_height(self, pillar_registry: dict[str, Pillar]) -> float:
+    def pre_size(self, pillar_registry: dict[str, Pillar]) -> float:
         """Pre-dimensioning height calculation."""
         max_height = 0
         for span in self.spans:

@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from itertools import count
 from typing import Literal, cast
 
+from src.loading.superficial_loads import SuperficialLoads
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam, Span
 from src.pavement.slab_edge import Edges, SlabEdge
@@ -10,6 +11,13 @@ from src.pavement.slab_edge import Edges, SlabEdge
 SLAB_MIN_THICKNESS = 8.0  # cm
 
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
+
+CORNER_EDGE_DICT: dict[Edges, tuple[CornerKey, CornerKey]] = {
+    Edges.TOP: ("top_left", "top_right"),
+    Edges.BOTTOM: ("bottom_left", "bottom_right"),
+    Edges.LEFT: ("top_left", "bottom_left"),
+    Edges.RIGHT: ("top_right", "bottom_right"),
+}
 
 @dataclass
 class Slab:
@@ -25,6 +33,8 @@ class Slab:
     edges: dict[Edges, SlabEdge] = field(default_factory=dict[Edges, SlabEdge], init=False)
     edge_spans: dict[Edges, list[Span]] = field(default_factory=dict[Edges, list[Span]], init=False)
     corners_pillar_dict: dict[CornerKey, Pillar] = field(default_factory=dict[CornerKey, Pillar], init=False)
+    permanent_load: float = field(default=0.0, init=False) 
+    usage_load: float = field(default=0.0, init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -48,8 +58,9 @@ class Slab:
             raise ValueError(f"Slab '{self.id}' must have exactly 4 corner pillars.")
 
     # IMPLEMENT this is going to be more complex (pre-dimensioning is done through ELS analysis)
-    def calculate_thickness(self, pillar_registry: dict[str, Pillar]) -> float:
-        """Placeholder for pre-dimensioning thickness calculation (to be implemented)."""
+    def pre_size(self) -> bool:
+        """Placeholder for pre-dimensioning thickness calculation (to be implemented).
+        Sets the slab's thickness and return True if the slab is stable (there weren't any changes in thickness or support conditions that require re-validation of the pavement structure)."""
         raise NotImplementedError("Slab thickness pre-calculation is not yet implemented.")
 
     @property
@@ -59,12 +70,30 @@ class Slab:
         y_dimension = cast(float, self.edges[Edges.TOP].beam.centerline) - cast(float, self.edges[Edges.BOTTOM].beam.centerline)
         return (x_dimension, y_dimension)
 
+    def add_permanent_load(self, load: float) -> None:
+        """Adds a permanent load (kN/m²) to the slab's total permanent load."""
+        self.permanent_load += load
+
+    def resolve_usage_load(self, local: str) -> None:
+        """Sets the usage load (kN/m²) to the slab's total usage load depending on the local."""
+        self.usage_load = SuperficialLoads.get_variable_usage_load(local)
+
     def resolve_and_validate(self, pillar_registry: dict[str, Pillar], beam_registry: dict[str, ContinuousBeam]) -> None:
         """Resolves supporting beams and validates the slab's rectangle."""
         self._validate_pillars_exist(pillar_registry)
         self._map_pillars_to_corners(pillar_registry)
         self._resolve_supporting_beams(beam_registry)
         self._add_slab_to_spans()
+
+    def unload_on_supporting_spans(self) -> None:
+        # IMPLEMENT after resolving influence areas, calculate the load and add it to the supporting span
+        self.resolve_influence_areas()
+        pass
+
+    # PAPER get reference for this (metodo das charneiras -> norma ou literatura)
+    def resolve_influence_areas(self) -> None:
+        # IMPLEMENT calculate the influence areas for each edge
+        pass
 
     # ------------------------------------------------------------------
     # Validation helpers
@@ -97,14 +126,7 @@ class Slab:
 
     def _resolve_edge(self, edge: Edges, beam_registry: dict[str, ContinuousBeam]) -> ContinuousBeam:
         "Finds the beam (and respective spans) that supports a given edge of the slab."
-        corner_edge_dict: dict[Edges, tuple[CornerKey, CornerKey]] = {
-            Edges.TOP: ("top_left", "top_right"),
-            Edges.BOTTOM: ("bottom_left", "bottom_right"),
-            Edges.LEFT: ("top_left", "bottom_left"),
-            Edges.RIGHT: ("top_right", "bottom_right"),
-        }
-
-        corner_1, corner_2 = corner_edge_dict[edge]
+        corner_1, corner_2 = CORNER_EDGE_DICT[edge]
         corner_pillar_1 = self.corners_pillar_dict[corner_1]
         corner_pillar_2 = self.corners_pillar_dict[corner_2]
 
