@@ -55,6 +55,15 @@ class Pavement:
         for slab in self.slabs.values():
             slab.resolve_and_validate(self.pillars, self.beams)
 
+    # TODO this is the entry point -> call it in main / UI
+    def resolve(self) -> None:
+        # TODO docstring
+        self.validate()
+        self.pre_size_beams()
+        self.pre_size_slabs()
+        self.unload_slabs_on_beams()
+        self.dimension_beams()
+
     def pre_size_beams(self) -> None:
         """
         Pre-sizes all beams based on the maximum span length of their spans.
@@ -78,3 +87,9 @@ class Pavement:
         for slab in self.slabs.values():
             slab.unload_on_supporting_spans()
 
+    def dimension_beams(self) -> None:
+        """
+        Dimensions all beams based on the loads applied to their spans.
+        """
+        for beam in self.beams.values():
+            beam.dimension()

@@ -72,6 +72,10 @@ class ContinuousBeam:
         self.height = round_up_to_multiple_of_5(max_height)
         return self.height
 
+    def dimension(self) -> None:
+        # IMPLEMENT final dimensioning (integrate with RectangularBeam)
+        pass
+
     def resolve_and_validate(self, pillar_registry: dict[str, Pillar]) -> None:
         """
         Resolves the beam's axis, centerline, and validates that all pillars support the entire beam width and no pillars are skipped.

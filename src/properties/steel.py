@@ -4,7 +4,6 @@ from functools import cached_property
 
 GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
 
-# TODO escolher um único aço para o dimensionamento: deixar o CA-50 como padrão e CA-25 e CA-60 como plano B (configuração adicional opcional) #CAO tipo aço
 class Steel(Enum):
     """
     Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.
