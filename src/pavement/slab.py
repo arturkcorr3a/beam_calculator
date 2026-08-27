@@ -26,15 +26,15 @@ class Slab:
     The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams. Thickness is a preliminary value and its pre-dimensioning calculation is not implemented.
     """
     corner_pillar_ids: tuple[str, str, str, str]
-    thickness: float = SLAB_MIN_THICKNESS
 
     id: str = field(default="", init=False) 
     supporting_beam_ids: list[str] = field(default_factory=list[str], init=False)
     edges: dict[Edges, SlabEdge] = field(default_factory=dict[Edges, SlabEdge], init=False)
     edge_spans: dict[Edges, list[Span]] = field(default_factory=dict[Edges, list[Span]], init=False)
     corners_pillar_dict: dict[CornerKey, Pillar] = field(default_factory=dict[CornerKey, Pillar], init=False)
+    thickness: float = field(default=SLAB_MIN_THICKNESS, init=False)
     permanent_load: float = field(default=0.0, init=False) 
-    usage_load: float = field(default=0.0, init=False)
+    variable_load: float = field(default=0.0, init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -74,9 +74,9 @@ class Slab:
         """Adds a permanent load (kN/m²) to the slab's total permanent load."""
         self.permanent_load += load
 
-    def resolve_usage_load(self, local: str) -> None:
-        """Sets the usage load (kN/m²) to the slab's total usage load depending on the local."""
-        self.usage_load = SuperficialLoads.get_variable_usage_load(local)
+    def resolve_variable_load(self, local: str) -> None:
+        """Sets the variable load (kN/m²) to the slab's total variable load depending on the local."""
+        self.variable_load = SuperficialLoads.get_variable_usage_load(local)
 
     def resolve_and_validate(self, pillar_registry: dict[str, Pillar], beam_registry: dict[str, ContinuousBeam]) -> None:
         """Resolves supporting beams and validates the slab's rectangle."""
@@ -86,9 +86,10 @@ class Slab:
         self._add_slab_to_spans()
 
     def unload_on_supporting_spans(self) -> None:
-        # IMPLEMENT after resolving influence areas, calculate the load and add it to the supporting span
+        """Unloads the slab's load on its supporting spans."""
         self.resolve_influence_areas()
-        pass
+        for edge in Edges:
+            self.edges[edge].unload_on_spans()
 
     # PAPER get reference for this (metodo das charneiras -> norma ou literatura)
     def resolve_influence_areas(self) -> None:

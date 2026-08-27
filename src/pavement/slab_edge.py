@@ -68,3 +68,9 @@ class SlabEdge:
         total_length = supported_length + fixed_length
         if fixed_length / total_length > 0.8:
             self.support_condition = "fixed"
+
+    def unload_on_spans(self) -> None:
+        """Unloads the slab's load on its supporting spans."""
+        for span in self.spans:
+            span.add_load(self.slab.permanent_load * self.influence_area, permanent=True)
+            span.add_load(self.slab.variable_load * self.influence_area, permanent=False)

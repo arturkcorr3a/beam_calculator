@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from itertools import count
 from typing import Optional
 
+from src.config import APP_CONFIG
+from src.loading.linear_loads import LinearLoads
 from src.pavement.beam_span import Span
 from src.pavement.pillar import Pillar
 
@@ -16,8 +18,21 @@ from src.pavement.geometry_utils import (
     y_coord,
 )
 
+# TODO add wall loads and self-weight (beam -> spans)
+
 # PAPER find reference for these values, I think they are not in NBR 6118, but should be in the classical literature
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
+
+@dataclass
+class WallDefinition:
+    structural: bool
+    masonry_type: str
+    nominal_thickness: float
+    coating_thickness: int
+
+    def get_parameters_for_load(self) -> tuple[bool, str, float, int]:
+        """Returns the parameters needed for calculating the wall load."""
+        return (self.structural, self.masonry_type, self.nominal_thickness, self.coating_thickness)
 
 # TODO merge with ContinuousBeam class in src/pavement/continuous_beam.py in some way (or reference one via the other)
 @dataclass
@@ -31,6 +46,7 @@ class ContinuousBeam:
     reference_pillar_id: str   
     width: float
     alignment: Alignment
+    wall: WallDefinition
     height: float = 0
 
     id: str = field(default="", init=False)
@@ -116,6 +132,16 @@ class ContinuousBeam:
                     break
 
         return spans
+
+    def load_spans(self) -> None:
+        """Loads all spans based on the loads applied to their supported slabs."""
+        area_m2 = self.width / 100 * self.height / 100
+        own_weight = LinearLoads.get_concrete_element_own_weight(area_m2)  # kN/m
+        wall_height = APP_CONFIG.ceiling_height
+        wall_weight = LinearLoads.get_wall_load(*self.wall.get_parameters_for_load(), wall_height)  # kN/m
+        for span in self.spans:
+            span.add_load(own_weight, permanent=True)
+            span.add_load(wall_weight, permanent=True)
 
     # ------------------------------------------------------------------
     # Validation helpers

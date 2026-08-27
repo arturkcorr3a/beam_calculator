@@ -18,6 +18,7 @@ class AppConfig:
     pavement_steel: str = "CA50"
 
     building_category: str = "Residential buildings"
+    ceiling_height: float = 2.5 # m
 
 
 APP_CONFIG = AppConfig()

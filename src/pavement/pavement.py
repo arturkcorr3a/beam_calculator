@@ -60,6 +60,7 @@ class Pavement:
         # TODO docstring
         self.validate()
         self.pre_size_beams()
+        self.load_beam_spans()
         self.pre_size_slabs()
         self.unload_slabs_on_beams()
         self.dimension_beams()
@@ -79,6 +80,13 @@ class Pavement:
         while False in changed or None in changed:
             for i, slab in enumerate(self.slabs.values()):
                 changed[i] = slab.pre_size()
+
+    def load_beam_spans(self) -> None:
+        """
+        Loads all beams based on the loads applied to their spans.
+        """
+        for beam in self.beams.values():
+            beam.load_spans()
 
     def unload_slabs_on_beams(self) -> None:
         """
