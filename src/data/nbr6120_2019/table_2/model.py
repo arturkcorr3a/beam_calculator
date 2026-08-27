@@ -1,7 +1,7 @@
 """Dataclass models for ABNT NBR 6120:2019 - Section 5.4 - Table 2 (Masonry)."""
 
 from dataclasses import dataclass
-from typing import Optional, overload
+from typing import Optional
 
 @dataclass(frozen=True)
 class Thickness:
@@ -12,15 +12,17 @@ class Thickness:
     one_cm: Optional[float]
     two_cm: Optional[float]
 
-    def get_weight(self, coating_cm: int) -> Optional[float]:
+    def get_weight(self, coating_cm: int) -> float:
         """Return the weight for *coating_cm* (0, 1, or 2 cm per face)."""
-        mapping = {0: self.zero_cm, 1: self.one_cm, 2: self.two_cm}
+        mapping: dict[int, Optional[float]] = {0: self.zero_cm, 1: self.one_cm, 2: self.two_cm}
         if coating_cm not in mapping:
             raise ValueError(
                 f"Coating thickness must be 0, 1, or 2 cm. Got: {coating_cm}"
             )
-        return mapping[coating_cm]
-
+        weight = mapping[coating_cm]
+        if weight is None:
+            raise ValueError(f"Weight for coating thickness {coating_cm} cm is not defined for nominal thickness {self.nominal_cm} cm.")
+        return weight
 
 @dataclass(frozen=True)
 class MasonryType:
@@ -59,15 +61,6 @@ class Table2:
     non_bearing_masonry: tuple[MasonryType, ...]
     weight_composition_notes: tuple[str, ...]
 
-    def find_masonry_type(self, description: str) -> MasonryType:
-        """Find a masonry type by (partial, case-insensitive) description match."""
-        query = description.lower()
-        for masonry in (*self.structural_masonry, *self.non_bearing_masonry):
-            if query in masonry.type_description.lower():
-                return masonry
-        raise KeyError(f"No masonry type matching '{description}' was found.")
-
-    @overload
     def find_masonry_type(self, description: str, structural: bool) -> MasonryType:
         """Find a masonry type by (partial, case-insensitive) description match, with a structural filter flag."""
         masonries = self.structural_masonry if structural else self.non_bearing_masonry

@@ -18,6 +18,8 @@ class AppConfig:
     pavement_steel: str = "CA50"
 
     building_category: str = "Residential buildings"
+
+    # PAPER find ref for standard ceiling height for residential buildings
     ceiling_height: float = 2.5 # m
 
 

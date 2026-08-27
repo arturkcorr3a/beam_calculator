@@ -1,5 +1,6 @@
 from enum import Enum
 from math import sqrt, cbrt, log
+from typing import cast
 
 GAMMA_C = 1.4  # ABNT NBR 6118 - Section 12.4.1
 
@@ -109,7 +110,7 @@ class Concrete(Enum):
         """
         if self.value <= 50:
             return 2e-3
-        return 2e-3 + 0.085e-3 * (self.value - 50)**0.53
+        return cast(float, 2e-3 + 0.085e-3 * (self.value - 50)**0.53)
     
     @property
     def epsilon_cu(self) -> float:
