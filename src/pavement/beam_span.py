@@ -1,10 +1,14 @@
-from dataclasses import dataclass, field
-from typing import Optional
+from __future__ import annotations
 
-from src.pavement.continuous_beam import ContinuousBeam
-from src.pavement.slab import Slab
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Optional
+
 from src.pavement.geometry_utils import Axis
 from src.pavement.pillar import Pillar
+
+if TYPE_CHECKING:
+    from src.pavement.continuous_beam import ContinuousBeam
+    from src.pavement.slab import Slab
 
 
 @dataclass
@@ -18,7 +22,7 @@ class Span:
     beam: ContinuousBeam
     start_pillar_id: str
     end_pillar_id: str
-    supported_slabs: tuple[Optional[Slab], Optional[Slab]] = field(default_factory=tuple[Optional[Slab], Optional[Slab]], init=False)
+    supported_slabs: tuple[Optional[Slab], Optional[Slab]] = field(default_factory=lambda: (None, None), init=False)
     permanent_load: float = field(default=0.0, init=False)  # kN/m
     variable_load: float = field(default=0.0, init=False)  # kN/m
 

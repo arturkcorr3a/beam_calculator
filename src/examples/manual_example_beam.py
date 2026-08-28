@@ -9,7 +9,7 @@ from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 from src.reinforcement.internal_forces import LOAD_FACTOR, design_bending_moment as design_force
-from src.report_exporter import ReportExporter
+from src.gui.report_exporter import ReportExporter
 
 # ==============================================================================
 # 1. INPUT DATA / DADOS DE ENTRADA

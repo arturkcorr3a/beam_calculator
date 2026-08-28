@@ -93,7 +93,7 @@ class Pavement:
         Unloads all slabs on their supporting beams, calculating the load and adding it to the supporting spans.
         """
         for slab in self.slabs.values():
-            slab.unload_on_supporting_spans()
+            slab.unload_on_supporting_spans(self.pillars)
 
     def dimension_beams(self) -> None:
         """

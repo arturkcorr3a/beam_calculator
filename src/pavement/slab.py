@@ -59,9 +59,8 @@ class Slab:
 
     # IMPLEMENT this is going to be more complex (pre-dimensioning is done through ELS analysis)
     def pre_size(self) -> bool:
-        """Placeholder for pre-dimensioning thickness calculation (to be implemented).
-        Sets the slab's thickness and return True if the slab is stable (there weren't any changes in thickness or support conditions that require re-validation of the pavement structure)."""
-        raise NotImplementedError("Slab thickness pre-calculation is not yet implemented.")
+        """Sets the slab's thickness and return True if the slab is stable (there weren't any changes in thickness or support conditions that require re-validation of the pavement structure)."""
+        return True  # IMPLEMENT Placeholder implementation; always returns True for now
 
     @property
     def dimensions(self) -> tuple[float, float]:
@@ -85,20 +84,21 @@ class Slab:
         self._resolve_supporting_beams(beam_registry)
         self._add_slab_to_spans()
 
-    def unload_on_supporting_spans(self) -> None:
+    def unload_on_supporting_spans(self, pillar_registry: dict[str, Pillar]) -> None:
         """Unloads the slab's load on its supporting spans."""
         self.resolve_influence_areas()
         for edge in Edges:
-            self.edges[edge].unload_on_spans()
+            self.edges[edge].unload_on_spans(pillar_registry)
 
     # PAPER get reference for this (metodo das charneiras -> norma ou literatura)
     # IMPLEMENT calculate the influence areas for each edge
     def resolve_influence_areas(self) -> None:
         # IMPLEMENT placeholder function -> proportional to the side length
-        lx, ly = self.dimensions
+        lx_cm, ly_cm = self.dimensions
+        lx, ly = lx_cm / 100, ly_cm / 100
         x_ratio = lx / (lx + ly)
         y_ratio = ly / (lx + ly)
-        area = lx * ly
+        area = lx * ly  # m²
 
         self.edges[Edges.TOP].influence_area = x_ratio * area
         self.edges[Edges.BOTTOM].influence_area = x_ratio * area

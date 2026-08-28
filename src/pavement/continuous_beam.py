@@ -26,7 +26,7 @@ from src.properties.steel import Steel
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
-from src.report_exporter import ReportExporter
+from src.gui.report_exporter import ReportExporter
 
 # TODO add wall loads and self-weight (beam -> spans)
 
@@ -384,8 +384,8 @@ class ContinuousBeam:
 
         # Export reports
         today = datetime.now().strftime("%b-%d").lower()
-        csv_path = exporter.export_csv(f"results/{today}/report.csv")
-        pdf_path = exporter.export_pdf(f"results/{today}/report.pdf")
+        csv_path = exporter.export_csv(f"results/{today}/report-{self.id}.csv")
+        pdf_path = exporter.export_pdf(f"results/{today}/report-{self.id}.pdf")
 
         print("[ARQUIVOS EXPORTADOS COM SUCESSO]")
         print(f"  • CSV: {csv_path}")

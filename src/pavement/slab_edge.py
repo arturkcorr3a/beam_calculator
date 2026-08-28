@@ -1,11 +1,13 @@
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Literal, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
-from src.pavement.continuous_beam import ContinuousBeam, Span
-from src.pavement.pillar import Pillar
-from src.pavement.slab import Slab
+if TYPE_CHECKING:
+    from src.pavement.continuous_beam import ContinuousBeam, Span
+    from src.pavement.pillar import Pillar
+    from src.pavement.slab import Slab
 
 type SupportCondition = Literal["pinned", "fixed"]
 
@@ -24,7 +26,7 @@ class SlabEdge:
     edge: Edges
     _beam: Optional[ContinuousBeam] = field(default=None, init=False)
     slab: Slab
-    spans: list[Span] = field(default_factory=list[Span], init=False)
+    spans: list[Span] = field(default_factory=list, init=False) # type: ignore
     support_condition: SupportCondition = field(default="pinned", init=False)
     influence_area: float = field(default=0.0, init=False) 
 
@@ -69,8 +71,12 @@ class SlabEdge:
         if fixed_length / total_length > 0.8:
             self.support_condition = "fixed"
 
-    def unload_on_spans(self) -> None:
-        """Unloads the slab's load on its supporting spans."""
+    def unload_on_spans(self, pillar_registry: dict[str, Pillar]) -> None:
+        """Distributes the slab's tributary load along this edge's supporting spans (kN/m).
+        """
+        edge_length_m = sum(span.get_length(pillar_registry) for span in self.spans) / 100
+        permanent_linear_load = self.slab.permanent_load * self.influence_area / edge_length_m  # kN/m
+        variable_linear_load  = self.slab.variable_load  * self.influence_area / edge_length_m    # kN/m
         for span in self.spans:
-            span.add_load(self.slab.permanent_load * self.influence_area, permanent=True)
-            span.add_load(self.slab.variable_load * self.influence_area, permanent=False)
+            span.add_load(permanent_linear_load, permanent=True)
+            span.add_load(variable_linear_load, permanent=False)

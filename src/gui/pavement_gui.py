@@ -15,16 +15,20 @@ import matplotlib.patches as mpatches
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
+    QDialog,
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QSplitter,
     QTabWidget,
     QVBoxLayout,
@@ -33,11 +37,13 @@ from PySide6.QtWidgets import (
 
 from src.pavement.pavement import Pavement
 from src.pavement.pillar import Pillar
-from src.pavement.continuous_beam import Alignment, ContinuousBeam
+from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement.geometry_utils import Alignment
 from src.pavement.slab import Slab
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.config import APP_CONFIG
+from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.gui.theme import (
     DARK_ACCENT,
     DARK_BG_INPUT,
@@ -54,6 +60,30 @@ from src.gui.theme import (
 )
 
 _CM_PER_M = 100.0
+
+_STRUCTURAL_MASONRY_TYPES = [
+    "Hollow concrete block (Classes A and B - ABNT NBR 6136)",
+    "Hollow ceramic block with solid walls (Vertical holes - ABNT NBR 15270-1)",
+    "Hollow ceramic block with hollow walls (Vertical holes - ABNT NBR 15270-1)",
+    "Solid ceramic brick (ABNT NBR 15270-1)",
+    "Hollow calcium silicate block (Class E - ABNT NBR 14974-1)",
+    "Perforated calcium silicate block (Classes E, F and G - ABNT NBR 14974-1)",
+]
+_NON_BEARING_MASONRY_TYPES = [
+    "Hollow concrete block (Class C - ABNT NBR 6136)",
+    "Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)",
+    "Autoclaved aerated concrete block (Class C25 - ABNT NBR 13438)",
+    "Glass block (decorative, non-fire-rated)",
+]
+
+def _usage_locals_for_category(category_description: str) -> list[str]:
+    try:
+        cat = TABLE_10.find_category(category_description)
+        return [loc.description for loc in cat.locations]
+    except KeyError:
+        return []
+
+_USAGE_LOCALS: list[str] = _usage_locals_for_category(APP_CONFIG.building_category)
 
 
 def _spin(lo: float, hi: float, decimals: int, step: float,
@@ -125,6 +155,20 @@ class PavementWindow(QMainWindow):
         self._validate_label.setStyleSheet("color: grey;")
         vl.addWidget(self._validate_label)
 
+        self._calculate_btn = QPushButton("Calculate")
+        self._calculate_btn.setMinimumHeight(38)
+        self._calculate_btn.setStyleSheet(
+            f"background-color: {DARK_ACCENT}; color: #000; font-weight: bold;"
+        )
+        self._calculate_btn.clicked.connect(self._calculate)
+        vl.addWidget(self._calculate_btn)
+
+        self._example_btn = QPushButton("Load Example")
+        self._example_btn.setMinimumHeight(30)
+        self._example_btn.setToolTip("Pre-load the 4-pillar residential pavement from the manual example")
+        self._example_btn.clicked.connect(self._load_example)
+        vl.addWidget(self._example_btn)
+
         layout.addWidget(validate_group)
         return panel
 
@@ -154,10 +198,6 @@ class PavementWindow(QMainWindow):
 
         form_group = QGroupBox("Add Pillar")
         form = QFormLayout(form_group)
-
-        self._p_id = QLineEdit()
-        self._p_id.setPlaceholderText("e.g. P1")
-        form.addRow("ID:", self._p_id)
 
         self._p_x = _spin(0, 9999, 2, 0.5, 0.0, " m")
         form.addRow("X:", self._p_x)
@@ -197,10 +237,6 @@ class PavementWindow(QMainWindow):
         form_group = QGroupBox("Add Beam")
         form = QFormLayout(form_group)
 
-        self._b_id = QLineEdit()
-        self._b_id.setPlaceholderText("e.g. B1")
-        form.addRow("ID:", self._b_id)
-
         self._b_pillars = QLineEdit()
         self._b_pillars.setPlaceholderText("e.g. P1, P2, P3")
         form.addRow("Pillar IDs:", self._b_pillars)
@@ -209,6 +245,15 @@ class PavementWindow(QMainWindow):
         self._pillar_hint_label.setWordWrap(True)
         self._pillar_hint_label.setStyleSheet("color: #555; font-size: 10px;")
         form.addRow("Available:", self._pillar_hint_label)
+
+        self._b_ref_pillar = QLineEdit()
+        self._b_ref_pillar.setPlaceholderText("e.g. P1")
+        form.addRow("Reference pillar:", self._b_ref_pillar)
+
+        ref_hint = QLabel("Pillar used to anchor the beam's centerline (alignment).")
+        ref_hint.setStyleSheet("color: #555; font-size: 10px;")
+        ref_hint.setWordWrap(True)
+        form.addRow("", ref_hint)
 
         self._b_width = _spin(5, 200, 1, 5, 20.0, " cm")
         form.addRow("Width (bw):", self._b_width)
@@ -226,6 +271,26 @@ class PavementWindow(QMainWindow):
         align_hint.setStyleSheet("color: #555; font-size: 10px;")
         align_hint.setWordWrap(True)
         form.addRow("", align_hint)
+
+        # Wall definition fields
+        self._b_wall_structural = QCheckBox("Structural masonry")
+        self._b_wall_structural.setChecked(False)
+        self._b_wall_structural.toggled.connect(self._on_wall_structural_toggled)
+        form.addRow("Wall type:", self._b_wall_structural)
+
+        self._b_wall_masonry = QComboBox()
+        for t in _NON_BEARING_MASONRY_TYPES:
+            self._b_wall_masonry.addItem(t)
+        form.addRow("Masonry:", self._b_wall_masonry)
+
+        self._b_wall_thickness = _spin(6.5, 30.0, 1, 0.5, 14.0, " cm")
+        form.addRow("Nominal thickness:", self._b_wall_thickness)
+
+        self._b_wall_coating = QSpinBox()
+        self._b_wall_coating.setRange(0, 2)
+        self._b_wall_coating.setValue(1)
+        self._b_wall_coating.setSuffix(" cm")
+        form.addRow("Coating thickness:", self._b_wall_coating)
 
         add_btn = QPushButton("Add Beam")
         add_btn.clicked.connect(self._add_beam)
@@ -253,10 +318,6 @@ class PavementWindow(QMainWindow):
         form_group = QGroupBox("Add Slab")
         form = QFormLayout(form_group)
 
-        self._s_id = QLineEdit()
-        self._s_id.setPlaceholderText("e.g. S1")
-        form.addRow("ID:", self._s_id)
-
         self._s_pillar_hint = QLabel()
         self._s_pillar_hint.setWordWrap(True)
         self._s_pillar_hint.setStyleSheet("color: #555; font-size: 10px;")
@@ -268,6 +329,11 @@ class PavementWindow(QMainWindow):
             le.setPlaceholderText("Pillar ID")
             self._s_corners.append(le)
             form.addRow(label, le)
+
+        self._s_usage = QComboBox()
+        for loc in _USAGE_LOCALS:
+            self._s_usage.addItem(loc)
+        form.addRow("Usage:", self._s_usage)
 
         add_btn = QPushButton("Add Slab")
         add_btn.clicked.connect(self._add_slab)
@@ -304,16 +370,7 @@ class PavementWindow(QMainWindow):
     # ---------------------------------------------------------------- slots --
 
     def _add_pillar(self) -> None:
-        pid = self._p_id.text().strip()
-        if not pid:
-            self._show_warning("Pillar ID cannot be empty.")
-            return
-        if pid in self._pavement.pillars:
-            self._show_warning(f"Pillar '{pid}' already exists.")
-            return
-
         pillar = Pillar(
-            id=pid,
             x=self._p_x.value() * _CM_PER_M,
             y=self._p_y.value() * _CM_PER_M,
             width=self._p_width.value(),
@@ -321,10 +378,9 @@ class PavementWindow(QMainWindow):
         )
         self._pavement.add_pillar(pillar)
         self._pillar_list.addItem(
-            f"{pid}  ({self._p_x.value():.2f} m, {self._p_y.value():.2f} m)"
+            f"{pillar.id}  ({self._p_x.value():.2f} m, {self._p_y.value():.2f} m)"
             f"  {pillar.width:.0f}×{pillar.depth:.0f} cm"
         )
-        self._p_id.clear()
         self._update_pillar_hints()
         self._reset_validation_state()
         self._redraw_canvas()
@@ -341,32 +397,41 @@ class PavementWindow(QMainWindow):
         self._redraw_canvas()
 
     def _add_beam(self) -> None:
-        bid = self._b_id.text().strip()
-        if not bid:
-            self._show_warning("Beam ID cannot be empty.")
-            return
-        if bid in self._pavement.beams:
-            self._show_warning(f"Beam '{bid}' already exists.")
-            return
-
         raw = self._b_pillars.text()
         pillar_ids = [p.strip() for p in raw.split(",") if p.strip()]
         if len(pillar_ids) < 2:
             self._show_warning("A beam needs at least 2 pillar IDs (comma-separated).")
             return
 
+        ref_pillar = self._b_ref_pillar.text().strip()
+        if not ref_pillar:
+            self._show_warning("Reference pillar ID cannot be empty.")
+            return
+        if ref_pillar not in pillar_ids:
+            self._show_warning(f"Reference pillar '{ref_pillar}' must be one of the beam's pillar IDs.")
+            return
+
+        structural = self._b_wall_structural.isChecked()
+        wall = WallDefinition(
+            structural=structural,
+            masonry_type=self._b_wall_masonry.currentText(),
+            nominal_thickness=self._b_wall_thickness.value(),
+            coating_thickness=self._b_wall_coating.value(),
+        )
+
         beam = ContinuousBeam(
-            id=bid,
             pillar_ids=pillar_ids,
+            reference_pillar_id=ref_pillar,
             width=self._b_width.value(),
             alignment=self._b_alignment.currentData(),
+            wall=wall,
         )
         self._pavement.add_beam(beam)
         self._beam_list.addItem(
-            f"{bid}  [{', '.join(pillar_ids)}]  bw={beam.width:.0f} cm  align={beam.alignment.value}"
+            f"{beam.id}  [{', '.join(pillar_ids)}]  ref={ref_pillar}  bw={beam.width:.0f} cm  align={beam.alignment.value}"
         )
-        self._b_id.clear()
         self._b_pillars.clear()
+        self._b_ref_pillar.clear()
         self._reset_validation_state()
         self._redraw_canvas()
 
@@ -381,23 +446,18 @@ class PavementWindow(QMainWindow):
         self._redraw_canvas()
 
     def _add_slab(self) -> None:
-        sid = self._s_id.text().strip()
-        if not sid:
-            self._show_warning("Slab ID cannot be empty.")
-            return
-        if sid in self._pavement.slabs:
-            self._show_warning(f"Slab '{sid}' already exists.")
-            return
-
         corners = tuple(le.text().strip() for le in self._s_corners)
         if any(c == "" for c in corners):
             self._show_warning("All 4 corner pillar IDs must be filled in.")
             return
 
-        slab = Slab(id=sid, corner_pillar_ids=corners)
+        local = self._s_usage.currentText()
+        slab = Slab(corner_pillar_ids=corners)
+        slab.resolve_variable_load(local)
         self._pavement.add_slab(slab)
-        self._slab_list.addItem(f"{sid}  corners: [{', '.join(corners)}]")
-        self._s_id.clear()
+        self._slab_list.addItem(
+            f"{slab.id}  corners: [{', '.join(corners)}]  usage: {local}"
+        )
         for le in self._s_corners:
             le.clear()
         self._reset_validation_state()
@@ -421,6 +481,56 @@ class PavementWindow(QMainWindow):
         except ValueError as exc:
             self._validate_label.setText(str(exc))
             self._validate_label.setStyleSheet(f"color: {DARK_DANGER};")
+
+    def _calculate(self) -> None:
+        try:
+            self._pavement.validate()
+            self._pavement.pre_size_beams()
+            self._pavement.load_beam_spans()
+            self._pavement.unload_slabs_on_beams()
+            self._pavement.dimension_beams()
+        except ValueError as exc:
+            self._validate_label.setText(str(exc))
+            self._validate_label.setStyleSheet(f"color: {DARK_DANGER};")
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Calculation error", str(exc))
+            return
+        self._validate_label.setText("Calculation complete.")
+        self._validate_label.setStyleSheet(f"color: {DARK_SUCCESS}; font-weight: bold;")
+        dlg = ResultsWindow(self._pavement, parent=self)
+        dlg.exec()
+
+    def _load_example(self) -> None:
+        from src.examples.manual_example_pavement import build_pavement
+        self._pavement = build_pavement()
+        self._pillar_list.clear()
+        self._beam_list.clear()
+        self._slab_list.clear()
+        for pillar in self._pavement.pillars.values():
+            self._pillar_list.addItem(
+                f"{pillar.id}  ({pillar.x / _CM_PER_M:.2f} m, {pillar.y / _CM_PER_M:.2f} m)"
+                f"  {pillar.width:.0f}×{pillar.depth:.0f} cm"
+            )
+        for beam in self._pavement.beams.values():
+            self._beam_list.addItem(
+                f"{beam.id}  [{', '.join(beam.pillar_ids)}]  ref={beam.reference_pillar_id}"
+                f"  bw={beam.width:.0f} cm  align={beam.alignment.value}"
+            )
+        for slab in self._pavement.slabs.values():
+            self._slab_list.addItem(
+                f"{slab.id}  corners: [{', '.join(slab.corner_pillar_ids)}]"
+                f"  usage: Bedrooms"
+            )
+        self._update_pillar_hints()
+        self._reset_validation_state()
+        self._redraw_canvas()
+
+    def _on_wall_structural_toggled(self, checked: bool) -> None:
+        self._b_wall_masonry.clear()
+        types = _STRUCTURAL_MASONRY_TYPES if checked else _NON_BEARING_MASONRY_TYPES
+        for t in types:
+            self._b_wall_masonry.addItem(t)
 
     def _reset_validation_state(self) -> None:
         self._validate_label.setText("Not validated yet.")
@@ -527,3 +637,206 @@ class PavementWindow(QMainWindow):
                   framealpha=0.9)
 
         self._canvas.draw_idle()
+
+
+class ResultsWindow(QDialog):
+    """Dialog listing all calculated beams with a button to open each beam's report."""
+
+    def __init__(self, pavement, parent: QWidget = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Calculation Results")
+        self.resize(580, 420)
+        self._pavement = pavement
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        header = QLabel(f"<b>{len(self._pavement.beams)} beam(s) calculated</b>")
+        header.setStyleSheet(f"color: {DARK_TEXT_PRIMARY}; font-size: 13px;")
+        layout.addWidget(header)
+
+        for beam in self._pavement.beams.values():
+            row_widget = QWidget()
+            row = QHBoxLayout(row_widget)
+            row.setContentsMargins(0, 2, 0, 2)
+
+            pillars_str = ", ".join(beam.pillar_ids)
+            label = QLabel(
+                f"<b>{beam.id}</b>  bw={beam.width:.0f} cm  h={beam.height:.0f} cm  "
+                f"[{pillars_str}]  {len(beam.spans)} span(s)"
+            )
+            label.setStyleSheet(f"color: {DARK_TEXT_PRIMARY};")
+            row.addWidget(label, stretch=1)
+
+            btn = QPushButton("View Report")
+            btn.setFixedWidth(100)
+            btn.clicked.connect(
+                lambda checked, b=beam: self._open_report(b)
+            )
+            row.addWidget(btn)
+            layout.addWidget(row_widget)
+
+        layout.addStretch()
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+
+    def _open_report(self, beam) -> None:
+        dlg = BeamReportWindow(beam, self._pavement.pillars, parent=self)
+        dlg.exec()
+
+
+class BeamReportWindow(QDialog):
+    """Dialog showing the result buttons for a single pavement beam.
+
+    Re-runs the beam's structural build steps to obtain a RectangularBeam and
+    RebarCalculator, then exposes the same three result dialogs as the standalone
+    beam window: loads/efforts/layers, cross-section, and effort diagrams.
+    """
+
+    def __init__(self, beam, pillar_registry: dict, parent: QWidget = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"Report — {beam.id}")
+        self.resize(480, 280)
+        self._beam = beam
+        self._pillar_registry = pillar_registry
+        self._rect_beam = None
+        self._calculator = None
+        self._results_text = ""
+        self._build_ui()
+        self._run()
+
+    # ------------------------------------------------------------------ UI ---
+
+    def _build_ui(self) -> None:
+        from src.gui.beam_gui import ResultsDialog, SectionDialog, DiagramsDialog
+        self._ResultsDialog = ResultsDialog
+        self._SectionDialog = SectionDialog
+        self._DiagramsDialog = DiagramsDialog
+
+        layout = QVBoxLayout(self)
+
+        pillars_str = ", ".join(self._beam.pillar_ids)
+        summary = QLabel(
+            f"<b>{self._beam.id}</b> &nbsp;|&nbsp; "
+            f"bw = {self._beam.width:.0f} cm &nbsp; h = {self._beam.height:.0f} cm "
+            f"&nbsp;|&nbsp; Pillars: {pillars_str}"
+        )
+        summary.setStyleSheet(f"color: {DARK_TEXT_PRIMARY}; font-size: 12px;")
+        layout.addWidget(summary)
+
+        self._status_label = QLabel("Running…")
+        self._status_label.setStyleSheet(f"color: {DARK_TEXT_MUTED};")
+        layout.addWidget(self._status_label)
+
+        result_group = QGroupBox("Results")
+        result_layout = QVBoxLayout(result_group)
+
+        self._results_btn = QPushButton("Loads, efforts & layers")
+        self._results_btn.setEnabled(False)
+        self._results_btn.clicked.connect(self._open_results)
+        result_layout.addWidget(self._results_btn)
+
+        self._section_btn = QPushButton("Designed cross-section")
+        self._section_btn.setEnabled(False)
+        self._section_btn.clicked.connect(self._open_section)
+        result_layout.addWidget(self._section_btn)
+
+        self._diagrams_btn = QPushButton("Effort diagrams")
+        self._diagrams_btn.setEnabled(False)
+        self._diagrams_btn.clicked.connect(self._open_diagrams)
+        result_layout.addWidget(self._diagrams_btn)
+
+        layout.addWidget(result_group)
+        layout.addStretch()
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+
+    # ---------------------------------------------------------------- slots ---
+
+    def _open_results(self) -> None:
+        self._ResultsDialog(self._results_text, self).exec()
+
+    def _open_section(self) -> None:
+        self._SectionDialog(self._rect_beam, self._calculator, self).exec()
+
+    def _open_diagrams(self) -> None:
+        self._DiagramsDialog(self._rect_beam, self).exec()
+
+    # ------------------------------------------------------------ analysis ---
+
+    def _run(self) -> None:
+        from src.elements.rectangular_beam import RectangularBeam
+        from src.reinforcement.rebar_calculator import RebarCalculator
+        from src.reinforcement.stirrup_calculator import StirrupCalculator
+        from src.reinforcement.stirrups import Stirrups
+        from src.reinforcement.internal_forces import LOAD_FACTOR, design_bending_moment as design_force
+        from src.properties.concrete import Concrete
+        from src.properties.steel import Steel
+
+        beam = self._beam
+        try:
+            supports = beam._build_supports(self._pillar_registry)
+            loads = beam._build_loads(self._pillar_registry)
+            rect_beam = beam._build_structural_beam(self._pillar_registry, supports, loads)
+
+            max_bm = rect_beam.get_bending_moment(return_max=True)
+            max_sf = rect_beam.get_shear_force(return_max=True)
+            design_sf = design_force(max_sf)
+
+            stirrup_calc = StirrupCalculator(rect_beam, design_sf)
+            stirrups = Stirrups(rect_beam, stirrup_calc)
+            calculator = RebarCalculator(rect_beam, max_bm, stirrups)
+            calculator.calculate()
+        except Exception as exc:
+            self._status_label.setText(f"Error: {exc}")
+            self._status_label.setStyleSheet(f"color: {DARK_DANGER};")
+            return
+
+        self._rect_beam = rect_beam
+        self._calculator = calculator
+        self._results_text = self._build_results_text(rect_beam, max_bm, max_sf, design_sf, calculator)
+        self._status_label.setText("Analysis complete.")
+        self._status_label.setStyleSheet(f"color: {DARK_SUCCESS}; font-weight: bold;")
+        for btn in (self._results_btn, self._section_btn, self._diagrams_btn):
+            btn.setEnabled(True)
+
+    def _build_results_text(self, rect_beam, max_bm, max_sf, design_sf, calculator) -> str:
+        from collections import Counter
+        from src.gui.beam_gui import format_reinforcement, format_stirrups
+
+        lines = [
+            "BEAM INFO",
+            "-" * 44,
+            f"Beam ID : {self._beam.id}",
+            f"Pillars : {', '.join(self._beam.pillar_ids)}",
+            f"Section : bw={self._beam.width:.0f} cm  h={self._beam.height:.0f} cm",
+            "",
+            "SPANS",
+            "-" * 44,
+        ]
+        for i, span in enumerate(self._beam.spans, 1):
+            length = span.get_length(self._pillar_registry)
+            lines.append(
+                f"  Span {i} ({span.start_pillar_id}→{span.end_pillar_id}): "
+                f"L={length:.1f} cm  "
+                f"g={span.permanent_load:.3f} kN/m  q={span.variable_load:.3f} kN/m"
+            )
+        lines += [
+            "",
+            "EFFORTS",
+            "-" * 44,
+            f"Max bending moment Mk : {max_bm:.3f} kN.m",
+            f"Max shear force Vk    : {max_sf:.3f} kN",
+            f"Design shear Vsd      : {design_sf:.3f} kN",
+            f"Effective depth d     : {calculator.d:.2f} cm",
+        ]
+        blocks = ["\n".join(lines)]
+        blocks.append(format_reinforcement(calculator.tensioned_reinforcement, "Tensioned"))
+        blocks.append(format_stirrups(calculator.stirrups))
+        if calculator.compressed_reinforcement.is_chosen:
+            blocks.append(format_reinforcement(calculator.compressed_reinforcement, "Compressed"))
+        return "\n\n".join(blocks)
