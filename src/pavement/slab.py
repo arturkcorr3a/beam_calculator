@@ -92,9 +92,18 @@ class Slab:
             self.edges[edge].unload_on_spans()
 
     # PAPER get reference for this (metodo das charneiras -> norma ou literatura)
+    # IMPLEMENT calculate the influence areas for each edge
     def resolve_influence_areas(self) -> None:
-        # IMPLEMENT calculate the influence areas for each edge
-        pass
+        # IMPLEMENT placeholder function -> proportional to the side length
+        lx, ly = self.dimensions
+        x_ratio = lx / (lx + ly)
+        y_ratio = ly / (lx + ly)
+        area = lx * ly
+
+        self.edges[Edges.TOP].influence_area = x_ratio * area
+        self.edges[Edges.BOTTOM].influence_area = x_ratio * area
+        self.edges[Edges.LEFT].influence_area = y_ratio * area
+        self.edges[Edges.RIGHT].influence_area = y_ratio * area
 
     # ------------------------------------------------------------------
     # Validation helpers

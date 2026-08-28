@@ -100,4 +100,4 @@ class Pavement:
         Dimensions all beams based on the loads applied to their spans.
         """
         for beam in self.beams.values():
-            beam.dimension()
+            beam.dimension(self.pillars)

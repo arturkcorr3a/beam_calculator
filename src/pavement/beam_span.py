@@ -19,8 +19,8 @@ class Span:
     start_pillar_id: str
     end_pillar_id: str
     supported_slabs: tuple[Optional[Slab], Optional[Slab]] = field(default_factory=tuple[Optional[Slab], Optional[Slab]], init=False)
-    permanent_loads: float = field(default=0.0, init=False)  # kN/m
-    variable_loads: float = field(default=0.0, init=False)  # kN/m
+    permanent_load: float = field(default=0.0, init=False)  # kN/m
+    variable_load: float = field(default=0.0, init=False)  # kN/m
 
     def get_length(self, pillar_registry: dict[str, Pillar]) -> float:
         """Returns the span's length (cm) from the supporting pillars."""
@@ -59,6 +59,6 @@ class Span:
     def add_load(self, load: float, permanent: bool = True) -> None:
         """Adds a load (kN/m) to the span's total load from slabs."""
         if permanent:
-            self.permanent_loads += load
+            self.permanent_load += load
         else:
-            self.variable_loads += load
+            self.variable_load += load
