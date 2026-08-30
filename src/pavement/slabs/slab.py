@@ -1,3 +1,4 @@
+from functools import cached_property
 import math
 from dataclasses import dataclass, field
 from itertools import count
@@ -7,10 +8,10 @@ from src.loading.superficial_loads import SuperficialLoads
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam, Span
 from src.pavement.geometry_utils import Point, calculate_polygon_area
-from src.pavement.slab_edge import Edges, SlabEdge, SupportCondition
+from src.pavement.slabs.slab_edge import Edges, SlabEdge, SupportCondition
 
-# TODO review this value and look for references in NBR 6118 (or other source)
-SLAB_MIN_THICKNESS = 8.0  # cm
+# CONFIRM min thickness for slabs (13.2.4.1): items d and e (vehicles) will be considered?
+SLAB_MIN_THICKNESS = 8.0  # cm; from ABNT NBR 6118 - Section 12.4.1
 
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
 
@@ -79,12 +80,20 @@ class Slab:
         """Sets the slab's thickness and return True if the slab is stable (there weren't any changes in thickness or support conditions that require re-validation of the pavement structure)."""
         return True  # IMPLEMENT Placeholder implementation; always returns True for now
 
-    @property
+    @cached_property
     def dimensions(self) -> tuple[float, float]:
         """X and y dimensions of the slab (cm)."""
         x_dimension = cast(float, self.edges[Edges.RIGHT].beam.centerline) - cast(float, self.edges[Edges.LEFT].beam.centerline)
         y_dimension = cast(float, self.edges[Edges.TOP].beam.centerline) - cast(float, self.edges[Edges.BOTTOM].beam.centerline)
         return (x_dimension, y_dimension)
+
+    # PAPER find reference for this
+    @cached_property
+    def is_one_way(self) -> bool:
+        # TODO docstring
+        biggest = max(self.dimensions)
+        smallest = min(self.dimensions)
+        return (biggest / smallest) <= 2.0
 
     def add_permanent_load(self, load: float) -> None:
         """Adds a permanent load (kN/m²) to the slab's total permanent load."""
@@ -109,8 +118,7 @@ class Slab:
 
     # PAPER get reference for this (metodo das charneiras -> norma ou literatura)
     def resolve_influence_areas(self) -> None:
-        """Calculates each edge's tributary area (m²) using the Yield Line Theory
-        (Método das Charneiras Plásticas). See docs/yield_line_method.md."""
+        """Calculates each edge's tributary area (m²) using the Yield Line Theory. See docs/yield_line_method.md."""
         lx_cm, ly_cm = self.dimensions
         lx, ly = lx_cm / 100, ly_cm / 100
 

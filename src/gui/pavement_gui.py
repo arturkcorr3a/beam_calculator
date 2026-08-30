@@ -39,7 +39,7 @@ from src.pavement.pavement import Pavement
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement.geometry_utils import Alignment
-from src.pavement.slab import Slab
+from src.pavement.slabs.slab import Slab
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.config import APP_CONFIG

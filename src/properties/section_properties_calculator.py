@@ -28,7 +28,7 @@ class SectionPropertiesCalculator:
         return (pi * (diameter ** 2)) / 4.0
     
     @staticmethod
-    def gross_section_modulus(width: int, height: int) -> float:
+    def gross_section_modulus(width: float, height: float) -> float:
         """
         Calculates the gross section modulus (W_0) for rectangular section (cm, cm -> cm³).
         """ 
