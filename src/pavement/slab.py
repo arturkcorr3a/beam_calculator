@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 from itertools import count
 from typing import Literal, cast
@@ -5,7 +6,8 @@ from typing import Literal, cast
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam, Span
-from src.pavement.slab_edge import Edges, SlabEdge
+from src.pavement.geometry_utils import Point, calculate_polygon_area
+from src.pavement.slab_edge import Edges, SlabEdge, SupportCondition
 
 # TODO review this value and look for references in NBR 6118 (or other source)
 SLAB_MIN_THICKNESS = 8.0  # cm
@@ -42,6 +44,21 @@ class Slab:
         self.id = f"L{next(self._counter)}"  # Auto-generate ID if not provided
         self._validate_pillar_count()
         self._setup_edges()
+
+    # PAPER get reference for this from NBR 6118 (or other source, if it isn't there)
+    @staticmethod
+    def _corner_yield_slope(horizontal_cond: SupportCondition, vertical_cond: SupportCondition) -> float:
+        """Returns the yield-line slope (tan theta) at a corner, where theta is measured from the horizontal edge.
+
+        - Both same: 45 degrees (1.0). 
+        - Horizontal fixed, vertical pinned: 60 degrees (sqrt(3)).
+        - Horizontal pinned, vertical fixed: 30 degrees (1/sqrt(3)).
+        """
+        if horizontal_cond == vertical_cond:
+            return 1.0
+        if horizontal_cond == "fixed":
+            return math.sqrt(3)
+        return 1.0 / math.sqrt(3)
 
     def _setup_edges(self) -> None:
         """Initializes the edges dictionary with SlabEdge instances for each edge."""
@@ -91,19 +108,39 @@ class Slab:
             self.edges[edge].unload_on_spans(pillar_registry)
 
     # PAPER get reference for this (metodo das charneiras -> norma ou literatura)
-    # IMPLEMENT calculate the influence areas for each edge
     def resolve_influence_areas(self) -> None:
-        # IMPLEMENT placeholder function -> proportional to the side length
+        """Calculates each edge's tributary area (m²) using the Yield Line Theory
+        (Método das Charneiras Plásticas). See docs/yield_line_method.md."""
         lx_cm, ly_cm = self.dimensions
         lx, ly = lx_cm / 100, ly_cm / 100
-        x_ratio = lx / (lx + ly)
-        y_ratio = ly / (lx + ly)
-        area = lx * ly  # m²
 
-        self.edges[Edges.TOP].influence_area = x_ratio * area
-        self.edges[Edges.BOTTOM].influence_area = x_ratio * area
-        self.edges[Edges.LEFT].influence_area = y_ratio * area
-        self.edges[Edges.RIGHT].influence_area = y_ratio * area
+        slope_bl = Slab._corner_yield_slope(self.edges[Edges.BOTTOM].support_condition, self.edges[Edges.LEFT].support_condition)
+        slope_br = Slab._corner_yield_slope(self.edges[Edges.BOTTOM].support_condition, self.edges[Edges.RIGHT].support_condition)
+        slope_tl = Slab._corner_yield_slope(self.edges[Edges.TOP].support_condition, self.edges[Edges.LEFT].support_condition)
+        slope_tr = Slab._corner_yield_slope(self.edges[Edges.TOP].support_condition, self.edges[Edges.RIGHT].support_condition)
+
+        p_bl = Point(0,  0)
+        p_br = Point(lx, 0)
+        p_tl = Point(0,  ly)
+        p_tr = Point(lx, ly)
+
+        p_bottom = Point(slope_br * lx / (slope_bl + slope_br), slope_bl * slope_br * lx / (slope_bl + slope_br))
+        p_top    = Point(slope_tr * lx / (slope_tl + slope_tr), ly - slope_tl * slope_tr * lx / (slope_tl + slope_tr))
+        p_left   = Point(ly / (slope_bl + slope_tl), slope_bl * ly / (slope_bl + slope_tl))
+        p_right  = Point(lx - ly / (slope_br + slope_tr), slope_br * ly / (slope_br + slope_tr))
+
+        if p_bottom.y < p_left.y:
+            # Vertical pattern: BOTTOM/TOP → triangles; LEFT/RIGHT → quadrilaterals
+            self.edges[Edges.BOTTOM].influence_area = calculate_polygon_area([p_bl, p_br,  p_bottom])
+            self.edges[Edges.TOP].influence_area    = calculate_polygon_area([p_tl, p_tr,  p_top])
+            self.edges[Edges.LEFT].influence_area   = calculate_polygon_area([p_bl, p_bottom, p_top, p_tl])
+            self.edges[Edges.RIGHT].influence_area  = calculate_polygon_area([p_br, p_tr, p_top, p_bottom])
+        else:
+            # Horizontal pattern: LEFT/RIGHT → triangles; BOTTOM/TOP → quadrilaterals
+            self.edges[Edges.LEFT].influence_area   = calculate_polygon_area([p_bl, p_tl, p_left])
+            self.edges[Edges.RIGHT].influence_area  = calculate_polygon_area([p_br, p_tr, p_right])
+            self.edges[Edges.BOTTOM].influence_area = calculate_polygon_area([p_bl, p_br, p_right, p_left])
+            self.edges[Edges.TOP].influence_area    = calculate_polygon_area([p_tl, p_tr, p_right, p_left])
 
     # ------------------------------------------------------------------
     # Validation helpers

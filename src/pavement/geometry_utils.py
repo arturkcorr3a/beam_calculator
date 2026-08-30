@@ -62,13 +62,11 @@ def x_coord(pillar: Pillar) -> float:
 def y_coord(pillar: Pillar) -> float:
     return pillar.y
 
-# FIXME analyze if this will still be needed, if not, remove it
 @dataclass
 class Point:
     x: float
     y: float
 
-# FIXME analyze if this will still be needed, if not, remove it
 def calculate_polygon_area(vertices: List[Point]) -> float:
     """Calculates the polygon area from its vertices."""
     area = 0.0
