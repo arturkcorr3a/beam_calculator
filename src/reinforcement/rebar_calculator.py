@@ -1,5 +1,5 @@
 from src.elements.rectangular_beam import RectangularBeam
-from src.reinforcement.internal_forces import max_design_bending_moment, design_bending_moment, min_design_bending_moment
+from src.loading.forces import max_design_bending_moment, design_effort_elu, min_design_bending_moment
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
@@ -27,7 +27,7 @@ class RebarCalculator:
         """
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
-        self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
+        self.design_bending_moment = design_effort_elu(bending_moment_in_kncm)
         self.tensioned_reinforcement = Reinforcement(self.beam)
         self.compressed_reinforcement = Reinforcement(self.beam)
         self.stirrups = stirrups
@@ -40,7 +40,7 @@ class RebarCalculator:
         :type bending_moment: float
         """
         bending_moment_in_kncm = bending_moment * 100
-        self.design_bending_moment = design_bending_moment(bending_moment_in_kncm)
+        self.design_bending_moment = design_effort_elu(bending_moment_in_kncm)
         self.cleanup()
 
     def cleanup(self) -> None:

@@ -773,7 +773,7 @@ class BeamReportWindow(QDialog):
         from src.reinforcement.rebar_calculator import RebarCalculator
         from src.reinforcement.stirrup_calculator import StirrupCalculator
         from src.reinforcement.stirrups import Stirrups
-        from src.reinforcement.internal_forces import LOAD_FACTOR, design_bending_moment as design_force
+        from src.loading.forces import LOAD_FACTOR, design_effort_elu as design_effort_elu
         from src.properties.concrete import Concrete
         from src.properties.steel import Steel
 
@@ -785,7 +785,7 @@ class BeamReportWindow(QDialog):
 
             max_bm = rect_beam.get_bending_moment(return_max=True)
             max_sf = rect_beam.get_shear_force(return_max=True)
-            design_sf = design_force(max_sf)
+            design_sf = design_effort_elu(max_sf)
 
             stirrup_calc = StirrupCalculator(rect_beam, design_sf)
             stirrups = Stirrups(rect_beam, stirrup_calc)

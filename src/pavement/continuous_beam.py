@@ -9,7 +9,7 @@ from src.elements.rectangular_beam import RectangularBeam
 from src.loading.linear_loads import LinearLoads
 from src.pavement.beam_span import Span
 from src.pavement.pillar import Pillar
-from src.reinforcement.internal_forces import LOAD_FACTOR, design_bending_moment as design_force
+from src.loading.forces import LOAD_FACTOR, design_effort_elu as design_effort_elu
 
 from src.pavement.geometry_utils import (
     TOLERANCE,
@@ -360,7 +360,7 @@ class ContinuousBeam:
         return max_bending_moment, max_shear_force
 
     def _calculate_and_export(self, structural_beam: RectangularBeam, max_bending_moment: float, max_shear_force: float) -> None:
-        design_shear_force = design_force(max_shear_force)  # kN
+        design_shear_force = design_effort_elu(max_shear_force)  # kN
         stirrup_calculator = StirrupCalculator(structural_beam, design_shear_force)
         stirrups = Stirrups(structural_beam, stirrup_calculator)
 

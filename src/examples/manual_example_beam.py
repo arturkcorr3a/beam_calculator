@@ -8,7 +8,7 @@ from indeterminatebeam import Support, DistributedLoadV
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
-from src.reinforcement.internal_forces import LOAD_FACTOR, design_bending_moment as design_force
+from src.loading.forces import LOAD_FACTOR, design_effort_elu as design_effort_elu
 from src.gui.report_exporter import ReportExporter
 
 # ==============================================================================
@@ -52,8 +52,8 @@ beam = RectangularBeam(length, width, height, concrete, steel, supports, loads)
 max_bending_moment = beam.get_bending_moment(return_max=True)    # kN.m
 max_shear_force = beam.get_shear_force(return_max=True)          # kN
 
-design_bending_moment = design_force(max_bending_moment)         # kN.m
-design_shear_force = design_force(max_shear_force)               # kN
+design_bending_moment = design_effort_elu(max_bending_moment)         # kN.m
+design_shear_force = design_effort_elu(max_shear_force)               # kN
 
 # ==============================================================================
 # 3. CALCULATIONS / PROCESSAMENTO DO DIMENSIONAMENTO
