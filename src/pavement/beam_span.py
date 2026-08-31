@@ -8,7 +8,7 @@ from src.pavement.pillar import Pillar
 
 if TYPE_CHECKING:
     from src.pavement.continuous_beam import ContinuousBeam
-    from src.pavement.slabs.slab import Slab
+    from src.pavement.slab import Slab
 
 
 @dataclass

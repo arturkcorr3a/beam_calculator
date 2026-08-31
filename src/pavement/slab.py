@@ -4,14 +4,20 @@ from dataclasses import dataclass, field
 from itertools import count
 from typing import Literal, cast
 
+from src.loading.deformation_checker import DeformationChecker
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam, Span
 from src.pavement.geometry_utils import Point, calculate_polygon_area
-from src.pavement.slabs.slab_edge import Edges, SlabEdge, SupportCondition
+from src.pavement.slab_edge import Edges, SlabEdge, SupportCondition
 
 # CONFIRM min thickness for slabs (13.2.4.1): items d and e (vehicles) will be considered?
-SLAB_MIN_THICKNESS = 8.0  # cm; from ABNT NBR 6118 - Section 12.4.1
+SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
+
+# PAPER get reference for max value. Above this, the algorithm will throw an error, for the slab is too thick
+SLAB_MAX_THICKNESS = 30  # cm
+
+ONE_WAY_SLAB_THRESHOLD_RATIO = 2.0  # PAPER get reference for this from NBR 6118 (or other source, if it isn't there)
 
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
 
@@ -35,7 +41,7 @@ class Slab:
     edges: dict[Edges, SlabEdge] = field(default_factory=dict[Edges, SlabEdge], init=False)
     edge_spans: dict[Edges, list[Span]] = field(default_factory=dict[Edges, list[Span]], init=False)
     corners_pillar_dict: dict[CornerKey, Pillar] = field(default_factory=dict[CornerKey, Pillar], init=False)
-    thickness: float = field(default=SLAB_MIN_THICKNESS, init=False)
+    thickness: int = field(default=SLAB_MIN_THICKNESS, init=False)
     permanent_load: float = field(default=0.0, init=False) 
     variable_load: float = field(default=0.0, init=False)
 
@@ -75,10 +81,23 @@ class Slab:
         if len(self.corner_pillar_ids) != 4:
             raise ValueError(f"Slab '{self.id}' must have exactly 4 corner pillars.")
 
-    # IMPLEMENT this is going to be more complex (pre-dimensioning is done through ELS analysis)
+    # PAPER get reference for this method of pre-sizing slabs: why is ELS-DEF the chosen criteria?
     def pre_size(self) -> bool:
-        """Sets the slab's thickness and return True if the slab is stable (there weren't any changes in thickness or support conditions that require re-validation of the pavement structure)."""
-        return True  # IMPLEMENT Placeholder implementation; always returns True for now
+        """Sets the slab's thickness.
+        
+        :return: True if the slab is stable (there weren't any changes in thickness that require re-validation of the pavement structure)."""
+        original_thickness = self.thickness
+        checker = DeformationChecker()
+        while not checker.verify():
+            self.thickness += 1
+            if self.thickness > SLAB_MAX_THICKNESS:
+                raise ValueError(f"Slab '{self.id}' cannot be stabilized; required thickness exceeds 30 cm.")
+
+        thickness_changed = self.thickness != original_thickness
+        if thickness_changed:
+            return False
+        
+        return True
 
     @cached_property
     def dimensions(self) -> tuple[float, float]:
@@ -87,13 +106,13 @@ class Slab:
         y_dimension = cast(float, self.edges[Edges.TOP].beam.centerline) - cast(float, self.edges[Edges.BOTTOM].beam.centerline)
         return (x_dimension, y_dimension)
 
-    # PAPER find reference for this
+    # PAPER find reference for this and include it in the docstring
     @cached_property
     def is_one_way(self) -> bool:
-        # TODO docstring
+        """Returns True if the slab is a one-way slab, based on the ratio of its dimensions."""
         biggest = max(self.dimensions)
         smallest = min(self.dimensions)
-        return (biggest / smallest) <= 2.0
+        return (biggest / smallest) <= ONE_WAY_SLAB_THRESHOLD_RATIO
 
     def add_permanent_load(self, load: float) -> None:
         """Adds a permanent load (kN/m²) to the slab's total permanent load."""

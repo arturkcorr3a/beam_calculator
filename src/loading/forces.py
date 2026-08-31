@@ -56,6 +56,8 @@ def almost_permanent_combination_els(permanent_load: float, variable_load: float
 
     This function considers that the usage category is the same for all the structure, therefore having an unique reduction factor (psi_2) for all variable loads.
 
+    According to ABNT NBR 6118 - Section 11.8.3.1 - item a, this combination is used to verify the excessive deformations limit state (ELS-DEF)
+
     :param permanent_load: Permanent load (kN)
     :type permanent_load: float
     :param variable_load: Variable load (kN)

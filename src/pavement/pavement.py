@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam
-from src.pavement.slabs.slab import Slab
+from src.pavement.slab import Slab
 
 
 @dataclass
