@@ -44,19 +44,17 @@ def min_design_bending_moment(beam: RectangularBeam) -> float:
     w_0 = SPC.gross_section_modulus(beam.width, beam.height)
     return 0.8 * w_0 * beam.concrete.fctk_sup # kN.cm
 
-def get_almost_permanent_combination_reduction_factor() -> float:
+def get_almost_permanent_combination_reduction_factor(usage: str) -> float:
     # IMPLEMENT from ABNT NBR 6118 - Section 11.8.2.4 (Table 11.3) -> redirects to ABNT NBR 8681 
-    # IMLPEMENT see how can I get it for non-residential nor commercial structures
+    # IMPLEMENT see how can I get it for non-residential nor commercial structures
     return 0.3
 
-def almost_permanent_combination_els(permanent_load: float, variable_load: float) -> float:
+def almost_permanent_combination_els(permanent_load: float, variable_load: float, usage: str) -> float:
     """
     Calculates the almost permanent combination of loads for the service limit state (ELS - CQP).
     According to ABNT NBR 6118 - Section 11.8.3.2 - Table 11.4.
 
     This function considers that the usage category is the same for all the structure, therefore having an unique reduction factor (psi_2) for all variable loads.
-
-    According to ABNT NBR 6118 - Section 11.8.3.1 - item a, this combination is used to verify the excessive deformations limit state (ELS-DEF)
 
     :param permanent_load: Permanent load (kN)
     :type permanent_load: float
@@ -65,7 +63,7 @@ def almost_permanent_combination_els(permanent_load: float, variable_load: float
     :return: Almost permanent combination of loads, in kN
     :rtype: float
     """
-    psi_2 = get_almost_permanent_combination_reduction_factor()
+    psi_2 = get_almost_permanent_combination_reduction_factor(usage)
     return permanent_load + psi_2 * variable_load
 
 # TODO change the way of ELU and design values: combine the actions previously to the structural analysis; use the following function when performing the structural analysis, and then take the output to calculate

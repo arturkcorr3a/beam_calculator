@@ -452,8 +452,7 @@ class PavementWindow(QMainWindow):
             return
 
         local = self._s_usage.currentText()
-        slab = Slab(corner_pillar_ids=corners)
-        slab.resolve_variable_load(local)
+        slab = Slab(corner_pillar_ids=corners, local=local)
         self._pavement.add_slab(slab)
         self._slab_list.addItem(
             f"{slab.id}  corners: [{', '.join(corners)}]  usage: {local}"
