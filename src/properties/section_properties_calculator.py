@@ -34,3 +34,8 @@ class SectionPropertiesCalculator:
         """ 
         # CONFIRM se a distância da L.N. até a borda is h/2 or y_max (se é da Linha neutra real ou equivalente)
         return (width * height**2) / 6.0
+
+    @staticmethod
+    def cracked_section_moment_of_inertia(width: float, height: float) -> float:
+        # IMPLEMENT and generate docstring
+        return 1  # FIXME Placeholder value, should be calculated based on the cracked section properties

@@ -4,12 +4,14 @@ from dataclasses import dataclass, field
 from itertools import count
 from typing import Literal, cast
 
+from src.config import APP_CONFIG
 from src.loading.deformation_checker import DeformationChecker
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam, Span
 from src.pavement.geometry_utils import Point, calculate_polygon_area
 from src.pavement.slab_edge import Edges, SlabEdge, SupportCondition
+from src.properties.concrete import Concrete
 
 # CONFIRM min thickness for slabs (13.2.4.1): items d and e (vehicles) will be considered?
 SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
@@ -18,6 +20,7 @@ SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
 SLAB_MAX_THICKNESS = 30  # cm
 
 ONE_WAY_SLAB_THRESHOLD_RATIO = 2.0  # PAPER get reference for this from NBR 6118 (or other source, if it isn't there)
+DEFAULT_WIDTH = 100  # cm; default width for slabs, used in pre-sizing calculation
 
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
 
@@ -88,8 +91,9 @@ class Slab:
         
         :return: True if the slab is stable (there weren't any changes in thickness that require re-validation of the pavement structure)."""
         original_thickness = self.thickness
-        checker = DeformationChecker(self.permanent_load, self.variable_load, self.local)
-        while not checker.verify():
+        concrete = Concrete[APP_CONFIG.pavement_concrete]
+        checker = DeformationChecker(self.permanent_load, self.variable_load, self.local, concrete, min(self.dimensions), DEFAULT_WIDTH)
+        while not checker.verify(self.thickness):
             self.thickness += 1
             if self.thickness > SLAB_MAX_THICKNESS:
                 raise ValueError(f"Slab '{self.id}' cannot be stabilized; required thickness exceeds 30 cm.")
