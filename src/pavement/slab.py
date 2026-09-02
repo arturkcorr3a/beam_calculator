@@ -5,7 +5,7 @@ from itertools import count
 from typing import Literal, cast
 
 from src.config import APP_CONFIG
-from src.loading.deformation_checker import DeformationChecker
+from src.loading.slab_deformation_checker import SlabDeformationChecker
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam, Span
@@ -92,7 +92,11 @@ class Slab:
         :return: True if the slab is stable (there weren't any changes in thickness that require re-validation of the pavement structure)."""
         original_thickness = self.thickness
         concrete = Concrete[APP_CONFIG.pavement_concrete]
-        checker = DeformationChecker(self.permanent_load, self.variable_load, self.local, concrete, min(self.dimensions), DEFAULT_WIDTH)
+
+        mock_compressed_reinforcement_area = 1.0  # FIXME
+        mock_effective_depth = 1.0  # FIXME
+
+        checker = SlabDeformationChecker(self.permanent_load, self.variable_load, self.local, concrete, mock_compressed_reinforcement_area, mock_effective_depth, *self.dimensions)
         while not checker.verify(self.thickness):
             self.thickness += 1
             if self.thickness > SLAB_MAX_THICKNESS:

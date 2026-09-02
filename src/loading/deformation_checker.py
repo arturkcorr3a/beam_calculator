@@ -1,4 +1,5 @@
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from src.loading.forces import almost_permanent_combination_els, calculate_cracking_moment
@@ -7,7 +8,7 @@ from src.properties.section_properties_calculator import SectionPropertiesCalcul
 
 
 @dataclass
-class DeformationChecker:
+class DeformationChecker(ABC):
     """
     Excessive deformation verification for linear elements, according to ELS (Service Limit State) criteria, based on ABNT NBR 8681 - Section 7.3.2.
 
@@ -18,7 +19,9 @@ class DeformationChecker:
     usage: str
     concrete: Concrete
     span: float            # cm
-    width: int           # cm
+    width: int             # cm
+    effective_depth: float # cm
+    compressed_reinforcement_area: float # cm²
     height: int = field(default=0, init=False)  # cm
 
     def verify(self, height: int) -> bool:
@@ -28,16 +31,16 @@ class DeformationChecker:
         :return: True if the deformation is acceptable, False otherwise
         :rtype: bool
         """
-        # TODO complete implementation and update docstring
         self.height = height
         return self.long_term_deflection <= self.acceptable_deflection 
 
     @property
     def design_load(self) -> float:
         """
-        Calculates the design load for the element, based on the almost permanent combination of loads, according to ABNT NBR 6118 - Section 11.8.3.1 - item a. 
+        Calculates the design load for the element (kN/cm²), based on the almost permanent combination of loads, according to ABNT NBR 6118 - Section 11.8.3.1 - item a. 
         """
-        return almost_permanent_combination_els(self.permanent_load, self.variable_load, self.usage)
+        load_kn_m2 = almost_permanent_combination_els(self.permanent_load, self.variable_load, self.usage)
+        return load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
 
     @property
     def cracking_moment(self) -> float:
@@ -50,9 +53,9 @@ class DeformationChecker:
         return calculate_cracking_moment(tensile_strength, distance_to_tension_fiber, moment_of_inertia)
 
     @property
+    @abstractmethod
     def service_moment(self) -> float:
-        # IMPLEMENT and generate docstring
-        return 1  # FIXME Placeholder value, should be calculated based on the element's loading and geometry
+        pass
 
     @property
     def is_cracked(self) -> bool:
@@ -65,7 +68,7 @@ class DeformationChecker:
         return self.service_moment > self.cracking_moment
 
     @property
-    def moment_of_inertia(self) -> float:
+    def equivalent_moment_of_inertia(self) -> float:
         """
         Get the equivalent or gross moment of inertia of the cross-section.
 
@@ -86,14 +89,58 @@ class DeformationChecker:
         return min(equivalent_moment_of_inertia, gross_section_moment_of_inertia)
 
     @property
+    @abstractmethod
     def immediate_deflection(self) -> float:
-        # IMPLEMENT and generate docstring
-        return 1  # FIXME Placeholder value, should be calculated based on the element's loading
+        """
+        Calculate the immediate elastic deflection of the structural element.
+
+        Unifies the elastic deflection models for both beams and slabs using 
+        the boundary condition factor (alpha).
+
+        References:
+        -----------
+        Carvalho & Figueiredo Filho, "Estruturas Usuais de Concreto Armado":
+        - Beams (Chapter 4): Section 4.8.2.3, Eq. 4.26 (p. 199) 
+        - Slabs (Chapter 7): Section 7.3.7.2.1, Eq. 7.16 (p. 331)
+
+        Returns:
+            float: Immediate elastic deflection.
+        """
+        pass
 
     @property
+    @abstractmethod
+    def alpha_for_deflection(self) -> float:
+        """
+        Get the boundary condition coefficient (alpha) for deflection calculations.
+
+        References:
+        -----------
+        Carvalho & Figueiredo Filho, "Estruturas Usuais de Concreto Armado":
+        - Beams (Chapter 4): Returns the load/support factor 'alpha_c' (Section 4.8.2.3).
+        - Slabs (Chapter 7): Returns the plate boundary coefficient 'alpha' from Quadro 7.2 based on aspect ratio (Section 7.3.7.2.1).
+
+        Returns:
+            float: The dimensionless coefficient dictated by the element's support conditions, geometry, and loading shape.
+        """
+        pass
+    
+    @property
     def long_term_deflection(self) -> float:
-        # IMPLEMENT and generate docstring
-        return 1  # FIXME Placeholder value, should be calculated based on the element's loading
+        """
+        Calculate the total long-term deflection (t = ∞) including concrete creep effects.
+
+        Computes the creep multiplier (fluency factor, alpha_f) based on the compression  reinforcement ratio (rho) to find the total consolidated displacement.
+
+        Based on ABNT NBR 6118 - Section: 17.3.2.1.2 (Long-term additional deflection)
+
+        Returns:
+            float: Total long-term deflection (immediate + creep-deferred displacement).
+        """
+        time_coefficient = 2 # per ABNT NBR 6118 - Section 17.3.2.1.2, time coefficient for long term deflection (from t=0 to t=∞)
+        rho = self.compressed_reinforcement_area / (self.width * self.effective_depth)
+        fluency_factor = time_coefficient / (1 + 50 * rho)
+        return (1 + fluency_factor) * self.immediate_deflection
 
     # PAPER get reference on WHY this is the chosen criteria for deflection verification
     # CONFIRM if this is the only criteria I will use
