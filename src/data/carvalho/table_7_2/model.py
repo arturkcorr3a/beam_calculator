@@ -3,6 +3,8 @@
 import math
 from dataclasses import dataclass
 
+from src.pavement.slab_edge import Edges, SupportCondition
+
 
 @dataclass(frozen=True)
 class SlabDeflectionEntry:
@@ -145,3 +147,73 @@ class Table72:
 
         interpolation_fraction = (recip_lower - recip_val) / (recip_lower - recip_inf)
         return alpha_lower + interpolation_fraction * (alpha_inf - alpha_lower)
+
+    @staticmethod
+    def determine_supporting_case(
+        support_conditions: dict[Edges, SupportCondition],
+        lx: float,
+        ly: float,
+    ) -> int:
+        """Determine the Quadro 7.2 boundary condition case (1-9) from edge support conditions.
+
+        Args:
+            support_conditions: Mapping of each edge to its support condition
+                ("pinned" or "fixed").
+            lx: Span length in the x-direction (cm).
+            ly: Span length in the y-direction (cm).
+
+        Returns:
+            Case number (1 - 9).
+        """
+        fixed_edges = {
+            edge for edge, cond in support_conditions.items() if cond == "fixed"
+        }
+        num_fixed = len(fixed_edges)
+
+        # Classify edges as long or short based on slab dimensions.
+        # TOP/BOTTOM have physical length ~ lx; LEFT/RIGHT have physical length ~ ly.
+        if ly >= lx:
+            long_edges = {Edges.LEFT, Edges.RIGHT}
+            short_edges = {Edges.TOP, Edges.BOTTOM}
+        else:
+            long_edges = {Edges.TOP, Edges.BOTTOM}
+            short_edges = {Edges.LEFT, Edges.RIGHT}
+
+        # Case 1: all four borders simply supported
+        if num_fixed == 0:
+            return 1
+
+        # Cases 2–3: exactly one border fixed
+        if num_fixed == 1:
+            (fixed_edge,) = fixed_edges
+            if fixed_edge in short_edges:
+                return 2  # one short border fixed
+            return 3  # one long border fixed
+
+        # Cases 4–6: exactly two borders fixed
+        if num_fixed == 2:
+            if fixed_edges == short_edges:
+                return 5  # two opposite short borders fixed
+            if fixed_edges == long_edges:
+                return 6  # two opposite long borders fixed
+            return 4  # two adjacent fixed borders (one long + one short)
+
+        # Cases 7–8: exactly three borders fixed (one pinned)
+        if num_fixed == 3:
+            pinned_edges = {
+                edge
+                for edge, support_condition in support_conditions.items()
+                if support_condition == "pinned"
+            }
+            (pinned_edge,) = pinned_edges
+            if pinned_edge in long_edges:
+                return 7  # single pinned border is a long border
+            return 8  # single pinned border is a short border
+
+        # Case 9: all four borders fixed
+        if num_fixed == 4:
+            return 9
+
+        raise ValueError(
+            f"Could not determine Table 7.2 case from support conditions: {support_conditions}"
+        )

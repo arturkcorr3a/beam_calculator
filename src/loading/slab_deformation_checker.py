@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
 
 from src.data.carvalho.table_7_2.data import TABLE_7_2
+from src.data.carvalho.table_7_2.model import Table72
 from src.loading.deformation_checker import DeformationChecker
+from src.pavement.slab_edge import Edges, SupportCondition
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
@@ -11,6 +13,7 @@ from src.properties.section_properties_calculator import (
 class SlabDeformationChecker(DeformationChecker):
     lx: float  # span length in the x-direction (cm)
     ly: float  # span length in the y-direction (cm)
+    support_conditions: dict[Edges, SupportCondition]
     width: int = field(default=100, init=False)  # cm
     span: float = field(default=0, init=False)  # cm
 
@@ -21,7 +24,7 @@ class SlabDeformationChecker(DeformationChecker):
 
     @property
     def service_moment(self) -> float:
-        # IMPLEMENT and generate docstring
+        # IMPLEMENT
         return 1  # FIXME Placeholder value, should be calculated based on the element's loading and geometry
 
     @property
@@ -66,5 +69,15 @@ class SlabDeformationChecker(DeformationChecker):
 
     @property
     def supporting_case(self) -> int:
-        # IMPLEMENT and docstring
-        return 1  # FIXME Placeholder value, should be determined based on the element's support conditions (Quadro 7.2, p.332 - "Estruturas Usuais de Concreto Armado")
+        """Determine the Quadro 7.2 boundary condition case (1-9) for this slab, using the slab's
+        edge support conditions and dimensions.
+
+        Based on Carvalho & Figueiredo Filho, "Estruturas Usuais de Concreto Armado" -
+        Quadro 7.2 (p. 332).
+
+        Returns:
+            int: Case number (1-9).
+        """
+        return Table72.determine_supporting_case(
+            self.support_conditions, self.lx, self.ly
+        )

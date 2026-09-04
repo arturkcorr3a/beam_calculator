@@ -7,14 +7,14 @@ from src.data.carvalho.table_7_2.model import SlabDeflectionEntry, Table72
 
 _CASES_DESCRIPTION = {
     1: "Four simply supported borders",
-    2: "Three borders simply supported, one long border clamped/fixed",
-    3: "Three borders simply supported, one short border clamped/fixed",
-    4: "Two borders simply supported, two adjacent borders clamped/fixed",
-    5: "Two borders simply supported, two opposite long borders clamped/fixed",
-    6: "Two borders simply supported, two opposite short borders clamped/fixed",
-    7: "One border simply supported, three borders clamped/fixed",
-    8: "One border simply supported, three borders clamped/fixed (alternate configuration)",
-    9: "Four borders clamped/fixed",
+    2: "Three borders simply supported, one short border fixed",
+    3: "Three borders simply supported, one long border fixed",
+    4: "Two borders simply supported, two adjacent borders fixed",
+    5: "Two borders simply supported, two opposite short borders fixed",
+    6: "Two borders simply supported, two opposite long borders fixed",
+    7: "One long border simply supported, three borders fixed",
+    8: "One short border simply supported, three borders fixed",
+    9: "Four borders fixed",
 }
 
 # TODO confirm this values one by one

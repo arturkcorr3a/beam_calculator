@@ -109,6 +109,10 @@ class Slab:
         mock_compressed_reinforcement_area = 1.0  # FIXME
         mock_compressed_effective_depth = 1.0  # FIXME
 
+        support_conditions: dict[Edges, SupportCondition] = {
+            edge: self.edges[edge].support_condition for edge in Edges
+        }
+
         lx, ly = self.dimensions
         checker = SlabDeformationChecker(
             permanent_load=self.permanent_load,
@@ -121,6 +125,7 @@ class Slab:
             tensioned_reinforcement_area=mock_tensioned_reinforcement_area,
             lx=lx,
             ly=ly,
+            support_conditions=support_conditions,
         )
         while not checker.verify(self.thickness):
             self.thickness += 1
