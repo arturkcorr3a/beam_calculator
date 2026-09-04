@@ -12,7 +12,6 @@ three result buttons that open popup dialogs for results, section, and diagrams.
 """
 
 from collections import Counter
-from typing import List
 
 import matplotlib
 
@@ -659,7 +658,7 @@ class BeamCalculatorWindow(QMainWindow):
         reaction_b = beam.get_reaction(length_cm, "y")
         max_shear = beam.get_shear_force(return_max=True)
 
-        blocks: List[str] = []
+        blocks: list[str] = []
         blocks.append("\n".join([
             "LOADS & EFFORTS",
             "-" * 44,

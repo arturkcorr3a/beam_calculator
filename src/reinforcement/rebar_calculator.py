@@ -85,7 +85,7 @@ class RebarCalculator:
         """
         Minimum tension rebar area (cm²), according to ABNT NBR 6118 - Section 17.3.5.2.1
         """ 
-        md_min = min_design_bending_moment(self.beam, self.max_y) # kN.cm
+        md_min = min_design_bending_moment(self.beam) # kN.cm
 
         # CONFIRM aqui, o mínimo de área é calculado com o momento = 0. Conferir na norma o que diz sobre o cálculo do estribo nesse caso, agora ue eu inseri essa dependência de colocar o estribo para instanciar uma calculadora
         # Talvez fazer um método estático na calculadora que faz um 'dummy' para essa conta 

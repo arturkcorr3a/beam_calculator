@@ -271,9 +271,9 @@ def apply_dark_theme(app: QApplication | None = None) -> None:
     palette.setColor(QPalette.Link, QColor(DARK_ACCENT))
     palette.setColor(QPalette.Highlight, QColor(DARK_ACCENT))
     palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
-    palette.setColor(QPalette.Disabled, QPalette.Text, QColor(DARK_TEXT_MUTED))
-    palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(DARK_TEXT_MUTED))
-    palette.setColor(QPalette.Disabled, QPalette.WindowText, QColor(DARK_TEXT_MUTED))
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(DARK_TEXT_MUTED))
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(DARK_TEXT_MUTED))
+    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(DARK_TEXT_MUTED))
     app.setPalette(palette)
 
     # Apply CSS rules for refined spacing, borders and control states

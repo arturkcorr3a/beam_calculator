@@ -486,6 +486,7 @@ class PavementWindow(QMainWindow):
             self._pavement.validate()
             self._pavement.pre_size_beams()
             self._pavement.load_beam_spans()
+            self._pavement.pre_size_slabs()
             self._pavement.unload_slabs_on_beams()
             self._pavement.dimension_beams()
         except ValueError as exc:
@@ -519,7 +520,7 @@ class PavementWindow(QMainWindow):
         for slab in self._pavement.slabs.values():
             self._slab_list.addItem(
                 f"{slab.id}  corners: [{', '.join(slab.corner_pillar_ids)}]"
-                f"  usage: Bedrooms"
+                f"  usage: {slab.local}"
             )
         self._update_pillar_hints()
         self._reset_validation_state()
@@ -644,7 +645,7 @@ class ResultsWindow(QDialog):
     def __init__(self, pavement, parent: QWidget = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Calculation Results")
-        self.resize(580, 420)
+        self.resize(700, 520)
         self._pavement = pavement
         self._build_ui()
 
@@ -671,18 +672,49 @@ class ResultsWindow(QDialog):
             btn = QPushButton("View Report")
             btn.setFixedWidth(100)
             btn.clicked.connect(
-                lambda checked, b=beam: self._open_report(b)
+                lambda checked, b=beam: self._open_beam_report(b)
             )
             row.addWidget(btn)
             layout.addWidget(row_widget)
+
+        if self._pavement.slabs:
+            slab_header = QLabel(f"<b>{len(self._pavement.slabs)} slab(s) sized</b>")
+            slab_header.setStyleSheet(f"color: {DARK_TEXT_PRIMARY}; font-size: 13px; margin-top: 8px;")
+            layout.addWidget(slab_header)
+
+            for slab in self._pavement.slabs.values():
+                lx, ly = slab.dimensions
+                slab_type = "one-way" if slab.is_one_way else "two-way"
+                row_widget = QWidget()
+                row = QHBoxLayout(row_widget)
+                row.setContentsMargins(0, 2, 0, 2)
+
+                label = QLabel(
+                    f"<b>{slab.id}</b>  h={slab.thickness} cm  "
+                    f"{lx:.0f}×{ly:.0f} cm  [{slab_type}]  {slab.local}"
+                )
+                label.setStyleSheet(f"color: {DARK_TEXT_PRIMARY};")
+                row.addWidget(label, stretch=1)
+
+                btn = QPushButton("View Report")
+                btn.setFixedWidth(100)
+                btn.clicked.connect(
+                    lambda checked, s=slab: self._open_slab_report(s)
+                )
+                row.addWidget(btn)
+                layout.addWidget(row_widget)
 
         layout.addStretch()
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn)
 
-    def _open_report(self, beam) -> None:
+    def _open_beam_report(self, beam) -> None:
         dlg = BeamReportWindow(beam, self._pavement.pillars, parent=self)
+        dlg.exec()
+
+    def _open_slab_report(self, slab) -> None:
+        dlg = SlabReportWindow(slab, parent=self)
         dlg.exec()
 
 
@@ -839,3 +871,145 @@ class BeamReportWindow(QDialog):
         if calculator.compressed_reinforcement.is_chosen:
             blocks.append(format_reinforcement(calculator.compressed_reinforcement, "Compressed"))
         return "\n\n".join(blocks)
+
+
+class SlabReportWindow(QDialog):
+    """Dialog showing the deformation check report for a single slab."""
+
+    def __init__(self, slab: Slab, parent: QWidget = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(f"Report — {slab.id}")
+        self.resize(480, 300)
+        self._slab = slab
+        self._results_text = ""
+        self._build_ui()
+        self._run()
+
+    # ------------------------------------------------------------------ UI ---
+
+    def _build_ui(self) -> None:
+        from src.gui.beam_gui import ResultsDialog
+        self._ResultsDialog = ResultsDialog
+
+        layout = QVBoxLayout(self)
+
+        lx, ly = self._slab.dimensions
+        slab_type = "One-way" if self._slab.is_one_way else "Two-way"
+        summary = QLabel(
+            f"<b>{self._slab.id}</b> &nbsp;|&nbsp; "
+            f"h = {self._slab.thickness} cm &nbsp;|&nbsp; "
+            f"{lx:.0f} × {ly:.0f} cm &nbsp;|&nbsp; "
+            f"{slab_type} &nbsp;|&nbsp; {self._slab.local}"
+        )
+        summary.setStyleSheet(f"color: {DARK_TEXT_PRIMARY}; font-size: 12px;")
+        layout.addWidget(summary)
+
+        self._status_label = QLabel("Running…")
+        self._status_label.setStyleSheet(f"color: {DARK_TEXT_MUTED};")
+        layout.addWidget(self._status_label)
+
+        result_group = QGroupBox("Results")
+        result_layout = QVBoxLayout(result_group)
+
+        self._report_btn = QPushButton("Slab deformation report")
+        self._report_btn.setEnabled(False)
+        self._report_btn.clicked.connect(self._open_report)
+        result_layout.addWidget(self._report_btn)
+
+        layout.addWidget(result_group)
+        layout.addStretch()
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)
+
+    # ---------------------------------------------------------------- slots ---
+
+    def _open_report(self) -> None:
+        self._ResultsDialog(self._results_text, self).exec()
+
+    # ------------------------------------------------------------ analysis ---
+
+    def _run(self) -> None:
+        from src.loading.slab_deformation_checker import SlabDeformationChecker
+        from src.pavement.slab_edge import Edges
+
+        slab = self._slab
+        concrete = Concrete[APP_CONFIG.pavement_concrete]
+
+        mock_tensioned_reinforcement_area = 3.57
+        mock_effective_depth_discount = 3
+        mock_compressed_reinforcement_area = 0.0
+        mock_compressed_effective_depth = 0.0
+
+        support_conditions = {edge: slab.edges[edge].support_condition for edge in Edges}
+        lx, ly = slab.dimensions
+
+        try:
+            checker = SlabDeformationChecker(
+                permanent_load=slab.permanent_load,
+                variable_load=slab.variable_load,
+                usage=slab.local,
+                concrete=concrete,
+                effective_depth_discount=mock_effective_depth_discount,
+                compressed_reinforcement_area=mock_compressed_reinforcement_area,
+                effective_depth_compressed=mock_compressed_effective_depth,
+                tensioned_reinforcement_area=mock_tensioned_reinforcement_area,
+                lx=lx,
+                ly=ly,
+                support_conditions=support_conditions,
+            )
+            passed = checker.verify(slab.thickness)
+        except Exception as exc:
+            self._status_label.setText(f"Error: {exc}")
+            self._status_label.setStyleSheet(f"color: {DARK_DANGER};")
+            return
+
+        self._results_text = self._build_results_text(slab, checker, passed)
+        verdict_style = f"color: {DARK_SUCCESS}; font-weight: bold;" if passed else f"color: {DARK_DANGER}; font-weight: bold;"
+        self._status_label.setText("PASS — deformation within limits." if passed else "FAIL — deformation exceeds limit.")
+        self._status_label.setStyleSheet(verdict_style)
+        self._report_btn.setEnabled(True)
+
+    def _build_results_text(self, slab: Slab, checker, passed: bool) -> str:
+        from src.pavement.slab_edge import Edges
+        lx, ly = slab.dimensions
+        sep = "-" * 50
+        slab_type = "One-way" if slab.is_one_way else "Two-way"
+        cond_lines = [
+            f"    {edge.value.capitalize():8}: {slab.edges[edge].support_condition}"
+            for edge in Edges
+        ]
+        lines = [
+            "SLAB INFO",
+            sep,
+            f"  Slab ID          : {slab.id}",
+            f"  Usage            : {slab.local}",
+            f"  Type             : {slab_type} (lx/ly = {max(lx,ly)/min(lx,ly):.2f})",
+            f"  Dimensions       : lx = {lx:.0f} cm  ly = {ly:.0f} cm",
+            f"  Governing span   : {checker.span:.0f} cm  (= min(lx, ly))",
+            f"  Support conditions:",
+            *cond_lines,
+            f"  Supporting beams : {', '.join(slab.supporting_beam_ids)}",
+            "",
+            "LOADS",
+            sep,
+            f"  Permanent (g)    : {slab.permanent_load:.3f} kN/m²",
+            f"  Variable  (q)    : {slab.variable_load:.3f} kN/m²",
+            f"  Design load (ELS): {checker.design_load * 10_000:.4f} kN/m²  ({checker.design_load:.6f} kN/cm²)",
+            "",
+            "DEFORMATION CHECK  (ELS-DEF — ABNT NBR 6118 §17.3.2)",
+            sep,
+            f"  Final thickness h: {slab.thickness} cm",
+            f"  Effective depth d: {checker.effective_depth:.2f} cm",
+            f"  Supporting case  : {checker.supporting_case}  (Carvalho Quadro 7.2)",
+            f"  Service moment Ms: {checker.service_moment:.4f} kN.cm",
+            f"  Cracking moment Mr: {checker.cracking_moment:.4f} kN.cm",
+            f"  Section state    : {'CRACKED' if checker.is_cracked else 'UNCRACKED'}",
+            f"  Equiv. inertia Ie: {checker.equivalent_moment_of_inertia:.2f} cm⁴",
+            f"  Long-term defl.  : {checker.long_term_deflection:.4f} cm",
+            f"  Acceptable (L/250): {checker.acceptable_deflection:.4f} cm",
+            "",
+            f"  Verdict          : {'PASS ✓' if passed else 'FAIL ✗'}",
+        ]
+        return "\n".join(lines)

@@ -1,7 +1,6 @@
 import csv
 import os
 from collections import Counter
-from typing import Optional
 
 from src.elements.rectangular_beam import RectangularBeam
 from src.properties.section_properties_calculator import SectionPropertiesCalculator

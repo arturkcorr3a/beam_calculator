@@ -26,11 +26,12 @@ class DeformationChecker(ABC):
     concrete: Concrete
     span: float  # cm
     width: int  # cm
-    effective_depth: float  # cm
+    effective_depth_discount: float  # cm
     compressed_reinforcement_area: float  # cm²
     effective_depth_compressed: float  # cm²
     tensioned_reinforcement_area: float  # cm²
     height: int = field(default=0, init=False)  # cm
+    effective_depth: float = field(default=0, init=False)  # cm
 
     def verify(self, height: int) -> bool:
         """
@@ -40,6 +41,7 @@ class DeformationChecker(ABC):
         :rtype: bool
         """
         self.height = height
+        self.effective_depth = self.height - self.effective_depth_discount
         return self.long_term_deflection <= self.acceptable_deflection
 
     @property
