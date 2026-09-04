@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
 from src.data.carvalho.table_7_2.data import TABLE_7_2
 from src.data.carvalho.table_7_2.model import Table72
 from src.loading.deformation_checker import DeformationChecker
@@ -24,20 +25,39 @@ class SlabDeformationChecker(DeformationChecker):
 
     @property
     def service_moment(self) -> float:
-        # IMPLEMENT
-        return 1  # FIXME Placeholder value, should be calculated based on the element's loading and geometry
+        return (
+            (self.coefficient_for_service_moment / 100.0)
+            * self.design_load
+            * self.span**2
+        )  # kN.cm
 
     @property
     def immediate_deflection(self) -> float:
         alpha = self.alpha_for_deflection
         ecs_kn_cm2 = self.concrete.ecs / 10  # MPa to kN/cm²
         elastic_deflection = (
-            (self.design_load * self.span) / (ecs_kn_cm2 * self.height**3) * alpha
+            (self.design_load * self.span)
+            / (ecs_kn_cm2 * self.height**3)
+            * (alpha / 100)
         )
         return elastic_deflection * (
             section.moment_of_inertia(self.width, self.height)
             / self.equivalent_moment_of_inertia
         )
+
+    @property
+    def coefficient_for_service_moment(self) -> float:
+        """Get the coefficient for calculating the service moment based on the slab's support conditions and dimensions.
+
+        Reference: Carvalho & Figueiredo Filho, "Estruturas Usuais de Concreto Armado" - Tables 7.3, 7.4 and 7.5
+
+        Returns:
+            float: Coefficient for service moment calculation.
+        """
+        coefficients = SLAB_MOMENT_COEFFICIENTS_TABLE.get_mu(
+            self.dimensions_ratio, self.supporting_case
+        )
+        return max(coefficients.mu_x, coefficients.mu_y)  # Use the maximum value to get the max moment
 
     @property
     def alpha_for_deflection(self) -> float:
