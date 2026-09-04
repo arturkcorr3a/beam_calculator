@@ -12,4 +12,8 @@
         "Rebar",
         "rebars"
     ],
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    }
 }

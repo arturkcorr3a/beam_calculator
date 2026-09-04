@@ -1,15 +1,16 @@
 from datetime import datetime
 
+from indeterminatebeam import DistributedLoadV, Support
+
 from src.elements.rectangular_beam import RectangularBeam
+from src.gui.report_exporter import ReportExporter
+from src.loading.forces import LOAD_FACTOR
+from src.loading.forces import design_effort_elu as design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from indeterminatebeam import Support, DistributedLoadV
-
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
-from src.loading.forces import LOAD_FACTOR, design_effort_elu as design_effort_elu
-from src.report_exporter import ReportExporter
 
 # ==============================================================================
 # 1. INPUT DATA / DADOS DE ENTRADA
