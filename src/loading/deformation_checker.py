@@ -94,7 +94,7 @@ class DeformationChecker(ABC):
         gross_section_moment_of_inertia = section.moment_of_inertia(
             self.width, self.height
         )
-        if self.is_cracked:
+        if not self.is_cracked:
             return gross_section_moment_of_inertia
 
         # FIXME after resolving the following TODO, use Steel.elastic_modulus directly instead of any_steel

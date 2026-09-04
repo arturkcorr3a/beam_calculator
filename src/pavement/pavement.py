@@ -1,8 +1,7 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
 
-from src.pavement.pillar import Pillar
 from src.pavement.continuous_beam import ContinuousBeam
+from src.pavement.pillar import Pillar
 from src.pavement.slab import Slab
 
 
@@ -18,6 +17,7 @@ class Pavement:
         beams:   Mapping of beam ID → ContinuousBeam
         slabs:   Mapping of slab ID → Slab
     """
+
     pillars: dict[str, Pillar] = field(default_factory=dict[str, Pillar])
     beams: dict[str, ContinuousBeam] = field(default_factory=dict[str, ContinuousBeam])
     slabs: dict[str, Slab] = field(default_factory=dict[str, Slab])
@@ -76,7 +76,7 @@ class Pavement:
         """
         Pre-sizes all slabs based on the maximum span length of their spans.
         """
-        changed: List[Optional[bool]] = [None] * len(self.slabs)
+        changed: list[bool | None] = [None] * len(self.slabs)
         while False in changed or None in changed:
             for i, slab in enumerate(self.slabs.values()):
                 changed[i] = slab.pre_size()

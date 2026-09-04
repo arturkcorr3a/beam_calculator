@@ -29,14 +29,14 @@ class SlabDeformationChecker(DeformationChecker):
             (self.coefficient_for_service_moment / 100.0)
             * self.design_load
             * self.span**2
-        )  # kN.cm
+        ) * self.width  # kN.cm
 
     @property
     def immediate_deflection(self) -> float:
         alpha = self.alpha_for_deflection
         ecs_kn_cm2 = self.concrete.ecs / 10  # MPa to kN/cm²
         elastic_deflection = (
-            (self.design_load * self.span)
+            (self.design_load * self.span**4)
             / (ecs_kn_cm2 * self.height**3)
             * (alpha / 100)
         )
@@ -57,7 +57,9 @@ class SlabDeformationChecker(DeformationChecker):
         coefficients = SLAB_MOMENT_COEFFICIENTS_TABLE.get_mu(
             self.dimensions_ratio, self.supporting_case
         )
-        return max(coefficients.mu_x, coefficients.mu_y)  # Use the maximum value to get the max moment
+        return max(
+            coefficients.mu_x, coefficients.mu_y
+        )  # Use the maximum value to get the max moment
 
     @property
     def alpha_for_deflection(self) -> float:
