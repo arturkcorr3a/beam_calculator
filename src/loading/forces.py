@@ -19,7 +19,7 @@ def design_effort_elu(bending_moment: float) -> float:
     return bending_moment * LOAD_FACTOR
 
 
-def max_design_bending_moment(beam: RectangularBeam, d: int, y_max: int) -> float:
+def max_design_bending_moment(beam: RectangularBeam, d: float, y_max: float) -> float:
     """
     Calculates the maximum design bending moment for which a given rectangular beam can be singly reinforced.
 

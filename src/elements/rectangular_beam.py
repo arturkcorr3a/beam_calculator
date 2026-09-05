@@ -97,3 +97,10 @@ class RectangularBeam(Beam):
         Returns the nominal covering (cm) for the beam with class 2 exposure, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
         """
         return 3.0
+
+    @property
+    def area(self) -> float:
+        """
+        Returns the cross-sectional area (cm²) of the beam.
+        """
+        return self._A
