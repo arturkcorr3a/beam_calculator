@@ -76,10 +76,10 @@ class Pavement:
         """
         Pre-sizes all slabs based on the maximum span length of their spans.
         """
-        changed: list[bool | None] = [None] * len(self.slabs)
+        changed: list[bool | None] = [None] * len(self.slabs) 
         while False in changed or None in changed:
             for i, slab in enumerate(self.slabs.values()):
-                changed[i] = slab.pre_size()
+                changed[i] = slab.pre_size() 
 
     def load_beam_spans(self) -> None:
         """

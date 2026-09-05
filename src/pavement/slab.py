@@ -101,13 +101,8 @@ class Slab:
 
         :return: True if the slab is stable (there weren't any changes in thickness that require re-validation of the pavement structure)."""
         original_thickness = self.thickness
+        self.thickness = SLAB_MIN_THICKNESS
         concrete = Concrete[APP_CONFIG.pavement_concrete]
-
-        # TP
-        mock_tensioned_reinforcement_area = 3.57  # FIXME
-        mock_effective_depth_discount = 3  # FIXME
-        mock_compressed_reinforcement_area = 0.0  # FIXME
-        mock_compressed_effective_depth = 0.0  # FIXME
 
         support_conditions: dict[Edges, SupportCondition] = {
             edge: self.edges[edge].support_condition for edge in Edges
@@ -119,10 +114,6 @@ class Slab:
             variable_load=self.variable_load,
             usage=self.local,
             concrete=concrete,
-            effective_depth_discount=mock_effective_depth_discount,
-            compressed_reinforcement_area=mock_compressed_reinforcement_area,
-            effective_depth_compressed=mock_compressed_effective_depth,
-            tensioned_reinforcement_area=mock_tensioned_reinforcement_area,
             lx=lx,
             ly=ly,
             support_conditions=support_conditions,

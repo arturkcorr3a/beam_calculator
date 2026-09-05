@@ -73,6 +73,7 @@ class RectangularBeam(Beam):
         """
         return [self.get_shear_force(x) for x in range(int(self.length) + 1)]
 
+    # TODO maybe make it variable based on default configs
     @property
     def nominal_covering(self) -> float:
         """

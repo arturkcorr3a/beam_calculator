@@ -1,16 +1,17 @@
 from functools import cached_property
 from itertools import combinations
 from math import ceil
-from typing import Dict, List, Set, Tuple
-from src.elements.rebar import Rebar
+
 from src.config import APP_CONFIG
+from src.elements.rebar import Rebar
 from src.properties.steel import Steel
+
 
 class RebarChooser:
     """Select and store rebar solutions for a given steel grade and required area."""
     steel: Steel
     required_area: float
-    solutions_per_diameter: Dict[Tuple[float, ...], Tuple[Rebar, ...]]
+    solutions_per_diameter: dict[tuple[float, ...], tuple[Rebar, ...]]
 
     def __init__(self, steel: Steel, required_area: float):
         self.steel = steel
@@ -25,14 +26,14 @@ class RebarChooser:
         self.solutions_per_diameter = solutions
 
     @cached_property
-    def possible_diameter_combinations(self) -> Set[Tuple[float,...]]:
+    def possible_diameter_combinations(self) -> set[tuple[float,...]]:
         """
         Assemble all possible combinations of rebar sizes that do not exceed the maximum length.
 
         :param rebar_sizes: List of available rebar sizes (lengths).
         :return: List of valid combinations of rebar sizes.
         """
-        possible_combinations: Set[Tuple[float, ...]] = set()
+        possible_combinations: set[tuple[float, ...]] = set()
 
         for i in range(1, APP_CONFIG.max_bar_types + 1):
             possible_combinations.update(combinations(self.steel.available_sizes, i))
@@ -40,7 +41,7 @@ class RebarChooser:
         return possible_combinations
 
     # PAPER get reference for the coin change problem and how it works for this case
-    def choose_best_combination(self, combination: Tuple[float, ...]) -> Tuple[Rebar, ...]:
+    def choose_best_combination(self, combination: tuple[float, ...]) -> tuple[Rebar, ...]:
         """
         Find the optimal bar combination for a fixed diameter subset using unbounded coin-change DP.
 
@@ -55,7 +56,7 @@ class RebarChooser:
         eps = 0.01  # discretization step, cm²
 
         # Build one Rebar per diameter and convert its area to an integer coin value
-        rebars: List[Rebar] = [Rebar(diameter, self.steel) for diameter in combination]
+        rebars: list[Rebar] = [Rebar(diameter, self.steel) for diameter in combination]
         coins = [round(rebar.area_cm2 / eps) for rebar in rebars]
 
         # The DP table must cover at least the required area plus room to overshoot
@@ -88,7 +89,7 @@ class RebarChooser:
             return ()
 
         # Walk the previous[] chain to reconstruct the chosen bars
-        result: List[Rebar] = []
+        result: list[Rebar] = []
         slot = best
         while slot > 0:
             rebar_index = previous[slot]
@@ -96,7 +97,7 @@ class RebarChooser:
             slot -= coins[rebar_index]
         return tuple(result)
 
-    def get_best_solution_for_combo(self, combination: Tuple[float, ...]) -> Tuple[Rebar, ...]:
+    def get_best_solution_for_combo(self, combination: tuple[float, ...]) -> tuple[Rebar, ...]:
         """
         Get the best solution for a given combination of rebar sizes.
 

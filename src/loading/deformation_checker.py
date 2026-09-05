@@ -29,9 +29,9 @@ class DeformationChecker(ABC):
     effective_depth_discount: float  # cm
     compressed_reinforcement_area: float  # cm²
     effective_depth_compressed: float  # cm²
-    tensioned_reinforcement_area: float  # cm²
+    _tensioned_reinforcement_area: float  # cm²
     height: int = field(default=0, init=False)  # cm
-    effective_depth: float = field(default=0, init=False)  # cm
+    effective_depth: float = field(init=False)  # cm
 
     def verify(self, height: int) -> bool:
         """
@@ -185,3 +185,7 @@ class DeformationChecker(ABC):
             float: The maximum allowable deflection in the same unit as the span (cm).
         """
         return self.span / 250.0
+
+    @property
+    def tensioned_reinforcement_area(self):
+        return self._tensioned_reinforcement_area
