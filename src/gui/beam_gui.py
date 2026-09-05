@@ -12,11 +12,11 @@ three result buttons that open popup dialogs for results, section, and diagrams.
 """
 
 from collections import Counter
-from typing import List
 
 import matplotlib
 
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
+
 matplotlib.use("QtAgg")  # ensure the Qt backend before importing the canvas
 import matplotlib.patches as mpatches
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -78,9 +78,11 @@ def _format_diameter(diameter: float) -> str:
 
 
 def format_reinforcement(reinforcement, title: str) -> str:
-    lines = [title.upper() + " REINFORCEMENT",
-             "-" * 44,
-             f"Required area: {reinforcement.required_area:.3f} cm2"]
+    lines = [
+        title.upper() + " REINFORCEMENT",
+        "-" * 44,
+        f"Required area: {reinforcement.required_area:.3f} cm2",
+    ]
 
     for index, layer in enumerate(reinforcement.chosen_bars):
         if layer:
@@ -95,28 +97,27 @@ def format_reinforcement(reinforcement, title: str) -> str:
         else:
             lines.append(f"Layer {index + 1}: No bars")
 
-    actual_area = sum(
-        d.area_cm2
-        for layer in reinforcement.chosen_bars
-        for d in layer
-    )
+    actual_area = sum(d.area_cm2 for layer in reinforcement.chosen_bars for d in layer)
     lines.append(f"Actual reinforcement area: {actual_area:.3f} cm2")
     return "\n".join(lines)
 
 
 def format_stirrups(stirrups: Stirrups) -> str:
     actual_ratio = Stirrups.calculate_ratio(stirrups.diameter, stirrups.spacing)
-    return "\n".join([
-        "STIRRUPS",
-        "-" * 44,
-        f"Required ratio: {stirrups.required_ratio:.4f} cm2/cm",
-        f"Chosen: Φ {_format_diameter(stirrups.diameter * 10)} "
-        f"c/ {stirrups.spacing} cm",
-        f"Actual ratio: {actual_ratio:.4f} cm2/cm",
-    ])
+    return "\n".join(
+        [
+            "STIRRUPS",
+            "-" * 44,
+            f"Required ratio: {stirrups.required_ratio:.4f} cm2/cm",
+            f"Chosen: Φ {_format_diameter(stirrups.diameter * 10)} "
+            f"c/ {stirrups.spacing} cm",
+            f"Actual ratio: {actual_ratio:.4f} cm2/cm",
+        ]
+    )
 
 
 # ----------------------------------------------------------------- dialogs ---
+
 
 class ConfigDialog(QDialog):
     """Modal dialog for settings that rarely need to change."""
@@ -134,7 +135,7 @@ class ConfigDialog(QDialog):
         self.steel_input = QComboBox()
         for steel in Steel:
             self.steel_input.addItem(steel.name, steel)
-        self.steel_input.setCurrentText(APP_CONFIG.default_steel)
+        self.steel_input.setCurrentText(APP_CONFIG.steel)
         form.addRow("Steel:", self.steel_input)
 
         self.max_aggregate_size_input = QDoubleSpinBox()
@@ -163,7 +164,7 @@ class ConfigDialog(QDialog):
         layout.addWidget(buttons)
 
     def _apply(self) -> None:
-        APP_CONFIG.default_steel = self.steel_input.currentText()
+        APP_CONFIG.steel = self.steel_input.currentText()
         APP_CONFIG.max_aggregate_size = self.max_aggregate_size_input.value()
         APP_CONFIG.max_bar_types = self.max_bar_types_input.value()
         APP_CONFIG.max_layers = self.max_layers_input.value()
@@ -193,7 +194,9 @@ class ResultsDialog(QDialog):
 class SectionDialog(QDialog):
     """Shows the designed cross-section with reinforcements."""
 
-    def __init__(self, beam: RectangularBeam, calculator, parent: QWidget = None) -> None:
+    def __init__(
+        self, beam: RectangularBeam, calculator, parent: QWidget = None
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Designed cross-section")
         self.resize(520, 600)
@@ -222,26 +225,43 @@ class SectionDialog(QDialog):
         ax.axis("off")
 
         # Beam concrete section
-        ax.add_patch(mpatches.Rectangle(
-            (0, 0), w, h,
-            facecolor=DARK_BG_PANEL, edgecolor=DARK_ACCENT, linewidth=2.0,
-        ))
+        ax.add_patch(
+            mpatches.Rectangle(
+                (0, 0),
+                w,
+                h,
+                facecolor=DARK_BG_PANEL,
+                edgecolor=DARK_ACCENT,
+                linewidth=2.0,
+            )
+        )
 
         stirrup_d_cm = calculator.stirrups.diameter
         sx0, sy0 = cov, cov
         sw, sh = w - 2 * cov, h - 2 * cov
-        ax.add_patch(mpatches.FancyBboxPatch(
-            (sx0, sy0), sw, sh,
-            boxstyle="round,pad=0",
-            facecolor="none", edgecolor="#bb9af7", linewidth=1.4, linestyle="--",
-        ))
+        ax.add_patch(
+            mpatches.FancyBboxPatch(
+                (sx0, sy0),
+                sw,
+                sh,
+                boxstyle="round,pad=0",
+                facecolor="none",
+                edgecolor="#bb9af7",
+                linewidth=1.4,
+                linestyle="--",
+            )
+        )
 
         stirrup_spacing = calculator.stirrups.spacing
         stirrup_diam_mm = int(stirrup_d_cm * 10)
         ax.text(
-            w / 2, h + 0.8,
+            w / 2,
+            h + 0.8,
             f"Estribo: Φ{stirrup_diam_mm} c/{stirrup_spacing:.0f} cm",
-            ha="center", va="bottom", fontsize=8, color=DARK_TEXT_PRIMARY,
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color=DARK_TEXT_PRIMARY,
         )
 
         def draw_bar_row(y_center: float, bars: list, label_side: str) -> None:
@@ -259,14 +279,25 @@ class SectionDialog(QDialog):
             for i, bar in enumerate(bars):
                 r = bar.diameter_mm / 10 / 2
                 cx = x_start + (i + 1) * spacing
-                ax.add_patch(mpatches.Circle(
-                    (cx, y_center), r,
-                    facecolor=DARK_ACCENT, edgecolor="#ffffff", linewidth=0.8,
-                ))
+                ax.add_patch(
+                    mpatches.Circle(
+                        (cx, y_center),
+                        r,
+                        facecolor=DARK_ACCENT,
+                        edgecolor="#ffffff",
+                        linewidth=0.8,
+                    )
+                )
             lx = -1.0 if label_side == "left" else w + 1.0
             ha = "right" if label_side == "left" else "left"
-            ax.annotate(label, xy=(lx, y_center),
-                        fontsize=8, ha=ha, va="center", color=DARK_TEXT_PRIMARY)
+            ax.annotate(
+                label,
+                xy=(lx, y_center),
+                fontsize=8,
+                ha=ha,
+                va="center",
+                color=DARK_TEXT_PRIMARY,
+            )
 
         chosen = calculator.tensioned_reinforcement.chosen_bars
         for layer_idx, layer in enumerate(chosen):
@@ -282,7 +313,9 @@ class SectionDialog(QDialog):
                 y_prev = cov + stirrup_d_cm + prev_r
                 for li in range(1, layer_idx):
                     li_bars = chosen[li - 1]
-                    li_r = max(d.diameter_mm / 10 / 2 for d in li_bars) if li_bars else 0
+                    li_r = (
+                        max(d.diameter_mm / 10 / 2 for d in li_bars) if li_bars else 0
+                    )
                     y_prev += 2 * li_r + spacing_v
                 y = y_prev + 2 * prev_r + spacing_v + max_bar_r
             draw_bar_row(y, layer, "left")
@@ -293,19 +326,40 @@ class SectionDialog(QDialog):
                 if not layer:
                     continue
                 max_bar_r = max(d.diameter_mm / 10 / 2 for d in layer)
-                y = h - cov - stirrup_d_cm - max_bar_r - layer_idx * (2 * max_bar_r + 0.5)
+                y = (
+                    h
+                    - cov
+                    - stirrup_d_cm
+                    - max_bar_r
+                    - layer_idx * (2 * max_bar_r + 0.5)
+                )
                 draw_bar_row(y, layer, "right")
 
         arrow_kw = dict(arrowstyle="<->", color=DARK_ACCENT, lw=1.0)
         y_dim = -2.5
         ax.annotate("", xy=(0, y_dim), xytext=(w, y_dim), arrowprops=arrow_kw)
-        ax.text(w / 2, y_dim - 0.6, f"b = {w:.0f} cm",
-                ha="center", va="top", fontsize=8, color=DARK_TEXT_PRIMARY)
+        ax.text(
+            w / 2,
+            y_dim - 0.6,
+            f"b = {w:.0f} cm",
+            ha="center",
+            va="top",
+            fontsize=8,
+            color=DARK_TEXT_PRIMARY,
+        )
 
         x_dim = w + 2.5
         ax.annotate("", xy=(x_dim, 0), xytext=(x_dim, h), arrowprops=arrow_kw)
-        ax.text(x_dim + 0.4, h / 2, f"h = {h:.0f} cm",
-                ha="left", va="center", fontsize=8, color=DARK_TEXT_PRIMARY, rotation=90)
+        ax.text(
+            x_dim + 0.4,
+            h / 2,
+            f"h = {h:.0f} cm",
+            ha="left",
+            va="center",
+            fontsize=8,
+            color=DARK_TEXT_PRIMARY,
+            rotation=90,
+        )
 
         ax.set_xlim(-6, w + 6)
         ax.set_ylim(y_dim - 2, h + 3)
@@ -361,6 +415,7 @@ class DiagramsDialog(QDialog):
 
 # ------------------------------------------------------------ main window ---
 
+
 class BeamCalculatorWindow(QMainWindow):
     """Main application window for the beam calculator GUI."""
 
@@ -385,6 +440,7 @@ class BeamCalculatorWindow(QMainWindow):
     # ------------------------------------------------------------------ UI --
     def _build_menu(self) -> None:
         from src.gui.pavement_gui import PavementWindow
+
         menu_bar = self.menuBar()
         tools_menu = menu_bar.addMenu("Tools")
         pavement_action = tools_menu.addAction("Pavement Designer...")
@@ -392,6 +448,7 @@ class BeamCalculatorWindow(QMainWindow):
 
     def _open_pavement_designer(self) -> None:
         from src.gui.pavement_gui import PavementWindow
+
         if self._pavement_window is None or not self._pavement_window.isVisible():
             self._pavement_window = PavementWindow(self)
         self._pavement_window.show()
@@ -559,44 +616,80 @@ class BeamCalculatorWindow(QMainWindow):
         y0 = 0.0
 
         # Beam element
-        ax.add_patch(mpatches.Rectangle(
-            (0.0, y0), 1.0, bar_h,
-            facecolor="#2d3f66", edgecolor=DARK_ACCENT, linewidth=1.8,
-        ))
+        ax.add_patch(
+            mpatches.Rectangle(
+                (0.0, y0),
+                1.0,
+                bar_h,
+                facecolor="#2d3f66",
+                edgecolor=DARK_ACCENT,
+                linewidth=1.8,
+            )
+        )
 
         # Pinned supports
         tri_h = bar_h * 1.2
         tri_w = 0.05
         for x in (0.0, 1.0):
-            ax.add_patch(mpatches.Polygon(
-                [(x - tri_w, y0 - tri_h), (x + tri_w, y0 - tri_h), (x, y0)],
-                closed=True, facecolor=DARK_WARNING, edgecolor="#ff9e3b",
-            ))
-            ax.plot([x - tri_w * 1.6, x + tri_w * 1.6],
-                    [y0 - tri_h, y0 - tri_h], color="#ff9e3b", linewidth=1.4)
+            ax.add_patch(
+                mpatches.Polygon(
+                    [(x - tri_w, y0 - tri_h), (x + tri_w, y0 - tri_h), (x, y0)],
+                    closed=True,
+                    facecolor=DARK_WARNING,
+                    edgecolor="#ff9e3b",
+                )
+            )
+            ax.plot(
+                [x - tri_w * 1.6, x + tri_w * 1.6],
+                [y0 - tri_h, y0 - tri_h],
+                color="#ff9e3b",
+                linewidth=1.4,
+            )
 
         # Distributed load arrows
         arrow_top = bar_h + tri_h
         n_arrows = 9
         for i in range(n_arrows):
             x = i / (n_arrows - 1)
-            ax.annotate("", xy=(x, bar_h), xytext=(x, arrow_top),
-                        arrowprops=dict(arrowstyle="->", color=DARK_DANGER, lw=1.2))
+            ax.annotate(
+                "",
+                xy=(x, bar_h),
+                xytext=(x, arrow_top),
+                arrowprops=dict(arrowstyle="->", color=DARK_DANGER, lw=1.2),
+            )
         ax.plot([0.0, 1.0], [arrow_top, arrow_top], color=DARK_DANGER, lw=1.4)
-        ax.text(0.5, arrow_top + tri_h * 0.4,
-                f"self-weight q = {self._self_weight():.2f} kN/m",
-                ha="center", va="bottom", color=DARK_DANGER, fontsize=9)
+        ax.text(
+            0.5,
+            arrow_top + tri_h * 0.4,
+            f"self-weight q = {self._self_weight():.2f} kN/m",
+            ha="center",
+            va="bottom",
+            color=DARK_DANGER,
+            fontsize=9,
+        )
 
         # Dimension annotation
         dim_y = y0 - tri_h * 2.0
-        ax.annotate("", xy=(0.0, dim_y), xytext=(1.0, dim_y),
-                    arrowprops=dict(arrowstyle="<->", color=DARK_ACCENT, lw=1.0))
-        ax.text(0.5, dim_y - tri_h * 0.5, f"L = {length_m:.2f} m",
-                ha="center", va="top", color=DARK_TEXT_PRIMARY, fontsize=9)
+        ax.annotate(
+            "",
+            xy=(0.0, dim_y),
+            xytext=(1.0, dim_y),
+            arrowprops=dict(arrowstyle="<->", color=DARK_ACCENT, lw=1.0),
+        )
+        ax.text(
+            0.5,
+            dim_y - tri_h * 0.5,
+            f"L = {length_m:.2f} m",
+            ha="center",
+            va="top",
+            color=DARK_TEXT_PRIMARY,
+            fontsize=9,
+        )
 
         ax.set_title(
             f"Bi-supported beam  |  section {width:.0f} × {height:.0f} cm (W × H)",
-            fontsize=10, color=DARK_TEXT_PRIMARY,
+            fontsize=10,
+            color=DARK_TEXT_PRIMARY,
         )
         ax.set_xlim(-0.12, 1.12)
         ax.set_ylim(dim_y - tri_h * 1.6, arrow_top + tri_h * 1.6)
@@ -608,7 +701,7 @@ class BeamCalculatorWindow(QMainWindow):
     def run_analysis(self) -> None:
         length_cm, width, height = self._current_geometry()
         concrete: Concrete = self.concrete_input.currentData()
-        steel: Steel = Steel[APP_CONFIG.default_steel]
+        steel: Steel = Steel[APP_CONFIG.steel]
 
         try:
             support_a = Support(0, (1, 1, 0))
@@ -618,12 +711,19 @@ class BeamCalculatorWindow(QMainWindow):
             self_weight_load = DistributedLoadV(-peso, (0, length_cm))
 
             beam = RectangularBeam(
-                length_cm, width, height, concrete, steel,
-                [support_a, support_b], [self_weight_load],
+                length_cm,
+                width,
+                height,
+                concrete,
+                steel,
+                [support_a, support_b],
+                [self_weight_load],
             )
 
             max_bending_moment = beam.get_bending_moment(return_max=True)
-            design_shear_force = beam.get_shear_force(return_max=True) * SHEAR_DESIGN_FACTOR
+            design_shear_force = (
+                beam.get_shear_force(return_max=True) * SHEAR_DESIGN_FACTOR
+            )
 
             stirrup_calculator = StirrupCalculator(beam, design_shear_force)
             stirrups = Stirrups(beam, stirrup_calculator)
@@ -631,14 +731,16 @@ class BeamCalculatorWindow(QMainWindow):
             calculator.calculate()
         except ValueError as exc:
             QMessageBox.warning(
-                self, "Design not verified",
+                self,
+                "Design not verified",
                 f"The section could not be designed:\n\n{exc}\n\n"
                 "Try a larger cross-section or a stronger concrete class.",
             )
             return
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(
-                self, "Analysis error",
+                self,
+                "Analysis error",
                 f"An unexpected error occurred during analysis:\n\n{exc}",
             )
             return
@@ -652,29 +754,37 @@ class BeamCalculatorWindow(QMainWindow):
         for btn in (self.results_button, self.section_button, self.diagrams_button):
             btn.setEnabled(True)
 
-    def _build_results_text(self, beam, max_bending_moment, design_shear_force,
-                            calculator) -> str:
+    def _build_results_text(
+        self, beam, max_bending_moment, design_shear_force, calculator
+    ) -> str:
         length_cm = beam.length
         reaction_a = beam.get_reaction(0, "y")
         reaction_b = beam.get_reaction(length_cm, "y")
         max_shear = beam.get_shear_force(return_max=True)
 
-        blocks: List[str] = []
-        blocks.append("\n".join([
-            "LOADS & EFFORTS",
-            "-" * 44,
-            f"Self-weight load q : {self._self_weight():.3f} kN/m",
-            f"Reaction @ left    : {reaction_a:.3f} kN",
-            f"Reaction @ right   : {reaction_b:.3f} kN",
-            f"Max bending moment : {max_bending_moment:.3f} kN.m",
-            f"Max shear force    : {max_shear:.3f} kN",
-            f"Design shear (x1.4): {design_shear_force:.3f} kN",
-            f"Effective depth d  : {calculator.d:.2f} cm",
-        ]))
-        blocks.append(format_reinforcement(calculator.tensioned_reinforcement, "Tensioned"))
+        blocks: list[str] = []
+        blocks.append(
+            "\n".join(
+                [
+                    "LOADS & EFFORTS",
+                    "-" * 44,
+                    f"Self-weight load q : {self._self_weight():.3f} kN/m",
+                    f"Reaction @ left    : {reaction_a:.3f} kN",
+                    f"Reaction @ right   : {reaction_b:.3f} kN",
+                    f"Max bending moment : {max_bending_moment:.3f} kN.m",
+                    f"Max shear force    : {max_shear:.3f} kN",
+                    f"Design shear (x1.4): {design_shear_force:.3f} kN",
+                    f"Effective depth d  : {calculator.d:.2f} cm",
+                ]
+            )
+        )
+        blocks.append(
+            format_reinforcement(calculator.tensioned_reinforcement, "Tensioned")
+        )
         blocks.append(format_stirrups(calculator.stirrups))
         if calculator.compressed_reinforcement.is_chosen:
-            blocks.append(format_reinforcement(
-                calculator.compressed_reinforcement, "Compressed"))
+            blocks.append(
+                format_reinforcement(calculator.compressed_reinforcement, "Compressed")
+            )
 
         return "\n\n".join(blocks)

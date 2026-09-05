@@ -6,8 +6,15 @@
     "cSpell.words": [
         "ABNT",
         "Autoclaved",
+        "Branson's",
+        "carvalho",
+        "fctk",
         "indeterminatebeam",
         "Rebar",
         "rebars"
     ],
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    }
 }

@@ -102,7 +102,8 @@ def build_pavement() -> Pavement:
             bottom_right.id,
             top_left.id,
             top_right.id,
-        )
+        ),
+        local = "Bedrooms"  # residential usage
     )
 
     # Residential permanent load (NBR 6120): finish + ceiling + self-weight ---
@@ -115,8 +116,6 @@ def build_pavement() -> Pavement:
     )  # kN/m²
     slab.add_permanent_load(floor_covering + ceiling + self_weight)
 
-    # Residential live load: bedroom (NBR 6120, Table 10) --------------------
-    slab.resolve_variable_load("Bedrooms")
 
     pavement.add_slab(slab)
     return pavement

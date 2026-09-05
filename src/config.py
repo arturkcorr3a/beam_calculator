@@ -5,7 +5,7 @@ from dataclasses import dataclass
 @dataclass
 class AppConfig:
     # Default material grades — map to Steel/Concrete enum names, resolved at runtime
-    default_steel: str = "CA50"
+    steel: str = "CA50"
     default_concrete: str = "C30"
 
     # Reinforcement layout — user-facing construction preferences
@@ -20,7 +20,7 @@ class AppConfig:
     building_category: str = "Residential buildings"
 
     # PAPER find ref for standard ceiling height for residential buildings
-    ceiling_height: float = 2.5 # m
+    ceiling_height: float = 2.5  # m
 
 
 APP_CONFIG = AppConfig()

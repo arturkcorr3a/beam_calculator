@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from src.pavement.continuous_beam import ContinuousBeam, Span
@@ -24,7 +24,7 @@ class Edges(str, Enum):
 @dataclass
 class SlabEdge:
     edge: Edges
-    _beam: Optional[ContinuousBeam] = field(default=None, init=False)
+    _beam: ContinuousBeam | None = field(default=None, init=False)
     slab: Slab
     spans: list[Span] = field(default_factory=list, init=False) # type: ignore
     support_condition: SupportCondition = field(default="pinned", init=False)
@@ -60,9 +60,7 @@ class SlabEdge:
             other_slab = span.get_other_supported_slab(self.slab)
             if other_slab is None:
                 supported_length += span.get_length(pillar_registry)
-            elif other_slab.thickness > self.slab.thickness:
-                fixed_length += span.get_length(pillar_registry)
-            elif abs(other_slab.thickness - self.slab.thickness) <= THICKNESS_DIFFERENCE_FIXED_THRESHOLD: # the other slab is at least 2 cm thinner than this slab
+            elif other_slab.thickness > self.slab.thickness or abs(other_slab.thickness - self.slab.thickness) <= THICKNESS_DIFFERENCE_FIXED_THRESHOLD:
                 fixed_length += span.get_length(pillar_registry)
             else:
                 supported_length += span.get_length(pillar_registry)
