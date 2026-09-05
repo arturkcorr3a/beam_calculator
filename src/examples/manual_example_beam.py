@@ -1,26 +1,29 @@
-from datetime import datetime
+# type: ignore
+
+# cSpell:disable
+from datetime import datetime, timezone
+
+from indeterminatebeam import DistributedLoadV, Support
 
 from src.elements.rectangular_beam import RectangularBeam
+from src.gui.report_exporter import ReportExporter
+from src.loading.forces import LOAD_FACTOR, design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from indeterminatebeam import Support, DistributedLoadV
-
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
-from src.loading.forces import LOAD_FACTOR, design_effort_elu as design_effort_elu
-from src.gui.report_exporter import ReportExporter
 
 # ==============================================================================
 # 1. INPUT DATA / DADOS DE ENTRADA
 # ==============================================================================
 span1 = 621.5  # cm
-span2 = 620    # cm
+span2 = 620  # cm
 span3 = 781.5  # cm
 length = span1 + span2 + span3  # cm
 
-width = 19    # cm 
-height = 65   # cm 
+width = 19  # cm
+height = 65  # cm
 
 concrete = Concrete.C40
 steel = Steel.CA50
@@ -35,7 +38,7 @@ p4 = Support(length, fixed)
 # Carregamento (sinal negativo pq é para baixo)
 load1 = -15.710  # kN/m -20.3 #
 load2 = -14.479  # kN/m -20.3 #
-load3 = -31.672  # kN/m -20.3 # 
+load3 = -31.672  # kN/m -20.3 #
 
 load_span1 = DistributedLoadV(load1, (0, span1))
 load_span2 = DistributedLoadV(load2, (span1, span1 + span2))
@@ -49,11 +52,11 @@ beam = RectangularBeam(length, width, height, concrete, steel, supports, loads)
 # ==============================================================================
 # 2. STRUCTURAL ANALYSIS / ESFORÇOS SOLICITANTES
 # ==============================================================================
-max_bending_moment = beam.get_bending_moment(return_max=True)    # kN.m
-max_shear_force = beam.get_shear_force(return_max=True)          # kN
+max_bending_moment = beam.get_bending_moment(return_max=True)  # kN.m
+max_shear_force = beam.get_shear_force(return_max=True)  # kN
 
-design_bending_moment = design_effort_elu(max_bending_moment)         # kN.m
-design_shear_force = design_effort_elu(max_shear_force)               # kN
+design_bending_moment = design_effort_elu(max_bending_moment)  # kN.m
+design_shear_force = design_effort_elu(max_shear_force)  # kN
 
 # ==============================================================================
 # 3. CALCULATIONS / PROCESSAMENTO DO DIMENSIONAMENTO
@@ -84,10 +87,10 @@ exporter = ReportExporter(
 exporter.print_to_console()
 
 # Export reports
-today = datetime.now().strftime("%b-%d").lower()
+today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
 csv_path = exporter.export_csv(f"results/{today}/report.csv")
 pdf_path = exporter.export_pdf(f"results/{today}/report.pdf")
 
-print("[ARQUIVOS EXPORTADOS COM SUCESSO]")
+print("[FILES SUCCESSFULLY EXPORTED]")
 print(f"  • CSV: {csv_path}")
 print(f"  • PDF: {pdf_path}\n")

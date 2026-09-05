@@ -1,3 +1,7 @@
+# type: ignore
+
+# cSpell:disable
+
 """
 Manual usage example: modelling and dimensioning a single-panel pavement.
 
@@ -35,7 +39,8 @@ vertical edge share a width. The four sections below still end up all-distinct:
 """
 
 from __future__ import annotations
-from datetime import datetime
+
+from datetime import datetime, timezone
 
 import matplotlib
 
@@ -43,12 +48,12 @@ matplotlib.use("Agg")  # headless-safe; the figure is written to disk
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
+from src.loading.superficial_loads import SuperficialLoads
+from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement.geometry_utils import Alignment, Axis
 from src.pavement.pavement import Pavement
 from src.pavement.pillar import Pillar
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement.slab import Slab
-from src.pavement.geometry_utils import Alignment, Axis
-from src.loading.superficial_loads import SuperficialLoads
 
 
 # ==============================================================================
@@ -72,7 +77,7 @@ def build_pavement() -> Pavement:
         structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,  # cm
-        coating_thickness=1,   # cm per face
+        coating_thickness=1,  # cm per face
     )
 
     # --- Beams: rectangular perimeter, each outer-aligned --------------------
@@ -80,9 +85,9 @@ def build_pavement() -> Pavement:
     beam_specs = [
         # pillar pair,                        reference,           alignment
         ([bottom_left.id, bottom_right.id], bottom_left.id, Alignment.BOTTOM),
-        ([top_left.id, top_right.id],       top_left.id,    Alignment.TOP),
-        ([bottom_left.id, top_left.id],     bottom_left.id, Alignment.LEFT),
-        ([bottom_right.id, top_right.id],   bottom_right.id, Alignment.RIGHT),
+        ([top_left.id, top_right.id], top_left.id, Alignment.TOP),
+        ([bottom_left.id, top_left.id], bottom_left.id, Alignment.LEFT),
+        ([bottom_right.id, top_right.id], bottom_right.id, Alignment.RIGHT),
     ]
     for pillar_ids, reference_id, alignment in beam_specs:
         pavement.add_beam(
@@ -103,7 +108,7 @@ def build_pavement() -> Pavement:
             top_left.id,
             top_right.id,
         ),
-        local = "Bedrooms"  # residential usage
+        local="Bedrooms",  # residential usage
     )
 
     # Residential permanent load (NBR 6120): finish + ceiling + self-weight ---
@@ -116,7 +121,6 @@ def build_pavement() -> Pavement:
     )  # kN/m²
     slab.add_permanent_load(floor_covering + ceiling + self_weight)
 
-
     pavement.add_slab(slab)
     return pavement
 
@@ -124,7 +128,9 @@ def build_pavement() -> Pavement:
 # ==============================================================================
 # 2. PLOT THE DESIGNED PAVEMENT
 # ==============================================================================
-def plot_pavement(pavement: Pavement, output_path: str = "results/pavement_layout.png") -> str:
+def plot_pavement(
+    pavement: Pavement, output_path: str = "results/pavement_layout.png"
+) -> str:
     """Draws pillars, perimeter beams and the slab, and annotates dimensions.
 
     Returns the path of the written figure.
@@ -136,7 +142,9 @@ def plot_pavement(pavement: Pavement, output_path: str = "results/pavement_layou
         # Slab extent = perimeter beam centerlines
         x_left = min(b.centerline for b in pavement.beams.values() if b.axis == Axis.Y)
         x_right = max(b.centerline for b in pavement.beams.values() if b.axis == Axis.Y)
-        y_bottom = min(b.centerline for b in pavement.beams.values() if b.axis == Axis.X)
+        y_bottom = min(
+            b.centerline for b in pavement.beams.values() if b.axis == Axis.X
+        )
         y_top = max(b.centerline for b in pavement.beams.values() if b.axis == Axis.X)
         ax.add_patch(
             Rectangle(
@@ -318,7 +326,7 @@ def main() -> None:
 
     # Show the resolved parameters and draw the layout.
     print_parameters(pavement)
-    today = datetime.now().strftime("%b-%d").lower()
+    today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
     path = f"results/{today}/pavement_layout.png"
     figure_path = plot_pavement(pavement, path)
     print(f"[FIGURE SAVED] {figure_path}")
