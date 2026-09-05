@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from src.pavement.geometry_utils import Axis
 from src.pavement.pillar import Pillar
@@ -19,10 +19,13 @@ class Span:
     supported_slab_ids is populated by Pavement.validate() after slab resolution;
     a span on an interior edge will list both adjacent slabs.
     """
+
     beam: ContinuousBeam
     start_pillar_id: str
     end_pillar_id: str
-    supported_slabs: tuple[Optional[Slab], Optional[Slab]] = field(default_factory=lambda: (None, None), init=False)
+    supported_slabs: tuple[Slab | None, Slab | None] = field(
+        default_factory=lambda: (None, None), init=False
+    )
     permanent_load: float = field(default=0.0, init=False)  # kN/m
     variable_load: float = field(default=0.0, init=False)  # kN/m
 
@@ -49,16 +52,18 @@ class Span:
         elif self.supported_slabs[1] is None:
             self.supported_slabs = (self.supported_slabs[0], slab)
         else:
-            raise ValueError(f"Span between '{self.start_pillar_id}' and '{self.end_pillar_id}' already supports two slabs.")
+            raise ValueError(
+                f"Span between '{self.start_pillar_id}' and '{self.end_pillar_id}' already supports two slabs."
+            )
 
-    def get_other_supported_slab(self, slab: Slab) -> Optional[Slab]:
+    def get_other_supported_slab(self, slab: Slab) -> Slab | None:
         """Returns the other supported slab, given one of them."""
         if self.supported_slabs[0] == slab:
             return self.supported_slabs[1]
         elif self.supported_slabs[1] == slab:
             return self.supported_slabs[0]
         else:
-            raise ValueError(f"Slab '{slab.id}' is not supported by this span.") 
+            raise ValueError(f"Slab '{slab.id}' is not supported by this span.")
 
     def add_load(self, load: float, permanent: bool = True) -> None:
         """Adds a load (kN/m) to the span's total load from slabs."""

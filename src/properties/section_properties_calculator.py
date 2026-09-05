@@ -7,14 +7,14 @@ class SectionPropertiesCalculator:
     """
 
     @staticmethod
-    def moment_of_inertia(width: int, height: int) -> float:
+    def moment_of_inertia(width: float, height: float) -> float:
         """
         Calculates moment of inertia (I) for rectangular section (cm, cm -> cm⁴).
         """
         return (width * height**3) / 12
 
     @staticmethod
-    def rectangular_cross_sectional_area(width: int, height: int) -> float:
+    def rectangular_cross_sectional_area(width: float, height: float) -> float:
         """
         Calculates cross-sectional area (A) for rectangular section (cm, cm -> cm²).
         """
@@ -32,7 +32,7 @@ class SectionPropertiesCalculator:
         """
         Calculates the gross section modulus (W_0) for rectangular section (cm, cm -> cm³).
         """
-        # CONFIRM se a distância da L.N. até a borda is h/2 or y_max (se é da Linha neutra real ou equivalente)
+        # CONFIRM if the distance from the neutral axis to the edge is h/2 or y_max (if it's from the real or equivalent neutral axis)
         return (width * height**2) / 6.0
 
     @staticmethod
@@ -44,6 +44,7 @@ class SectionPropertiesCalculator:
         compression_reinforcement_area: float = 0.0,
         compression_distance: float = 0.0,
     ) -> float:
+        # FIXME docstring in english
         """
         Calculates the cracked moment of inertia (I_II) for a rectangular section with reinforcement.
 

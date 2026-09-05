@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from itertools import count
 
+
 @dataclass
 class Pillar:
     """
@@ -13,11 +14,12 @@ class Pillar:
         width: Cross-section width (cm)
         depth: Cross-section depth (cm)
     """
+
     x: float
     y: float
     width: float
     depth: float
-    id: str = field(default="", init=False)  
+    id: str = field(default="", init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 

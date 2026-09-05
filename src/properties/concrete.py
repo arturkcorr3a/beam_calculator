@@ -1,5 +1,6 @@
+# cSpell:ignore cbrt
 from enum import Enum
-from math import sqrt, cbrt, log
+from math import cbrt, log, sqrt
 from typing import cast
 
 GAMMA_C = 1.4  # ABNT NBR 6118 - Section 12.4.1
@@ -83,7 +84,7 @@ class Concrete(Enum):
     @property
     def fcd(self) -> float:
         """
-        The design compressive strength of concrete (fcd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.3. Considers only normal action combinations (fator 1.4)
+        The design compressive strength of concrete (fcd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.3. Considers only normal action combinations (factor 1.4)
         """
         return (self.value / 10) / GAMMA_C
 
@@ -125,7 +126,7 @@ class Concrete(Enum):
     @property
     def fct_m(self) -> float:
         """
-        The mean tensile strength of concrete (fctm) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
+        The mean tensile strength of concrete (fct_m) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
         """
         if self.value <= 50:
             return (0.3 * self.value ** (2 / 3)) / 10

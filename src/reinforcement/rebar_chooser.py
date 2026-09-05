@@ -9,6 +9,7 @@ from src.properties.steel import Steel
 
 class RebarChooser:
     """Select and store rebar solutions for a given steel grade and required area."""
+
     steel: Steel
     required_area: float
     solutions_per_diameter: dict[tuple[float, ...], tuple[Rebar, ...]]
@@ -18,7 +19,7 @@ class RebarChooser:
         self.required_area = required_area
         self.set_solutions_per_diameter()
 
-    def set_solutions_per_diameter(self) -> None: 
+    def set_solutions_per_diameter(self) -> None:
         """Build the cached best solution for each possible bar-diameter combination."""
         solutions = {}
         for combination in self.possible_diameter_combinations:
@@ -26,7 +27,7 @@ class RebarChooser:
         self.solutions_per_diameter = solutions
 
     @cached_property
-    def possible_diameter_combinations(self) -> set[tuple[float,...]]:
+    def possible_diameter_combinations(self) -> set[tuple[float, ...]]:
         """
         Assemble all possible combinations of rebar sizes that do not exceed the maximum length.
 
@@ -41,7 +42,9 @@ class RebarChooser:
         return possible_combinations
 
     # PAPER get reference for the coin change problem and how it works for this case
-    def choose_best_combination(self, combination: tuple[float, ...]) -> tuple[Rebar, ...]:
+    def choose_best_combination(
+        self, combination: tuple[float, ...]
+    ) -> tuple[Rebar, ...]:
         """
         Find the optimal bar combination for a fixed diameter subset using unbounded coin-change DP.
 
@@ -66,7 +69,7 @@ class RebarChooser:
         table_size = max(start + max_coin, 2 * max_coin) + 1
 
         # dp[slot] = minimum bars to reach exactly slot * eps cm²; previous[slot] = coin index used
-        INFINITE = float('inf')
+        INFINITE = float("inf")
         dp = [INFINITE] * table_size
         previous = [-1] * table_size
         dp[0] = 0
@@ -97,7 +100,9 @@ class RebarChooser:
             slot -= coins[rebar_index]
         return tuple(result)
 
-    def get_best_solution_for_combo(self, combination: tuple[float, ...]) -> tuple[Rebar, ...]:
+    def get_best_solution_for_combo(
+        self, combination: tuple[float, ...]
+    ) -> tuple[Rebar, ...]:
         """
         Get the best solution for a given combination of rebar sizes.
 

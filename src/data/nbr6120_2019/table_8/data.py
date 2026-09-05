@@ -5,7 +5,6 @@ Hardcoded values matching the normative table.
 
 from src.data.nbr6120_2019.table_8.model import CeilingDuctSprinklerMaterial, Table8
 
-
 _MATERIALS = (
     CeilingDuctSprinklerMaterial(
         description="Mineral fiber ceiling, includes support structure",

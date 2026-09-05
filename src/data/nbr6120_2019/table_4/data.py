@@ -3,8 +3,11 @@
 Hardcoded values matching the normative table.
 """
 
-from src.data.nbr6120_2019.table_4.model import CoveringMaterial, Table4, ThicknessWeight
-
+from src.data.nbr6120_2019.table_4.model import (
+    CoveringMaterial,
+    Table4,
+    ThicknessWeight,
+)
 
 _MATERIALS = (
     CoveringMaterial(
@@ -82,8 +85,6 @@ TABLE_4 = Table4(
     },
     materials=_MATERIALS,
     notes=(
-        "Calculate case by case, considering the thickness of the floor covering "
-        "components and their respective specific weights. In the absence of more "
-        "precise information, the indicated average specific weights may be considered.",
+        "Calculate case by case, considering the thickness of the floor covering components and their respective specific weights. In the absence of more precise information, the indicated average specific weights may be considered.",
     ),
 )

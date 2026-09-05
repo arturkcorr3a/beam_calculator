@@ -105,6 +105,7 @@ class Table72:
                 "Aspect ratio (ly/lx) must be >= 1.0. Verify your span assignments (ly >= lx)."
             )
 
+    # TODO extract interpolation function to utils, to be shared
     def _interpolate_linear(self, lambda_val: float, case: int) -> float:
         """Performs standard linear interpolation between adjacent keys below 2.0."""
         discrete_entries = [e for e in self.entries if not math.isinf(e.aspect_ratio)]
@@ -130,7 +131,7 @@ class Table72:
     def _interpolate_asymptotic(self, lambda_val: float, case: int) -> float:
         """
         Performs linear interpolation on the reciprocal (1 / lambda) between 2.0 and infinity.
-        This provides high physical accuracy matching plate theory asymptotics.
+        This provides high physical accuracy matching plate theory asymptotic.
         """
         entry_lower = next(
             e for e in self.entries if math.isclose(e.aspect_ratio, 2.0, rel_tol=1e-9)
@@ -141,11 +142,11 @@ class Table72:
         alpha_inf = entry_inf.get_alpha(case)
 
         lambda_lower = 2.0
-        recip_val = 1.0 / lambda_val
-        recip_lower = 1.0 / lambda_lower  # 0.5
-        recip_inf = 0.0  # 1 / inf
+        val = 1.0 / lambda_val
+        lower = 1.0 / lambda_lower  # 0.5
+        inf = 0.0  # 1 / inf
 
-        interpolation_fraction = (recip_lower - recip_val) / (recip_lower - recip_inf)
+        interpolation_fraction = (lower - val) / (lower - inf)
         return alpha_lower + interpolation_fraction * (alpha_inf - alpha_lower)
 
     @staticmethod

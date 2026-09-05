@@ -1,7 +1,7 @@
 """Dataclass models for ABNT NBR 6120:2019 - Section 5.4 - Table 2 (Masonry)."""
 
 from dataclasses import dataclass
-from typing import Optional
+
 
 @dataclass(frozen=True)
 class Thickness:
@@ -9,12 +9,12 @@ class Thickness:
 
     nominal_cm: float
     zero_cm: float
-    one_cm: Optional[float]
-    two_cm: Optional[float]
+    one_cm: float | None
+    two_cm: float | None
 
     def get_weight(self, coating_cm: int) -> float:
         """Return the weight for *coating_cm* (0, 1, or 2 cm per face)."""
-        mapping: dict[int, Optional[float]] = {0: self.zero_cm, 1: self.one_cm, 2: self.two_cm}
+        mapping: dict[int, float | None] = {0: self.zero_cm, 1: self.one_cm, 2: self.two_cm}
         if coating_cm not in mapping:
             raise ValueError(
                 f"Coating thickness must be 0, 1, or 2 cm. Got: {coating_cm}"

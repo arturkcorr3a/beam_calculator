@@ -1,14 +1,13 @@
 """Dataclass models for ABNT NBR 6120:2019 - Section 5.4 - Table 4 (Floor coverings and waterproofing)."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
 class ThicknessWeight:
     """Self-weight (kN/m²) for a given thickness (cm)."""
 
-    thickness_cm: Optional[float]
+    thickness_cm: float | None
     weight: float
 
 
@@ -19,7 +18,7 @@ class CoveringMaterial:
     description: str
     thicknesses: tuple[ThicknessWeight, ...]
 
-    def get_weight(self, thickness_cm: Optional[float] = None) -> float:
+    def get_weight(self, thickness_cm: float | None = None) -> float:
         """Return the weight for the given thickness in cm."""
         for tw in self.thicknesses:
             if tw.thickness_cm == thickness_cm:
