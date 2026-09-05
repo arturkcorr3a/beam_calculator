@@ -30,11 +30,8 @@
         "editor.formatOnSave": true
     },
     "todo-tree.general.tags": [
-    "BUG",
-    "HACK",
     "FIXME",
     "TODO",
-    "XXX",
     "[ ]",
     "[x]",
     "IMPLEMENT",

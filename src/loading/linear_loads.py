@@ -21,7 +21,13 @@ class LinearLoads:
         return own_weight
 
     @staticmethod
-    def get_wall_load(structural: bool, masonry_type: str, nominal_thickness: float, coating_thickness: int, wall_height: float) -> float:
+    def get_wall_load(
+        structural: bool,
+        masonry_type: str,
+        nominal_thickness: float,
+        coating_thickness: int,
+        wall_height: float,
+    ) -> float:
         """Calculate the linear load (kN/m) of a masonry wall on a beam, based on ABNT NBR 6120:2019 - Section 5.4 - Table 2.
 
         Args:
@@ -34,4 +40,9 @@ class LinearLoads:
         Returns:
             Distributed linear wall load in kN/m.
         """
-        return TABLE_2.find_masonry_type(masonry_type, structural).get_thickness(nominal_thickness).get_weight(coating_thickness) * wall_height
+        return (
+            TABLE_2.find_masonry_type(masonry_type, structural)
+            .get_thickness(nominal_thickness)
+            .get_weight(coating_thickness)
+            * wall_height
+        )

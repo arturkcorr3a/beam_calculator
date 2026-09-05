@@ -1,15 +1,16 @@
 from src.config import APP_CONFIG
-from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.data.nbr6120_2019.table_4.data import TABLE_4
 from src.data.nbr6120_2019.table_7.data import TABLE_7
 from src.data.nbr6120_2019.table_8.data import TABLE_8
+from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.properties.concrete import Concrete
 
 
 class SuperficialLoads:
-
     @staticmethod
-    def get_concrete_element_own_weight(thickness: float, reinforced: bool = True) -> float:
+    def get_concrete_element_own_weight(
+        thickness: float, reinforced: bool = True
+    ) -> float:
         """
         Calculate the own weight of a superficial concrete element (kN/m²).
 

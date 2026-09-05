@@ -20,7 +20,7 @@ from src.reinforcement.stirrups import Stirrups
 
 def _default_effective_depth_discount() -> float:
     """Get the default effective depth discount (cm) for slabs, based on ABNT NBR 6118 - Section 7.4."""
-    covering = 3 # TODO based on rectangular beam -> review if it needs to be dynamic (make beams static in that case)
+    covering = 3  # TODO based on rectangular beam -> review if it needs to be dynamic (make beams static in that case)
     rebar_discount_10_mm = 1
     return covering + 1.5 * rebar_discount_10_mm
 
@@ -134,11 +134,11 @@ class SlabDeformationChecker(DeformationChecker):
     @override
     def tensioned_reinforcement_area(self):
         dummy_beam = RectangularBeam.__new__(RectangularBeam)
-        dummy_beam.length=self.span
-        dummy_beam.width=self.width
-        dummy_beam.height=self.height
-        dummy_beam.concrete=self.concrete
-        dummy_beam.steel=Steel[APP_CONFIG.steel]
+        dummy_beam.length = self.span
+        dummy_beam.width = self.width
+        dummy_beam.height = self.height
+        dummy_beam.concrete = self.concrete
+        dummy_beam.steel = Steel[APP_CONFIG.steel]
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 
         dummy_stirrup_calculator = StirrupCalculator(dummy_beam, 0)
