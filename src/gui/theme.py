@@ -1,3 +1,9 @@
+# type: ignore
+
+# cSpell:disable
+
+# FIXME AI-Generated -> re-do after the calculations are finalized
+
 """
 Dark theme configuration for PySide6 GUI and Matplotlib figures.
 Provides a cohesive, modern dark appearance across all platforms.
@@ -6,8 +12,8 @@ Provides a cohesive, modern dark appearance across all platforms.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+
 import matplotlib as mpl
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication
 
@@ -16,19 +22,19 @@ if TYPE_CHECKING:
 
 
 # Theme color palette
-DARK_BG_MAIN = "#1a1b26"       # Deep charcoal/navy background
-DARK_BG_PANEL = "#24283b"      # Panel / group / card background
-DARK_BG_INPUT = "#16161e"      # Input fields / canvas background
-DARK_BG_HOVER = "#2f3549"      # Hover state for controls
-DARK_BORDER = "#414868"        # Borders and dividers
+DARK_BG_MAIN = "#1a1b26"  # Deep charcoal/navy background
+DARK_BG_PANEL = "#24283b"  # Panel / group / card background
+DARK_BG_INPUT = "#16161e"  # Input fields / canvas background
+DARK_BG_HOVER = "#2f3549"  # Hover state for controls
+DARK_BORDER = "#414868"  # Borders and dividers
 DARK_BORDER_FOCUS = "#7aa2f7"  # Focused control border (accent)
 DARK_TEXT_PRIMARY = "#c0caf5"  # High contrast text
-DARK_TEXT_MUTED = "#7982a9"    # Secondary/dimmed text
-DARK_ACCENT = "#7aa2f7"        # Primary blue/indigo accent
+DARK_TEXT_MUTED = "#7982a9"  # Secondary/dimmed text
+DARK_ACCENT = "#7aa2f7"  # Primary blue/indigo accent
 DARK_ACCENT_HOVER = "#89b4fa"  # Accent hover
-DARK_SUCCESS = "#9ece6a"       # Soft green (valid / positive)
-DARK_DANGER = "#f7768e"        # Soft red (error / negative)
-DARK_WARNING = "#e0af68"       # Amber / warning
+DARK_SUCCESS = "#9ece6a"  # Soft green (valid / positive)
+DARK_DANGER = "#f7768e"  # Soft red (error / negative)
+DARK_WARNING = "#e0af68"  # Amber / warning
 
 
 DARK_STYLESHEET = f"""
@@ -271,9 +277,19 @@ def apply_dark_theme(app: QApplication | None = None) -> None:
     palette.setColor(QPalette.Link, QColor(DARK_ACCENT))
     palette.setColor(QPalette.Highlight, QColor(DARK_ACCENT))
     palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
-    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(DARK_TEXT_MUTED))
-    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(DARK_TEXT_MUTED))
-    palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(DARK_TEXT_MUTED))
+    palette.setColor(
+        QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(DARK_TEXT_MUTED)
+    )
+    palette.setColor(
+        QPalette.ColorGroup.Disabled,
+        QPalette.ColorRole.ButtonText,
+        QColor(DARK_TEXT_MUTED),
+    )
+    palette.setColor(
+        QPalette.ColorGroup.Disabled,
+        QPalette.ColorRole.WindowText,
+        QColor(DARK_TEXT_MUTED),
+    )
     app.setPalette(palette)
 
     # Apply CSS rules for refined spacing, borders and control states

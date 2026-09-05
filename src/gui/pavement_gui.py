@@ -1,3 +1,8 @@
+# type: ignore
+
+# cSpell:disable
+
+# FIXME AI-Generated -> re-do after the calculations are finalized
 """
 PySide6 window for defining a pavement structure (pillars, beams, slabs).
 
@@ -8,11 +13,11 @@ rules from Pavement.validate() and shows the result inline.
 """
 
 import matplotlib
+
 matplotlib.use("QtAgg")
+import matplotlib.patches as mpatches
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-import matplotlib.patches as mpatches
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -35,13 +40,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.pavement.pavement import Pavement
-from src.pavement.pillar import Pillar
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement.geometry_utils import Alignment
-from src.pavement.slab import Slab
-from src.properties.concrete import Concrete
-from src.properties.steel import Steel
 from src.config import APP_CONFIG
 from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.gui.theme import (
@@ -58,6 +56,13 @@ from src.gui.theme import (
     apply_dark_theme,
     style_figure,
 )
+from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement.geometry_utils import Alignment
+from src.pavement.pavement import Pavement
+from src.pavement.pillar import Pillar
+from src.pavement.slab import Slab
+from src.properties.concrete import Concrete
+from src.properties.steel import Steel
 
 _CM_PER_M = 100.0
 
@@ -76,6 +81,7 @@ _NON_BEARING_MASONRY_TYPES = [
     "Glass block (decorative, non-fire-rated)",
 ]
 
+
 def _usage_locals_for_category(category_description: str) -> list[str]:
     try:
         cat = TABLE_10.find_category(category_description)
@@ -83,11 +89,13 @@ def _usage_locals_for_category(category_description: str) -> list[str]:
     except KeyError:
         return []
 
+
 _USAGE_LOCALS: list[str] = _usage_locals_for_category(APP_CONFIG.building_category)
 
 
-def _spin(lo: float, hi: float, decimals: int, step: float,
-          value: float, suffix: str = "") -> QDoubleSpinBox:
+def _spin(
+    lo: float, hi: float, decimals: int, step: float, value: float, suffix: str = ""
+) -> QDoubleSpinBox:
     w = QDoubleSpinBox()
     w.setRange(lo, hi)
     w.setDecimals(decimals)
@@ -165,7 +173,9 @@ class PavementWindow(QMainWindow):
 
         self._example_btn = QPushButton("Load Example")
         self._example_btn.setMinimumHeight(30)
-        self._example_btn.setToolTip("Pre-load the 4-pillar residential pavement from the manual example")
+        self._example_btn.setToolTip(
+            "Pre-load the 4-pillar residential pavement from the manual example"
+        )
         self._example_btn.clicked.connect(self._load_example)
         vl.addWidget(self._example_btn)
 
@@ -265,8 +275,7 @@ class PavementWindow(QMainWindow):
         form.addRow("Alignment:", self._b_alignment)
 
         align_hint = QLabel(
-            "top/center/bottom → horizontal beam\n"
-            "left/center/right → vertical beam"
+            "top/center/bottom → horizontal beam\nleft/center/right → vertical beam"
         )
         align_hint.setStyleSheet("color: #555; font-size: 10px;")
         align_hint.setWordWrap(True)
@@ -408,7 +417,9 @@ class PavementWindow(QMainWindow):
             self._show_warning("Reference pillar ID cannot be empty.")
             return
         if ref_pillar not in pillar_ids:
-            self._show_warning(f"Reference pillar '{ref_pillar}' must be one of the beam's pillar IDs.")
+            self._show_warning(
+                f"Reference pillar '{ref_pillar}' must be one of the beam's pillar IDs."
+            )
             return
 
         structural = self._b_wall_structural.isChecked()
@@ -476,7 +487,9 @@ class PavementWindow(QMainWindow):
         try:
             self._pavement.validate()
             self._validate_label.setText("Structure is valid.")
-            self._validate_label.setStyleSheet(f"color: {DARK_SUCCESS}; font-weight: bold;")
+            self._validate_label.setStyleSheet(
+                f"color: {DARK_SUCCESS}; font-weight: bold;"
+            )
         except ValueError as exc:
             self._validate_label.setText(str(exc))
             self._validate_label.setStyleSheet(f"color: {DARK_DANGER};")
@@ -493,7 +506,7 @@ class PavementWindow(QMainWindow):
             self._validate_label.setText(str(exc))
             self._validate_label.setStyleSheet(f"color: {DARK_DANGER};")
             return
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Calculation error", str(exc))
             return
         self._validate_label.setText("Calculation complete.")
@@ -503,6 +516,7 @@ class PavementWindow(QMainWindow):
 
     def _load_example(self) -> None:
         from src.examples.manual_example_pavement import build_pavement
+
         self._pavement = build_pavement()
         self._pillar_list.clear()
         self._beam_list.clear()
@@ -547,7 +561,7 @@ class PavementWindow(QMainWindow):
 
     # -------------------------------------------------------------- canvas ---
 
-    def _redraw_canvas(self) -> None:
+    def _redraw_canvas(self) -> None:  # NOSONAR
         fig = self._figure
         style_figure(fig, DARK_BG_MAIN)
         fig.clear()
@@ -564,30 +578,52 @@ class PavementWindow(QMainWindow):
         slabs = self._pavement.slabs
 
         if not pillars:
-            ax.text(0.5, 0.5, "Add pillars to see the floor plan",
-                    ha="center", va="center", transform=ax.transAxes,
-                    color=DARK_TEXT_MUTED, fontsize=11)
+            ax.text(
+                0.5,
+                0.5,
+                "Add pillars to see the floor plan",
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color=DARK_TEXT_MUTED,
+                fontsize=11,
+            )
             self._canvas.draw_idle()
             return
 
         # --- slabs (drawn first so beams/pillars appear on top) ---
         for slab in slabs.values():
-            coords = [pillars.get(pid) for pid in slab.corner_pillar_ids
-                      if pid in pillars]
+            coords = [
+                pillars.get(pid) for pid in slab.corner_pillar_ids if pid in pillars
+            ]
             if len(coords) == 4:
                 xs = sorted({p.x for p in coords})
                 ys = sorted({p.y for p in coords})
                 if len(xs) == 2 and len(ys) == 2:
                     x0, x1 = xs[0] / _CM_PER_M, xs[1] / _CM_PER_M
                     y0, y1 = ys[0] / _CM_PER_M, ys[1] / _CM_PER_M
-                    ax.add_patch(mpatches.Rectangle(
-                        (x0, y0), x1 - x0, y1 - y0,
-                        facecolor="#164e63", edgecolor="#22d3ee",
-                        linewidth=1.0, alpha=0.45, zorder=1,
-                    ))
-                    ax.text((x0 + x1) / 2, (y0 + y1) / 2, slab.id,
-                            ha="center", va="center", fontsize=8,
-                            color="#67e8f9", zorder=2)
+                    ax.add_patch(
+                        mpatches.Rectangle(
+                            (x0, y0),
+                            x1 - x0,
+                            y1 - y0,
+                            facecolor="#164e63",
+                            edgecolor="#22d3ee",
+                            linewidth=1.0,
+                            alpha=0.45,
+                            zorder=1,
+                        )
+                    )
+                    ax.text(
+                        (x0 + x1) / 2,
+                        (y0 + y1) / 2,
+                        slab.id,
+                        ha="center",
+                        va="center",
+                        fontsize=8,
+                        color="#67e8f9",
+                        zorder=2,
+                    )
 
         # --- beams ---
         for beam in beams.values():
@@ -599,8 +635,9 @@ class PavementWindow(QMainWindow):
             x_spread = max(xs_b) - min(xs_b)
             y_spread = max(ys_b) - min(ys_b)
             color = DARK_ACCENT if x_spread >= y_spread else "#ff9e64"
-            ax.plot(xs_b, ys_b, color=color, linewidth=2.5, zorder=3,
-                    solid_capstyle="round")
+            ax.plot(
+                xs_b, ys_b, color=color, linewidth=2.5, zorder=3, solid_capstyle="round"
+            )
 
         # --- pillars ---
         all_x = [p.x / _CM_PER_M for p in pillars.values()]
@@ -611,14 +648,28 @@ class PavementWindow(QMainWindow):
 
         for p in pillars.values():
             px, py = p.x / _CM_PER_M, p.y / _CM_PER_M
-            ax.add_patch(mpatches.Rectangle(
-                (px - vis_half, py - vis_half), 2 * vis_half, 2 * vis_half,
-                facecolor=DARK_WARNING, edgecolor="#ff9e3b",
-                linewidth=1.0, zorder=4,
-            ))
-            ax.text(px, py + vis_half * 1.6, p.id,
-                    ha="center", va="bottom", fontsize=8,
-                    color=DARK_TEXT_PRIMARY, fontweight="bold", zorder=5)
+            ax.add_patch(
+                mpatches.Rectangle(
+                    (px - vis_half, py - vis_half),
+                    2 * vis_half,
+                    2 * vis_half,
+                    facecolor=DARK_WARNING,
+                    edgecolor="#ff9e3b",
+                    linewidth=1.0,
+                    zorder=4,
+                )
+            )
+            ax.text(
+                px,
+                py + vis_half * 1.6,
+                p.id,
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color=DARK_TEXT_PRIMARY,
+                fontweight="bold",
+                zorder=5,
+            )
 
         # --- axes limits with padding ---
         pad = max(x_range, y_range) * 0.12 + vis_half * 3
@@ -632,9 +683,15 @@ class PavementWindow(QMainWindow):
             mpatches.Patch(color="#ff9e64", label="Beam (Y-dir)"),
             mpatches.Patch(facecolor="#164e63", edgecolor="#22d3ee", label="Slab"),
         ]
-        ax.legend(handles=legend_handles, loc="upper right", fontsize=8,
-                  facecolor=DARK_BG_PANEL, edgecolor=DARK_BORDER, labelcolor=DARK_TEXT_PRIMARY,
-                  framealpha=0.9)
+        ax.legend(
+            handles=legend_handles,
+            loc="upper right",
+            fontsize=8,
+            facecolor=DARK_BG_PANEL,
+            edgecolor=DARK_BORDER,
+            labelcolor=DARK_TEXT_PRIMARY,
+            framealpha=0.9,
+        )
 
         self._canvas.draw_idle()
 
@@ -671,15 +728,15 @@ class ResultsWindow(QDialog):
 
             btn = QPushButton("View Report")
             btn.setFixedWidth(100)
-            btn.clicked.connect(
-                lambda checked, b=beam: self._open_beam_report(b)
-            )
+            btn.clicked.connect(lambda checked, b=beam: self._open_beam_report(b))
             row.addWidget(btn)
             layout.addWidget(row_widget)
 
         if self._pavement.slabs:
             slab_header = QLabel(f"<b>{len(self._pavement.slabs)} slab(s) sized</b>")
-            slab_header.setStyleSheet(f"color: {DARK_TEXT_PRIMARY}; font-size: 13px; margin-top: 8px;")
+            slab_header.setStyleSheet(
+                f"color: {DARK_TEXT_PRIMARY}; font-size: 13px; margin-top: 8px;"
+            )
             layout.addWidget(slab_header)
 
             for slab in self._pavement.slabs.values():
@@ -698,9 +755,7 @@ class ResultsWindow(QDialog):
 
                 btn = QPushButton("View Report")
                 btn.setFixedWidth(100)
-                btn.clicked.connect(
-                    lambda checked, s=slab: self._open_slab_report(s)
-                )
+                btn.clicked.connect(lambda checked, s=slab: self._open_slab_report(s))
                 row.addWidget(btn)
                 layout.addWidget(row_widget)
 
@@ -741,7 +796,8 @@ class BeamReportWindow(QDialog):
     # ------------------------------------------------------------------ UI ---
 
     def _build_ui(self) -> None:
-        from src.gui.beam_gui import ResultsDialog, SectionDialog, DiagramsDialog
+        from src.gui.beam_gui import DiagramsDialog, ResultsDialog, SectionDialog
+
         self._ResultsDialog = ResultsDialog
         self._SectionDialog = SectionDialog
         self._DiagramsDialog = DiagramsDialog
@@ -800,19 +856,20 @@ class BeamReportWindow(QDialog):
     # ------------------------------------------------------------ analysis ---
 
     def _run(self) -> None:
-        from src.elements.rectangular_beam import RectangularBeam
+        from src.loading.forces import (
+            design_effort_elu,
+        )
         from src.reinforcement.rebar_calculator import RebarCalculator
         from src.reinforcement.stirrup_calculator import StirrupCalculator
         from src.reinforcement.stirrups import Stirrups
-        from src.loading.forces import LOAD_FACTOR, design_effort_elu as design_effort_elu
-        from src.properties.concrete import Concrete
-        from src.properties.steel import Steel
 
         beam = self._beam
         try:
             supports = beam._build_supports(self._pillar_registry)
             loads = beam._build_loads(self._pillar_registry)
-            rect_beam = beam._build_structural_beam(self._pillar_registry, supports, loads)
+            rect_beam = beam._build_structural_beam(
+                self._pillar_registry, supports, loads
+            )
 
             max_bm = rect_beam.get_bending_moment(return_max=True)
             max_sf = rect_beam.get_shear_force(return_max=True)
@@ -822,21 +879,24 @@ class BeamReportWindow(QDialog):
             stirrups = Stirrups(rect_beam, stirrup_calc)
             calculator = RebarCalculator(rect_beam, max_bm, stirrups)
             calculator.calculate()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             self._status_label.setText(f"Error: {exc}")
             self._status_label.setStyleSheet(f"color: {DARK_DANGER};")
             return
 
         self._rect_beam = rect_beam
         self._calculator = calculator
-        self._results_text = self._build_results_text(rect_beam, max_bm, max_sf, design_sf, calculator)
+        self._results_text = self._build_results_text(
+            rect_beam, max_bm, max_sf, design_sf, calculator
+        )
         self._status_label.setText("Analysis complete.")
         self._status_label.setStyleSheet(f"color: {DARK_SUCCESS}; font-weight: bold;")
         for btn in (self._results_btn, self._section_btn, self._diagrams_btn):
             btn.setEnabled(True)
 
-    def _build_results_text(self, rect_beam, max_bm, max_sf, design_sf, calculator) -> str:
-        from collections import Counter
+    def _build_results_text(
+        self, rect_beam, max_bm, max_sf, design_sf, calculator
+    ) -> str:
         from src.gui.beam_gui import format_reinforcement, format_stirrups
 
         lines = [
@@ -866,10 +926,14 @@ class BeamReportWindow(QDialog):
             f"Effective depth d     : {calculator.d:.2f} cm",
         ]
         blocks = ["\n".join(lines)]
-        blocks.append(format_reinforcement(calculator.tensioned_reinforcement, "Tensioned"))
+        blocks.append(
+            format_reinforcement(calculator.tensioned_reinforcement, "Tensioned")
+        )
         blocks.append(format_stirrups(calculator.stirrups))
         if calculator.compressed_reinforcement.is_chosen:
-            blocks.append(format_reinforcement(calculator.compressed_reinforcement, "Compressed"))
+            blocks.append(
+                format_reinforcement(calculator.compressed_reinforcement, "Compressed")
+            )
         return "\n\n".join(blocks)
 
 
@@ -889,6 +953,7 @@ class SlabReportWindow(QDialog):
 
     def _build_ui(self) -> None:
         from src.gui.beam_gui import ResultsDialog
+
         self._ResultsDialog = ResultsDialog
 
         layout = QVBoxLayout(self)
@@ -942,7 +1007,9 @@ class SlabReportWindow(QDialog):
         mock_compressed_reinforcement_area = 0.0
         mock_compressed_effective_depth = 0.0
 
-        support_conditions = {edge: slab.edges[edge].support_condition for edge in Edges}
+        support_conditions = {
+            edge: slab.edges[edge].support_condition for edge in Edges
+        }
         lx, ly = slab.dimensions
 
         try:
@@ -960,19 +1027,28 @@ class SlabReportWindow(QDialog):
                 support_conditions=support_conditions,
             )
             passed = checker.verify(slab.thickness)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             self._status_label.setText(f"Error: {exc}")
             self._status_label.setStyleSheet(f"color: {DARK_DANGER};")
             return
 
         self._results_text = self._build_results_text(slab, checker, passed)
-        verdict_style = f"color: {DARK_SUCCESS}; font-weight: bold;" if passed else f"color: {DARK_DANGER}; font-weight: bold;"
-        self._status_label.setText("PASS — deformation within limits." if passed else "FAIL — deformation exceeds limit.")
+        verdict_style = (
+            f"color: {DARK_SUCCESS}; font-weight: bold;"
+            if passed
+            else f"color: {DARK_DANGER}; font-weight: bold;"
+        )
+        self._status_label.setText(
+            "PASS — deformation within limits."
+            if passed
+            else "FAIL — deformation exceeds limit."
+        )
         self._status_label.setStyleSheet(verdict_style)
         self._report_btn.setEnabled(True)
 
     def _build_results_text(self, slab: Slab, checker, passed: bool) -> str:
         from src.pavement.slab_edge import Edges
+
         lx, ly = slab.dimensions
         sep = "-" * 50
         slab_type = "One-way" if slab.is_one_way else "Two-way"
@@ -985,10 +1061,10 @@ class SlabReportWindow(QDialog):
             sep,
             f"  Slab ID          : {slab.id}",
             f"  Usage            : {slab.local}",
-            f"  Type             : {slab_type} (lx/ly = {max(lx,ly)/min(lx,ly):.2f})",
+            f"  Type             : {slab_type} (lx/ly = {max(lx, ly) / min(lx, ly):.2f})",
             f"  Dimensions       : lx = {lx:.0f} cm  ly = {ly:.0f} cm",
             f"  Governing span   : {checker.span:.0f} cm  (= min(lx, ly))",
-            f"  Support conditions:",
+            "  Support conditions:",
             *cond_lines,
             f"  Supporting beams : {', '.join(slab.supporting_beam_ids)}",
             "",
