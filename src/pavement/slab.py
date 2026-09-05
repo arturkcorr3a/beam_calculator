@@ -36,7 +36,7 @@ CORNER_EDGE_DICT: dict[Edges, tuple[CornerKey, CornerKey]] = {
 class Slab:
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 
-    The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams. Thickness is a preliminary value and its pre-dimensioning calculation is not implemented.
+    The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams.
     """
 
     corner_pillar_ids: tuple[str, str, str, str]

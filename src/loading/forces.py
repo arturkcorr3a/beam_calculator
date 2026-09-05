@@ -52,8 +52,7 @@ def min_design_bending_moment(beam: RectangularBeam) -> float:
 
 
 def get_almost_permanent_combination_reduction_factor(usage: str) -> float:
-    # IMPLEMENT from ABNT NBR 6118 - Section 11.8.2.4 (Table 11.3) -> redirects to ABNT NBR 8681
-    # IMPLEMENT see how can I get it for non-residential nor commercial structures
+    # IMPLEMENT from ABNT NBR 6118 - Section 11.8.2.4 (Table 11.3) -> redirects to ABNT NBR 8681 - see how can I get it for non-residential nor commercial structures
     return 0.3
 
 

@@ -183,7 +183,7 @@ class Reinforcement:
         """
         Arranges the bars within a specific layer to maintain symmetry and proper spacing.
         """
-        # IMPLEMENT arrange bars to make it easier to build
+        # IMPLEMENT arrange bars to make it easier to build - this can be done afterwards, when it is time to create the drawings.
 
     def clear_chosen_bars(self) -> None:
         """

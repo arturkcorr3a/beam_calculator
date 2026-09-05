@@ -12,7 +12,3 @@ def test_fyd(steel_ca50: Steel):
 def test_elastic_modulus(steel_ca50: Steel):
     expected_elastic_modulus = 210_000
     assert steel_ca50.elastic_modulus == expected_elastic_modulus, "The elastic modulus of steel should be 210,000 MPa"
-
-def test_available_sizes(steel_ca50: Steel):
-    # IMPLEMENT teste
-    pass

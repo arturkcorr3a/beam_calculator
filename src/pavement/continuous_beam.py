@@ -110,7 +110,8 @@ class ContinuousBeam:
         return self.height
 
     def dimension(self, pillar_registry: dict[str, Pillar]) -> None:
-        # IMPLEMENT final dimensioning (integrate with RectangularBeam)
+        # TODO docstring
+        # REVIEW after finishing calculations
         supports = self._build_supports(pillar_registry)
         loads = self._build_loads(pillar_registry)
         structural_beam = self._build_structural_beam(pillar_registry, supports, loads)
