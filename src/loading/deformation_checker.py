@@ -169,8 +169,6 @@ class DeformationChecker(ABC):
         fluency_factor = time_coefficient / (1 + 50 * rho)
         return (1 + fluency_factor) * self.immediate_deflection
 
-    # PAPER get reference on WHY this is the chosen criteria for deflection verification
-    # CONFIRM if this is the only criteria I will use
     @property
     def acceptable_deflection(self) -> float:
         """

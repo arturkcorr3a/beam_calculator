@@ -103,7 +103,6 @@ class RebarCalculator:
         """
         md_min = min_design_bending_moment(self.beam)  # kN.cm
 
-        # CONFIRM here, the minimum area is calculated with moment = 0. Check the NBR for what it says about the calculation of stirrups in this case, now that I inserted this dependency of putting the stirrup to instantiate a calculator.
         # TODO maybe create a static method in the calculator that does a 'dummy' for this calculation
         stirrup_calculator = StirrupCalculator(self.beam, 0)
         stirrups = Stirrups(self.beam, stirrup_calculator)

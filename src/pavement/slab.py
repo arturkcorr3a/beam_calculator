@@ -13,7 +13,6 @@ from src.pavement.pillar import Pillar
 from src.pavement.slab_edge import Edges, SlabEdge, SupportCondition
 from src.properties.concrete import Concrete
 
-# CONFIRM min thickness for slabs (13.2.4.1): items d and e (vehicles) will be considered?
 SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
 
 # PAPER get reference for max value. Above this, the algorithm will throw an error, for the slab is too thick

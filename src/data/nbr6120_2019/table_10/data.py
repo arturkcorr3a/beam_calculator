@@ -299,11 +299,6 @@ _CATEGORIES = (
         ),
     ),
     BuildingCategory(
-        description="Garages and parking lots",
-        locations=(
-        ),
-    ),
-    BuildingCategory(
         description="Sports gymnasiums",
         locations=(
             LocationLoad(
