@@ -1,16 +1,16 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from itertools import count
-from typing import Optional, cast
-from indeterminatebeam import Support, DistributedLoadV # type: ignore
+from typing import cast
+
+from indeterminatebeam import DistributedLoadV, Support  # type: ignore
 
 from src.config import APP_CONFIG
 from src.elements.rectangular_beam import RectangularBeam
+from src.gui.report_exporter import ReportExporter
+from src.loading.forces import LOAD_FACTOR, design_effort_elu
 from src.loading.linear_loads import LinearLoads
 from src.pavement.beam_span import Span
-from src.pavement.pillar import Pillar
-from src.loading.forces import LOAD_FACTOR, design_effort_elu as design_effort_elu
-
 from src.pavement.geometry_utils import (
     TOLERANCE,
     Alignment,
@@ -21,17 +21,18 @@ from src.pavement.geometry_utils import (
     x_coord,
     y_coord,
 )
+from src.pavement.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
-from src.gui.report_exporter import ReportExporter
 
 # TODO add wall loads and self-weight (beam -> spans)
 
 # PAPER find reference for these values, I think they are not in NBR 6118, but should be in the classical literature
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
+
 
 @dataclass
 class WallDefinition:
@@ -42,36 +43,44 @@ class WallDefinition:
 
     def get_parameters_for_load(self) -> tuple[bool, str, float, int]:
         """Returns the parameters needed for calculating the wall load."""
-        return (self.structural, self.masonry_type, self.nominal_thickness, self.coating_thickness)
+        return (
+            self.structural,
+            self.masonry_type,
+            self.nominal_thickness,
+            self.coating_thickness,
+        )
+
 
 # TODO merge with ContinuousBeam class in src/pavement/continuous_beam.py in some way (or reference one via the other)
 @dataclass
 class ContinuousBeam:
-
     """A structural beam spanning multiple pillars along a single axis (X or Y).
 
     Resolves its own axis, centerline, and width-wise pillar support from pillar_ids and reference_pillar_id via resolve_and_validate(), and exposes the resulting spans between consecutive pillars.
     """
+
     pillar_ids: list[str]
-    reference_pillar_id: str   
+    reference_pillar_id: str
     width: float
     alignment: Alignment
     wall: WallDefinition
     height: float = 0
 
     id: str = field(default="", init=False)
-    axis: Optional[Axis] = field(default=None, init=False)
-    centerline: Optional[float] = field(default=None, init=False)
+    axis: Axis | None = field(default=None, init=False)
+    centerline: float | None = field(default=None, init=False)
     spans: list[Span] = field(default_factory=list[Span], init=False)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
         self.id = f"V{next(self._counter)}"
-        self.height = self.width # Start with a square section, just so it is not zero until it is calculated
+        self.height = (
+            self.width
+        )  # Start with a square section, just so it is not zero until it is calculated
         self._validate_reference_pillar()
         self._validate_pillar_count()
-   
+
     def _validate_pillar_count(self) -> None:
         if len(self.pillar_ids) < 2:
             raise ValueError(f"Beam '{self.id}' must have at least 2 pillars.")
@@ -79,7 +88,9 @@ class ContinuousBeam:
     def _validate_reference_pillar(self) -> None:
         """Ensures the reference pillar is included in the beam's pillar_ids."""
         if self.reference_pillar_id not in self.pillar_ids:
-            raise ValueError("Reference pillar ID must be included in the beam's pillar_ids.")
+            raise ValueError(
+                "Reference pillar ID must be included in the beam's pillar_ids."
+            )
 
     def clear_resolved(self) -> None:
         """Clears resolved attributes to force re-calculation. To be called after changes to the pavement"""
@@ -126,8 +137,13 @@ class ContinuousBeam:
         """Returns all the spans between two pillars."""
         spans: list[Span] = []
 
-        if start_pillar_id not in self.pillar_ids or end_pillar_id not in self.pillar_ids:
-            raise ValueError(f"Both pillars must be part of the beam's pillar_ids. Given: '{start_pillar_id}', '{end_pillar_id}'")
+        if (
+            start_pillar_id not in self.pillar_ids
+            or end_pillar_id not in self.pillar_ids
+        ):
+            raise ValueError(
+                f"Both pillars must be part of the beam's pillar_ids. Given: '{start_pillar_id}', '{end_pillar_id}'"
+            )
 
         start_index = self.pillar_ids.index(start_pillar_id)
         end_index = self.pillar_ids.index(end_pillar_id)
@@ -135,7 +151,7 @@ class ContinuousBeam:
         if start_index > end_index:
             start_index, end_index = end_index, start_index
 
-        sublist = self.pillar_ids[start_index:end_index + 1]
+        sublist = self.pillar_ids[start_index : end_index + 1]
 
         for i in range(len(sublist) - 1):
             pillar_a = sublist[i]
@@ -152,7 +168,9 @@ class ContinuousBeam:
         area_m2 = self.width / 100 * self.height / 100
         own_weight = LinearLoads.get_concrete_element_own_weight(area_m2)  # kN/m
         wall_height = APP_CONFIG.ceiling_height
-        wall_weight = LinearLoads.get_wall_load(*self.wall.get_parameters_for_load(), wall_height)  # kN/m
+        wall_weight = LinearLoads.get_wall_load(
+            *self.wall.get_parameters_for_load(), wall_height
+        )  # kN/m
         for span in self.spans:
             span.add_load(own_weight, permanent=True)
             span.add_load(wall_weight, permanent=True)
@@ -165,14 +183,16 @@ class ContinuousBeam:
         """Ensures all pillar_ids exist in the provided pillar_registry."""
         for pillar_id in self.pillar_ids:
             if pillar_id not in pillar_registry:
-                raise ValueError(f"Beam '{self.id}': pillar '{pillar_id}' does not exist in the registry.")
+                raise ValueError(
+                    f"Beam '{self.id}': pillar '{pillar_id}' does not exist in the registry."
+                )
 
     def _determine_axis(self, pillar_registry: dict[str, Pillar]) -> Axis:
         """
         Determines the axis of the beam based on the spread of its pillars and sorts the pillar IDs accordingly.
         """
         pillars = [pillar_registry[id] for id in self.pillar_ids]
-        
+
         x_coords = [pillar.x for pillar in pillars]
         y_coords = [pillar.y for pillar in pillars]
         x_spread = max(x_coords) - min(x_coords)
@@ -180,18 +200,24 @@ class ContinuousBeam:
 
         if x_spread >= y_spread:
             axis = Axis.X
-            self.pillar_ids = [pillar.id for pillar in sorted(pillars, key=lambda pillar: pillar.x)]
+            self.pillar_ids = [
+                pillar.id for pillar in sorted(pillars, key=lambda pillar: pillar.x)
+            ]
         else:
             axis = Axis.Y
-            self.pillar_ids = [pillar.id for pillar in sorted(pillars, key=lambda pillar: pillar.y)]
+            self.pillar_ids = [
+                pillar.id for pillar in sorted(pillars, key=lambda pillar: pillar.y)
+            ]
 
         self.axis = axis
         return axis
-    
+
     def _validate_alignment(self) -> None:
         """Validates that the beam's alignment is compatible with its axis."""
         if self.axis is None:
-            raise ValueError(f"Beam '{self.id}' has no axis set. Can't validate alignment.")
+            raise ValueError(
+                f"Beam '{self.id}' has no axis set. Can't validate alignment."
+            )
         self.alignment.validate(self.axis)
 
     def _determine_centerline(self, pillar_registry: dict[str, Pillar]) -> float:
@@ -209,7 +235,9 @@ class ContinuousBeam:
                 case Alignment.CENTER:
                     centerline = reference_pillar.y
                 case _:
-                    raise ValueError(f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'")
+                    raise ValueError(
+                        f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'"
+                    )
         elif self.axis == Axis.Y:
             pillar_reach = reference_pillar.get_x_range()
             match self.alignment:
@@ -220,21 +248,29 @@ class ContinuousBeam:
                 case Alignment.CENTER:
                     centerline = reference_pillar.x
                 case _:
-                    raise ValueError(f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'")
+                    raise ValueError(
+                        f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'"
+                    )
         else:
-            raise ValueError(f"Beam '{self.id}' has no axis set. Can't calculate centerline.")
+            raise ValueError(
+                f"Beam '{self.id}' has no axis set. Can't calculate centerline."
+            )
         self.centerline = centerline
         return centerline
 
-    def _validate_all_pillars_support_the_whole_beam_width(self, pillar_registry: dict[str, Pillar]) -> None:
+    def _validate_all_pillars_support_the_whole_beam_width(
+        self, pillar_registry: dict[str, Pillar]
+    ) -> None:
         """
         Validates that each pillar's perpendicular cross-section fully contains the beam's width band.
         """
         if self.axis is None or self.centerline is None:
-            raise ValueError(f"Beam '{self.id}' has no axis or centerline set. Can't validate pillar support.")
-        
+            raise ValueError(
+                f"Beam '{self.id}' has no axis or centerline set. Can't validate pillar support."
+            )
+
         beam_low, beam_high = self._get_range()
-        
+
         for pillar_id in self.pillar_ids:
             pillar = pillar_registry[pillar_id]
             pillar_low, pillar_high = get_pillar_perpendicular_range(pillar, self.axis)
@@ -248,7 +284,9 @@ class ContinuousBeam:
     def _get_range(self) -> tuple[float, float]:
         """Returns the coordinates range of the beam perpendicular to its axis (min, max)."""
         if self.centerline is None:
-            raise ValueError(f"Beam '{self.id}' has no centerline set. Can't calculate range.")
+            raise ValueError(
+                f"Beam '{self.id}' has no centerline set. Can't calculate range."
+            )
         beam_low = self.centerline - self.width / 2
         beam_high = self.centerline + self.width / 2
         return (beam_low, beam_high)
@@ -258,10 +296,14 @@ class ContinuousBeam:
         Ensures no pillar on the same axis line is omitted from pillar_ids.
         """
         if self.axis is None:
-            raise ValueError(f"Beam '{self.id}' has no axis set. Can't validate skipped pillars.")
-        
+            raise ValueError(
+                f"Beam '{self.id}' has no axis set. Can't validate skipped pillars."
+            )
+
         anchors = [pillar_registry[pillar_id] for pillar_id in self.pillar_ids]
-        pillars_on_same_line = self._pillars_touching_beam(pillar_registry, axis=self.axis)
+        pillars_on_same_line = self._pillars_touching_beam(
+            pillar_registry, axis=self.axis
+        )
 
         if self.axis == Axis.X:
             pillars_on_same_line.sort(key=x_coord)
@@ -276,16 +318,21 @@ class ContinuousBeam:
 
         beam_pillar_ids = set(self.pillar_ids)
         skipped = [
-            pillar for pillar in pillars_on_same_line
+            pillar
+            for pillar in pillars_on_same_line
             if pillar.id not in beam_pillar_ids
             and between(coord_key(pillar), start_coord, end_coord)
         ]
 
         if skipped:
             skipped_pillar_ids = ", ".join(f"'{pillar.id}'" for pillar in skipped)
-            raise ValueError(f"Beam '{self.id}' skips pillar(s) {skipped_pillar_ids} that lie on the same  axis line between its endpoints.")
+            raise ValueError(
+                f"Beam '{self.id}' skips pillar(s) {skipped_pillar_ids} that lie on the same  axis line between its endpoints."
+            )
 
-    def _pillars_touching_beam(self, pillar_registry: dict[str, Pillar], axis: Axis) -> list[Pillar]:
+    def _pillars_touching_beam(
+        self, pillar_registry: dict[str, Pillar], axis: Axis
+    ) -> list[Pillar]:
         """
         Finds every pillar whose position or cross-section footprint intersects the beam.
         """
@@ -293,9 +340,10 @@ class ContinuousBeam:
 
         def touches_beam(pillar: Pillar) -> bool:
             pillar_low, pillar_high = get_pillar_perpendicular_range(pillar, axis)
-            if between(pillar_low, beam_low, beam_high) or between(pillar_high, beam_low, beam_high):
-                return True
-            return False
+            return bool(
+                between(pillar_low, beam_low, beam_high)
+                or between(pillar_high, beam_low, beam_high)
+            )
 
         return [pillar for pillar in pillar_registry.values() if touches_beam(pillar)]
 
@@ -323,52 +371,92 @@ class ContinuousBeam:
         supports = [first_support]
         for span in self.spans:
             support_position += span.get_length(pillar_registry)
-            next_support = Support(support_position, pinned) # pyright: ignore[reportArgumentType]
+            next_support = Support(support_position, pinned)  # pyright: ignore[reportArgumentType]
             supports.append(next_support)
         return supports
 
     # FIXME confirm start and end position of loads (should be between the supports axis, or between the pillar faces?) -> right now it is between the supports axis, review that
-    def _build_loads(self, pillar_registry: dict[str, Pillar]) -> list[DistributedLoadV]:
+    def _build_loads(
+        self, pillar_registry: dict[str, Pillar]
+    ) -> list[DistributedLoadV]:
         # TODO docstring after funtion is complete (FIXME above is resolved)
         loads: list[DistributedLoadV] = []
         start_position = 0
         for span in self.spans:
             end_position = start_position + span.get_length(pillar_registry)
-            total_load = span.permanent_load + span.variable_load  # kN/m, permanent + variable as it is ELU
+            total_load = (
+                span.permanent_load + span.variable_load
+            )  # kN/m, permanent + variable as it is ELU
             load = DistributedLoadV(-total_load, (start_position, end_position))  # pyright: ignore[reportArgumentType] # negative for downward load
             loads.append(load)
             start_position = end_position
         return loads
 
-    def _build_structural_beam(self, pillar_registry: dict[str, Pillar], supports: list[Support], loads: list[DistributedLoadV]) -> RectangularBeam:
+    def _build_structural_beam(
+        self,
+        pillar_registry: dict[str, Pillar],
+        supports: list[Support],
+        loads: list[DistributedLoadV],
+    ) -> RectangularBeam:
         """Builds a RectangularBeam instance for structural analysis and dimensioning."""
         length = sum(span.get_length(pillar_registry) for span in self.spans)
         concrete = Concrete[APP_CONFIG.pavement_concrete]
         steel = Steel[APP_CONFIG.pavement_steel]
-        return RectangularBeam(length, self.width, self.height, concrete, steel, supports, loads) # pyright: ignore[reportArgumentType]
+        return RectangularBeam(
+            length,
+            self.width,
+            self.height,
+            concrete,
+            steel,
+            supports,
+            loads,  # pyright: ignore[reportArgumentType]
+        )
 
     # REFACTOR maybe this functions (from here on down) should be moved to the RectangularBeam or to another file, as it is part of the dimensioning process
 
     def _get_max_forces(self, structural_beam: RectangularBeam) -> tuple[float, float]:
         """Calculates the design bending moment and shear force for the given structural beam.
-        
+
         Returns:
             A tuple containing the max bending moment (kN.m) and max shear force (kN).
         """
-        max_bending_moment = cast(float, structural_beam.get_bending_moment(return_max=True)) # pyright: ignore[reportUnknownMemberType] # kN.m
-        max_shear_force = cast(float, structural_beam.get_shear_force(return_max=True)) # pyright: ignore[reportUnknownMemberType] # kN
+        max_bending_moment = cast(
+            float,
+            structural_beam.get_bending_moment(return_max=True),  # pyright: ignore[reportUnknownMemberType]
+        )  # kN.m
+        max_shear_force = cast(float, structural_beam.get_shear_force(return_max=True))  # pyright: ignore[reportUnknownMemberType] # kN
         return max_bending_moment, max_shear_force
 
-    def _calculate_and_export(self, structural_beam: RectangularBeam, max_bending_moment: float, max_shear_force: float) -> None:
+    def _calculate_and_export(
+        self,
+        structural_beam: RectangularBeam,
+        max_bending_moment: float,
+        max_shear_force: float,
+    ) -> None:
         design_shear_force = design_effort_elu(max_shear_force)  # kN
         stirrup_calculator = StirrupCalculator(structural_beam, design_shear_force)
         stirrups = Stirrups(structural_beam, stirrup_calculator)
 
         calculator = RebarCalculator(structural_beam, max_bending_moment, stirrups)
         calculator.calculate()
-        self._export_report(structural_beam, calculator, stirrup_calculator, stirrups, max_bending_moment, max_shear_force)
+        self._export_report(
+            structural_beam,
+            calculator,
+            stirrup_calculator,
+            stirrups,
+            max_bending_moment,
+            max_shear_force,
+        )
 
-    def _export_report(self, structural_beam: RectangularBeam, calculator: RebarCalculator, stirrup_calculator: StirrupCalculator, stirrups: Stirrups, max_bending_moment: float, max_shear_force: float) -> None:
+    def _export_report(
+        self,
+        structural_beam: RectangularBeam,
+        calculator: RebarCalculator,
+        stirrup_calculator: StirrupCalculator,
+        stirrups: Stirrups,
+        max_bending_moment: float,
+        max_shear_force: float,
+    ) -> None:
         exporter = ReportExporter(
             beam=structural_beam,
             calculator=calculator,
@@ -383,10 +471,10 @@ class ContinuousBeam:
         exporter.print_to_console()
 
         # Export reports
-        today = datetime.now().strftime("%b-%d").lower()
+        today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
         csv_path = exporter.export_csv(f"results/{today}/report-{self.id}.csv")
         pdf_path = exporter.export_pdf(f"results/{today}/report-{self.id}.pdf")
 
-        print("[ARQUIVOS EXPORTADOS COM SUCESSO]")
+        print("[FILES SUCCESSFULLY EXPORTED]")
         print(f"  • CSV: {csv_path}")
         print(f"  • PDF: {pdf_path}\n")
