@@ -1,0 +1,19 @@
+{
+    "recommendations": [
+        "streetsidesoftware.code-spell-checker",
+        "ms-toolsai.jupyter",
+        "yzhang.markdown-all-in-one",
+        "davidanson.vscode-markdownlint",
+        "pkief.material-icon-theme",
+        "ms-python.vscode-pylance",
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.vscode-python-envs",
+        "mechatroner.rainbow-csv",
+        "manishsencha.readme-preview",
+        "charliermarsh.ruff",
+        "sonarsource.sonarlint-vscode",
+        "gruntfuggly.todo-tree",
+        "tomoki1207.pdf"
+    ]
+}
