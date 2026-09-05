@@ -5,7 +5,6 @@ Hardcoded values matching the normative table.
 
 from src.data.nbr6120_2019.table_7.model import FillMaterial, Table7
 
-
 _MATERIALS = (
     FillMaterial(
         description="Construction debris, rubble",

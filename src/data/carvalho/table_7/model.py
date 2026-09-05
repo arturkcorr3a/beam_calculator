@@ -156,12 +156,13 @@ class Table7:
             mu_y=mu_lower.mu_y + t * (mu_upper.mu_y - mu_lower.mu_y),
         )
 
+    # TODO remove this - if it is lambda>2, return the value for infinity (as it would be for a beam)
     def _interpolate_asymptotic(
         self, lambda_val: float, case: int
     ) -> MomentCoefficients:
         """
         Performs linear interpolation on the reciprocal (1 / lambda) between 2.0 and infinity.
-        This provides high physical accuracy matching plate theory asymptotics.
+        This provides high physical accuracy matching plate theory asymptotic.
         """
         entry_lower = next(
             e for e in self.entries if math.isclose(e.aspect_ratio, 2.0, rel_tol=1e-9)
@@ -172,11 +173,11 @@ class Table7:
         mu_inf = entry_inf.get_mu(case)
 
         lambda_lower = 2.0
-        recip_val = 1.0 / lambda_val
-        recip_lower = 1.0 / lambda_lower  # 0.5
-        recip_inf = 0.0  # 1 / inf
+        val = 1.0 / lambda_val
+        lower = 1.0 / lambda_lower  # 0.5
+        inf = 0.0  # 1 / inf
 
-        t = (recip_lower - recip_val) / (recip_lower - recip_inf)
+        t = (lower - val) / (lower - inf)
         return MomentCoefficients(
             mu_x=mu_lower.mu_x + t * (mu_inf.mu_x - mu_lower.mu_x),
             mu_y=mu_lower.mu_y + t * (mu_inf.mu_y - mu_lower.mu_y),

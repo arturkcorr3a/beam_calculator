@@ -1,7 +1,6 @@
 """Dataclass models for ABNT NBR 6120:2019 - Section 5.4 - Table 7 (Fills)."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -9,8 +8,8 @@ class FillMaterial:
     """A fill material with its apparent specific weight."""
 
     description: str
-    weight_min: Optional[float]
-    weight_max: Optional[float]
+    weight_min: float | None
+    weight_max: float | None
     weight_avg: float
 
 
