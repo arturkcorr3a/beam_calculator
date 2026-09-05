@@ -47,7 +47,6 @@
         "LATER",
         "REFACTOR",
         "PAPER",
-        "CAO",
     ],
     "python.analysis.typeCheckingMode": "strict",
     "workbench.colorTheme": "Dark Modern",
