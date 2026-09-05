@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 
-from src.properties.section_properties_calculator import SectionPropertiesCalculator as section
+from src.properties.section_properties_calculator import (
+    SectionPropertiesCalculator as section,
+)
 from src.properties.steel import Steel
 
-# REFACTOR usar isso em outros lugares para deixar mais estruturado
+
+# REFACTOR use this everywhere a rebar is used, to keep the code more structured
 @dataclass
 class Rebar:
     """Represents a steel reinforcement bar."""

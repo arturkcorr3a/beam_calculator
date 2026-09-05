@@ -7,14 +7,14 @@ class SectionPropertiesCalculator:
     """
 
     @staticmethod
-    def moment_of_inertia(width: int, height: int) -> float:
+    def moment_of_inertia(width: float, height: float) -> float:
         """
         Calculates moment of inertia (I) for rectangular section (cm, cm -> cm⁴).
         """
         return (width * height**3) / 12
 
     @staticmethod
-    def rectangular_cross_sectional_area(width: int, height: int) -> float:
+    def rectangular_cross_sectional_area(width: float, height: float) -> float:
         """
         Calculates cross-sectional area (A) for rectangular section (cm, cm -> cm²).
         """
