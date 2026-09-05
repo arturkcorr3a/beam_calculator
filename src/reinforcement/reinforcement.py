@@ -136,7 +136,7 @@ class Reinforcement:
         """
         Gets the optimal reinforcement combination chosen and distributes the bars in layers, ensuring that the spacing and constructability requirements are met.
         """
-        # REFACTOR organizar melhor esse código com funções auxiliares
+        # REFACTOR organize this better with auxiliary functions, maybe even a class for this, to make it more readable and maintainable
         if self.check_for_enough_space(optimal_reinforcement):
             self.chosen_bars = [list(optimal_reinforcement), [], []]
             return

@@ -45,7 +45,7 @@
         "CONFIRM",
         "REVIEW",
         "ASK",
-        "LATER",
+        "NOTE",
         "REFACTOR",
         "PAPER",
     ],

@@ -41,7 +41,6 @@ class RebarChooser:
 
         return possible_combinations
 
-    # PAPER get reference for the coin change problem and how it works for this case
     def choose_best_combination(
         self, combination: tuple[float, ...]
     ) -> tuple[Rebar, ...]:

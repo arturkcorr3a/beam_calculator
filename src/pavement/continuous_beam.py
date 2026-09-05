@@ -30,7 +30,7 @@ from src.reinforcement.stirrups import Stirrups
 
 # TODO add wall loads and self-weight (beam -> spans)
 
-# PAPER find reference for these values, I think they are not in NBR 6118, but should be in the classical literature
+# PAPER find reference for this value, I think they are not in NBR 6118, but should be in the classical literature - I know it's between 12 and 15
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
 
 
@@ -98,7 +98,7 @@ class ContinuousBeam:
         self.centerline = None
         self.spans = []
 
-    # PAPER find reference for these values (BEAM_HEIGHT_ESTIMATION_FACTOR), I think they are not in NBR 6118, but should be in the classical literature (I know it's between 12 and 15)
+    # PAPER find reference for this method
     def pre_size(self, pillar_registry: dict[str, Pillar]) -> float:
         """Pre-dimensioning height calculation."""
         max_height = 0
