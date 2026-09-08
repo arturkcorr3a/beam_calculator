@@ -7,6 +7,7 @@ from src.loading.forces import (
     max_design_bending_moment,
     min_design_bending_moment,
 )
+from src.logger import log_element, log_iteration
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrup_calculator import StirrupCalculator
@@ -69,8 +70,11 @@ class RebarCalculator:
                 delattr(self, prop)
 
     def calculate(self) -> None:
+        beam_label = f"b={self.beam.width:.0f} x h={self.beam.height:.0f} cm"
         current_d = 0.0
+        iter_n = 0
         while abs(current_d - self.d) > 0.1:
+            iter_n += 1
             current_d = self.d
             self.cleanup()
             self.calculate_and_set_required_tensioned_rebar_area()
@@ -80,6 +84,16 @@ class RebarCalculator:
                     self.compressed_rebar_area
                 )
             self.stirrups.calculate_and_choose(self.d)
+            as2 = 0.0 if self.is_singly_reinforced else self.compressed_rebar_area
+            log_iteration(
+                f"d={self.d:.2f} cm | As1={self.tensioned_rebar_area:.3f} cm2 | "
+                f"As2={as2:.3f} cm2 | dd={abs(current_d - self.d):.3f} cm"
+            )
+        final_as2 = 0.0 if self.is_singly_reinforced else self.compressed_rebar_area
+        log_element(
+            f"d={self.d:.2f} cm | As1={self.tensioned_rebar_area:.3f} cm2 | As2={final_as2:.3f} cm2",
+            label=beam_label,
+        )
 
     def calculate_and_set_required_tensioned_rebar_area(self) -> None:
         """

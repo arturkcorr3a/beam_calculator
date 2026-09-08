@@ -6,6 +6,7 @@ from dataclasses import dataclass
 # src/persistency/schema.py, config_to_dict in serialization.py, and
 # config_from_dict in deserialization.py in lockstep.
 
+
 @dataclass
 class AppConfig:
     # Default material grades — map to Steel/Concrete enum names, resolved at runtime
@@ -24,6 +25,12 @@ class AppConfig:
     building_category: str = "Residential buildings"
 
     ceiling_height: float = 2.5  # m, reference: ABNT NBR 15575-1, section 16.1
+
+    # Logging configuration — debug only, not persisted to saved.yaml
+    # log_level options: PROPERTY, OPERATION, ITERATION, ELEMENT, INTERACTION, GENERAL, DISABLED
+    log_level: str = "PROPERTY"
+    # log_output options: console, file, both
+    log_output: str = "console"
 
     # TODO maybe make it variable based on default configs and maybe turn into a static function?
     @property

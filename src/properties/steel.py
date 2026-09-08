@@ -1,6 +1,8 @@
 from enum import Enum, EnumMeta
 from functools import cached_property
 
+from src.logger import log_property, logger_label
+
 GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
 
 
@@ -13,6 +15,7 @@ class _SteelMeta(EnumMeta):
         return 210_000
 
 
+@logger_label("{name}")
 class Steel(Enum, metaclass=_SteelMeta):
     """
     Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.
@@ -27,7 +30,9 @@ class Steel(Enum, metaclass=_SteelMeta):
         """
         The design strength of steel (fyd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.1
         """
-        return self.value / GAMMA_S
+        result = self.value / GAMMA_S
+        log_property(f"fyd  = {result:.4f} kN/cm²")
+        return result
 
     @cached_property
     def available_sizes(self) -> list[float]:
@@ -48,14 +53,19 @@ class Steel(Enum, metaclass=_SteelMeta):
         """
         The design strength of steel (fywd) in kN/cm², based on ABNT NBR 6118 - Section 17.4.2.2
         """
-        return min(self.fyd, 43.5)
+        fyd = self.fyd
+        result = min(fyd, 43.5)
+        log_property(f"fywd = {result:.4f} kN/cm²")
+        return result
 
     @property
     def fywk(self) -> float:
         """
         The characteristic strength of steel (fywk) in kN/cm², based on ABNT NBR 6118 - Section 17.4.1.1.1
         """
-        return min(self.value, 50)
+        result = min(self.value, 50)
+        log_property(f"fywk = {result:.1f} kN/cm²")
+        return result
 
     def is_size_available(self, diameter: float) -> bool:
         """

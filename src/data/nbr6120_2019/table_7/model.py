@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from src.logger import log_property, logger_label
+
 
 @dataclass(frozen=True)
 class FillMaterial:
@@ -13,6 +15,7 @@ class FillMaterial:
     weight_avg: float
 
 
+@logger_label("ABNT NBR 6120:2019 - Table 7")
 @dataclass(frozen=True)
 class Table7:
     """ABNT NBR 6120:2019 - Section 5.4 - Table 7 (Fills).
@@ -36,5 +39,6 @@ class Table7:
         query = description.lower()
         for material in self.materials:
             if query in material.description.lower():
+                log_property(f"fill material: '{material.description}', avg={material.weight_avg} kN/m³")
                 return material
         raise KeyError(f"No material matching '{description}' was found.")

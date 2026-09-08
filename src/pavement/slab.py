@@ -7,6 +7,7 @@ from typing import Literal, cast
 from src.config import APP_CONFIG
 from src.loading.slab_deformation_checker import SlabDeformationChecker
 from src.loading.superficial_loads import SuperficialLoads
+from src.logger import log_element, log_iteration, log_operation, log_property, logger_label
 from src.pavement.continuous_beam import ContinuousBeam, Span
 from src.pavement.geometry_utils import Point, calculate_polygon_area
 from src.pavement.pillar import Pillar
@@ -28,6 +29,7 @@ CORNER_EDGE_DICT: dict[Edges, tuple[CornerKey, CornerKey]] = {
 }
 
 
+@logger_label("{id}")
 @dataclass
 class Slab:
     """Representation of a rectangular concrete slab bounded by four corner pillars.
@@ -115,12 +117,14 @@ class Slab:
             support_conditions=support_conditions,
         )
         while not checker.verify(self.thickness):
+            log_iteration(f"h = {self.thickness} cm: fail")
             self.thickness += 1
             if self.thickness > self.max_thickness:
                 raise ValueError(
                     f"Slab '{self.id}' cannot be stabilized; required thickness exceeds 30 cm."
                 )
 
+        log_element(f"thickness = {self.thickness} cm")
         thickness_changed = self.thickness != original_thickness
         return not thickness_changed
 
@@ -159,6 +163,8 @@ class Slab:
         self._resolve_supporting_beams(beam_registry)
         self._add_slab_to_spans()
         self._resolve_variable_load()
+        lx, ly = self.dimensions
+        log_operation(f"{'one-way' if self.is_one_way else 'two-way'}, {lx:.0f} x {ly:.0f} cm, variable load {self.variable_load:.1f} kN/m2")
 
     def unload_on_supporting_spans(self, pillar_registry: dict[str, Pillar]) -> None:
         """Unloads the slab's load on its supporting spans."""
@@ -236,6 +242,9 @@ class Slab:
             self.edges[Edges.TOP].influence_area = calculate_polygon_area(
                 [p_tl, p_tr, p_right, p_left]
             )
+
+        for edge in Edges:
+            log_property(f"{edge.value}: area = {self.edges[edge].influence_area:.4f} m2")
 
     @property
     def max_thickness(self) -> float:

@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from src.logger import log_property, logger_label
+
 
 @dataclass(frozen=True)
 class CeilingDuctSprinklerMaterial:
@@ -11,6 +13,7 @@ class CeilingDuctSprinklerMaterial:
     weight: float
 
 
+@logger_label("ABNT NBR 6120:2019 - Table 8")
 @dataclass(frozen=True)
 class Table8:
     """ABNT NBR 6120:2019 - Section 5.4 - Table 8 (Ceilings, ducts and sprinklers).
@@ -34,5 +37,6 @@ class Table8:
         query = description.lower()
         for material in self.materials:
             if query in material.description.lower():
+                log_property(f"ceiling/duct material: '{material.description}', weight={material.weight} kN/m²")
                 return material
         raise KeyError(f"No material matching '{description}' was found.")

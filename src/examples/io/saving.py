@@ -2,8 +2,6 @@
 Example from "Cálculo e Detalhamento de Estruturas de Concreto Armado'
 """
 
-import os
-
 from src.config import APP_CONFIG
 from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement.geometry_utils import Alignment
@@ -179,7 +177,6 @@ def main():
     pavement = build_pavement()
     pavement.resolve()
 
-    os.system("clear")
     for slab in pavement.slabs.values():
         print(f"{slab.id}: {slab.thickness} cm")
 

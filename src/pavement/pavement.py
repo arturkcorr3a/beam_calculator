@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
 
+from src.logger import log_element, log_general, logger_label
 from src.pavement.continuous_beam import ContinuousBeam
 from src.pavement.pillar import Pillar
 from src.pavement.slab import Slab
 
 
+@logger_label("Pavement")
 @dataclass
 class Pavement:
     """
@@ -61,11 +63,17 @@ class Pavement:
         pre-sizes beams and slabs, transfers slab loads onto beams, and finally
         dimensions all beams.
         """
+        log_general("validate")
         self.validate()
+        log_general("pre-size beams")
         self.pre_size_beams()
+        log_general("load beam spans")
         self.load_beam_spans()
+        log_general("pre-size slabs")
         self.pre_size_slabs()
+        log_general("unload slabs onto beams")
         self.unload_slabs_on_beams()
+        log_general("dimension beams")
         self.dimension_beams()
 
     def pre_size_beams(self) -> None:
@@ -79,10 +87,14 @@ class Pavement:
         """
         Pre-sizes all slabs based on the maximum span length of their spans.
         """
+        pass_num = 0
         changed: list[bool | None] = [None] * len(self.slabs)
         while False in changed or None in changed:
+            pass_num += 1
             for i, slab in enumerate(self.slabs.values()):
                 changed[i] = slab.pre_size()
+            n_changed = sum(1 for c in changed if c is False)
+            log_element(f"pre-size slabs pass {pass_num}: {n_changed} slab(s) resized")
 
     def load_beam_spans(self) -> None:
         """
