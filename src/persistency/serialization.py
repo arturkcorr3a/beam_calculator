@@ -121,7 +121,7 @@ def config_to_dict(config: AppConfig) -> ConfigDict:
         config: The config to serialize.
 
     Returns:
-        A dict holding all AppConfig fields (the nominal_covering property is excluded — it is computed).
+        A dict holding all AppConfig fields.
     """
     return {
         "steel": config.steel,
@@ -133,4 +133,6 @@ def config_to_dict(config: AppConfig) -> ConfigDict:
         "pavement_steel": config.pavement_steel,
         "building_category": config.building_category,
         "ceiling_height": config.ceiling_height,
+        "exposure_class": config.exposure_class,
+        "aggregate": config.aggregate,
     }

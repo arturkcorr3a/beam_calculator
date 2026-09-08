@@ -7,7 +7,13 @@ from typing import Literal, cast
 from src.config import APP_CONFIG
 from src.loading.slab_deformation_checker import SlabDeformationChecker
 from src.loading.superficial_loads import SuperficialLoads
-from src.logger import log_element, log_iteration, log_operation, log_property, logger_label
+from src.logger import (
+    log_element,
+    log_iteration,
+    log_operation,
+    log_property,
+    logger_label,
+)
 from src.pavement.continuous_beam import ContinuousBeam, Span
 from src.pavement.geometry_utils import Point, calculate_polygon_area
 from src.pavement.pillar import Pillar
@@ -29,9 +35,31 @@ CORNER_EDGE_DICT: dict[Edges, tuple[CornerKey, CornerKey]] = {
 }
 
 
+class _BeamMeta(type):
+    @property
+    def nominal_covering(self) -> float:
+        """
+        Returns the nominal covering (cm) for the slab with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
+        """
+        exposure_class = APP_CONFIG.exposure_class
+        match exposure_class:
+            case 1:
+                return 2.0
+            case 2:
+                return 2.5
+            case 3:
+                return 3.5
+            case 4:
+                return 4.5
+            case _:
+                raise ValueError(
+                    f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."
+                )
+
+
 @logger_label("{id}")
 @dataclass
-class Slab:
+class Slab(metaclass=_BeamMeta):
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 
     The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams.
@@ -164,7 +192,9 @@ class Slab:
         self._add_slab_to_spans()
         self._resolve_variable_load()
         lx, ly = self.dimensions
-        log_operation(f"{'one-way' if self.is_one_way else 'two-way'}, {lx:.0f} x {ly:.0f} cm, variable load {self.variable_load:.1f} kN/m2")
+        log_operation(
+            f"{'one-way' if self.is_one_way else 'two-way'}, {lx:.0f} x {ly:.0f} cm, variable load {self.variable_load:.1f} kN/m2"
+        )
 
     def unload_on_supporting_spans(self, pillar_registry: dict[str, Pillar]) -> None:
         """Unloads the slab's load on its supporting spans."""
@@ -244,7 +274,9 @@ class Slab:
             )
 
         for edge in Edges:
-            log_property(f"{edge.value}: area = {self.edges[edge].influence_area:.4f} m2")
+            log_property(
+                f"{edge.value}: area = {self.edges[edge].influence_area:.4f} m2"
+            )
 
     @property
     def max_thickness(self) -> float:

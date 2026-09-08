@@ -48,7 +48,9 @@ class Reinforcement:
         self.is_chosen = True
         all_bars = [bar for layer in self.chosen_bars for bar in layer]
         counter = Counter(int(b.diameter_mm) for b in all_bars)
-        bar_desc = ", ".join(f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True))
+        bar_desc = ", ".join(
+            f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
+        )
         log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
@@ -199,7 +201,7 @@ class Reinforcement:
         total_width_needed = total_bar_width + total_spacing
 
         max_effective_covering = max(
-            bar.effective_covering(self.beam.nominal_covering)
+            bar.effective_covering(RectangularBeam.nominal_covering)
             for bar in optimal_reinforcement
         )
         available_width = self.beam.width - 2 * max_effective_covering

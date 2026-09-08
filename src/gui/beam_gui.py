@@ -218,7 +218,7 @@ class SectionDialog(QDialog):
         style_figure(fig, DARK_BG_MAIN)
         w = beam.width
         h = beam.height
-        cov = beam.nominal_covering
+        cov = RectangularBeam.nominal_covering
 
         ax = fig.add_subplot(111)
         ax.set_facecolor(DARK_BG_MAIN)

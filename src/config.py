@@ -6,17 +6,17 @@ from dataclasses import dataclass
 # src/persistency/schema.py, config_to_dict in serialization.py, and
 # config_from_dict in deserialization.py in lockstep.
 
-
+# TODO use more robust typing, with literals and enums
 @dataclass
 class AppConfig:
     # Default material grades — map to Steel/Concrete enum names, resolved at runtime
     steel: str = "CA50"
     default_concrete: str = "C30"
 
-    # Reinforcement layout — user-facing construction preferences
-    max_aggregate_size: float = 2.5  # cm
     # options: granite, basalt, diabase, limestone, sandstone
     aggregate: str = "granite"
+    # Reinforcement layout — user-facing construction preferences
+    max_aggregate_size: float = 2.5  # cm
     max_bar_types: int = 3
     max_layers: int = 3
 
@@ -26,6 +26,9 @@ class AppConfig:
 
     building_category: str = "Residential buildings"
 
+    # options: 1 (weak), 2 (moderate), 3 (severe), 4 (very severe)
+    exposure_class: int = 2  # ABNT NBR 6118 - Section 6.4 - Table 6.1 
+
     ceiling_height: float = 2.5  # m, reference: ABNT NBR 15575-1, section 16.1
 
     # Logging configuration — debug only, not persisted to saved.yaml
@@ -33,14 +36,6 @@ class AppConfig:
     log_level: str = "PROPERTY"
     # log_output options: console, file, both
     log_output: str = "console"
-
-    # TODO maybe make it variable based on default configs and maybe turn into a static function?
-    @property
-    def nominal_covering(self) -> float:
-        """
-        Returns the nominal covering (cm) for a beam with class 2 exposure, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
-        """
-        return 3.0
 
 
 APP_CONFIG = AppConfig()
