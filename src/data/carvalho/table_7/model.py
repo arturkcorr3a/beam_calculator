@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 
 from src.data.carvalho.utils import find_bracket_and_fraction
+from src.logger import log_property, logger_label
 from src.pavement.slab_edge import Edges, SupportCondition
 
 
@@ -15,6 +16,7 @@ class MomentCoefficients:
     mu_y: float
 
 
+@logger_label("Carvalho - Table 7")
 @dataclass(frozen=True)
 class SlabMomentEntry:
     """Bending moment coefficient row for a given aspect ratio (ly / lx).
@@ -32,7 +34,9 @@ class SlabMomentEntry:
             raise ValueError(
                 f"Invalid case: {case}. Must be an integer between 1 and 9."
             )
-        return self.cases[case - 1]
+        result = self.cases[case - 1]
+        log_property(f"μ(case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}")
+        return result
 
     def get_mu_x(self, case: int) -> float:
         """Return the mu_x coefficient for the specified case (1 to 9)."""
@@ -43,6 +47,7 @@ class SlabMomentEntry:
         return self.get_mu(case).mu_y
 
 
+@logger_label("Carvalho - Table 7")
 @dataclass(frozen=True)
 class Table7:
     """Roberto Chust de Carvalho & Jasson Rodrigues de Figueiredo Filho - Chapter 7 - Quadro 7.1.
@@ -96,20 +101,19 @@ class Table7:
         # Exact match check (or close to exact match due to floating-point precision)
         for entry in self.entries:
             if math.isclose(lambda_val, entry.aspect_ratio, rel_tol=1e-9):
-                return entry.get_mu(case)
+                result = entry.get_mu(case)
+                log_property(f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}")
+                return result
 
-        # Handle infinity edge case (or very high values of lambda)
-        if lambda_val >= 100.0:
-            for entry in self.entries:
-                if math.isinf(entry.aspect_ratio):
-                    return entry.get_mu(case)
-
-        # Case A: lambda_val is within bounds [1.0, 2.0]
+        # No exact match — interpolate within [1.0, 2.0) or use infinity entry
         if lambda_val < 2.0:
-            return self._interpolate_linear(lambda_val, case)
+            result = self._interpolate_linear(lambda_val, case)
+        else:
+            # lambda_val >= 2.0 (or >= 100): behaves as a beam, use the infinity entry.
+            result = next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_mu(case)
 
-        # Case B: lambda_val > 2.0 — behaves as a beam, use the infinity entry directly.
-        return next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_mu(case)
+        log_property(f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}")
+        return result
 
     def get_mu_x(self, lambda_val: float, case: int) -> float:
         """Convenience: return only mu_x for the given lambda and case."""

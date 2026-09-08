@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import inspect
+from collections.abc import Callable
+from datetime import datetime
+from enum import Enum, IntEnum
+from pathlib import Path
+from typing import IO, TypeVar
+
+from rich.console import Console
+from rich.markup import escape
+
+
+class LogLevel(IntEnum):
+    PROPERTY = 1
+    OPERATION = 2
+    ITERATION = 3
+    ELEMENT = 4
+    INTERACTION = 5
+    GENERAL = 6
+    DISABLED = 7
+
+
+class LogOutput(str, Enum):
+    CONSOLE = "console"
+    FILE = "file"
+    BOTH = "both"
+
+
+_LEVEL_STYLES: dict[LogLevel, str] = {
+    LogLevel.PROPERTY: "dim",
+    LogLevel.OPERATION: "cyan",
+    LogLevel.ITERATION: "blue",
+    LogLevel.ELEMENT: "green",
+    LogLevel.INTERACTION: "yellow",
+    LogLevel.GENERAL: "bold white",
+}
+
+_LOGS_DIR = Path(__file__).parent.parent / "logs"
+
+
+class BeamLogger:
+    def __init__(self, level: LogLevel, output: LogOutput) -> None:
+        self._level = level
+        self._output = output
+        self._console = Console(highlight=False)
+        self._file_console: Console | None = None
+        self._log_file: IO[str] | None = None
+
+        if output in (LogOutput.FILE, LogOutput.BOTH):
+            self._open_log_file()
+
+    def _open_log_file(self) -> None:
+        _LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().astimezone().strftime("%Y-%m-%dT%H-%M-%S")
+        log_path = _LOGS_DIR / f"beam_calculator_{timestamp}.log"
+        self._log_file = open(log_path, "w", encoding="utf-8")  # noqa: SIM115
+        self._file_console = Console(
+            file=self._log_file,
+            no_color=True,
+            highlight=False,
+        )
+
+    def configure(self, level: LogLevel, output: LogOutput) -> None:
+        if self._log_file is not None:
+            self._log_file.close()
+            self._log_file = None
+            self._file_console = None
+        self._level = level
+        self._output = output
+        if output in (LogOutput.FILE, LogOutput.BOTH):
+            self._open_log_file()
+
+    def __del__(self) -> None:
+        if self._log_file is not None:
+            self._log_file.close()
+
+    def _log(self, level: LogLevel, message: str, label: str | None) -> None:
+        if self._level > level:
+            return
+
+        style = _LEVEL_STYLES[level]
+        indent = "  " * (LogLevel.GENERAL - level)
+
+        if label:
+            tag_name = label
+        else:
+            frame = inspect.currentframe()
+            # _log <- log_property/log_element/etc. <- caller
+            caller = frame.f_back.f_back if frame and frame.f_back else None
+            if caller:
+                caller_self = caller.f_locals.get("self")
+                if caller_self is not None and hasattr(caller_self, "_log_label"):
+                    tag_name = caller_self._log_label
+                else:
+                    qualname = caller.f_code.co_qualname
+                    if "." in qualname:
+                        class_name = qualname.rsplit(".", 1)[0]
+                        caller_cls = caller.f_globals.get(class_name)
+                        lbl = getattr(caller_cls, "_log_label", None) if caller_cls is not None else None
+                        tag_name = lbl if isinstance(lbl, str) else qualname
+                    else:
+                        tag_name = qualname
+            else:
+                tag_name = level.name
+
+        line = f"{indent}[{style}]{escape(f'[{level.name} | {tag_name}]')}[/{style}] {escape(message)}"
+
+        if self._output in (LogOutput.CONSOLE, LogOutput.BOTH):
+            self._console.print(line)
+        if self._output in (LogOutput.FILE, LogOutput.BOTH) and self._file_console:
+            self._file_console.print(line)
+
+    def log_property(self, message: str, label: str | None = None) -> None:
+        self._log(LogLevel.PROPERTY, message, label)
+
+    def log_operation(self, message: str, label: str | None = None) -> None:
+        self._log(LogLevel.OPERATION, message, label)
+
+    def log_iteration(self, message: str, label: str | None = None) -> None:
+        self._log(LogLevel.ITERATION, message, label)
+
+    def log_element(self, message: str, label: str | None = None) -> None:
+        self._log(LogLevel.ELEMENT, message, label)
+
+    def log_interaction(self, message: str, label: str | None = None) -> None:
+        self._log(LogLevel.INTERACTION, message, label)
+
+    def log_general(self, message: str, label: str | None = None) -> None:
+        self._log(LogLevel.GENERAL, message, label)
+
+
+_ClassT = TypeVar("_ClassT", bound=type)
+
+
+def logger_label(label: str) -> Callable[[_ClassT], _ClassT]:
+    """Class decorator that sets a default log label, resolved against each instance.
+
+    Static:  @logger_label("Section Properties")
+    Dynamic: @logger_label("Concrete {name}") — {attr} placeholders resolved via getattr.
+    """
+
+    def decorator(cls: _ClassT) -> _ClassT:
+        if "{" in label:
+
+            def _resolve(instance: object, _l: str = label) -> str:
+                class _Proxy(dict[str, str]):
+                    def __missing__(self, key: str) -> str:
+                        return str(getattr(instance, key, f"{{{key}}}"))
+
+                return _l.format_map(_Proxy())
+
+            cls._log_label = property(_resolve)
+        else:
+            cls._log_label = label  # plain string — accessible from static methods via class lookup
+        return cls
+
+    return decorator
+
+
+def _init_logger() -> BeamLogger:
+    # late import — avoids circular dep at module load time
+    from src.config import (
+        APP_CONFIG,
+    )
+
+    try:
+        level = LogLevel[APP_CONFIG.log_level.upper()]
+    except KeyError:
+        level = LogLevel.GENERAL
+
+    try:
+        output = LogOutput(APP_CONFIG.log_output.lower())
+    except ValueError:
+        output = LogOutput.CONSOLE
+
+    return BeamLogger(level, output)
+
+
+_logger = _init_logger()
+
+log_property = _logger.log_property
+log_operation = _logger.log_operation
+log_iteration = _logger.log_iteration
+log_element = _logger.log_element
+log_interaction = _logger.log_interaction
+log_general = _logger.log_general
+configure_logger = _logger.configure
+# loggerlabel is a plain function — already importable at module level

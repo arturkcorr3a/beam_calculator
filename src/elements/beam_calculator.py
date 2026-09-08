@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, cast
 
 from indeterminatebeam import DistributedLoadV, Support  # type: ignore
 
 from src.config import APP_CONFIG
 from src.elements.rectangular_beam import RectangularBeam
-from src.gui.report_exporter import ReportExporter
-from src.loading.forces import LOAD_FACTOR, design_effort_elu
+from src.loading.forces import design_effort_elu
+from src.logger import log_operation, logger_label
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.rebar_calculator import RebarCalculator
@@ -20,6 +19,7 @@ if TYPE_CHECKING:
     from src.pavement.pillar import Pillar
 
 
+@logger_label("{label}")
 class BeamCalculator:
     """Bridges a ContinuousBeam (pavement domain) to RectangularBeam (structural analysis), running the full dimensioning pipeline."""
 
@@ -29,13 +29,17 @@ class BeamCalculator:
         self._beam = beam
         self._pillar_registry = pillar_registry
 
+    @property
+    def label(self) -> str:
+        return self._beam.id
+
     def run(self) -> None:
-        """Dimensions the beam: builds the structural model, computes forces, calculates reinforcement, and exports the report."""
+        """Dimensions the beam: builds the structural model, computes forces, and calculates reinforcement."""
         supports = self._build_supports()
         loads = self._build_loads()
         structural_beam = self._build_structural_beam(supports, loads)
         max_bending_moment, max_shear_force = self._get_max_forces(structural_beam)
-        self._calculate_and_export(structural_beam, max_bending_moment, max_shear_force)
+        self._calculate(structural_beam, max_bending_moment, max_shear_force)
 
     # FIXME considering all supports as pinned -> fix to include pillar coherence and rigidity
     def _build_supports(self) -> list[Support]:
@@ -96,9 +100,10 @@ class BeamCalculator:
             structural_beam.get_bending_moment(return_max=True),  # pyright: ignore[reportUnknownMemberType]
         )  # kN.m
         max_shear_force = cast(float, structural_beam.get_shear_force(return_max=True))  # pyright: ignore[reportUnknownMemberType] # kN
+        log_operation(f"max moment {max_bending_moment:.2f} kN.m, max shear {max_shear_force:.2f} kN")
         return max_bending_moment, max_shear_force
 
-    def _calculate_and_export(
+    def _calculate(
         self,
         structural_beam: RectangularBeam,
         max_bending_moment: float,
@@ -110,42 +115,3 @@ class BeamCalculator:
 
         calculator = RebarCalculator(structural_beam, max_bending_moment, stirrups)
         calculator.calculate()
-        self._export_report(
-            structural_beam,
-            calculator,
-            stirrup_calculator,
-            stirrups,
-            max_bending_moment,
-            max_shear_force,
-        )
-
-    def _export_report(
-        self,
-        structural_beam: RectangularBeam,
-        calculator: RebarCalculator,
-        stirrup_calculator: StirrupCalculator,
-        stirrups: Stirrups,
-        max_bending_moment: float,
-        max_shear_force: float,
-    ) -> None:
-        exporter = ReportExporter(
-            beam=structural_beam,
-            calculator=calculator,
-            stirrup_calculator=stirrup_calculator,
-            stirrups=stirrups,
-            max_bending_moment_kNm=max_bending_moment,
-            max_shear_force_kN=max_shear_force,
-            gamma_f=LOAD_FACTOR,
-        )
-
-        # Print step-by-step memory of calculation to terminal
-        exporter.print_to_console()
-
-        # Export reports
-        today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
-        csv_path = exporter.export_csv(f"results/{today}/report-{self._beam.id}.csv")
-        pdf_path = exporter.export_pdf(f"results/{today}/report-{self._beam.id}.pdf")
-
-        print("[FILES SUCCESSFULLY EXPORTED]")
-        print(f"  • CSV: {csv_path}")
-        print(f"  • PDF: {pdf_path}\n")

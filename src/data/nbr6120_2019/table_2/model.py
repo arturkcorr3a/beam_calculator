@@ -2,7 +2,10 @@
 
 from dataclasses import dataclass
 
+from src.logger import log_property, logger_label
 
+
+@logger_label("ABNT NBR 6120:2019 - Table 2")
 @dataclass(frozen=True)
 class Thickness:
     """Self-weight (kN/m²) for a given nominal wall thickness with its associated coating thickness per face."""
@@ -22,8 +25,10 @@ class Thickness:
         weight = mapping[coating_cm]
         if weight is None:
             raise ValueError(f"Weight for coating thickness {coating_cm} cm is not defined for nominal thickness {self.nominal_cm} cm.")
+        log_property(f"masonry weight({coating_cm} cm coating) = {weight:.2f} kN/m²")
         return weight
 
+@logger_label("ABNT NBR 6120:2019 - Table 2")
 @dataclass(frozen=True)
 class MasonryType:
     """A masonry type entry (e.g. hollow concrete block) with its thicknesses."""
@@ -35,10 +40,12 @@ class MasonryType:
         """Look up a thickness entry by its nominal value (cm)."""
         for thickness in self.thicknesses:
             if thickness.nominal_cm == nominal_cm:
+                log_property(f"'{self.type_description}' @ {nominal_cm} cm nominal → found")
                 return thickness
         raise ValueError(f"Nominal thickness {nominal_cm} cm not found for '{self.type_description}'")
 
 
+@logger_label("ABNT NBR 6120:2019 - Table 2")
 @dataclass(frozen=True)
 class Table2:
     """ABNT NBR 6120:2019 - Section 5.4 - Table 2 (Masonry).
@@ -68,5 +75,6 @@ class Table2:
         query = description.lower()
         for masonry in masonries:
             if query in masonry.type_description.lower():
+                log_property(f"masonry: '{masonry.type_description}' ({'structural' if structural else 'non-bearing'})")
                 return masonry
         raise KeyError(f"No masonry type matching '{description}' was found.")

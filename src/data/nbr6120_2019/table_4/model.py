@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from src.logger import log_property, logger_label
+
 
 @dataclass(frozen=True)
 class ThicknessWeight:
@@ -11,6 +13,7 @@ class ThicknessWeight:
     weight: float
 
 
+@logger_label("ABNT NBR 6120:2019 - Table 4")
 @dataclass(frozen=True)
 class CoveringMaterial:
     """A floor covering or waterproofing material with its associated weights."""
@@ -22,10 +25,12 @@ class CoveringMaterial:
         """Return the weight for the given thickness in cm."""
         for tw in self.thicknesses:
             if tw.thickness_cm == thickness_cm:
+                log_property(f"covering weight({thickness_cm} cm) = {tw.weight:.2f} kN/m²")
                 return tw.weight
         raise ValueError(f"Thickness {thickness_cm} cm not found for '{self.description}'")
 
 
+@logger_label("ABNT NBR 6120:2019 - Table 4")
 @dataclass(frozen=True)
 class Table4:
     """ABNT NBR 6120:2019 - Section 5.4 - Table 4 (Floor coverings and waterproofing).
@@ -51,5 +56,6 @@ class Table4:
         query = description.lower()
         for material in self.materials:
             if query in material.description.lower():
+                log_property(f"covering material: '{material.description}'")
                 return material
         raise KeyError(f"No material matching '{description}' was found.")

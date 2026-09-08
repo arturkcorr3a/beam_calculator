@@ -1,6 +1,7 @@
 from math import pi
 
 from src.elements.rectangular_beam import RectangularBeam
+from src.logger import log_element
 from src.reinforcement.stirrup_calculator import MIN_SPACING, StirrupCalculator
 
 MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 18.3.3.2)
@@ -33,7 +34,9 @@ class Stirrups:
         """
         self.calculator.calculate(effective_depth)
         self.required_ratio = self.calculator.required_ratio  # cm²/cm
-        return self.choose()  # Returns (spacing, diameter) in cm
+        result = self.choose()  # Returns (spacing, diameter) in cm
+        log_element(f"stirrup: {self.diameter * 10:.0f}mm @ {self.spacing:.1f} cm")
+        return result
 
     def choose(self) -> tuple[float, float]:
         """
@@ -92,16 +95,3 @@ class Stirrups:
         """
         area = pi * (diameter / 2) ** 2  # cm²
         return 2 * area / spacing  # cm²/cm, factor 2 for two legs of the stirrup
-
-    def print_report(self) -> None:
-        """
-        Print a report of the chosen stirrup reinforcement, including the required ratio, chosen diameter, and spacing.
-        """
-        print("\n------------------------------------------------------------")
-        print("STIRRUPS")
-        print("------------------------------------------------------------")
-        print(f"Required ratio: {self.required_ratio:.4f} cm²/cm")
-        print(f"Chosen: Φ {self.diameter * 10} c/ {self.spacing} cm")
-        print(
-            f"Actual ratio: {Stirrups.calculate_ratio(self.diameter, self.spacing):.4f} cm²/cm"
-        )

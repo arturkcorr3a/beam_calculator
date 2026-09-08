@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
+from src.logger import log_interaction, log_property, logger_label
+
 if TYPE_CHECKING:
     from src.pavement.continuous_beam import ContinuousBeam, Span
     from src.pavement.pillar import Pillar
@@ -23,6 +25,7 @@ class Edges(str, Enum):
     RIGHT = "right"
 
 
+@logger_label("{label}")
 @dataclass
 class SlabEdge:
     edge: Edges
@@ -31,6 +34,10 @@ class SlabEdge:
     spans: list[Span] = field(default_factory=list, init=False)  # type: ignore
     support_condition: SupportCondition = field(default="pinned", init=False)
     influence_area: float = field(default=0.0, init=False)
+
+    @property
+    def label(self) -> str:
+        return self.slab.id
 
     @property
     def beam(self) -> ContinuousBeam:
@@ -76,6 +83,7 @@ class SlabEdge:
         total_length = supported_length + fixed_length
         if fixed_length / total_length > 0.8:
             self.support_condition = "fixed"
+        log_property(f"{self.edge.value}: {self.support_condition} ({fixed_length:.0f} / {total_length:.0f} cm fixed)")
 
     def unload_on_spans(self, pillar_registry: dict[str, Pillar]) -> None:
         """Distributes the slab's tributary load along this edge's supporting spans (kN/m)."""
@@ -88,6 +96,7 @@ class SlabEdge:
         variable_linear_load = (
             self.slab.variable_load * self.influence_area / edge_length_m
         )  # kN/m
+        log_interaction(f"{self.edge.value}: permanent {permanent_linear_load:.2f} kN/m, variable {variable_linear_load:.2f} kN/m")
         for span in self.spans:
             span.add_load(permanent_linear_load, permanent=True)
             span.add_load(variable_linear_load, permanent=False)

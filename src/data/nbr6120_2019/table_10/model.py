@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from src.logger import log_property, logger_label
+
 
 @dataclass(frozen=True)
 class LocationLoad:
@@ -12,6 +14,7 @@ class LocationLoad:
     notes: tuple[str, ...]
 
 
+@logger_label("ABNT NBR 6120:2019 - Table 10")
 @dataclass(frozen=True)
 class BuildingCategory:
     """A category of building or usage with its associated locations and loads."""
@@ -24,10 +27,12 @@ class BuildingCategory:
         query = description.lower()
         for loc in self.locations:
             if query in loc.description.lower():
+                log_property(f"live load for '{description}' = {loc.distributed_load:.2f} kN/m²")
                 return loc.distributed_load
         raise KeyError(f"No location matching '{description}' was found.")
 
 
+@logger_label("ABNT NBR 6120:2019 - Table 10")
 @dataclass(frozen=True)
 class Table10:
     """ABNT NBR 6120:2019 - Section 5.4 - Table 10 (Variable loads).
@@ -53,5 +58,6 @@ class Table10:
         query = description.lower()
         for cat in self.categories:
             if query in cat.description.lower():
+                log_property(f"occupancy category: '{cat.description}'")
                 return cat
         raise KeyError(f"No category matching '{description}' was found.")

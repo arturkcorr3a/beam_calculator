@@ -1,6 +1,9 @@
 from math import pi, sqrt
 
+from src.logger import log_property, logger_label
 
+
+@logger_label("Section")
 class SectionPropertiesCalculator:
     """
     Calculates geometric properties of cross-sections.
@@ -11,28 +14,36 @@ class SectionPropertiesCalculator:
         """
         Calculates moment of inertia (I) for rectangular section (cm, cm -> cm⁴).
         """
-        return (width * height**3) / 12
+        result = (width * height**3) / 12
+        log_property(f"{width} x {height}: I = {result:.4f} cm⁴")
+        return result
 
     @staticmethod
     def rectangular_cross_sectional_area(width: float, height: float) -> float:
         """
         Calculates cross-sectional area (A) for rectangular section (cm, cm -> cm²).
         """
-        return width * height
+        result = width * height
+        log_property(f"{width} x {height}: A = {result:.4f} cm²")
+        return result
 
     @staticmethod
     def circular_cross_sectional_area(diameter: float) -> float:
         """
         Calculates cross-sectional area (A) for circular section (cm -> cm²).
         """
-        return (pi * (diameter**2)) / 4.0
+        result = (pi * (diameter**2)) / 4.0
+        log_property(f"D = {diameter} cm: A =  {result:.4f} cm²")
+        return result
 
     @staticmethod
     def gross_section_modulus(width: float, height: float) -> float:
         """
         Calculates the gross section modulus (W_0) for rectangular section (cm, cm -> cm³).
         """
-        return (width * height**2) / 6.0
+        result = (width * height**2) / 6.0
+        log_property(f"{width} x {height}: W_0 = {result:.4f} cm³")
+        return result
 
     @staticmethod
     def cracked_section_moment_of_inertia(
@@ -89,4 +100,6 @@ class SectionPropertiesCalculator:
             * ((neutral_axis_depth - compression_distance) ** 2)
         )
 
-        return term_concrete + term_tension_steel + term_compression_steel
+        i_ii = term_concrete + term_tension_steel + term_compression_steel
+        log_property(f"I_II = {i_ii:.4f} cm⁴ (x_II = {neutral_axis_depth:.4f} cm)")
+        return i_ii

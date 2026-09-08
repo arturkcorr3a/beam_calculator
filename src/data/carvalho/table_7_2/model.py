@@ -4,9 +4,11 @@ import math
 from dataclasses import dataclass
 
 from src.data.carvalho.utils import find_bracket_and_fraction
+from src.logger import log_property, logger_label
 from src.pavement.slab_edge import Edges, SupportCondition
 
 
+@logger_label("Carvalho - Table 7.2")
 @dataclass(frozen=True)
 class SlabDeflectionEntry:
     """Deflection coefficient (alpha) row for a given aspect ratio (ly / lx)."""
@@ -20,9 +22,12 @@ class SlabDeflectionEntry:
             raise ValueError(
                 f"Invalid case: {case}. Must be an integer between 1 and 9."
             )
-        return self.cases[case - 1]
+        result = self.cases[case - 1]
+        log_property(f"α(case={case}) = {result:.6f}")
+        return result
 
 
+@logger_label("Carvalho - Table 7.2")
 @dataclass(frozen=True)
 class Table72:
     """Roberto Chust de Carvalho & Jasson Rodrigues de Figueiredo Filho - Chapter 7 - Quadro 7.2.
@@ -76,22 +81,19 @@ class Table72:
         # Exact match check (or close to exact match due to floating-point precision)
         for entry in self.entries:
             if math.isclose(lambda_val, entry.aspect_ratio, rel_tol=1e-9):
-                return entry.get_alpha(case)
+                result = entry.get_alpha(case)
+                log_property(f"α(λ={lambda_val:.4f}, case={case}) = {result:.6f}")
+                return result
 
-        # Handle infinity edge case (or very high values of lambda)
-        if lambda_val >= 100.0:
-            for entry in self.entries:
-                if math.isinf(entry.aspect_ratio):
-                    return entry.get_alpha(case)
-
-        # Case A: lambda_val is within bounds [1.0, 2.0]
+        # No exact match — interpolate within [1.0, 2.0) or use infinity entry
         if lambda_val < 2.0:
-            return self._interpolate_linear(lambda_val, case)
+            result = self._interpolate_linear(lambda_val, case)
+        else:
+            # lambda_val >= 2.0 (or >= 100): behaves as a beam, use the infinity entry.
+            result = next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_alpha(case)
 
-        # Case B: lambda_val > 2.0 — behaves as a beam, use the infinity entry directly.
-        return next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_alpha(
-            case
-        )
+        log_property(f"α(λ={lambda_val:.4f}, case={case}) = {result:.6f}")
+        return result
 
     def _validate_inputs(self, lambda_val: float, case: int) -> None:
         """Helper to validate constraints on input parameters."""

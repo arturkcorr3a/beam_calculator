@@ -1,11 +1,9 @@
 from collections import Counter
-from typing import Literal
-
-from numpy.strings import upper
 
 from src.config import APP_CONFIG
 from src.elements.rebar import Rebar
 from src.elements.rectangular_beam import RectangularBeam
+from src.logger import log_element
 from src.reinforcement.rebar_chooser import RebarChooser
 
 # TODO find a good reference for this initial guess, to have a basis in the work and know how to justify it
@@ -48,6 +46,10 @@ class Reinforcement:
         if len(self.chosen_bars[0]) == 0:
             raise ValueError("No valid reinforcement combination found.")
         self.is_chosen = True
+        all_bars = [bar for layer in self.chosen_bars for bar in layer]
+        counter = Counter(int(b.diameter_mm) for b in all_bars)
+        bar_desc = ", ".join(f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True))
+        log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """
@@ -210,33 +212,3 @@ class Reinforcement:
         counts = Counter(combination)
         odd_counts = sum(1 for count in counts.values() if count % 2 != 0)
         return odd_counts <= 1
-
-    def print_report(self, type: Literal["Tensioned", "Compressed"]) -> None:
-        """
-        Prints a report of the chosen reinforcement, including the required area, chosen bars per layer, and whether the reinforcement is chosen.
-        """
-
-        def print_layer(layer: list[Rebar], layer_index: int) -> None:
-            if layer:
-                layer_count = Counter(layer)
-                formatted_bars = " + ".join(
-                    f"{count} Φ {int(rebar.diameter_mm) if rebar.diameter_mm.is_integer() else rebar.diameter_mm}"
-                    for rebar, count in sorted(
-                        layer_count.items(),
-                        key=lambda item: item[0].diameter_mm,
-                        reverse=True,
-                    )
-                )
-                print(f"Layer {layer_index + 1}: {formatted_bars}")
-            else:
-                print(f"Layer {layer_index + 1}: No bars")
-
-        print("\n------------------------------------------------------------")
-        print(f"{upper(type)} REINFORCEMENT")
-        print("------------------------------------------------------------")
-        print(f"Required area: {self.required_area:.3f} cm²")
-        for i, layer in enumerate(self.chosen_bars):
-            print_layer(layer, i)
-        print(
-            f"Actual reinforcement area: {sum(bar.area_cm2 for layer in self.chosen_bars for bar in layer):.3f} cm²"
-        )
