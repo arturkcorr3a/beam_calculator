@@ -55,9 +55,12 @@ class Pavement:
         for slab in self.slabs.values():
             slab.resolve_and_validate(self.pillars, self.beams)
 
-    # TODO this is the entry point -> call it in main / UI
     def resolve(self) -> None:
-        # TODO docstring
+        """
+        Main entry point for sizing the pavement. Validates the structure, then
+        pre-sizes beams and slabs, transfers slab loads onto beams, and finally
+        dimensions all beams.
+        """
         self.validate()
         self.pre_size_beams()
         self.load_beam_spans()

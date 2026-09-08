@@ -1,10 +1,19 @@
-from enum import Enum
+from enum import Enum, EnumMeta
 from functools import cached_property
 
 GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
 
 
-class Steel(Enum):
+class _SteelMeta(EnumMeta):
+    @property
+    def elastic_modulus(cls) -> int:
+        """
+        Returns the elastic modulus of steel (E_s) in kN/cm², based on ABNT NBR 6118 - Section 8.3.5.
+        """
+        return 210_000
+
+
+class Steel(Enum, metaclass=_SteelMeta):
     """
     Possible steel yield strengths (fy) in kN/cm², based on ABNT NBR 6118 - Section 8.3.1.
     """
@@ -12,13 +21,6 @@ class Steel(Enum):
     CA25 = 25
     CA50 = 50
     CA60 = 60
-
-    @property
-    def elastic_modulus(self) -> int:
-        """
-        Returns the elastic modulus of steel (E_s) in MPa, based on ABNT NBR 6118 - Section 8.3.5.
-        """
-        return 210_000
 
     @property
     def fyd(self) -> float:

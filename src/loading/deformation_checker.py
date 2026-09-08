@@ -34,11 +34,13 @@ class DeformationChecker(ABC):
     effective_depth: float = field(init=False)  # cm
 
     def verify(self, height: int) -> bool:
-        """
-        Verifies if the deformation of the element is within acceptable limits.
+        """Verify whether the deformation of the element is within acceptable limits.
 
-        :return: True if the deformation is acceptable, False otherwise
-        :rtype: bool
+        Args:
+            height: Cross-section height to evaluate (cm).
+
+        Returns:
+            True if the long-term deflection is within the acceptable limit.
         """
         self.height = height
         self.effective_depth = self.height - self.effective_depth_discount
@@ -73,12 +75,7 @@ class DeformationChecker(ABC):
 
     @property
     def is_cracked(self) -> bool:
-        """
-        Determines if the element is cracked based on the comparison of the service moment and the cracking moment.
-
-        :return: True if the element is cracked, False otherwise
-        :rtype: bool
-        """
+        """Determine whether the element is cracked by comparing the service moment to the cracking moment."""
         return self.service_moment > self.cracking_moment
 
     @property
@@ -91,7 +88,7 @@ class DeformationChecker(ABC):
         According to ABNT NBR 6118 - Section: 17.3.2.1.1
 
         Returns:
-            float: The effective equivalent moment of inertia, capped at the gross section moment of inertia (Ic).
+            Effective equivalent moment of inertia, capped at the gross section I_c (cm⁴).
         """
         gross_section_moment_of_inertia = section.moment_of_inertia(
             self.width, self.height
@@ -99,9 +96,7 @@ class DeformationChecker(ABC):
         if not self.is_cracked:
             return gross_section_moment_of_inertia
 
-        # FIXME after resolving the following TODO, use Steel.elastic_modulus directly instead of any_steel
-        any_steel = Steel.CA25  # TODO make the elastic module for the steel a static property, as it is the same for all types
-        modular_ratio = any_steel.elastic_modulus / self.concrete.ecs
+        modular_ratio = Steel.elastic_modulus / self.concrete.ecs
 
         cracked_section_moment_of_inertia = section.cracked_section_moment_of_inertia(
             self.width,
@@ -127,10 +122,8 @@ class DeformationChecker(ABC):
         the boundary condition factor (alpha).
 
         References:
-        -----------
-        Carvalho & Figueiredo Filho, "Estruturas Usuais de Concreto Armado":
-        - Beams (Chapter 4): Section 4.8.2.3, Eq. 4.26 (p. 199)
-        - Slabs (Chapter 7): Section 7.3.7.2.1, Eq. 7.16 (p. 331)
+            Carvalho & Figueiredo Filho (2014) — Section 4.8.2.3, Eq. 4.26 (beams, p. 199)
+            Carvalho & Figueiredo Filho (2014) — Section 7.3.7.2.1, Eq. 7.16 (slabs, p. 331)
 
         Returns:
             float: Immediate elastic deflection.
@@ -143,10 +136,8 @@ class DeformationChecker(ABC):
         Get the boundary condition coefficient (alpha) for deflection calculations.
 
         References:
-        -----------
-        Carvalho & Figueiredo Filho, "Estruturas Usuais de Concreto Armado":
-        - Beams (Chapter 4): Returns the load/support factor 'alpha_c' (Section 4.8.2.3).
-        - Slabs (Chapter 7): Returns the plate boundary coefficient 'alpha' from Quadro 7.2 based on aspect ratio (Section 7.3.7.2.1).
+            Carvalho & Figueiredo Filho (2014) — Section 4.8.2.3 (beams, load/support factor alpha_c)
+            Carvalho & Figueiredo Filho (2014) — Section 7.3.7.2.1, Quadro 7.2 (slabs, plate boundary coefficient)
 
         Returns:
             float: The dimensionless coefficient dictated by the element's support conditions, geometry, and loading shape.

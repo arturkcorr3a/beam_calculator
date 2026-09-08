@@ -2,12 +2,13 @@
 
 # cSpell:disable
 
-# FIXME AI-Generated -> re-do after the calculations are finalized
+# REVIEW AI-Generated -> re-do after the calculations are finalized
 import csv
 import os
 from collections import Counter
 
 from src.elements.rectangular_beam import RectangularBeam
+from src.properties.steel import Steel
 from src.reinforcement.rebar_calculator import RebarCalculator
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
@@ -192,7 +193,7 @@ class ReportExporter:
             (
                 "1. GEOMETRIA E MATERIAIS",
                 "Módulo de Elasticidade do Aço Es",
-                f"{self.steel.elastic_modulus:.0f}",
+                f"{Steel.elastic_modulus:.0f}",
                 "MPa",
                 "-",
             ),
@@ -585,7 +586,7 @@ class ReportExporter:
         print(
             f"    - fyd = fyk / 1.15       : {self.steel.fyd:.4f} kN/cm² ({self.steel.fyd * 10:.2f} MPa)"
         )
-        print(f"    - Módulo de elasticidade : {self.steel.elastic_modulus:.0f} MPa")
+        print(f"    - Módulo de elasticidade : {Steel.elastic_modulus:.0f} MPa")
 
         # --- PASSO 2: ESFORÇOS SOLICITANTES ---
         print("\n[PASSO 2] CARGAS E ESFORÇOS SOLICITANTES DE CÁLCULO")

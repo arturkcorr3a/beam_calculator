@@ -1,5 +1,4 @@
-# TODO create tag for things to review when its time for GUI and was AI-gen
-# FIXME AI-Generated; review when done
+# REVIEW AI-Generated; review when done
 """Entry point: launch the reinforced-concrete beam calculator GUI."""
 
 import sys

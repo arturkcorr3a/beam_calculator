@@ -91,9 +91,11 @@ class Slab:
             raise ValueError(f"Slab '{self.id}' must have exactly 4 corner pillars.")
 
     def pre_size(self) -> bool:
-        """Sets the slab's thickness - it must pass verification of ELS-DEF for the minimum required reinforcement.
+        """Set the slab's thickness to the minimum value that passes ELS-DEF verification.
 
-        :return: True if the slab is stable (there weren't any changes in thickness that require re-validation of the pavement structure)."""
+        Returns:
+            True if the slab is stable (thickness was unchanged, no re-validation needed).
+        """
         original_thickness = self.thickness
         self.thickness = SLAB_MIN_THICKNESS
         concrete = Concrete[APP_CONFIG.pavement_concrete]

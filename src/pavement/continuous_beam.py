@@ -1,14 +1,8 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from itertools import count
-from typing import cast
-
-from indeterminatebeam import DistributedLoadV, Support  # type: ignore
 
 from src.config import APP_CONFIG
-from src.elements.rectangular_beam import RectangularBeam
-from src.gui.report_exporter import ReportExporter
-from src.loading.forces import LOAD_FACTOR, design_effort_elu
+from src.elements.beam_calculator import BeamCalculator
 from src.loading.linear_loads import LinearLoads
 from src.pavement.beam_span import Span
 from src.pavement.geometry_utils import (
@@ -22,13 +16,6 @@ from src.pavement.geometry_utils import (
     y_coord,
 )
 from src.pavement.pillar import Pillar
-from src.properties.concrete import Concrete
-from src.properties.steel import Steel
-from src.reinforcement.rebar_calculator import RebarCalculator
-from src.reinforcement.stirrup_calculator import StirrupCalculator
-from src.reinforcement.stirrups import Stirrups
-
-# TODO add wall loads and self-weight (beam -> spans)
 
 # PAPER find reference for this value, I think they are not in NBR 6118, but should be in the classical literature - I know it's between 12 and 15
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
@@ -51,7 +38,6 @@ class WallDefinition:
         )
 
 
-# TODO merge with ContinuousBeam class in src/pavement/continuous_beam.py in some way (or reference one via the other)
 @dataclass
 class ContinuousBeam:
     """A structural beam spanning multiple pillars along a single axis (X or Y).
@@ -110,13 +96,8 @@ class ContinuousBeam:
         return self.height
 
     def dimension(self, pillar_registry: dict[str, Pillar]) -> None:
-        # TODO docstring
-        # REVIEW after finishing calculations
-        supports = self._build_supports(pillar_registry)
-        loads = self._build_loads(pillar_registry)
-        structural_beam = self._build_structural_beam(pillar_registry, supports, loads)
-        max_bending_moment, max_shear_force = self._get_max_forces(structural_beam)
-        self._calculate_and_export(structural_beam, max_bending_moment, max_shear_force)
+        """Runs structural dimensioning: builds the model, calculates reinforcement, and exports the report."""
+        BeamCalculator(self, pillar_registry).run()
 
     def resolve_and_validate(self, pillar_registry: dict[str, Pillar]) -> None:
         """
@@ -358,124 +339,3 @@ class ContinuousBeam:
             )
             for i in range(len(self.pillar_ids) - 1)
         ]
-
-    # ------------------------------------------------------------------
-    # Dimensioning helpers
-    # ------------------------------------------------------------------
-
-    # FIXME considering all supports as pinned -> fix to include pillar coherence and rigidity
-    def _build_supports(self, pillar_registry: dict[str, Pillar]) -> list[Support]:
-        # TODO docstring after funtion is complete (FIXME above is resolved)
-        pinned = (1, 1, 0)
-        support_position = 0
-        first_support = Support(support_position, pinned)
-        supports = [first_support]
-        for span in self.spans:
-            support_position += span.get_length(pillar_registry)
-            next_support = Support(support_position, pinned)  # pyright: ignore[reportArgumentType]
-            supports.append(next_support)
-        return supports
-
-    # FIXME confirm start and end position of loads (should be between the supports axis, or between the pillar faces?) -> right now it is between the supports axis, review that
-    def _build_loads(
-        self, pillar_registry: dict[str, Pillar]
-    ) -> list[DistributedLoadV]:
-        # TODO docstring after funtion is complete (FIXME above is resolved)
-        loads: list[DistributedLoadV] = []
-        start_position = 0
-        for span in self.spans:
-            end_position = start_position + span.get_length(pillar_registry)
-            total_load = (
-                span.permanent_load + span.variable_load
-            )  # kN/m, permanent + variable as it is ELU
-            load = DistributedLoadV(-total_load, (start_position, end_position))  # pyright: ignore[reportArgumentType] # negative for downward load
-            loads.append(load)
-            start_position = end_position
-        return loads
-
-    def _build_structural_beam(
-        self,
-        pillar_registry: dict[str, Pillar],
-        supports: list[Support],
-        loads: list[DistributedLoadV],
-    ) -> RectangularBeam:
-        """Builds a RectangularBeam instance for structural analysis and dimensioning."""
-        length = sum(span.get_length(pillar_registry) for span in self.spans)
-        concrete = Concrete[APP_CONFIG.pavement_concrete]
-        steel = Steel[APP_CONFIG.pavement_steel]
-        return RectangularBeam(
-            length,
-            self.width,
-            self.height,
-            concrete,
-            steel,
-            supports,
-            loads,  # pyright: ignore[reportArgumentType]
-        )
-
-    # REFACTOR maybe this functions (from here on down) should be moved to the RectangularBeam or to another file, as it is part of the dimensioning process
-
-    def _get_max_forces(self, structural_beam: RectangularBeam) -> tuple[float, float]:
-        """Calculates the design bending moment and shear force for the given structural beam.
-
-        Returns:
-            A tuple containing the max bending moment (kN.m) and max shear force (kN).
-        """
-        max_bending_moment = cast(
-            float,
-            structural_beam.get_bending_moment(return_max=True),  # pyright: ignore[reportUnknownMemberType]
-        )  # kN.m
-        max_shear_force = cast(float, structural_beam.get_shear_force(return_max=True))  # pyright: ignore[reportUnknownMemberType] # kN
-        return max_bending_moment, max_shear_force
-
-    def _calculate_and_export(
-        self,
-        structural_beam: RectangularBeam,
-        max_bending_moment: float,
-        max_shear_force: float,
-    ) -> None:
-        design_shear_force = design_effort_elu(max_shear_force)  # kN
-        stirrup_calculator = StirrupCalculator(structural_beam, design_shear_force)
-        stirrups = Stirrups(structural_beam, stirrup_calculator)
-
-        calculator = RebarCalculator(structural_beam, max_bending_moment, stirrups)
-        calculator.calculate()
-        self._export_report(
-            structural_beam,
-            calculator,
-            stirrup_calculator,
-            stirrups,
-            max_bending_moment,
-            max_shear_force,
-        )
-
-    def _export_report(
-        self,
-        structural_beam: RectangularBeam,
-        calculator: RebarCalculator,
-        stirrup_calculator: StirrupCalculator,
-        stirrups: Stirrups,
-        max_bending_moment: float,
-        max_shear_force: float,
-    ) -> None:
-        exporter = ReportExporter(
-            beam=structural_beam,
-            calculator=calculator,
-            stirrup_calculator=stirrup_calculator,
-            stirrups=stirrups,
-            max_bending_moment_kNm=max_bending_moment,
-            max_shear_force_kN=max_shear_force,
-            gamma_f=LOAD_FACTOR,
-        )
-
-        # Print step-by-step memory of calculation to terminal
-        exporter.print_to_console()
-
-        # Export reports
-        today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
-        csv_path = exporter.export_csv(f"results/{today}/report-{self.id}.csv")
-        pdf_path = exporter.export_pdf(f"results/{today}/report-{self.id}.pdf")
-
-        print("[FILES SUCCESSFULLY EXPORTED]")
-        print(f"  • CSV: {csv_path}")
-        print(f"  • PDF: {pdf_path}\n")

@@ -7,6 +7,7 @@ from src.loading.forces import (
     max_design_bending_moment,
     min_design_bending_moment,
 )
+from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
@@ -25,15 +26,12 @@ class RebarCalculator:
     def __init__(
         self, beam: RectangularBeam, bending_moment: float, stirrups: Stirrups
     ):
-        """
-        Initialize the RebarCalculator with a rectangular beam and its design bending moment.
+        """Initialize the RebarCalculator with a rectangular beam and its design bending moment.
 
-        :param beam: a rectangular beam
-        :type beam: RectangularBeam
-        :param bending_moment: Characteristic bending moment (kN.m)
-        :type bending_moment: float
-        :param stirrups: Stirrups instance for the beam
-        :type stirrups: Stirrups
+        Args:
+            beam: Rectangular beam section.
+            bending_moment: Characteristic bending moment (kN.m).
+            stirrups: Stirrups instance for the beam.
         """
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
@@ -43,11 +41,10 @@ class RebarCalculator:
         self.stirrups = stirrups
 
     def update_bending_moment(self, bending_moment: float) -> None:
-        """
-        Updates the bending moment for rebar calculation.
+        """Update the bending moment for rebar calculation.
 
-        :param bending_moment: Design bending moment (kN.m)
-        :type bending_moment: float
+        Args:
+            bending_moment: Design bending moment (kN.m).
         """
         bending_moment_in_kncm = bending_moment * 100
         self.design_bending_moment = design_effort_elu(bending_moment_in_kncm)
@@ -103,7 +100,6 @@ class RebarCalculator:
         """
         md_min = min_design_bending_moment(self.beam)  # kN.cm
 
-        # TODO maybe create a static method in the calculator that does a 'dummy' for this calculation
         stirrup_calculator = StirrupCalculator(self.beam, 0)
         stirrups = Stirrups(self.beam, stirrup_calculator)
         calculator = RebarCalculator(self.beam, 0, stirrups)
@@ -176,12 +172,12 @@ class RebarCalculator:
 
     def calculate_y_limit(self) -> float:
         """
-        Calculates the maximmum depth (cm) of the equivalent rectangular stress block to maintain the deformation domain 3 (the limit is to turn to 4, as domain 2 would also be ok), based on ABNT NBR 6118 - Section 17.2.2.
+        Calculates the maximum depth (cm) of the equivalent rectangular stress block to maintain the deformation domain 3 (the limit is to turn to 4, as domain 2 would also be ok), based on ABNT NBR 6118 - Section 17.2.2.
         """
         lambda_c = self.beam.concrete.lambda_c  # no unit
         epsilon_cu = self.beam.concrete.epsilon_cu  # no unit
         steel_elastic_modulus_in_kn_cm2 = (
-            self.beam.steel.elastic_modulus / 10
+            Steel.elastic_modulus / 10
         )  # convert MPa to kN/cm²
         fyd = self.beam.steel.fyd  # kN/cm²
         d = self.d  # cm
@@ -272,7 +268,7 @@ class RebarCalculator:
         Calculates the stress in the compressed reinforcement (kN/cm²) for the current rebar configuration, based on the calculated strain and the steel elastic modulus, ensuring it does not exceed the maximum stress allowed for the steel (fyd).
         """
         steel_elastic_modulus_in_kn_cm2 = (
-            self.beam.steel.elastic_modulus / 10
+            Steel.elastic_modulus / 10
         )  # convert MPa to kN/cm²
         calculated_sigma_s2 = (
             self.calculate_epsilon_s2() * steel_elastic_modulus_in_kn_cm2
