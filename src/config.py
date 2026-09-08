@@ -15,6 +15,8 @@ class AppConfig:
 
     # Reinforcement layout — user-facing construction preferences
     max_aggregate_size: float = 2.5  # cm
+    # options: granite, basalt, diabase, limestone, sandstone
+    aggregate: str = "granite"
     max_bar_types: int = 3
     max_layers: int = 3
 

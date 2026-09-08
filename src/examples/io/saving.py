@@ -21,7 +21,7 @@ def build_pavement():
     # ADD PILLARS -------
 
     default_pillar_width = 20
-    default_pillar_depth = 12
+    default_pillar_depth = 18
 
     horizontally_aligned_pillar_offset = (
         default_pillar_width / 2 - default_beam_width / 2

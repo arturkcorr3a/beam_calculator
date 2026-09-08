@@ -3,6 +3,7 @@ from enum import Enum
 from math import cbrt, log, sqrt
 from typing import cast
 
+from src.config import APP_CONFIG
 from src.logger import log_property, logger_label
 
 GAMMA_C = 1.4  # ABNT NBR 6118 - Section 12.4.1
@@ -40,16 +41,32 @@ class Concrete(Enum):
         return result
 
     @property
+    def alpha_e(self) -> float:
+        """
+        The alpha_e factor for concrete, based on ABNT NBR 6118 - Section 8.2.8. It depends on the type of aggregate used in the concrete mix."""
+        project_aggregate = APP_CONFIG.aggregate
+        match project_aggregate:
+            case "basalt" | "diabase":
+                return 1.2
+            case "granite" | "gneiss":
+                return 1.0
+            case "limestone":
+                return 0.9
+            case "sandstone":
+                return 0.7
+            case _:
+                raise ValueError(f"Unknown aggregate type: {project_aggregate}")
+
+    @property
     def eci(self) -> float:
         """
         The initial elastic modulus of concrete (E_ci) in MPa, based on ABNT NBR 6118 - Section 8.2.8, for granite and gneiss aggregate.
         """
-        alpha_e = 1.0  # for granite and gneiss aggregate
         if self.concrete_group == 1:
-            result = alpha_e * 5600 * sqrt(self.value)
+            result = self.alpha_e * 5600 * sqrt(self.value)
             log_property(f"E_ci = {result:.2f} MPa")
             return result
-        eci = 21.5 * 10**3 * alpha_e * cbrt(self.value / 10 + 1.25)
+        eci = 21.5 * 10**3 * self.alpha_e * cbrt(self.value / 10 + 1.25)
         log_property(f"E_ci = {eci:.2f} MPa")
         return eci
 

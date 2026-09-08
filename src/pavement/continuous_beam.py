@@ -21,6 +21,8 @@ from src.pavement.pillar import Pillar
 # PAPER find reference for this value, I think they are not in NBR 6118, but should be in the classical literature - I know it's between 12 and 15
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
 
+_MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
+
 
 @dataclass
 class WallDefinition:
@@ -68,6 +70,7 @@ class ContinuousBeam:
         )  # Start with a square section, just so it is not zero until it is calculated
         self._validate_reference_pillar()
         self._validate_pillar_count()
+        self._validate_width()
 
     def _validate_pillar_count(self) -> None:
         if len(self.pillar_ids) < 2:
@@ -78,6 +81,21 @@ class ContinuousBeam:
         if self.reference_pillar_id not in self.pillar_ids:
             raise ValueError(
                 "Reference pillar ID must be included in the beam's pillar_ids."
+            )
+
+    def _validate_width(self) -> None:
+        """Enforce ABNT NBR 6118 minimum beam width requirement.
+
+        Raises:
+            ValueError: If width is below 12 cm.
+
+        References:
+            ABNT NBR 6118:2014 — Section 13.2.2
+        """
+        if self.width < _MIN_BEAM_WIDTH_CM:
+            raise ValueError(
+                f"Beam '{self.id}' width must be at least {_MIN_BEAM_WIDTH_CM} cm. "
+                f"Got {self.width} cm."
             )
 
     def clear_resolved(self) -> None:

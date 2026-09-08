@@ -224,10 +224,10 @@ class PavementWindow(QMainWindow):
         self._p_y = _spin(0, 9999, 2, 0.5, 0.0, " m")
         form.addRow("Y:", self._p_y)
 
-        self._p_width = _spin(5, 200, 1, 5, 30.0, " cm")
+        self._p_width = _spin(14, 200, 1, 5, 30.0, " cm")
         form.addRow("Width:", self._p_width)
 
-        self._p_depth = _spin(5, 200, 1, 5, 30.0, " cm")
+        self._p_depth = _spin(14, 200, 1, 5, 30.0, " cm")
         form.addRow("Depth:", self._p_depth)
 
         add_btn = QPushButton("Add Pillar")
@@ -274,7 +274,7 @@ class PavementWindow(QMainWindow):
         ref_hint.setWordWrap(True)
         form.addRow("", ref_hint)
 
-        self._b_width = _spin(5, 200, 1, 5, 20.0, " cm")
+        self._b_width = _spin(12, 200, 1, 5, 20.0, " cm")
         form.addRow("Width (bw):", self._b_width)
 
         self._b_alignment = QComboBox()
@@ -388,12 +388,16 @@ class PavementWindow(QMainWindow):
     # ---------------------------------------------------------------- slots --
 
     def _add_pillar(self) -> None:
-        pillar = Pillar(
-            x=self._p_x.value() * _CM_PER_M,
-            y=self._p_y.value() * _CM_PER_M,
-            width=self._p_width.value(),
-            depth=self._p_depth.value(),
-        )
+        try:
+            pillar = Pillar(
+                x=self._p_x.value() * _CM_PER_M,
+                y=self._p_y.value() * _CM_PER_M,
+                width=self._p_width.value(),
+                depth=self._p_depth.value(),
+            )
+        except ValueError as e:
+            self._show_warning(str(e))
+            return
         self._pavement.add_pillar(pillar)
         self._pillar_list.addItem(
             f"{pillar.id}  ({self._p_x.value():.2f} m, {self._p_y.value():.2f} m)"
@@ -670,14 +674,12 @@ class PavementWindow(QMainWindow):
             return
 
         # Bounds from actual pillar extents (edges, not centres)
-        all_x = (
-            [(p.x - p.width / 2) / _CM_PER_M for p in pillars.values()]
-            + [(p.x + p.width / 2) / _CM_PER_M for p in pillars.values()]
-        )
-        all_y = (
-            [(p.y - p.depth / 2) / _CM_PER_M for p in pillars.values()]
-            + [(p.y + p.depth / 2) / _CM_PER_M for p in pillars.values()]
-        )
+        all_x = [(p.x - p.width / 2) / _CM_PER_M for p in pillars.values()] + [
+            (p.x + p.width / 2) / _CM_PER_M for p in pillars.values()
+        ]
+        all_y = [(p.y - p.depth / 2) / _CM_PER_M for p in pillars.values()] + [
+            (p.y + p.depth / 2) / _CM_PER_M for p in pillars.values()
+        ]
         x_range = max(all_x) - min(all_x) if len(all_x) > 1 else 1.0
         y_range = max(all_y) - min(all_y) if len(all_y) > 1 else 1.0
 
@@ -1325,9 +1327,7 @@ class ConfigDialog(QDialog):
         cfg_layers = QSpinBox()
         cfg_layers.setRange(1, 5)
         cfg_layers.setValue(APP_CONFIG.max_layers)
-        cfg_layers.valueChanged.connect(
-            lambda v: setattr(APP_CONFIG, "max_layers", v)
-        )
+        cfg_layers.valueChanged.connect(lambda v: setattr(APP_CONFIG, "max_layers", v))
         form.addRow("Max. layers:", cfg_layers)
 
         # ---- Project ----
@@ -1337,7 +1337,9 @@ class ConfigDialog(QDialog):
         for cat in TABLE_10.categories:
             cfg_category.addItem(cat.description)
         cfg_category.setCurrentText(APP_CONFIG.building_category)
-        cfg_category.currentTextChanged.connect(self._parent_window._on_category_changed)
+        cfg_category.currentTextChanged.connect(
+            self._parent_window._on_category_changed
+        )
         form.addRow("Building category:", cfg_category)
 
         cfg_ceiling = _spin(1.5, 10.0, 2, 0.1, APP_CONFIG.ceiling_height, " m")
