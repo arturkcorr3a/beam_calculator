@@ -16,6 +16,10 @@ class Rebar:
         if not self.steel.is_size_available(self.diameter_mm):
             raise ValueError(f"Diameter {self.diameter_mm} mm is not available for the specified steel type.")
 
+    def effective_covering(self, nominal_covering: float) -> float:
+        """Minimum cover this bar requires per NBR 6118 §7.4.7.5: max(nominal, diameter)."""
+        return max(self.diameter_mm / 10, nominal_covering)
+
     @property
     def area_cm2(self) -> float:
         """Calculates the cross-sectional area of the rebar in cm²."""

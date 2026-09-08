@@ -19,6 +19,8 @@ UNITS = {
     "deflection": "m",
 }
 
+_MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
+
 
 class RectangularBeam(Beam):
     """
@@ -46,6 +48,9 @@ class RectangularBeam(Beam):
             supports: List of indeterminatebeam.Support instances.
             loads: List of indeterminatebeam.Load instances.
         """
+        self.width = width
+        self.height = height
+        self._validate_width()
         calculated_moment_of_inertia = SectionPropertiesCalculator.moment_of_inertia(
             width, height
         )
@@ -65,8 +70,6 @@ class RectangularBeam(Beam):
         self.update_units_local()
 
         self.length = length
-        self.width = width
-        self.height = height
         self.concrete = concrete
         self.steel = steel
 
@@ -78,6 +81,21 @@ class RectangularBeam(Beam):
     def update_units_local(self) -> None:
         for key, unit in UNITS.items():
             super().update_units(key, unit)
+
+    def _validate_width(self) -> None:
+        """Enforce ABNT NBR 6118 minimum beam width requirement.
+
+        Raises:
+            ValueError: If width is below 12 cm.
+
+        References:
+            ABNT NBR 6118:2014 — Section 13.2.2
+        """
+        if self.width < _MIN_BEAM_WIDTH_CM:
+            raise ValueError(
+                f"Beam width must be at least {_MIN_BEAM_WIDTH_CM} cm. "
+                f"Got {self.width} cm."
+            )
 
     def get_bending_moments(self) -> list[float]:
         """

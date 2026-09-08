@@ -219,6 +219,10 @@ class RebarCalculator:
         Calculates the effective depth (cm) of the beam, considering the nominal covering and reinforcements.
         """
         covering = self.beam.nominal_covering  # cm
+        if self.tensioned_reinforcement.is_chosen:
+            all_bars = [b for layer in self.tensioned_reinforcement.chosen_bars for b in layer]
+            if all_bars:
+                covering = max(b.effective_covering(covering) for b in all_bars)
         stirrup_diameter = (
             self.stirrups.diameter
             if self.stirrups.diameter is not None
@@ -266,6 +270,10 @@ class RebarCalculator:
         Calculates the distance (cm) from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
         covering = self.beam.nominal_covering  # cm
+        if self.compressed_reinforcement.is_chosen:
+            all_bars = [b for layer in self.compressed_reinforcement.chosen_bars for b in layer]
+            if all_bars:
+                covering = max(b.effective_covering(covering) for b in all_bars)
         stirrup_diameter = (
             self.stirrups.diameter
             if self.stirrups.diameter is not None

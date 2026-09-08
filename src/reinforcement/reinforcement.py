@@ -198,7 +198,11 @@ class Reinforcement:
         total_spacing = (len(optimal_reinforcement) - 1) * required_spacing
         total_width_needed = total_bar_width + total_spacing
 
-        available_width = self.beam.width - 2 * self.beam.nominal_covering
+        max_effective_covering = max(
+            bar.effective_covering(self.beam.nominal_covering)
+            for bar in optimal_reinforcement
+        )
+        available_width = self.beam.width - 2 * max_effective_covering
         return total_width_needed <= available_width
 
     @staticmethod

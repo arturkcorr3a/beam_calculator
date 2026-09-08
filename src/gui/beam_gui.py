@@ -486,7 +486,7 @@ class BeamCalculatorWindow(QMainWindow):
         form.addRow("Length:", self.length_input)
 
         self.width_input = QDoubleSpinBox()
-        self.width_input.setRange(5.0, 200.0)
+        self.width_input.setRange(12.0, 200.0)
         self.width_input.setDecimals(1)
         self.width_input.setSingleStep(1.0)
         self.width_input.setValue(20.0)
