@@ -13,13 +13,9 @@ from src.pavement.pillar import Pillar
 from src.pavement.slab_edge import Edges, SlabEdge, SupportCondition
 from src.properties.concrete import Concrete
 
-# CONFIRM min thickness for slabs (13.2.4.1): items d and e (vehicles) will be considered?
 SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
 
-# PAPER get reference for max value. Above this, the algorithm will throw an error, for the slab is too thick
-SLAB_MAX_THICKNESS = 30  # cm
-
-ONE_WAY_SLAB_THRESHOLD_RATIO = 2.0  # PAPER get reference for this from NBR 6118 (or other source, if it isn't there)
+ONE_WAY_SLAB_THRESHOLD_RATIO = 2.0  # Based on Based on 'Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado', item 7.3.
 DEFAULT_WIDTH = 100  # cm; default width for slabs, used in pre-sizing calculation
 
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
@@ -36,7 +32,7 @@ CORNER_EDGE_DICT: dict[Edges, tuple[CornerKey, CornerKey]] = {
 class Slab:
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 
-    The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams. Thickness is a preliminary value and its pre-dimensioning calculation is not implemented.
+    The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams.
     """
 
     corner_pillar_ids: tuple[str, str, str, str]
@@ -64,12 +60,11 @@ class Slab:
         self._validate_pillar_count()
         self._setup_edges()
 
-    # PAPER get reference for this from NBR 6118 (or other source, if it isn't there)
     @staticmethod
     def _corner_yield_slope(
         horizontal_cond: SupportCondition, vertical_cond: SupportCondition
     ) -> float:
-        """Returns the yield-line slope (tan theta) at a corner, where theta is measured from the horizontal edge.
+        """Returns the yield-line slope (tan theta) at a corner, where theta is measured from the horizontal edge, based on ABNT NBR 6118 - Section 14.7.6.1.
 
         - Both same: 45 degrees (1.0).
         - Horizontal fixed, vertical pinned: 60 degrees (sqrt(3)).
@@ -95,9 +90,8 @@ class Slab:
         if len(self.corner_pillar_ids) != 4:
             raise ValueError(f"Slab '{self.id}' must have exactly 4 corner pillars.")
 
-    # PAPER get reference for this method of pre-sizing slabs: why is ELS-DEF the chosen criteria?
     def pre_size(self) -> bool:
-        """Sets the slab's thickness.
+        """Sets the slab's thickness - it must pass verification of ELS-DEF for the minimum required reinforcement.
 
         :return: True if the slab is stable (there weren't any changes in thickness that require re-validation of the pavement structure)."""
         original_thickness = self.thickness
@@ -120,7 +114,7 @@ class Slab:
         )
         while not checker.verify(self.thickness):
             self.thickness += 1
-            if self.thickness > SLAB_MAX_THICKNESS:
+            if self.thickness > self.max_thickness:
                 raise ValueError(
                     f"Slab '{self.id}' cannot be stabilized; required thickness exceeds 30 cm."
                 )
@@ -139,10 +133,11 @@ class Slab:
         )
         return (x_dimension, y_dimension)
 
-    # PAPER find reference for this and include it in the docstring
     @cached_property
     def is_one_way(self) -> bool:
-        """Returns True if the slab is a one-way slab, based on the ratio of its dimensions."""
+        """Returns True if the slab is a one-way slab, based on the ratio of its dimensions.
+
+        Based on 'Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado', item 7.3."""
         biggest = max(self.dimensions)
         smallest = min(self.dimensions)
         return (biggest / smallest) <= ONE_WAY_SLAB_THRESHOLD_RATIO
@@ -169,9 +164,8 @@ class Slab:
         for edge in Edges:
             self.edges[edge].unload_on_spans(pillar_registry)
 
-    # PAPER get reference for this (metodo das charneiras -> norma ou literatura)
     def resolve_influence_areas(self) -> None:
-        """Calculates each edge's tributary area (m²) using the Yield Line Theory. See docs/yield_line_method.md."""
+        """Calculates each edge's influence area (m²) using the Yield Line Theory, based on based on ABNT NBR 6118 - Section 14.7.6.1."""
         lx_cm, ly_cm = self.dimensions
         lx, ly = lx_cm / 100, ly_cm / 100
 
@@ -240,6 +234,13 @@ class Slab:
             self.edges[Edges.TOP].influence_area = calculate_polygon_area(
                 [p_tl, p_tr, p_right, p_left]
             )
+
+    @property
+    def max_thickness(self) -> float:
+        """
+        It is the max thickness to be considered a surface, Based on ABNT NBR 6118 - Section 14.4.2.1
+        """
+        return min(self.dimensions) / 3  # cm
 
     # ------------------------------------------------------------------
     # Validation helpers

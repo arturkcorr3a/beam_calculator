@@ -29,6 +29,7 @@
         "rebars",
         "Rodrigues",
         "Rüsch",
+        "SINAPI",
         "Usuais"
     ],
     "[python]": {
@@ -44,10 +45,9 @@
         "CONFIRM",
         "REVIEW",
         "ASK",
-        "LATER",
+        "NOTE",
         "REFACTOR",
         "PAPER",
-        "CAO",
     ],
     "python.analysis.typeCheckingMode": "strict",
     "workbench.colorTheme": "Dark Modern",

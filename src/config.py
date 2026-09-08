@@ -20,8 +20,7 @@ class AppConfig:
 
     building_category: str = "Residential buildings"
 
-    # PAPER find ref for standard ceiling height for residential buildings
-    ceiling_height: float = 2.5  # m
+    ceiling_height: float = 2.5  # m, reference: ABNT NBR 15575-1, section 16.1
 
 
 APP_CONFIG = AppConfig()

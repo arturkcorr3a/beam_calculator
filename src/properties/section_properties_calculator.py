@@ -32,7 +32,6 @@ class SectionPropertiesCalculator:
         """
         Calculates the gross section modulus (W_0) for rectangular section (cm, cm -> cm³).
         """
-        # CONFIRM if the distance from the neutral axis to the edge is h/2 or y_max (if it's from the real or equivalent neutral axis)
         return (width * height**2) / 6.0
 
     @staticmethod

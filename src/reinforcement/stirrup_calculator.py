@@ -6,8 +6,10 @@ STIRRUP_ANGLE = (
     pi / 2
 )  # 90 degrees, angle of stirrups with respect to beam axis (Model 1 from NBR 6118)
 
-# CONFIRM size of the conventional concrete vibrator
-MIN_SPACING = 5.0  # cm, minimum stirrup spacing to ensure passage of the vibrator - NBR 6118 - Section 18.3.3.2
+REFERENCE_VIBRATOR_DIAMETER = 45  # mm, based on SINAPI (code 90585)
+MIN_SPACING = (
+    REFERENCE_VIBRATOR_DIAMETER / 10.0
+)  # cm, minimum stirrup spacing to ensure passage of the vibrator - NBR 6118 - Section 18.3.3.2
 
 
 class StirrupCalculator:

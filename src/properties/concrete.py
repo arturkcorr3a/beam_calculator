@@ -154,7 +154,6 @@ class Concrete(Enum):
         """
         return self.fctk_inf / GAMMA_C
 
-    # CONFIRM o que é o alpha_v2
     @property
     def alpha_v2(self) -> float:
         """
