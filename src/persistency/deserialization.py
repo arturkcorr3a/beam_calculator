@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import cast
 
+from src.config import AppConfig
 from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement.geometry_utils import Alignment
 from src.pavement.pavement import Pavement
@@ -12,6 +13,7 @@ from src.pavement.pillar import Pillar
 from src.pavement.slab import Slab
 from src.persistency.schema import (
     BeamDict,
+    ConfigDict,
     PavementDict,
     PillarDict,
     SlabDict,
@@ -19,6 +21,7 @@ from src.persistency.schema import (
 )
 
 BEAM_CONTEXT = "Beam"
+CONFIG_CONTEXT = "Config"
 DOCUMENT_CONTEXT = "Document"
 PILLAR_CONTEXT = "Pillar"
 SLAB_CONTEXT = "Slab"
@@ -217,3 +220,28 @@ def pavement_from_dict(data: PavementDict) -> Pavement:
         pavement.add_slab(_slab_from_dict(slab_data, _remap))
 
     return pavement
+
+
+def config_from_dict(data: ConfigDict) -> AppConfig:
+    """Rebuilds an AppConfig from its serialized dict.
+
+    Args:
+        data: The serialized config mapping.
+
+    Returns:
+        The reconstructed AppConfig.
+
+    Raises:
+        ValueError: If a required key is missing.
+    """
+    return AppConfig(
+        steel=_require(data, "steel", CONFIG_CONTEXT, str),
+        default_concrete=_require(data, "default_concrete", CONFIG_CONTEXT, str),
+        max_aggregate_size=_require(data, "max_aggregate_size", CONFIG_CONTEXT, float),
+        max_bar_types=_require(data, "max_bar_types", CONFIG_CONTEXT, int),
+        max_layers=_require(data, "max_layers", CONFIG_CONTEXT, int),
+        pavement_concrete=_require(data, "pavement_concrete", CONFIG_CONTEXT, str),
+        pavement_steel=_require(data, "pavement_steel", CONFIG_CONTEXT, str),
+        building_category=_require(data, "building_category", CONFIG_CONTEXT, str),
+        ceiling_height=_require(data, "ceiling_height", CONFIG_CONTEXT, float),
+    )

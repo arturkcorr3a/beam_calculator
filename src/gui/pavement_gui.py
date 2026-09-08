@@ -19,11 +19,14 @@ import matplotlib.patches as mpatches
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -61,6 +64,7 @@ from src.pavement.geometry_utils import Alignment
 from src.pavement.pavement import Pavement
 from src.pavement.pillar import Pillar
 from src.pavement.slab import Slab
+from src.persistency import load_pavement, save_pavement
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 
@@ -126,6 +130,8 @@ class PavementWindow(QMainWindow):
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
 
+        self._build_menu_bar()
+
         splitter = QSplitter(Qt.Horizontal)
         root.addWidget(splitter)
 
@@ -135,6 +141,32 @@ class PavementWindow(QMainWindow):
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([400, 750])
 
+    def _build_menu_bar(self) -> None:
+        menubar = self.menuBar()
+
+        file_menu = menubar.addMenu("File")
+        open_action = QAction("Open…", self)
+        open_action.setShortcut("Ctrl+O")
+        open_action.triggered.connect(self._load_from_file)
+        file_menu.addAction(open_action)
+
+        save_action = QAction("Save…", self)
+        save_action.setShortcut("Ctrl+S")
+        save_action.triggered.connect(self._save_to_file)
+        file_menu.addAction(save_action)
+
+        file_menu.addSeparator()
+
+        config_action = QAction("Configuration…", self)
+        config_action.setShortcut("Ctrl+,")
+        config_action.triggered.connect(self._open_config)
+        file_menu.addAction(config_action)
+
+        tools_menu = menubar.addMenu("Tools")
+        beam_action = QAction("Beam Calculator", self)
+        beam_action.triggered.connect(self._open_beam_calculator)
+        tools_menu.addAction(beam_action)
+
     def _build_left_panel(self) -> QWidget:
         panel = QWidget()
         panel.setMinimumWidth(380)
@@ -142,7 +174,10 @@ class PavementWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(6, 6, 6, 6)
 
-        layout.addWidget(self._build_settings_group())
+        clear_btn = QPushButton("Clear")
+        clear_btn.setStyleSheet(f"color: {DARK_DANGER};")
+        clear_btn.clicked.connect(self._clear)
+        layout.addWidget(clear_btn)
 
         self._tabs = QTabWidget()
         self._tabs.addTab(self._build_pillars_tab(), "Pillars")
@@ -171,34 +206,8 @@ class PavementWindow(QMainWindow):
         self._calculate_btn.clicked.connect(self._calculate)
         vl.addWidget(self._calculate_btn)
 
-        self._example_btn = QPushButton("Load Example")
-        self._example_btn.setMinimumHeight(30)
-        self._example_btn.setToolTip(
-            "Pre-load the 4-pillar residential pavement from the manual example"
-        )
-        self._example_btn.clicked.connect(self._load_example)
-        vl.addWidget(self._example_btn)
-
         layout.addWidget(validate_group)
         return panel
-
-    def _build_settings_group(self) -> QGroupBox:
-        group = QGroupBox("Project Settings")
-        form = QFormLayout(group)
-
-        self._cfg_concrete = QComboBox()
-        for c in Concrete:
-            self._cfg_concrete.addItem(c.name, c)
-        self._cfg_concrete.setCurrentText(APP_CONFIG.pavement_concrete)
-        form.addRow("Concrete:", self._cfg_concrete)
-
-        self._cfg_steel = QComboBox()
-        for s in Steel:
-            self._cfg_steel.addItem(s.name, s)
-        self._cfg_steel.setCurrentText(APP_CONFIG.pavement_steel)
-        form.addRow("Steel:", self._cfg_steel)
-
-        return group
 
     # ---- Pillars tab --------------------------------------------------------
 
@@ -483,6 +492,25 @@ class PavementWindow(QMainWindow):
         self._reset_validation_state()
         self._redraw_canvas()
 
+    def _clear(self) -> None:
+        if (
+            QMessageBox.question(
+                self,
+                "Clear pavement",
+                "Remove all pillars, beams, and slabs?",
+                QMessageBox.Yes | QMessageBox.No,
+            )
+            != QMessageBox.Yes
+        ):
+            return
+        self._pavement = Pavement()
+        self._pillar_list.clear()
+        self._beam_list.clear()
+        self._slab_list.clear()
+        self._update_pillar_hints()
+        self._reset_validation_state()
+        self._redraw_canvas()
+
     def _validate(self) -> None:
         try:
             self._pavement.validate()
@@ -493,8 +521,14 @@ class PavementWindow(QMainWindow):
         except ValueError as exc:
             self._validate_label.setText(str(exc))
             self._validate_label.setStyleSheet(f"color: {DARK_DANGER};")
+        except Exception as exc:  # noqa: BLE001
+            self._validate_label.setText(f"Error: {exc}")
+            self._validate_label.setStyleSheet(f"color: {DARK_DANGER};")
 
     def _calculate(self) -> None:
+        self._calculate_btn.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.processEvents()
         try:
             self._pavement.validate()
             self._pavement.pre_size_beams()
@@ -509,15 +543,59 @@ class PavementWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Calculation error", str(exc))
             return
+        finally:
+            QApplication.restoreOverrideCursor()
+            self._calculate_btn.setEnabled(True)
         self._validate_label.setText("Calculation complete.")
         self._validate_label.setStyleSheet(f"color: {DARK_SUCCESS}; font-weight: bold;")
         dlg = ResultsWindow(self._pavement, parent=self)
         dlg.exec()
 
-    def _load_example(self) -> None:
-        from src.examples.manual_example_pavement import build_pavement
+    def _load_from_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load Pavement", "", "Pavement files (*.yaml *.yml)"
+        )
+        if not path:
+            return
+        try:
+            self._pavement = load_pavement(path)
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(self, "Load failed", str(exc))
+            return
+        self._refresh_from_pavement()
 
-        self._pavement = build_pavement()
+    def _save_to_file(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Pavement", "pavement.yaml", "Pavement files (*.yaml *.yml)"
+        )
+        if not path:
+            return
+        try:
+            save_pavement(self._pavement, path)
+        except OSError as exc:
+            QMessageBox.critical(self, "Save failed", str(exc))
+
+    def _on_category_changed(self, category: str) -> None:
+        APP_CONFIG.building_category = category
+        locs = _usage_locals_for_category(category)
+        current = self._s_usage.currentText()
+        self._s_usage.clear()
+        for loc in locs:
+            self._s_usage.addItem(loc)
+        if current in locs:
+            self._s_usage.setCurrentText(current)
+
+    def _open_config(self) -> None:
+        dlg = ConfigDialog(self)
+        dlg.exec()
+
+    def _open_beam_calculator(self) -> None:
+        from src.gui.beam_gui import BeamCalculatorWindow
+
+        win = BeamCalculatorWindow(parent=self)
+        win.show()
+
+    def _refresh_from_pavement(self) -> None:
         self._pillar_list.clear()
         self._beam_list.clear()
         self._slab_list.clear()
@@ -591,88 +669,163 @@ class PavementWindow(QMainWindow):
             self._canvas.draw_idle()
             return
 
+        # Bounds from actual pillar extents (edges, not centres)
+        all_x = (
+            [(p.x - p.width / 2) / _CM_PER_M for p in pillars.values()]
+            + [(p.x + p.width / 2) / _CM_PER_M for p in pillars.values()]
+        )
+        all_y = (
+            [(p.y - p.depth / 2) / _CM_PER_M for p in pillars.values()]
+            + [(p.y + p.depth / 2) / _CM_PER_M for p in pillars.values()]
+        )
+        x_range = max(all_x) - min(all_x) if len(all_x) > 1 else 1.0
+        y_range = max(all_y) - min(all_y) if len(all_y) > 1 else 1.0
+
         # --- slabs (drawn first so beams/pillars appear on top) ---
         for slab in slabs.values():
             coords = [
                 pillars.get(pid) for pid in slab.corner_pillar_ids if pid in pillars
             ]
             if len(coords) == 4:
-                xs = sorted({p.x for p in coords})
-                ys = sorted({p.y for p in coords})
-                if len(xs) == 2 and len(ys) == 2:
-                    x0, x1 = xs[0] / _CM_PER_M, xs[1] / _CM_PER_M
-                    y0, y1 = ys[0] / _CM_PER_M, ys[1] / _CM_PER_M
-                    ax.add_patch(
-                        mpatches.Rectangle(
-                            (x0, y0),
-                            x1 - x0,
-                            y1 - y0,
-                            facecolor="#164e63",
-                            edgecolor="#22d3ee",
-                            linewidth=1.0,
-                            alpha=0.45,
-                            zorder=1,
-                        )
+                sorted_by_y = sorted(coords, key=lambda p: p.y, reverse=True)
+                top = sorted(sorted_by_y[:2], key=lambda p: p.x)
+                bottom = sorted(sorted_by_y[2:], key=lambda p: p.x)
+                top_left, top_right = top
+                bottom_left, bottom_right = bottom
+                poly_xy = [
+                    (bottom_left.x / _CM_PER_M, bottom_left.y / _CM_PER_M),
+                    (bottom_right.x / _CM_PER_M, bottom_right.y / _CM_PER_M),
+                    (top_right.x / _CM_PER_M, top_right.y / _CM_PER_M),
+                    (top_left.x / _CM_PER_M, top_left.y / _CM_PER_M),
+                ]
+                cx = sum(x for x, _ in poly_xy) / 4
+                cy = sum(y for _, y in poly_xy) / 4
+                ax.add_patch(
+                    mpatches.Polygon(
+                        poly_xy,
+                        closed=True,
+                        facecolor="#164e63",
+                        edgecolor="#22d3ee",
+                        linewidth=1.0,
+                        alpha=0.45,
+                        zorder=1,
                     )
-                    ax.text(
-                        (x0 + x1) / 2,
-                        (y0 + y1) / 2,
-                        slab.id,
-                        ha="center",
-                        va="center",
-                        fontsize=8,
-                        color="#67e8f9",
-                        zorder=2,
-                    )
+                )
+                ax.text(
+                    cx,
+                    cy,
+                    slab.id,
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color="#67e8f9",
+                    zorder=2,
+                )
 
-        # --- beams ---
+        # --- beams (drawn as width-correct rectangles) ---
         for beam in beams.values():
             pts = [pillars[pid] for pid in beam.pillar_ids if pid in pillars]
             if len(pts) < 2:
                 continue
-            xs_b = [p.x / _CM_PER_M for p in pts]
-            ys_b = [p.y / _CM_PER_M for p in pts]
+            ref = pillars.get(beam.reference_pillar_id)
+            if ref is None:
+                continue
+
+            xs_b = [p.x for p in pts]
+            ys_b = [p.y for p in pts]
             x_spread = max(xs_b) - min(xs_b)
             y_spread = max(ys_b) - min(ys_b)
-            color = DARK_ACCENT if x_spread >= y_spread else "#ff9e64"
-            ax.plot(
-                xs_b, ys_b, color=color, linewidth=2.5, zorder=3, solid_capstyle="round"
+            is_horizontal = x_spread >= y_spread
+            bw_m = beam.width / _CM_PER_M
+
+            if is_horizontal:
+                # Spans in X; width in Y centred on the alignment-resolved Y
+                if beam.alignment == Alignment.TOP:
+                    cl_y = ref.y + ref.depth / 2 - beam.width / 2
+                elif beam.alignment == Alignment.BOTTOM:
+                    cl_y = ref.y - ref.depth / 2 + beam.width / 2
+                else:
+                    cl_y = ref.y
+                cl_y /= _CM_PER_M
+                rect = mpatches.Rectangle(
+                    (min(xs_b) / _CM_PER_M, cl_y - bw_m / 2),
+                    (max(xs_b) - min(xs_b)) / _CM_PER_M,
+                    bw_m,
+                    facecolor=DARK_ACCENT,
+                    edgecolor=DARK_ACCENT,
+                    linewidth=0,
+                    alpha=0.9,
+                    zorder=3,
+                )
+                label_x = (min(xs_b) + max(xs_b)) / 2 / _CM_PER_M
+                label_y = cl_y
+            else:
+                # Spans in Y; width in X centred on the alignment-resolved X
+                if beam.alignment == Alignment.LEFT:
+                    cl_x = ref.x - ref.width / 2 + beam.width / 2
+                elif beam.alignment == Alignment.RIGHT:
+                    cl_x = ref.x + ref.width / 2 - beam.width / 2
+                else:
+                    cl_x = ref.x
+                cl_x /= _CM_PER_M
+                rect = mpatches.Rectangle(
+                    (cl_x - bw_m / 2, min(ys_b) / _CM_PER_M),
+                    bw_m,
+                    (max(ys_b) - min(ys_b)) / _CM_PER_M,
+                    facecolor="#ff9e64",
+                    edgecolor="#ff9e64",
+                    linewidth=0,
+                    alpha=0.9,
+                    zorder=3,
+                )
+                label_x = cl_x
+                label_y = (min(ys_b) + max(ys_b)) / 2 / _CM_PER_M
+
+            ax.add_patch(rect)
+            ax.text(
+                label_x,
+                label_y,
+                beam.id,
+                ha="center",
+                va="center",
+                fontsize=7,
+                color="#000",
+                fontweight="bold",
+                zorder=4,
             )
 
-        # --- pillars ---
-        all_x = [p.x / _CM_PER_M for p in pillars.values()]
-        all_y = [p.y / _CM_PER_M for p in pillars.values()]
-        x_range = max(all_x) - min(all_x) if len(all_x) > 1 else 1.0
-        y_range = max(all_y) - min(all_y) if len(all_y) > 1 else 1.0
-        vis_half = max(x_range, y_range) * 0.018
-
+        # --- pillars (drawn with actual cross-section dimensions) ---
         for p in pillars.values():
-            px, py = p.x / _CM_PER_M, p.y / _CM_PER_M
+            px_m = p.x / _CM_PER_M
+            py_m = p.y / _CM_PER_M
+            hw = p.width / (2 * _CM_PER_M)
+            hd = p.depth / (2 * _CM_PER_M)
             ax.add_patch(
                 mpatches.Rectangle(
-                    (px - vis_half, py - vis_half),
-                    2 * vis_half,
-                    2 * vis_half,
+                    (px_m - hw, py_m - hd),
+                    p.width / _CM_PER_M,
+                    p.depth / _CM_PER_M,
                     facecolor=DARK_WARNING,
                     edgecolor="#ff9e3b",
                     linewidth=1.0,
-                    zorder=4,
+                    zorder=5,
                 )
             )
+            label_offset = max(x_range, y_range, 1.0) * 0.015
             ax.text(
-                px,
-                py + vis_half * 1.6,
+                px_m,
+                py_m + hd + label_offset,
                 p.id,
                 ha="center",
                 va="bottom",
                 fontsize=8,
                 color=DARK_TEXT_PRIMARY,
                 fontweight="bold",
-                zorder=5,
+                zorder=6,
             )
 
         # --- axes limits with padding ---
-        pad = max(x_range, y_range) * 0.12 + vis_half * 3
+        pad = max(x_range, y_range) * 0.12
         ax.set_xlim(min(all_x) - pad, max(all_x) + pad)
         ax.set_ylim(min(all_y) - pad, max(all_y) + pad)
 
@@ -765,12 +918,18 @@ class ResultsWindow(QDialog):
         layout.addWidget(close_btn)
 
     def _open_beam_report(self, beam) -> None:
-        dlg = BeamReportWindow(beam, self._pavement.pillars, parent=self)
-        dlg.exec()
+        try:
+            dlg = BeamReportWindow(beam, self._pavement.pillars, parent=self)
+            dlg.exec()
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Report error", str(exc))
 
     def _open_slab_report(self, slab) -> None:
-        dlg = SlabReportWindow(slab, parent=self)
-        dlg.exec()
+        try:
+            dlg = SlabReportWindow(slab, parent=self)
+            dlg.exec()
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Report error", str(exc))
 
 
 class BeamReportWindow(QDialog):
@@ -856,6 +1015,7 @@ class BeamReportWindow(QDialog):
     # ------------------------------------------------------------ analysis ---
 
     def _run(self) -> None:
+        from src.elements.beam_calculator import BeamCalculator
         from src.loading.forces import (
             design_effort_elu,
         )
@@ -865,14 +1025,12 @@ class BeamReportWindow(QDialog):
 
         beam = self._beam
         try:
-            supports = beam._build_supports(self._pillar_registry)
-            loads = beam._build_loads(self._pillar_registry)
-            rect_beam = beam._build_structural_beam(
-                self._pillar_registry, supports, loads
-            )
+            calc = BeamCalculator(beam, self._pillar_registry)
+            supports = calc._build_supports()
+            loads = calc._build_loads()
+            rect_beam = calc._build_structural_beam(supports, loads)
 
-            max_bm = rect_beam.get_bending_moment(return_max=True)
-            max_sf = rect_beam.get_shear_force(return_max=True)
+            max_bm, max_sf = calc._get_max_forces(rect_beam)
             design_sf = design_effort_elu(max_sf)
 
             stirrup_calc = StirrupCalculator(rect_beam, design_sf)
@@ -1002,26 +1160,17 @@ class SlabReportWindow(QDialog):
         slab = self._slab
         concrete = Concrete[APP_CONFIG.pavement_concrete]
 
-        mock_tensioned_reinforcement_area = 3.57
-        mock_effective_depth_discount = 3
-        mock_compressed_reinforcement_area = 0.0
-        mock_compressed_effective_depth = 0.0
-
-        support_conditions = {
-            edge: slab.edges[edge].support_condition for edge in Edges
-        }
-        lx, ly = slab.dimensions
-
         try:
+            support_conditions = {
+                edge: slab.edges[edge].support_condition for edge in Edges
+            }
+            lx, ly = slab.dimensions
+
             checker = SlabDeformationChecker(
                 permanent_load=slab.permanent_load,
                 variable_load=slab.variable_load,
                 usage=slab.local,
                 concrete=concrete,
-                effective_depth_discount=mock_effective_depth_discount,
-                compressed_reinforcement_area=mock_compressed_reinforcement_area,
-                effective_depth_compressed=mock_compressed_effective_depth,
-                tensioned_reinforcement_area=mock_tensioned_reinforcement_area,
                 lx=lx,
                 ly=ly,
                 support_conditions=support_conditions,
@@ -1089,3 +1238,116 @@ class SlabReportWindow(QDialog):
             f"  Verdict          : {'PASS ✓' if passed else 'FAIL ✗'}",
         ]
         return "\n".join(lines)
+
+
+class ConfigDialog(QDialog):
+    """Dialog for editing all AppConfig values."""
+
+    def __init__(self, parent: "PavementWindow") -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Configuration")
+        self.setMinimumWidth(460)
+        self._parent_window = parent
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        form = QFormLayout()
+        layout.addLayout(form)
+
+        def _section(text: str) -> QLabel:
+            lbl = QLabel(text)
+            lbl.setStyleSheet(
+                f"color: {DARK_TEXT_MUTED}; font-size: 10px; font-weight: bold; margin-top: 6px;"
+            )
+            return lbl
+
+        # ---- Pavement materials ----
+        form.addRow(_section("PAVEMENT MATERIALS"))
+
+        cfg_pav_concrete = QComboBox()
+        for c in Concrete:
+            cfg_pav_concrete.addItem(c.name, c)
+        cfg_pav_concrete.setCurrentText(APP_CONFIG.pavement_concrete)
+        cfg_pav_concrete.currentTextChanged.connect(
+            lambda v: setattr(APP_CONFIG, "pavement_concrete", v)
+        )
+        form.addRow("Concrete:", cfg_pav_concrete)
+
+        cfg_pav_steel = QComboBox()
+        for s in Steel:
+            cfg_pav_steel.addItem(s.name, s)
+        cfg_pav_steel.setCurrentText(APP_CONFIG.pavement_steel)
+        cfg_pav_steel.currentTextChanged.connect(
+            lambda v: setattr(APP_CONFIG, "pavement_steel", v)
+        )
+        form.addRow("Steel:", cfg_pav_steel)
+
+        # ---- Beam defaults ----
+        form.addRow(_section("BEAM DEFAULTS"))
+
+        cfg_beam_concrete = QComboBox()
+        for c in Concrete:
+            cfg_beam_concrete.addItem(c.name, c)
+        cfg_beam_concrete.setCurrentText(APP_CONFIG.default_concrete)
+        cfg_beam_concrete.currentTextChanged.connect(
+            lambda v: setattr(APP_CONFIG, "default_concrete", v)
+        )
+        form.addRow("Concrete:", cfg_beam_concrete)
+
+        cfg_beam_steel = QComboBox()
+        for s in Steel:
+            cfg_beam_steel.addItem(s.name, s)
+        cfg_beam_steel.setCurrentText(APP_CONFIG.steel)
+        cfg_beam_steel.currentTextChanged.connect(
+            lambda v: setattr(APP_CONFIG, "steel", v)
+        )
+        form.addRow("Steel:", cfg_beam_steel)
+
+        # ---- Reinforcement ----
+        form.addRow(_section("REINFORCEMENT"))
+
+        cfg_agg = _spin(0.5, 10.0, 1, 0.5, APP_CONFIG.max_aggregate_size, " cm")
+        cfg_agg.valueChanged.connect(
+            lambda v: setattr(APP_CONFIG, "max_aggregate_size", v)
+        )
+        form.addRow("Max. aggregate size:", cfg_agg)
+
+        cfg_bar_types = QSpinBox()
+        cfg_bar_types.setRange(1, 5)
+        cfg_bar_types.setValue(APP_CONFIG.max_bar_types)
+        cfg_bar_types.valueChanged.connect(
+            lambda v: setattr(APP_CONFIG, "max_bar_types", v)
+        )
+        form.addRow("Max. bar types:", cfg_bar_types)
+
+        cfg_layers = QSpinBox()
+        cfg_layers.setRange(1, 5)
+        cfg_layers.setValue(APP_CONFIG.max_layers)
+        cfg_layers.valueChanged.connect(
+            lambda v: setattr(APP_CONFIG, "max_layers", v)
+        )
+        form.addRow("Max. layers:", cfg_layers)
+
+        # ---- Project ----
+        form.addRow(_section("PROJECT"))
+
+        cfg_category = QComboBox()
+        for cat in TABLE_10.categories:
+            cfg_category.addItem(cat.description)
+        cfg_category.setCurrentText(APP_CONFIG.building_category)
+        cfg_category.currentTextChanged.connect(self._parent_window._on_category_changed)
+        form.addRow("Building category:", cfg_category)
+
+        cfg_ceiling = _spin(1.5, 10.0, 2, 0.1, APP_CONFIG.ceiling_height, " m")
+        cfg_ceiling.valueChanged.connect(
+            lambda v: setattr(APP_CONFIG, "ceiling_height", v)
+        )
+        form.addRow("Ceiling height:", cfg_ceiling)
+
+        layout.addStretch()
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(self.accept)
+        layout.addWidget(close_btn)

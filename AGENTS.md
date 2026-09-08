@@ -61,3 +61,8 @@ Do not guess units or normative references — incorrect documentation is worse 
 ## Project Rules
 
 - **Ignore Tests**: Do not worry about, create, or modify tests for now unless explicitly instructed to do so.
+
+- **`AppConfig` ↔ persistency sync**: Whenever a field is added to, removed from, or renamed in `src/config.py`'s `AppConfig`, the persistency layer must be updated in lockstep:
+  - `src/persistency/schema.py` — add/remove/rename the field in `ConfigDict`
+  - `src/persistency/serialization.py` — add/remove/rename the field in `config_to_dict`
+  - `src/persistency/deserialization.py` — add/remove/rename the field in `config_from_dict`

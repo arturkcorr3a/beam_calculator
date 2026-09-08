@@ -5,14 +5,14 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from src.gui.beam_gui import BeamCalculatorWindow
+from src.gui.pavement_gui import PavementWindow
 from src.gui.theme import apply_dark_theme
 
 
 def main() -> None:
     app = QApplication(sys.argv)
     apply_dark_theme(app)
-    window = BeamCalculatorWindow()
+    window = PavementWindow()
     window.show()
     sys.exit(app.exec())
 

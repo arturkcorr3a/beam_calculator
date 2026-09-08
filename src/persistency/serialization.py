@@ -5,12 +5,14 @@ Only construction inputs are emitted;
 
 from __future__ import annotations
 
+from src.config import AppConfig
 from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement.pavement import Pavement
 from src.pavement.pillar import Pillar
 from src.pavement.slab import Slab
 from src.persistency.schema import (
     BeamDict,
+    ConfigDict,
     PavementDict,
     PillarDict,
     SlabDict,
@@ -109,4 +111,26 @@ def pavement_to_dict(pavement: Pavement) -> PavementDict:
         "pillars": [_pillar_to_dict(p) for p in pavement.pillars.values()],
         "beams": [_beam_to_dict(b) for b in pavement.beams.values()],
         "slabs": [_slab_to_dict(s) for s in pavement.slabs.values()],
+    }
+
+
+def config_to_dict(config: AppConfig) -> ConfigDict:
+    """Serializes an AppConfig to a plain, YAML-ready dict.
+
+    Args:
+        config: The config to serialize.
+
+    Returns:
+        A dict holding all AppConfig fields (the nominal_covering property is excluded — it is computed).
+    """
+    return {
+        "steel": config.steel,
+        "default_concrete": config.default_concrete,
+        "max_aggregate_size": config.max_aggregate_size,
+        "max_bar_types": config.max_bar_types,
+        "max_layers": config.max_layers,
+        "pavement_concrete": config.pavement_concrete,
+        "pavement_steel": config.pavement_steel,
+        "building_category": config.building_category,
+        "ceiling_height": config.ceiling_height,
     }

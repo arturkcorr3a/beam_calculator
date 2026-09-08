@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# NOTE: When adding, removing, or renaming a field here, update ConfigDict in
+# src/persistency/schema.py, config_to_dict in serialization.py, and
+# config_from_dict in deserialization.py in lockstep.
 
 @dataclass
 class AppConfig:

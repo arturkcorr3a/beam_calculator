@@ -8,17 +8,19 @@ format isolated from the mapping logic.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import yaml
 
+from src.config import APP_CONFIG, AppConfig
 from src.pavement.pavement import Pavement
-from src.persistency.deserialization import pavement_from_dict
-from src.persistency.schema import PavementDict
-from src.persistency.serialization import pavement_to_dict
+from src.persistency.deserialization import config_from_dict, pavement_from_dict
+from src.persistency.schema import ConfigDict, PavementDict
+from src.persistency.serialization import config_to_dict, pavement_to_dict
 
 
 def save_pavement(pavement: Pavement, path: str | Path) -> None:
-    """Writes a pavement configuration to a YAML file.
+    """Writes a pavement configuration and the current AppConfig to a YAML file.
 
     Args:
         pavement: The pavement to persist.
@@ -26,9 +28,10 @@ def save_pavement(pavement: Pavement, path: str | Path) -> None:
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    document = {**pavement_to_dict(pavement), "config": config_to_dict(APP_CONFIG)}
     with path.open("w", encoding="utf-8") as file:
         yaml.safe_dump(
-            pavement_to_dict(pavement),
+            document,
             file,
             sort_keys=False,
             allow_unicode=True,
@@ -38,6 +41,10 @@ def save_pavement(pavement: Pavement, path: str | Path) -> None:
 
 def load_pavement(path: str | Path) -> Pavement:
     """Reads a pavement configuration from a YAML file.
+
+    If the file contains a ``config`` section, the fields are applied to
+    ``APP_CONFIG`` in place so the rest of the application immediately reflects
+    the saved settings.
 
     The returned pavement is unresolved; call resolve() on it to size the
     structure.
@@ -49,8 +56,14 @@ def load_pavement(path: str | Path) -> Pavement:
         The reconstructed, unresolved pavement.
 
     Raises:
-        ValueError: If the file is malformed (see pavement_from_dict).
+        ValueError: If the file is malformed (see pavement_from_dict / config_from_dict).
     """
     with Path(path).open("r", encoding="utf-8") as file:
-        data: PavementDict = yaml.safe_load(file)
-    return pavement_from_dict(data)
+        data: dict = yaml.safe_load(file)
+
+    if "config" in data:
+        loaded_config = config_from_dict(cast(ConfigDict, data["config"]))
+        for field in AppConfig.__dataclass_fields__:
+            setattr(APP_CONFIG, field, getattr(loaded_config, field))
+
+    return pavement_from_dict(cast(PavementDict, data))
