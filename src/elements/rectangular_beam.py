@@ -1,6 +1,7 @@
 from indeterminatebeam import Beam, Support  # type: ignore
 from indeterminatebeam.loading import Load  # type: ignore
 
+from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.properties.steel import Steel
@@ -34,16 +35,16 @@ class RectangularBeam(Beam):
         supports: list[Support],
         loads: list[Load],
     ):
-        """
-        Initialize a rectangular beam, with the analysis done.
+        """Initialize a rectangular beam, with the analysis done.
 
         Args:
-            length: Beam length (m)
-            width: Cross-section width (cm)
-            height: Cross-section height (cm)
-            fck: Concrete fck class
-            supports: List of indeterminatebeam.Support instances
-            loads: List of indeterminatebeam.Load instances
+            length: Beam length (m).
+            width: Cross-section width (cm).
+            height: Cross-section height (cm).
+            concrete: Concrete class (e.g. Concrete.C25).
+            steel: Steel grade (e.g. Steel.CA50).
+            supports: List of indeterminatebeam.Support instances.
+            loads: List of indeterminatebeam.Load instances.
         """
         calculated_moment_of_inertia = SectionPropertiesCalculator.moment_of_inertia(
             width, height
@@ -90,13 +91,12 @@ class RectangularBeam(Beam):
         """
         return [self.get_shear_force(x) for x in range(int(self.length) + 1)]  # type: ignore
 
-    # TODO maybe make it variable based on default configs and maybe turn into a static function?
     @property
     def nominal_covering(self) -> float:
         """
         Returns the nominal covering (cm) for the beam with class 2 exposure, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
         """
-        return 3.0
+        return APP_CONFIG.nominal_covering
 
     @property
     def area(self) -> float:

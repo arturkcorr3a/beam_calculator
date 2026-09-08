@@ -3,6 +3,7 @@
 import math
 from dataclasses import dataclass
 
+from src.data.carvalho.utils import find_bracket_and_fraction
 from src.pavement.slab_edge import Edges, SupportCondition
 
 
@@ -78,18 +79,17 @@ class Table7:
     entries: tuple[SlabMomentEntry, ...]
 
     def get_mu(self, lambda_val: float, case: int) -> MomentCoefficients:
-        """
-        Looks up or interpolates the bending moment coefficients (mu_x, mu_y) from the table.
+        """Look up or interpolate the bending moment coefficients (mu_x, mu_y) from the table.
 
-        Parameters:
+        Args:
             lambda_val: Aspect ratio of the slab (ly / lx), must be >= 1.0.
-            case: Boundary condition support configuration case, must be between 1 and 9.
+            case: Boundary condition support configuration case (1–9).
 
         Returns:
-            A MomentCoefficients with the interpolated mu_x and mu_y values.
+            MomentCoefficients with the interpolated mu_x and mu_y values.
 
         Raises:
-            ValueError: If 'case' is not within [1, 9] or if 'lambda_val' is less than 1.0.
+            ValueError: If case is not in [1, 9] or lambda_val < 1.0.
         """
         self._validate_inputs(lambda_val, case)
 
@@ -108,8 +108,8 @@ class Table7:
         if lambda_val < 2.0:
             return self._interpolate_linear(lambda_val, case)
 
-        # Case B: lambda_val is between 2.0 and infinity.
-        return self._interpolate_asymptotic(lambda_val, case)
+        # Case B: lambda_val > 2.0 — behaves as a beam, use the infinity entry directly.
+        return next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_mu(case)
 
     def get_mu_x(self, lambda_val: float, case: int) -> float:
         """Convenience: return only mu_x for the given lambda and case."""
@@ -134,53 +134,12 @@ class Table7:
     def _interpolate_linear(self, lambda_val: float, case: int) -> MomentCoefficients:
         """Performs standard linear interpolation between adjacent keys below 2.0."""
         discrete_entries = [e for e in self.entries if not math.isinf(e.aspect_ratio)]
-
-        idx = 0
-        while (
-            idx < len(discrete_entries) - 1
-            and discrete_entries[idx + 1].aspect_ratio < lambda_val
-        ):
-            idx += 1
-
-        entry_lower = discrete_entries[idx]
-        entry_upper = discrete_entries[idx + 1]
-
+        entry_lower, entry_upper, t = find_bracket_and_fraction(discrete_entries, lambda_val)
         mu_lower = entry_lower.get_mu(case)
         mu_upper = entry_upper.get_mu(case)
-
-        t = (lambda_val - entry_lower.aspect_ratio) / (
-            entry_upper.aspect_ratio - entry_lower.aspect_ratio
-        )
         return MomentCoefficients(
             mu_x=mu_lower.mu_x + t * (mu_upper.mu_x - mu_lower.mu_x),
             mu_y=mu_lower.mu_y + t * (mu_upper.mu_y - mu_lower.mu_y),
-        )
-
-    # TODO remove this - if it is lambda>2, return the value for infinity (as it would be for a beam)
-    def _interpolate_asymptotic(
-        self, lambda_val: float, case: int
-    ) -> MomentCoefficients:
-        """
-        Performs linear interpolation on the reciprocal (1 / lambda) between 2.0 and infinity.
-        This provides high physical accuracy matching plate theory asymptotic.
-        """
-        entry_lower = next(
-            e for e in self.entries if math.isclose(e.aspect_ratio, 2.0, rel_tol=1e-9)
-        )
-        entry_inf = next(e for e in self.entries if math.isinf(e.aspect_ratio))
-
-        mu_lower = entry_lower.get_mu(case)
-        mu_inf = entry_inf.get_mu(case)
-
-        lambda_lower = 2.0
-        val = 1.0 / lambda_val
-        lower = 1.0 / lambda_lower  # 0.5
-        inf = 0.0  # 1 / inf
-
-        t = (lower - val) / (lower - inf)
-        return MomentCoefficients(
-            mu_x=mu_lower.mu_x + t * (mu_inf.mu_x - mu_lower.mu_x),
-            mu_y=mu_lower.mu_y + t * (mu_inf.mu_y - mu_lower.mu_y),
         )
 
     @staticmethod

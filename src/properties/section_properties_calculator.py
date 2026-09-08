@@ -43,34 +43,22 @@ class SectionPropertiesCalculator:
         compression_reinforcement_area: float = 0.0,
         compression_distance: float = 0.0,
     ) -> float:
-        # FIXME docstring in english
-        """
-        Calculates the cracked moment of inertia (I_II) for a rectangular section with reinforcement.
+        """Calculate the cracked moment of inertia (I_II) for a rectangular section with reinforcement.
 
-        Based on "Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado" (Roberto Chust de Carvalho e Jasson Rodrigues de Figueiredo Filho) - Chapter 4
-
+        Based on "Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado"
+        (Roberto Chust de Carvalho e Jasson Rodrigues de Figueiredo Filho) — Chapter 4.
 
         Args:
-            width : float
-                Largura da seção transversal (b) em cm.
-            height : float
-                Altura total da seção transversal (h) em cm.
-            effective_depth : float
-                Altura útil da seção (d) em cm.
-            tension_reinforcement_area : float
-                Área da armadura longitudinal de tração (As) em cm².
-            compression_reinforcement_area : float, opcional
-                Área da armadura longitudinal de compressão (As') em cm². O padrão é 0.0.
-            compression_distance : float, opcional
-                Distância da fibra mais comprimida ao CG da armadura de compressão (d') em cm.
-                O padrão é 0.0. Deve ser especificada se compression_reinforcement_area > 0.
-            modular_ratio : float, opcional
-                Razão modular entre o aço e o concreto (alpha_e = Es / Ecs). O padrão é 10.0.
+            width: Width of the cross-section b (cm).
+            effective_depth: Effective depth d (cm).
+            tension_reinforcement_area: Longitudinal tension reinforcement area As (cm²).
+            modular_ratio: Modular ratio alpha_e = Es / Ecs.
+            compression_reinforcement_area: Longitudinal compression reinforcement area As' (cm²).
+            compression_distance: Distance from the most compressed fiber to the centroid of the
+                compression reinforcement d' (cm). Required when compression_reinforcement_area > 0.
 
-        Retorna:
-        --------
-        CrackedSectionProperties
-            NamedTuple contendo a linha neutra (x_II) em cm e a inércia fissurada (I_II) em cm^4.
+        Returns:
+            Cracked moment of inertia I_II (cm⁴).
         """
         a1 = width / 2.0
         a2 = (modular_ratio * tension_reinforcement_area) + (

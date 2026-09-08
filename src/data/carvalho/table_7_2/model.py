@@ -3,6 +3,7 @@
 import math
 from dataclasses import dataclass
 
+from src.data.carvalho.utils import find_bracket_and_fraction
 from src.pavement.slab_edge import Edges, SupportCondition
 
 
@@ -58,18 +59,17 @@ class Table72:
     entries: tuple[SlabDeflectionEntry, ...]
 
     def get_alpha(self, lambda_val: float, case: int) -> float:
-        """
-        Looks up or interpolates the deflection coefficient (alpha) from the table.
+        """Look up or interpolate the deflection coefficient (alpha) from the table.
 
-        Parameters:
-            lambda_val: Aspect ratio of the slab (ly / lx), must be greater than or equal to 1.0.
-            case: Boundary condition support configuration case, must be between 1 and 9.
+        Args:
+            lambda_val: Aspect ratio of the slab (ly / lx), must be >= 1.0.
+            case: Boundary condition support configuration case (1–9).
 
         Returns:
-            The dimensionless coefficient alpha.
+            Dimensionless deflection coefficient alpha.
 
         Raises:
-            ValueError: If 'case' is not within [1, 9] or if 'lambda_val' is less than 1.0.
+            ValueError: If case is not in [1, 9] or lambda_val < 1.0.
         """
         self._validate_inputs(lambda_val, case)
 
@@ -88,10 +88,10 @@ class Table72:
         if lambda_val < 2.0:
             return self._interpolate_linear(lambda_val, case)
 
-        # Case B: lambda_val is between 2.0 and infinity.
-        # For plate theory coefficients, interpolating on the reciprocal (1 / lambda)
-        # provides highly accurate physical behavior as lambda approaches infinity.
-        return self._interpolate_asymptotic(lambda_val, case)
+        # Case B: lambda_val > 2.0 — behaves as a beam, use the infinity entry directly.
+        return next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_alpha(
+            case
+        )
 
     def _validate_inputs(self, lambda_val: float, case: int) -> None:
         """Helper to validate constraints on input parameters."""
@@ -105,49 +105,15 @@ class Table72:
                 "Aspect ratio (ly/lx) must be >= 1.0. Verify your span assignments (ly >= lx)."
             )
 
-    # TODO extract interpolation function to utils, to be shared
     def _interpolate_linear(self, lambda_val: float, case: int) -> float:
         """Performs standard linear interpolation between adjacent keys below 2.0."""
         discrete_entries = [e for e in self.entries if not math.isinf(e.aspect_ratio)]
-
-        idx = 0
-        while (
-            idx < len(discrete_entries) - 1
-            and discrete_entries[idx + 1].aspect_ratio < lambda_val
-        ):
-            idx += 1
-
-        entry_lower = discrete_entries[idx]
-        entry_upper = discrete_entries[idx + 1]
-
+        entry_lower, entry_upper, t = find_bracket_and_fraction(
+            discrete_entries, lambda_val
+        )
         alpha_lower = entry_lower.get_alpha(case)
         alpha_upper = entry_upper.get_alpha(case)
-
-        interpolation_fraction = (lambda_val - entry_lower.aspect_ratio) / (
-            entry_upper.aspect_ratio - entry_lower.aspect_ratio
-        )
-        return alpha_lower + interpolation_fraction * (alpha_upper - alpha_lower)
-
-    def _interpolate_asymptotic(self, lambda_val: float, case: int) -> float:
-        """
-        Performs linear interpolation on the reciprocal (1 / lambda) between 2.0 and infinity.
-        This provides high physical accuracy matching plate theory asymptotic.
-        """
-        entry_lower = next(
-            e for e in self.entries if math.isclose(e.aspect_ratio, 2.0, rel_tol=1e-9)
-        )
-        entry_inf = next(e for e in self.entries if math.isinf(e.aspect_ratio))
-
-        alpha_lower = entry_lower.get_alpha(case)
-        alpha_inf = entry_inf.get_alpha(case)
-
-        lambda_lower = 2.0
-        val = 1.0 / lambda_val
-        lower = 1.0 / lambda_lower  # 0.5
-        inf = 0.0  # 1 / inf
-
-        interpolation_fraction = (lower - val) / (lower - inf)
-        return alpha_lower + interpolation_fraction * (alpha_inf - alpha_lower)
+        return alpha_lower + t * (alpha_upper - alpha_lower)
 
     @staticmethod
     def determine_supporting_case(

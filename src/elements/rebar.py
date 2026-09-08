@@ -6,8 +6,7 @@ from src.properties.section_properties_calculator import (
 from src.properties.steel import Steel
 
 
-# REFACTOR use this everywhere a rebar is used, to keep the code more structured
-@dataclass
+@dataclass(frozen=True)
 class Rebar:
     """Represents a steel reinforcement bar."""
     diameter_mm: float

@@ -2,7 +2,7 @@
 
 # cSpell:disable
 
-# FIXME AI-Generated -> re-do after the calculations are finalized
+# REVIEW AI-Generated -> re-do after the calculations are finalized
 
 """
 PySide6 desktop GUI for the reinforced-concrete beam calculator.

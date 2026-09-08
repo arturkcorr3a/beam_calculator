@@ -5,7 +5,7 @@ Hardcoded values matching the normative table.
 
 from src.data.nbr6120_2019.table_10.model import BuildingCategory, LocationLoad, Table10
 
-# TODO Check this values
+# TODO Confirm this values one by one
 
 _CATEGORIES = (
     BuildingCategory(
@@ -310,8 +310,7 @@ _CATEGORIES = (
     ),
     BuildingCategory(
         description="Helipads",
-        locations=(
-        ),
+        locations=(),
     ),
     BuildingCategory(
         description="Hospitals",
@@ -1075,8 +1074,7 @@ _CATEGORIES = (
     ),
     BuildingCategory(
         description="General use warehouses",
-        locations=(
-        ),
+        locations=(),
     ),
     BuildingCategory(
         description="Locations subject to accumulation of goods, including access zones",
@@ -1091,9 +1089,7 @@ _CATEGORIES = (
 )
 
 _FOOTNOTES = {
-    "a": (
-        "Reduction of variable loads is not allowed."
-    ),
+    "a": ("Reduction of variable loads is not allowed."),
     "b": (
         "Horizontal forces must be considered in accordance with 6.3. Dynamic effects must be verified."
     ),
@@ -1103,18 +1099,14 @@ _FOOTNOTES = {
     "d": (
         "Provide for loads due to tanks, reservoirs, pumps, etc. (with their respective bases), distributed over the projection area of these items."
     ),
-    "e": (
-        "Load on the projection of the elevator shaft."
-    ),
+    "e": ("Load on the projection of the elevator shaft."),
     "f": (
         "The forces imposed by the motor, guides, bumpers, pulleys, etc., to be provided by the manufacturer of the passenger elevator, must be calculated in accordance with ABNT NBR NM 207."
     ),
     "g": (
         "For the ceiling of the elevator machine room, check the need to provide concentrated variable loads for the suspension hooks of the equipment (minimum 40 kN per hook)."
     ),
-    "h": (
-        "Variable load, does not include the self-weight of the lifting platform."
-    ),
+    "h": ("Variable load, does not include the self-weight of the lifting platform."),
     "i": (
         "Depending on the case, additional loads must be provided due to future changes, for example: glass enclosure, floor leveling, change of use, etc."
     ),
@@ -1130,12 +1122,8 @@ _FOOTNOTES = {
     "m": (
         "Minimum nominal characteristic load, which must be increased according to the expected weight of the items to be exhibited and any vehicle traffic."
     ),
-    "n": (
-        "Includes reinforced concrete reservoir covers at the top of buildings."
-    ),
-    "o": (
-        "Verify possibility of water accumulation, in accordance with 5.5."
-    ),
+    "n": ("Includes reinforced concrete reservoir covers at the top of buildings."),
+    "o": ("Verify possibility of water accumulation, in accordance with 5.5."),
     "p": (
         "Storage height corresponds to the maximum available clearance for stacking products. It may be limited by ceilings or other devices that prevent the stacking of products beyond the planned height."
     ),

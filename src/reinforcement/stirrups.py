@@ -9,10 +9,6 @@ MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 1
 class Stirrups:
     """Class to manage stirrup reinforcement properties."""
 
-    spacing: float  # cm, to be calculated
-    required_ratio: float  # cm²/cm, to be calculated
-    diameter: float  # cm, to be calculated
-
     def __init__(self, beam: RectangularBeam, calculator: StirrupCalculator):
         """
         Initialize Stirrups.
@@ -20,6 +16,9 @@ class Stirrups:
         self.beam = beam
         self.steel = beam.steel  # Access steel properties from the beam
         self.calculator = calculator  # Access stirrup calculation methods
+        self.spacing: float | None = None
+        self.required_ratio: float | None = None
+        self.diameter: float | None = None
 
     @property
     def max_diameter(self) -> float:

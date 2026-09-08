@@ -28,12 +28,7 @@ class RebarChooser:
 
     @cached_property
     def possible_diameter_combinations(self) -> set[tuple[float, ...]]:
-        """
-        Assemble all possible combinations of rebar sizes that do not exceed the maximum length.
-
-        :param rebar_sizes: List of available rebar sizes (lengths).
-        :return: List of valid combinations of rebar sizes.
-        """
+        """Assemble all possible combinations of rebar diameters up to the configured maximum bar types."""
         possible_combinations: set[tuple[float, ...]] = set()
 
         for i in range(1, APP_CONFIG.max_bar_types + 1):
@@ -44,15 +39,18 @@ class RebarChooser:
     def choose_best_combination(
         self, combination: tuple[float, ...]
     ) -> tuple[Rebar, ...]:
-        """
-        Find the optimal bar combination for a fixed diameter subset using unbounded coin-change DP.
+        """Find the optimal bar combination for a fixed diameter subset using unbounded coin-change DP.
 
-        Primary goal  : minimum total area >= required_area.
-        Secondary goal: fewest bars (enforced implicitly by minimizing bar count at each DP step).
-        Minimum bars  : at least 2 bars in the output.
+        Primary goal: minimum total area >= required_area.
+        Secondary goal: fewest bars (minimised implicitly per DP step).
+        Minimum bars: at least 2 bars in the output.
 
-        :param combination: Tuple of bar diameters (mm) forming the denomination set for this run.
-        :return: Tuple of Rebar instances (with repetition) satisfying the area and bar-count constraints, or an empty tuple if no valid combination can be found.
+        Args:
+            combination: Tuple of bar diameters (mm) forming the denomination set for this run.
+
+        Returns:
+            Tuple of Rebar instances satisfying the area and bar-count constraints, or an empty
+            tuple if no valid combination can be found.
         """
         # Each bar's area is mapped to an integer slot count; slot * eps = area in cm²
         eps = 0.01  # discretization step, cm²
@@ -102,10 +100,12 @@ class RebarChooser:
     def get_best_solution_for_combo(
         self, combination: tuple[float, ...]
     ) -> tuple[Rebar, ...]:
-        """
-        Get the best solution for a given combination of rebar sizes.
+        """Get the precomputed best rebar solution for a given diameter combination.
 
-        :param combination: A tuple of rebar sizes.
-        :return: A tuple with the best solution.
+        Args:
+            combination: Tuple of bar diameters (mm).
+
+        Returns:
+            Tuple of Rebar instances, or an empty tuple if no solution exists.
         """
         return self.solutions_per_diameter.get(combination, ())

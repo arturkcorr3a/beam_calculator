@@ -20,7 +20,7 @@ from src.reinforcement.stirrups import Stirrups
 
 def _default_effective_depth_discount() -> float:
     """Get the default effective depth discount (cm) for slabs, based on ABNT NBR 6118 - Section 7.4."""
-    covering = 3  # TODO based on rectangular beam -> review if it needs to be dynamic (make beams static in that case)
+    covering = APP_CONFIG.nominal_covering
     rebar_discount_10_mm = 1
     return covering + 1.5 * rebar_discount_10_mm
 
@@ -37,7 +37,6 @@ class SlabDeformationChecker(DeformationChecker):
     compressed_reinforcement_area: float = field(default=0, init=False)  # cm²
     effective_depth_compressed: float = field(default=0, init=False)  # cm²
 
-    # TODO I found out you can init=False without default, and default_factory can call a function without args; review in other places of the project to maintain a pattern
     effective_depth_discount: float = field(
         default_factory=_default_effective_depth_discount, init=False
     )  # cm
@@ -129,7 +128,7 @@ class SlabDeformationChecker(DeformationChecker):
             self.support_conditions, self.lx, self.ly
         )
 
-    # FIXME review this is working
+    # REVIEW this is working
     @property
     @override
     def tensioned_reinforcement_area(self):

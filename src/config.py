@@ -22,5 +22,13 @@ class AppConfig:
 
     ceiling_height: float = 2.5  # m, reference: ABNT NBR 15575-1, section 16.1
 
+    # TODO maybe make it variable based on default configs and maybe turn into a static function?
+    @property
+    def nominal_covering(self) -> float:
+        """
+        Returns the nominal covering (cm) for a beam with class 2 exposure, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
+        """
+        return 3.0
+
 
 APP_CONFIG = AppConfig()
