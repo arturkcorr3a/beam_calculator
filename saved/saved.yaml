@@ -132,3 +132,13 @@ slabs:
   - P8
   local: General use rooms and bathrooms
   permanent_load: 0.0
+config:
+  steel: CA50
+  default_concrete: C30
+  max_aggregate_size: 2.5
+  max_bar_types: 3
+  max_layers: 3
+  pavement_concrete: C30
+  pavement_steel: CA50
+  building_category: Commercial, corporate, and office buildings
+  ceiling_height: 2.5

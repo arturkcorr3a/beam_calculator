@@ -19,11 +19,13 @@ The typical workflow is::
     loaded.resolve()
 """
 
-from src.persistency.deserialization import pavement_from_dict
-from src.persistency.serialization import pavement_to_dict
+from src.persistency.deserialization import config_from_dict, pavement_from_dict
+from src.persistency.serialization import config_to_dict, pavement_to_dict
 from src.persistency.yaml_io import load_pavement, save_pavement
 
 __all__ = [
+    "config_from_dict",
+    "config_to_dict",
     "load_pavement",
     "pavement_from_dict",
     "pavement_to_dict",

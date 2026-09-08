@@ -34,6 +34,18 @@ class SlabDict(TypedDict):
     permanent_load: float
 
 
+class ConfigDict(TypedDict):
+    steel: str
+    default_concrete: str
+    max_aggregate_size: float
+    max_bar_types: int
+    max_layers: int
+    pavement_concrete: str
+    pavement_steel: str
+    building_category: str
+    ceiling_height: float
+
+
 class PavementDict(TypedDict):
     pillars: list[PillarDict]
     beams: list[BeamDict]
