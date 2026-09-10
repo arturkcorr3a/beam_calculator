@@ -1,5 +1,3 @@
-from enum import EnumMeta
-
 from indeterminatebeam import Beam, Support  # type: ignore
 from indeterminatebeam.loading import Load  # type: ignore
 
@@ -24,7 +22,7 @@ UNITS = {
 _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
 
 
-class _BeamMeta(EnumMeta):
+class _BeamMeta(type):
     @property
     def nominal_covering(self) -> float:
         """
