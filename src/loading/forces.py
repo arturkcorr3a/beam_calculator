@@ -1,4 +1,4 @@
-from src.elements.rectangular_beam import RectangularBeam
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as SPC,
 )

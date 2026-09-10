@@ -4,12 +4,12 @@
 
 from indeterminatebeam import DistributedLoadV, Support
 
-from src.elements.rectangular_beam import RectangularBeam
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.reinforcement.rebar_calculator import RebarCalculator
-from src.reinforcement.stirrup_calculator import StirrupCalculator
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 
 # ==============================================================================

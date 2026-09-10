@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 
 from src.logger import log_element, log_general, logger_label
-from src.pavement.continuous_beam import ContinuousBeam
-from src.pavement.pillar import Pillar
-from src.pavement.slab import Slab
+from src.pavement_elements.continuous_beam import ContinuousBeam
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import Slab
 
 
 @logger_label("Pavement")

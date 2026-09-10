@@ -1,7 +1,8 @@
 from functools import cached_property
 from math import sqrt
 
-from src.elements.rectangular_beam import RectangularBeam
+from src.calculators.stirrup_calculator import StirrupCalculator
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -10,7 +11,6 @@ from src.loading.forces import (
 from src.logger import log_element, log_iteration
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
-from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 
 # TODO find reference for this (just a first guess)

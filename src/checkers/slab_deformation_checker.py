@@ -1,21 +1,21 @@
 from dataclasses import dataclass, field
 from typing import override
 
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
+from src.checkers.deformation_checker import DeformationChecker
 from src.config import APP_CONFIG
 from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
 from src.data.carvalho.table_7_2.data import TABLE_7_2
 from src.data.carvalho.table_7_2.model import Table72
-from src.elements.rectangular_beam import RectangularBeam
-from src.loading.deformation_checker import DeformationChecker
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.loading.forces import min_design_bending_moment
-from src.pavement.slab import Slab
-from src.pavement.slab_edge import Edges, SupportCondition
+from src.pavement_elements.slab import Slab
+from src.pavement_elements.slab_edge import Edges, SupportCondition
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
 from src.properties.steel import Steel
-from src.reinforcement.rebar_calculator import RebarCalculator
-from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 
 

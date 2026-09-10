@@ -1,10 +1,10 @@
 from collections import Counter
 
 from src.config import APP_CONFIG
-from src.elements.rebar import Rebar
-from src.elements.rectangular_beam import RectangularBeam
 from src.logger import log_element
 from src.reinforcement.rebar_chooser import RebarChooser
+from src.structural_elements.rebar import Rebar
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 # TODO find a good reference for this initial guess, to have a basis in the work and know how to justify it
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen

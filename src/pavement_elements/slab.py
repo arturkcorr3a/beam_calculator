@@ -5,7 +5,7 @@ from itertools import count
 from typing import Literal, cast
 
 from src.config import APP_CONFIG
-from src.loading.slab_deformation_checker import SlabDeformationChecker
+from src.checkers.slab_deformation_checker import SlabDeformationChecker
 from src.loading.superficial_loads import SuperficialLoads
 from src.logger import (
     log_element,
@@ -14,10 +14,10 @@ from src.logger import (
     log_property,
     logger_label,
 )
-from src.pavement.continuous_beam import ContinuousBeam, Span
-from src.pavement.geometry_utils import Point, calculate_polygon_area
-from src.pavement.pillar import Pillar
-from src.pavement.slab_edge import Edges, SlabEdge, SupportCondition
+from src.pavement_elements.continuous_beam import ContinuousBeam, Span
+from src.pavement_elements.geometry_utils import Point, calculate_polygon_area
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab_edge import Edges, SlabEdge, SupportCondition
 from src.properties.concrete import Concrete
 
 SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1

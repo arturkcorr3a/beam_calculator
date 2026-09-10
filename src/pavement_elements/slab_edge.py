@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING, Literal
 from src.logger import log_interaction, log_property, logger_label
 
 if TYPE_CHECKING:
-    from src.pavement.continuous_beam import ContinuousBeam, Span
-    from src.pavement.pillar import Pillar
-    from src.pavement.slab import Slab
+    from src.pavement_elements.continuous_beam import ContinuousBeam, Span
+    from src.pavement_elements.pillar import Pillar
+    from src.pavement_elements.slab import Slab
 
 type SupportCondition = Literal["pinned", "fixed"]
 

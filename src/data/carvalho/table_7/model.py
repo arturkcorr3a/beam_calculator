@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from src.data.carvalho.utils import find_bracket_and_fraction
 from src.logger import log_property, logger_label
-from src.pavement.slab_edge import Edges, SupportCondition
+from src.pavement_elements.slab_edge import Edges, SupportCondition
 
 
 @dataclass(frozen=True)
