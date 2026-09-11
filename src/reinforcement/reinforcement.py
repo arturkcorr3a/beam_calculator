@@ -82,6 +82,13 @@ class Reinforcement:
                 weights += layer_weight
         return (weighted_centroids / weights) / 10 if weights != 0 else 0
 
+    @property
+    def area(self) -> float:
+        """
+        Returns the total area of the chosen reinforcement (cm²)
+        """
+        return sum(bar.area_cm2 for layer in self.chosen_bars for bar in layer)
+
     def get_layer_absolute_centroid_with_weight(
         self, layer: int
     ) -> tuple[float, float]:

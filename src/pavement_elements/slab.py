@@ -4,8 +4,8 @@ from functools import cached_property
 from itertools import count
 from typing import Literal, cast
 
-from src.config import APP_CONFIG
 from src.checkers.slab_deformation_checker import SlabDeformationChecker
+from src.config import APP_CONFIG
 from src.loading.superficial_loads import SuperficialLoads
 from src.logger import (
     log_element,
