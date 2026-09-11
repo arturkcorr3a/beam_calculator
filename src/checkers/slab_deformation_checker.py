@@ -12,7 +12,6 @@ from src.loading.forces import (
     almost_permanent_combination_els,
     min_design_bending_moment,
 )
-from src.pavement_elements.slab import Slab
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -24,6 +23,8 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 
 def _default_effective_depth_discount() -> float:
     """Get the default effective depth discount (cm) for slabs, based on ABNT NBR 6118 - Section 7.4."""
+    from src.pavement_elements.slab import Slab
+
     covering = Slab.nominal_covering
     rebar_discount_10_mm = 1
     return covering + 1.5 * rebar_discount_10_mm

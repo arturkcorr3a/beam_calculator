@@ -35,7 +35,7 @@ CORNER_EDGE_DICT: dict[Edges, tuple[CornerKey, CornerKey]] = {
 }
 
 
-class _BeamMeta(type):
+class _SlabMeta(type):
     @property
     def nominal_covering(self) -> float:
         """
@@ -59,7 +59,7 @@ class _BeamMeta(type):
 
 @logger_label("{id}")
 @dataclass
-class Slab(metaclass=_BeamMeta):
+class Slab(metaclass=_SlabMeta):
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 
     The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams.
