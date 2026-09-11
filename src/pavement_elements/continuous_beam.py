@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 from itertools import count
 
+from src.calculators.beam_calculator import BeamCalculator
 from src.config import APP_CONFIG
-from src.elements.beam_calculator import BeamCalculator
+from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
 from src.logger import log_element, log_operation, logger_label
-from src.pavement.beam_span import Span
-from src.pavement.geometry_utils import (
+from src.pavement_elements.beam_span import Span
+from src.pavement_elements.geometry_utils import (
     TOLERANCE,
     Alignment,
     Axis,
@@ -16,7 +17,7 @@ from src.pavement.geometry_utils import (
     x_coord,
     y_coord,
 )
-from src.pavement.pillar import Pillar
+from src.pavement_elements.pillar import Pillar
 
 # PAPER find reference for this value, I think they are not in NBR 6118, but should be in the classical literature - I know it's between 12 and 15
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
@@ -182,6 +183,17 @@ class ContinuousBeam:
         for span in self.spans:
             span.add_load(own_weight, permanent=True)
             span.add_load(wall_weight, permanent=True)
+
+    def get_most_loaded_span_for_els(self) -> Span:
+        """Returns the span with the highest total load (permanent + variable)."""
+        if not self.spans:
+            raise ValueError(f"Beam '{self.id}' has no spans to evaluate.")
+        return max(
+            self.spans,
+            key=lambda span: almost_permanent_combination_els(
+                span.permanent_load, span.variable_load
+            ),
+        )
 
     # ------------------------------------------------------------------
     # Validation helpers

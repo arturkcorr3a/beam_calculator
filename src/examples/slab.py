@@ -53,11 +53,11 @@ from datetime import datetime, timezone
 
 from src.config import APP_CONFIG
 from src.loading.superficial_loads import SuperficialLoads
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement.geometry_utils import Alignment
-from src.pavement.pavement import Pavement
-from src.pavement.pillar import Pillar
-from src.pavement.slab import SLAB_MAX_THICKNESS, SLAB_MIN_THICKNESS, Slab
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.geometry_utils import Alignment
+from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import SLAB_MAX_THICKNESS, SLAB_MIN_THICKNESS, Slab
 from src.properties.concrete import Concrete
 
 # Non-uniform panel spans (cm): narrow outer panels, wide middle panels
@@ -196,8 +196,8 @@ class PreSizingLog:
 
 def pre_size_slab_with_log(slab: Slab, log: PreSizingLog) -> bool:
     """Runs the slab's pre-sizing loop while recording every thickness trial."""
-    from src.loading.slab_deformation_checker import SlabDeformationChecker
-    from src.pavement.slab_edge import Edges
+    from src.checkers.slab_deformation_checker import SlabDeformationChecker
+    from src.pavement_elements.slab_edge import Edges
 
     concrete = Concrete[APP_CONFIG.pavement_concrete]
     original_thickness = slab.thickness

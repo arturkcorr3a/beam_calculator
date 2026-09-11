@@ -7,10 +7,10 @@ import csv
 import os
 from collections import Counter
 
-from src.elements.rectangular_beam import RectangularBeam
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.properties.steel import Steel
-from src.reinforcement.rebar_calculator import RebarCalculator
-from src.reinforcement.stirrup_calculator import StirrupCalculator
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 
 
@@ -130,7 +130,7 @@ class ReportExporter:
             (
                 "1. GEOMETRIA E MATERIAIS",
                 "Cobrimento Nominal (c_nom)",
-                f"{self.beam.nominal_covering:.1f}",
+                f"{RectangularBeam.nominal_covering:.1f}",
                 "cm",
                 "Classe de Agressividade II",
             ),
@@ -562,7 +562,7 @@ class ReportExporter:
         print(f"  • Largura da seção (bw)    : {self.beam.width:.1f} cm")
         print(f"  • Altura da seção (h)      : {self.beam.height:.1f} cm")
         print(
-            f"  • Cobrimento nominal (c_nom): {self.beam.nominal_covering:.1f} cm (Classe de Agressividade II)"
+            f"  • Cobrimento nominal (c_nom): {RectangularBeam.nominal_covering:.1f} cm (Classe de Agressividade II)"
         )
         print(
             f"  • Área da seção bruta (Ac) : {self.beam.width * self.beam.height:.1f} cm² ({(self.beam.width / 100) * (self.beam.height / 100):.4f} m²)"

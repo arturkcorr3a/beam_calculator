@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from src.loading.forces import (
-    almost_permanent_combination_els,
     calculate_cracking_moment,
 )
 from src.properties.concrete import Concrete
@@ -22,18 +21,17 @@ class DeformationChecker(ABC):
 
     permanent_load: float  # kN/m
     variable_load: float  # kN/m
-    usage: str
     concrete: Concrete
     span: float  # cm
-    width: int  # cm
+    width: float  # cm
     effective_depth_discount: float  # cm
     compressed_reinforcement_area: float  # cm²
     effective_depth_compressed: float  # cm²
-    _tensioned_reinforcement_area: float  # cm²
-    height: int = field(default=0, init=False)  # cm
+    tensioned_reinforcement_area: float  # cm²
+    height: float = field(default=0, init=False)  # cm
     effective_depth: float = field(init=False)  # cm
 
-    def verify(self, height: int) -> bool:
+    def verify(self, height: float) -> bool:
         """Verify whether the deformation of the element is within acceptable limits.
 
         Args:
@@ -47,14 +45,11 @@ class DeformationChecker(ABC):
         return self.long_term_deflection <= self.acceptable_deflection
 
     @property
+    @abstractmethod
     def design_load(self) -> float:
         """
-        Calculates the design load for the element (kN/cm²), based on the almost permanent combination of loads, according to ABNT NBR 6118 - Section 11.8.3.1 - item a.
+        Calculates the design load for the element (kN/cm² or kN/cm), based on the almost permanent combination of loads, according to ABNT NBR 6118 - Section 11.8.3.1 - item a.
         """
-        load_kn_m2 = almost_permanent_combination_els(
-            self.permanent_load, self.variable_load, self.usage
-        )
-        return load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
 
     @property
     def cracking_moment(self) -> float:
@@ -101,7 +96,7 @@ class DeformationChecker(ABC):
         cracked_section_moment_of_inertia = section.cracked_section_moment_of_inertia(
             self.width,
             self.effective_depth,
-            self.tensioned_reinforcement_area,
+            self._tensioned_reinforcement_area,
             modular_ratio,
             self.compressed_reinforcement_area,
             self.effective_depth_compressed,
@@ -115,33 +110,7 @@ class DeformationChecker(ABC):
     @property
     @abstractmethod
     def immediate_deflection(self) -> float:
-        """
-        Calculate the immediate elastic deflection of the structural element.
-
-        Unifies the elastic deflection models for both beams and slabs using
-        the boundary condition factor (alpha).
-
-        References:
-            Carvalho & Figueiredo Filho (2014) — Section 4.8.2.3, Eq. 4.26 (beams, p. 199)
-            Carvalho & Figueiredo Filho (2014) — Section 7.3.7.2.1, Eq. 7.16 (slabs, p. 331)
-
-        Returns:
-            float: Immediate elastic deflection.
-        """
-
-    @property
-    @abstractmethod
-    def alpha_for_deflection(self) -> float:
-        """
-        Get the boundary condition coefficient (alpha) for deflection calculations.
-
-        References:
-            Carvalho & Figueiredo Filho (2014) — Section 4.8.2.3 (beams, load/support factor alpha_c)
-            Carvalho & Figueiredo Filho (2014) — Section 7.3.7.2.1, Quadro 7.2 (slabs, plate boundary coefficient)
-
-        Returns:
-            float: The dimensionless coefficient dictated by the element's support conditions, geometry, and loading shape.
-        """
+        pass
 
     @property
     def long_term_deflection(self) -> float:
@@ -176,5 +145,5 @@ class DeformationChecker(ABC):
         return self.span / 250.0
 
     @property
-    def tensioned_reinforcement_area(self):
-        return self._tensioned_reinforcement_area
+    def _tensioned_reinforcement_area(self):
+        return self.tensioned_reinforcement_area

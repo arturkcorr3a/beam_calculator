@@ -1,6 +1,6 @@
 from math import cos, pi, sin
 
-from src.elements.rectangular_beam import RectangularBeam
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.logger import log_operation
 
 STIRRUP_ANGLE = (

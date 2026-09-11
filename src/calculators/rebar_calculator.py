@@ -1,7 +1,8 @@
 from functools import cached_property
 from math import sqrt
 
-from src.elements.rectangular_beam import RectangularBeam
+from src.calculators.stirrup_calculator import StirrupCalculator
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -10,7 +11,6 @@ from src.loading.forces import (
 from src.logger import log_element, log_iteration
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
-from src.reinforcement.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 
 # TODO find reference for this (just a first guess)
@@ -72,9 +72,7 @@ class RebarCalculator:
     def calculate(self) -> None:
         beam_label = f"b={self.beam.width:.0f} x h={self.beam.height:.0f} cm"
         current_d = 0.0
-        iter_n = 0
         while abs(current_d - self.d) > 0.1:
-            iter_n += 1
             current_d = self.d
             self.cleanup()
             self.calculate_and_set_required_tensioned_rebar_area()
@@ -218,9 +216,11 @@ class RebarCalculator:
         """
         Calculates the effective depth (cm) of the beam, considering the nominal covering and reinforcements.
         """
-        covering = self.beam.nominal_covering  # cm
+        covering = RectangularBeam.nominal_covering  # cm
         if self.tensioned_reinforcement.is_chosen:
-            all_bars = [b for layer in self.tensioned_reinforcement.chosen_bars for b in layer]
+            all_bars = [
+                b for layer in self.tensioned_reinforcement.chosen_bars for b in layer
+            ]
             if all_bars:
                 covering = max(b.effective_covering(covering) for b in all_bars)
         stirrup_diameter = (
@@ -269,9 +269,11 @@ class RebarCalculator:
         """
         Calculates the distance (cm) from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
-        covering = self.beam.nominal_covering  # cm
+        covering = RectangularBeam.nominal_covering  # cm
         if self.compressed_reinforcement.is_chosen:
-            all_bars = [b for layer in self.compressed_reinforcement.chosen_bars for b in layer]
+            all_bars = [
+                b for layer in self.compressed_reinforcement.chosen_bars for b in layer
+            ]
             if all_bars:
                 covering = max(b.effective_covering(covering) for b in all_bars)
         stirrup_diameter = (

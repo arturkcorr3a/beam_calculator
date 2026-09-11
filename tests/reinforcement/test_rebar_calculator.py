@@ -1,9 +1,11 @@
-from src.reinforcement.rebar_calculator import RebarCalculator
+from unittest.mock import Mock, PropertyMock, patch
+
+import pytest
+
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.elements.rectangular_beam import RectangularBeam
-import pytest
-from unittest.mock import Mock
+from src.calculators.rebar_calculator import RebarCalculator
 
 
 @pytest.fixture
@@ -15,14 +17,15 @@ def calculator() -> RebarCalculator:
     beam.concrete = Concrete.C25
     beam.steel = Steel.CA50
     beam.area = 1200  # cm^2
-    beam.nominal_covering = 3  # cm
+    with patch.object(RectangularBeam, "nominal_covering", new_callable=PropertyMock) as mock_nominal_covering:
+        mock_nominal_covering.return_value = 3
 
-    bending_moment = 272  # kN.m
-    stirrups = Mock()
-    calculator = RebarCalculator(beam, bending_moment, stirrups)
-    calculator.d = 56  # cm (effective depth)
-    calculator.d_compressed = 4  # cm (distance from compression face to centroid of compression reinforcement)
-    return calculator
+        bending_moment = 272  # kN.m
+        stirrups = Mock()
+        calculator = RebarCalculator(beam, bending_moment, stirrups)
+        calculator.d = 56  # cm (effective depth)
+        calculator.d_compressed = 4  # cm (distance from compression face to centroid of compression reinforcement)
+        return calculator
 
 
 def test_max_y(calculator: RebarCalculator):

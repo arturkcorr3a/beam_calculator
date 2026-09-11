@@ -1,10 +1,10 @@
 from collections import Counter
 
 from src.config import APP_CONFIG
-from src.elements.rebar import Rebar
-from src.elements.rectangular_beam import RectangularBeam
 from src.logger import log_element
 from src.reinforcement.rebar_chooser import RebarChooser
+from src.structural_elements.rebar import Rebar
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 # TODO find a good reference for this initial guess, to have a basis in the work and know how to justify it
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
@@ -48,7 +48,9 @@ class Reinforcement:
         self.is_chosen = True
         all_bars = [bar for layer in self.chosen_bars for bar in layer]
         counter = Counter(int(b.diameter_mm) for b in all_bars)
-        bar_desc = ", ".join(f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True))
+        bar_desc = ", ".join(
+            f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
+        )
         log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
@@ -79,6 +81,13 @@ class Reinforcement:
                 weighted_centroids += layer_centroid * layer_weight
                 weights += layer_weight
         return (weighted_centroids / weights) / 10 if weights != 0 else 0
+
+    @property
+    def area(self) -> float:
+        """
+        Returns the total area of the chosen reinforcement (cm²)
+        """
+        return sum(bar.area_cm2 for layer in self.chosen_bars for bar in layer)
 
     def get_layer_absolute_centroid_with_weight(
         self, layer: int
@@ -199,7 +208,7 @@ class Reinforcement:
         total_width_needed = total_bar_width + total_spacing
 
         max_effective_covering = max(
-            bar.effective_covering(self.beam.nominal_covering)
+            bar.effective_covering(RectangularBeam.nominal_covering)
             for bar in optimal_reinforcement
         )
         available_width = self.beam.width - 2 * max_effective_covering

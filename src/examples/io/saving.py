@@ -3,11 +3,11 @@ Example from "Cálculo e Detalhamento de Estruturas de Concreto Armado'
 """
 
 from src.config import APP_CONFIG
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement.geometry_utils import Alignment
-from src.pavement.pavement import Pavement
-from src.pavement.pillar import Pillar
-from src.pavement.slab import Slab
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.geometry_utils import Alignment
+from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import Slab
 from src.persistency.yaml_io import save_pavement
 
 PATH = "saved/saved.yaml"

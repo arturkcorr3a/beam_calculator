@@ -13,7 +13,7 @@ from typing import cast
 import yaml
 
 from src.config import APP_CONFIG, AppConfig
-from src.pavement.pavement import Pavement
+from src.pavement_elements.pavement import Pavement
 from src.persistency.deserialization import config_from_dict, pavement_from_dict
 from src.persistency.schema import ConfigDict, PavementDict
 from src.persistency.serialization import config_to_dict, pavement_to_dict

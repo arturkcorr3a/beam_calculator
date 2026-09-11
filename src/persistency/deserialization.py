@@ -6,11 +6,11 @@ from collections.abc import Callable, Mapping
 from typing import cast
 
 from src.config import AppConfig
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement.geometry_utils import Alignment
-from src.pavement.pavement import Pavement
-from src.pavement.pillar import Pillar
-from src.pavement.slab import Slab
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.geometry_utils import Alignment
+from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import Slab
 from src.persistency.schema import (
     BeamDict,
     ConfigDict,

@@ -1,8 +1,8 @@
 from math import pi
 
-from src.elements.rectangular_beam import RectangularBeam
+from src.calculators.stirrup_calculator import MIN_SPACING, StirrupCalculator
 from src.logger import log_element
-from src.reinforcement.stirrup_calculator import MIN_SPACING, StirrupCalculator
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 18.3.3.2)
 

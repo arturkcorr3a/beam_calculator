@@ -3,7 +3,7 @@ from typing import Tuple
 import pytest
 
 from src.config import APP_CONFIG
-from src.elements.rebar import Rebar
+from src.structural_elements.rebar import Rebar
 from src.properties.steel import Steel
 from src.reinforcement.rebar_chooser import RebarChooser
 

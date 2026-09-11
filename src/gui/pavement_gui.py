@@ -59,11 +59,11 @@ from src.gui.theme import (
     apply_dark_theme,
     style_figure,
 )
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement.geometry_utils import Alignment
-from src.pavement.pavement import Pavement
-from src.pavement.pillar import Pillar
-from src.pavement.slab import Slab
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.geometry_utils import Alignment
+from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import Slab
 from src.persistency import load_pavement, save_pavement
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -1017,12 +1017,12 @@ class BeamReportWindow(QDialog):
     # ------------------------------------------------------------ analysis ---
 
     def _run(self) -> None:
-        from src.elements.beam_calculator import BeamCalculator
+        from src.calculators.beam_calculator import BeamCalculator
         from src.loading.forces import (
             design_effort_elu,
         )
-        from src.reinforcement.rebar_calculator import RebarCalculator
-        from src.reinforcement.stirrup_calculator import StirrupCalculator
+        from src.calculators.rebar_calculator import RebarCalculator
+        from src.calculators.stirrup_calculator import StirrupCalculator
         from src.reinforcement.stirrups import Stirrups
 
         beam = self._beam
@@ -1156,8 +1156,8 @@ class SlabReportWindow(QDialog):
     # ------------------------------------------------------------ analysis ---
 
     def _run(self) -> None:
-        from src.loading.slab_deformation_checker import SlabDeformationChecker
-        from src.pavement.slab_edge import Edges
+        from src.checkers.slab_deformation_checker import SlabDeformationChecker
+        from src.pavement_elements.slab_edge import Edges
 
         slab = self._slab
         concrete = Concrete[APP_CONFIG.pavement_concrete]
@@ -1198,7 +1198,7 @@ class SlabReportWindow(QDialog):
         self._report_btn.setEnabled(True)
 
     def _build_results_text(self, slab: Slab, checker, passed: bool) -> str:
-        from src.pavement.slab_edge import Edges
+        from src.pavement_elements.slab_edge import Edges
 
         lx, ly = slab.dimensions
         sep = "-" * 50

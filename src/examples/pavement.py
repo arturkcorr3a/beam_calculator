@@ -49,11 +49,11 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 from src.loading.superficial_loads import SuperficialLoads
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement.geometry_utils import Alignment, Axis
-from src.pavement.pavement import Pavement
-from src.pavement.pillar import Pillar
-from src.pavement.slab import Slab
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.geometry_utils import Alignment, Axis
+from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import Slab
 
 
 # ==============================================================================

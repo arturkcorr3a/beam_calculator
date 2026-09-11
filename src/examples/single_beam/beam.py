@@ -1,17 +1,15 @@
 # type: ignore
 
 # cSpell:disable
-from datetime import datetime, timezone
 
 from indeterminatebeam import DistributedLoadV, Support
 
-from src.elements.rectangular_beam import RectangularBeam
-from src.gui.report_exporter import ReportExporter
-from src.loading.forces import LOAD_FACTOR, design_effort_elu
+from src.structural_elements.rectangular_beam import RectangularBeam
+from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.reinforcement.rebar_calculator import RebarCalculator
-from src.reinforcement.stirrup_calculator import StirrupCalculator
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 
 # ==============================================================================
@@ -69,28 +67,3 @@ calculator.calculate()
 
 compressed = calculator.compressed_reinforcement
 tensioned = calculator.tensioned_reinforcement
-
-# ==============================================================================
-# 4. REPORT & EXPORT / APRESENTAÇÃO E EXPORTAÇÃO
-# ==============================================================================
-exporter = ReportExporter(
-    beam=beam,
-    calculator=calculator,
-    stirrup_calculator=stirrup_calculator,
-    stirrups=stirrups,
-    max_bending_moment_kNm=max_bending_moment,
-    max_shear_force_kN=max_shear_force,
-    gamma_f=LOAD_FACTOR,
-)
-
-# Print step-by-step memory of calculation to terminal
-exporter.print_to_console()
-
-# Export reports
-today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
-csv_path = exporter.export_csv(f"results/{today}/report.csv")
-pdf_path = exporter.export_pdf(f"results/{today}/report.pdf")
-
-print("[FILES SUCCESSFULLY EXPORTED]")
-print(f"  • CSV: {csv_path}")
-print(f"  • PDF: {pdf_path}\n")

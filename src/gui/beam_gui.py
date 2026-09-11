@@ -48,7 +48,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.config import APP_CONFIG
-from src.elements.rectangular_beam import RectangularBeam
+from src.structural_elements.rectangular_beam import RectangularBeam
 from src.gui.theme import (
     DARK_ACCENT,
     DARK_BG_INPUT,
@@ -63,8 +63,8 @@ from src.gui.theme import (
 )
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.reinforcement.rebar_calculator import RebarCalculator
-from src.reinforcement.stirrup_calculator import StirrupCalculator
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
 
 # Self-weight of reinforced concrete (ABNT NBR 6118). kN/m3.
@@ -218,7 +218,7 @@ class SectionDialog(QDialog):
         style_figure(fig, DARK_BG_MAIN)
         w = beam.width
         h = beam.height
-        cov = beam.nominal_covering
+        cov = RectangularBeam.nominal_covering
 
         ax = fig.add_subplot(111)
         ax.set_facecolor(DARK_BG_MAIN)

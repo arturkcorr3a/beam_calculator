@@ -44,6 +44,8 @@ class ConfigDict(TypedDict):
     pavement_steel: str
     building_category: str
     ceiling_height: float
+    exposure_class: int
+    aggregate: str
 
 
 class PavementDict(TypedDict):

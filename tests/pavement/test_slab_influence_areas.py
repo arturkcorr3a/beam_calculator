@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import Mock
 
-from src.pavement.slab import Slab
-from src.pavement.slab_edge import Edges, SupportCondition
-from src.pavement.continuous_beam import ContinuousBeam
+from src.pavement_elements.slab import Slab
+from src.pavement_elements.slab_edge import Edges, SupportCondition
+from src.pavement_elements.continuous_beam import ContinuousBeam
 
 AREA_TOLERANCE = 0.01  # m² — CSV values are rounded to 2 decimal places
 

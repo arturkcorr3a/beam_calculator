@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from src.pavement.geometry_utils import Axis
-from src.pavement.pillar import Pillar
+from src.pavement_elements.geometry_utils import Axis
+from src.pavement_elements.pillar import Pillar
 
 if TYPE_CHECKING:
-    from src.pavement.continuous_beam import ContinuousBeam
-    from src.pavement.slab import Slab
+    from src.pavement_elements.continuous_beam import ContinuousBeam
+    from src.pavement_elements.slab import Slab
 
 
 @dataclass

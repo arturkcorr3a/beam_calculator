@@ -1,7 +1,7 @@
-from src.elements.rectangular_beam import RectangularBeam
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as SPC,
 )
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 LOAD_FACTOR = 1.4  # ABNT NBR 6118 - Section 11.7.1 - Table 11.1 - for both permanent and variable loads
 RECTANGULAR_SECTION_SHAPE_FACTOR = 1.5  # ABNT NBR 6118 - Section 17.3.1
@@ -47,13 +47,15 @@ def min_design_bending_moment(beam: RectangularBeam) -> float:
     return 0.8 * w_0 * beam.concrete.fctk_sup  # kN.cm
 
 
-def get_almost_permanent_combination_reduction_factor(usage: str) -> float:
+def get_almost_permanent_combination_reduction_factor(usage: str | None) -> float:
     # IMPLEMENT from ABNT NBR 6118 - Section 11.8.2.4 (Table 11.3) -> redirects to ABNT NBR 8681 - see how can I get it for non-residential nor commercial structures
-    return 0.3
+    if usage is None:
+        return 0.3
+    return 0.30
 
 
 def almost_permanent_combination_els(
-    permanent_load: float, variable_load: float, usage: str
+    permanent_load: float, variable_load: float, usage: str | None = None
 ) -> float:
     """Calculate the almost permanent load combination for ELS (CQP).
 

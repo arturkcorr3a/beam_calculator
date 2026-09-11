@@ -142,3 +142,5 @@ config:
   pavement_steel: CA50
   building_category: Commercial, corporate, and office buildings
   ceiling_height: 2.5
+  exposure_class: 2
+  aggregate: granite

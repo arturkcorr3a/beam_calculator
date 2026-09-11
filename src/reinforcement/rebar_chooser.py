@@ -3,8 +3,8 @@ from itertools import combinations
 from math import ceil
 
 from src.config import APP_CONFIG
-from src.elements.rebar import Rebar
 from src.properties.steel import Steel
+from src.structural_elements.rebar import Rebar
 
 
 class RebarChooser:

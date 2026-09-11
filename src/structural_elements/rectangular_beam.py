@@ -22,7 +22,29 @@ UNITS = {
 _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
 
 
-class RectangularBeam(Beam):
+class _BeamMeta(type):
+    @property
+    def nominal_covering(self) -> float:
+        """
+        Returns the nominal covering (cm) for the beam with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
+        """
+        exposure_class = APP_CONFIG.exposure_class
+        match exposure_class:
+            case 1:
+                return 2.5
+            case 2:
+                return 3.0
+            case 3:
+                return 4.0
+            case 4:
+                return 5.0
+            case _:
+                raise ValueError(
+                    f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."
+                )
+
+
+class RectangularBeam(Beam, metaclass=_BeamMeta):
     """
     Extends indeterminatebeam.Beam to a rectangular cross-section beam, with necessary properties and methods for dimensioning analysis.
     """
@@ -108,13 +130,6 @@ class RectangularBeam(Beam):
         Returns a list of shear forces (kN) along the beam length, at each cm.
         """
         return [self.get_shear_force(x) for x in range(int(self.length) + 1)]  # type: ignore
-
-    @property
-    def nominal_covering(self) -> float:
-        """
-        Returns the nominal covering (cm) for the beam with class 2 exposure, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
-        """
-        return APP_CONFIG.nominal_covering
 
     @property
     def area(self) -> float:

@@ -6,10 +6,10 @@ Only construction inputs are emitted;
 from __future__ import annotations
 
 from src.config import AppConfig
-from src.pavement.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement.pavement import Pavement
-from src.pavement.pillar import Pillar
-from src.pavement.slab import Slab
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import Slab
 from src.persistency.schema import (
     BeamDict,
     ConfigDict,
@@ -121,7 +121,7 @@ def config_to_dict(config: AppConfig) -> ConfigDict:
         config: The config to serialize.
 
     Returns:
-        A dict holding all AppConfig fields (the nominal_covering property is excluded — it is computed).
+        A dict holding all AppConfig fields.
     """
     return {
         "steel": config.steel,
@@ -133,4 +133,6 @@ def config_to_dict(config: AppConfig) -> ConfigDict:
         "pavement_steel": config.pavement_steel,
         "building_category": config.building_category,
         "ceiling_height": config.ceiling_height,
+        "exposure_class": config.exposure_class,
+        "aggregate": config.aggregate,
     }

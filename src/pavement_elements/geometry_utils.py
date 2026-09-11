@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass
 from enum import Enum
 
-from src.pavement.pillar import Pillar
+from src.pavement_elements.pillar import Pillar
 
 TOLERANCE = 0.001  # cm
 
