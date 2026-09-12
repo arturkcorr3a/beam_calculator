@@ -17,7 +17,7 @@ class Reinforcement:
 
     required_area: float | None = None  # cm², to be calculated
 
-    def __init__(self, beam: RectangularBeam):
+    def __init__(self, beam: RectangularBeam, is_bottom_reinforcement: bool, center_position: float):
         self.beam = beam
         self.steel = beam.steel
         self.chosen_bars: list[list[Rebar]] = [
@@ -25,6 +25,8 @@ class Reinforcement:
         ]  # list of chosen rebar sizes per layer
         self.is_chosen = False
         self.rebar_choice_options = []
+        self.is_bottom_reinforcement = is_bottom_reinforcement
+        self.center_position = center_position
 
     def set_required_area(self, required_area: float) -> None:
         self.required_area = required_area
@@ -52,6 +54,7 @@ class Reinforcement:
             f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
         )
         log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
+        self._set_bar_positions()
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """
@@ -213,6 +216,15 @@ class Reinforcement:
         )
         available_width = self.beam.width - 2 * max_effective_covering
         return total_width_needed <= available_width
+
+    def _set_bar_positions(self):
+        """
+        Sets the start and end positions for each bar in the chosen reinforcement, based on their center and necessary lengths.
+        """
+        for layer in self.chosen_bars:
+            for bar in layer:
+                bar.center = self.center_position
+                # TODO calculate left_length and right_length with anchorage_calculator.py
 
     @staticmethod
     def is_symmetrical(combination: list[Rebar]) -> bool:
