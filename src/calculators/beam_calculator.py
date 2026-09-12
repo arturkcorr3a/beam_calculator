@@ -39,9 +39,17 @@ class BeamCalculator:
         supports = self._build_supports()
         loads = self._build_loads()
         structural_beam = self._build_structural_beam(supports, loads)
-        max_bending_moment, max_shear_force = self._get_max_forces(structural_beam)
+        max_bending_moment_and_position, max_shear_force = self._get_max_forces(
+            structural_beam
+        )
+        max_bending_moment, max_bending_moment_position = (
+            max_bending_moment_and_position
+        )
         calculator = self._calculate(
-            structural_beam, max_bending_moment, max_shear_force
+            structural_beam=structural_beam,
+            max_bending_moment=max_bending_moment,
+            max_bending_moment_position=max_bending_moment_position,
+            max_shear_force=max_shear_force,
         )
         self._verify_deformation(structural_beam, calculator)
 
@@ -93,33 +101,36 @@ class BeamCalculator:
             loads,  # pyright: ignore[reportArgumentType]
         )
 
-    def _get_max_forces(self, structural_beam: RectangularBeam) -> tuple[float, float]:
+    def _get_max_forces(
+        self, structural_beam: RectangularBeam
+    ) -> tuple[tuple[float, float], float]:
         """Calculates the design bending moment and shear force for the given structural beam.
 
         Returns:
             A tuple containing the max bending moment (kN.m) and max shear force (kN).
         """
-        max_bending_moment = cast(
-            float,
-            structural_beam.get_bending_moment(return_max=True),  # pyright: ignore[reportUnknownMemberType]
-        )  # kN.m
+        max_bending_moment_and_position = structural_beam.get_max_bending_moment()
+
         max_shear_force = cast(float, structural_beam.get_shear_force(return_max=True))  # pyright: ignore[reportUnknownMemberType] # kN
         log_operation(
-            f"max moment {max_bending_moment:.2f} kN.m, max shear {max_shear_force:.2f} kN"
+            f"max moment {max_bending_moment_and_position[0]:.2f} kN.m at {max_bending_moment_and_position[1]:.2f} cm and max shear {max_shear_force:.2f} kN"
         )
-        return max_bending_moment, max_shear_force
+        return max_bending_moment_and_position, max_shear_force
 
     def _calculate(
         self,
         structural_beam: RectangularBeam,
         max_bending_moment: float,
+        max_bending_moment_position: float,
         max_shear_force: float,
     ) -> RebarCalculator:
         design_shear_force = design_effort_elu(max_shear_force)  # kN
         stirrup_calculator = StirrupCalculator(structural_beam, design_shear_force)
         stirrups = Stirrups(structural_beam, stirrup_calculator)
 
-        calculator = RebarCalculator(structural_beam, max_bending_moment, stirrups)
+        calculator = RebarCalculator(
+            structural_beam, max_bending_moment, stirrups, max_bending_moment_position
+        )
         calculator.calculate()
         return calculator
 

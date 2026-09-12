@@ -6,15 +6,17 @@ from src.properties.section_properties_calculator import (
 from src.properties.steel import Steel
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Rebar:
     """Represents a steel reinforcement bar."""
 
     diameter_mm: float
     steel: Steel
-    center: float = field(init=False)  # Center position of the rebar along the beam's length
-    left_length: float = field(init=False)
-    right_length: float = field(init=False)
+    center: float = field(
+        default=0.0, init=False, compare=False
+    )  # Center position of the rebar along the beam's length
+    left_length: float = field(default=0.0, init=False, compare=False)
+    right_length: float = field(default=0.0, init=False, compare=False)
 
     def __post_init__(self):
         if not self.steel.is_size_available(self.diameter_mm):
