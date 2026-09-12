@@ -1,8 +1,10 @@
+from typing import cast
+
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.logger import log_property, logger_label
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.reinforcement.reinforcement import Layer
+from src.reinforcement.reinforcement import Reinforcement
 
 
 @logger_label("Anchorage Calculator")
@@ -13,14 +15,15 @@ class AnchorageCalculator:
         stirrup_calculator: StirrupCalculator,
         steel: Steel,
         concrete: Concrete,
-        layer: Layer,
-        beam_height: float,
+        layer_index: int,
+        reinforcement: Reinforcement,
     ):
         self.stirrup_calculator = stirrup_calculator
         self.steel = steel
         self.concrete = concrete
-        self.layer = layer
-        self.beam_height = beam_height
+        self.layer = reinforcement.chosen_bars[layer_index]
+        self.reinforcement = reinforcement
+        self.beam_height = self.reinforcement.beam.height  # cm
 
     @property
     def _moment_shift_length(self):
@@ -59,6 +62,7 @@ class AnchorageCalculator:
         log_property(f"Diameter Coefficient (eta_3) = {eta_3:.4f}")
         return eta_3
 
+    @property
     def basic_anchorage_length(self) -> float:
         """Calculate the basic anchorage length (l_b) in cm, based on NBR 6118 - Section 9.4.2.4"""
         max_diameter_cm = self.max_diameter / 10  # Convert mm to cm
@@ -66,3 +70,35 @@ class AnchorageCalculator:
         l_b = max(25 * max_diameter_cm, l_b)
         log_property(f"Basic Anchorage Length (l_b) = {l_b:.2f} cm")
         return l_b
+
+    @property
+    def anchorage_alpha_coefficient(self) -> float:
+        """Calculate the anchorage alpha coefficient (alpha) based on NBR 6118 - Section 9.4.2.5"""
+        has_hook = any(bar.has_hook for bar in self.layer.bars)
+        alpha = 0.7 if has_hook else 1.0
+        log_property(f"Anchorage Alpha Coefficient (alpha) = {alpha:.4f}")
+        return alpha
+
+    @property
+    def necessary_anchorage_length(self) -> float:
+        """Calculate the necessary anchorage length (l_b,nec) in cm, based on NBR 6118 - Section 9.4.2.5"""
+        l_b_nec = (
+            self.anchorage_alpha_coefficient
+            * self.basic_anchorage_length
+            * (cast(float, self.reinforcement.required_area) / self.reinforcement.area)
+        )
+        l_b_nec = max(l_b_nec, self.min_anchorage_length)
+        log_property(f"Necessary Anchorage Length (l_b,nec) = {l_b_nec:.2f} cm")
+        return l_b_nec
+
+    @property
+    def min_anchorage_length(self) -> float:
+        """Calculate the minimum anchorage length (l_b,min) in cm, based on NBR 6118 - Section 9.4.2.5"""
+        l_b_min = max(
+            0.3 * self.basic_anchorage_length, 10 * (self.max_diameter / 10), 10
+        )
+        log_property(f"Minimum Anchorage Length (l_b,min) = {l_b_min:.2f} cm")
+        return l_b_min
+
+    # TODO actually use this function when dimensioning the rebars
+    # TODO analisar armadura transversal na ancoragem (9.4.2.6)
