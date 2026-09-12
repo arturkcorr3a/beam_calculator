@@ -1,5 +1,5 @@
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
@@ -20,11 +20,24 @@ class Layer:
 
     bars: list[Rebar]
     layer_index: int
+    y_centroid_position: float = field(init=False)  # cm
 
     @property
     def area(self) -> float:
         """Returns the total area of the layer (cm²)."""
         return sum(bar.area_cm2 for bar in self.bars)
+
+    def has_good_adherence(self, beam_height: float) -> bool:
+        """
+        Checks if the layer has good adherence based on the positioning inside the beam.
+
+        Reference: ABNT NBR 6118 - Section 9.3.1
+        """
+        if beam_height < 60:
+            good_adherence_threshold = 30
+        else:
+            good_adherence_threshold = beam_height - 30
+        return self.y_centroid_position <= good_adherence_threshold
 
 
 class Reinforcement:
@@ -90,7 +103,8 @@ class Reinforcement:
         """
         return max(bar_diameter, 2, 1.2 * APP_CONFIG.max_aggregate_size)
 
-    def get_vertical_spacing(self, bar_diameter: float) -> float:
+    @staticmethod
+    def get_vertical_spacing(bar_diameter: float) -> float:
         """
         The minimum vertical spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
@@ -122,44 +136,64 @@ class Reinforcement:
 
     # FIXME this is hardcoded to 3 layers. make it more flexible
     def get_layer_absolute_centroid_with_weight(
-        self, layer: int
+        self, layer_index: int
     ) -> tuple[float, float]:
         """
-        Returns the absolute centroid for each layer, considering the spacing and previous layers
+        Returns the absolute centroid for each layer, considering the spacing and previous layers. Also sets it in the Layer properties
         """
+        self._validate_layer_index(layer_index)
+
         layer_centroid, layer_weight = self.get_layer_relative_centroid_with_weight(
-            layer
+            layer_index
         )
-        match layer:
-            case 0:
-                return layer_centroid, layer_weight
-            case 1:
-                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0].bars) / 10
-                return (
-                    layer_centroid + self.get_vertical_spacing(max_dia_0) + max_dia_0
-                ), layer_weight
-            case 2:
-                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0].bars) / 10
-                max_dia_1 = max(b.diameter_mm for b in self.chosen_bars[1].bars) / 10
-                return (
-                    layer_centroid
-                    + 2 * self.get_vertical_spacing(max_dia_0)
-                    + max_dia_0
-                    + max_dia_1
-                ), layer_weight
-            case _:
-                raise ValueError("Layer index must be between 0 and 2.")
+
+        offset = 0.0
+        for i in range(layer_index):
+            max_dia = max(b.diameter_mm for b in self.chosen_bars[i].bars) / 10
+            offset += self.get_vertical_spacing(max_dia) + max_dia
+
+        layer_centroid_from_closest_edge = layer_centroid + offset
+        self._set_layer_y_centroid_position(
+            layer_index, layer_centroid_from_closest_edge
+        )
+        return layer_centroid_from_closest_edge, layer_weight
+
+    def _set_layer_y_centroid_position(
+        self, layer_index: int, layer_centroid_from_closest_edge: float
+    ) -> None:
+        """
+        Sets the y_centroid_position for a specific layer based on the centroids of the bars in that layer and the spacing from previous layers.
+        """
+        self._validate_layer_index(layer_index)
+
+        position_from_bottom_edge = (
+            layer_centroid_from_closest_edge
+            if self.is_bottom_reinforcement
+            else self.beam.height - layer_centroid_from_closest_edge
+        )
+
+        self.chosen_bars[layer_index].y_centroid_position = position_from_bottom_edge
+
+    def _validate_layer_index(self, layer_index: int) -> None:
+        """
+        Validates that the layer index is within the valid range.
+        Raises a ValueError if the index is out of bounds.
+        """
+        if not 0 <= layer_index < len(self.chosen_bars):
+            raise ValueError(
+                f"Layer index must be between 0 and {len(self.chosen_bars) - 1}."
+            )
 
     def get_layer_relative_centroid_with_weight(
-        self, layer: int
+        self, layer_index: int
     ) -> tuple[float, float]:
         """
         Calculates the average of the vertical centroid (mm) for each bar of the layer, weighted by the area of each bar.
         It does not take into account which layer is it, therefore, it is the distance from the edge of the layer to the centroid of the bars in that layer, not from the edge of the section.
         """
-        if not (0 <= layer <= 2):
-            raise ValueError("Layer index must be between 0 and 2.")
-        bars = self.chosen_bars[layer].bars
+        self._validate_layer_index(layer_index)
+
+        bars = self.chosen_bars[layer_index].bars
         weighted_centroids = 0
         weights = 0
         for bar in bars:
