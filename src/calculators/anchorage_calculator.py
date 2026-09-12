@@ -41,13 +41,28 @@ class AnchorageCalculator:
         """Calculate the adherence coefficient (eta_2) for the given steel type, based on ABNT NBR 6118 - Section 9.3.1"""
         layer_has_good_adherence = self.layer.has_good_adherence(self.beam_height)
         eta_2 = 1.0 if layer_has_good_adherence else 0.7
+
+        adherence_zone = "good" if layer_has_good_adherence else "poor"
+        log_property(f"Adherence Zone: {adherence_zone}")
         log_property(f"Adherence Coefficient (eta_2) = {eta_2:.4f}")
         return eta_2
 
     @property
+    def max_diameter(self) -> float:
+        """Get the maximum bar diameter (mm) in the layer."""
+        return max(bar.diameter_mm for bar in self.layer.bars)
+
+    @property
     def diameter_coefficient(self) -> float:
         """Calculate the adherence coefficient (eta_3) for maximum bar diameter in the layer, based on ABNT NBR 6118 - Section 9.3.1"""
-        max_diameter = max(bar.diameter_mm for bar in self.layer.bars)
-        eta_3 = min((132 - max_diameter) / 100, 1.00)
+        eta_3 = min((132 - self.max_diameter) / 100, 1.00)
         log_property(f"Diameter Coefficient (eta_3) = {eta_3:.4f}")
         return eta_3
+
+    def basic_anchorage_length(self) -> float:
+        """Calculate the basic anchorage length (l_b) in cm, based on NBR 6118 - Section 9.4.2.4"""
+        max_diameter_cm = self.max_diameter / 10  # Convert mm to cm
+        l_b = (max_diameter_cm / 4) * (self.steel.fyd / self.design_bond_strength)
+        l_b = max(25 * max_diameter_cm, l_b)
+        log_property(f"Basic Anchorage Length (l_b) = {l_b:.2f} cm")
+        return l_b
