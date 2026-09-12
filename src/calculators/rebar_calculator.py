@@ -50,11 +50,13 @@ class RebarCalculator:
             self.beam,
             is_bottom_reinforcement=is_bottom_tensioned,
             center_position=bending_moment_position,
+            stirrup_calculator=stirrups.calculator,
         )
         self.compressed_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_top_tensioned,
             center_position=bending_moment_position,
+            stirrup_calculator=stirrups.calculator,
         )
         self.stirrups = stirrups
 

@@ -1,5 +1,6 @@
 from collections import Counter
 
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
 from src.logger import log_element
 from src.reinforcement.rebar_chooser import RebarChooser
@@ -17,7 +18,13 @@ class Reinforcement:
 
     required_area: float | None = None  # cm², to be calculated
 
-    def __init__(self, beam: RectangularBeam, is_bottom_reinforcement: bool, center_position: float):
+    def __init__(
+        self,
+        beam: RectangularBeam,
+        is_bottom_reinforcement: bool,
+        center_position: float,
+        stirrup_calculator: StirrupCalculator,
+    ):
         self.beam = beam
         self.steel = beam.steel
         self.chosen_bars: list[list[Rebar]] = [
@@ -27,6 +34,7 @@ class Reinforcement:
         self.rebar_choice_options = []
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
+        self.stirrup_calculator = stirrup_calculator
 
     def set_required_area(self, required_area: float) -> None:
         self.required_area = required_area
