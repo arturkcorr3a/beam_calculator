@@ -2,15 +2,15 @@
 
 # cSpell:disable
 
-from indeterminatebeam import DistributedLoadV, Support
+from indeterminatebeam import UDLV, Support
 
-from src.structural_elements.rectangular_beam import RectangularBeam
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.calculators.rebar_calculator import RebarCalculator
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 # ==============================================================================
 # 1. INPUT DATA / DADOS DE ENTRADA
@@ -38,9 +38,9 @@ load1 = -15.710  # kN/m -20.3 #
 load2 = -14.479  # kN/m -20.3 #
 load3 = -31.672  # kN/m -20.3 #
 
-load_span1 = DistributedLoadV(load1, (0, span1))
-load_span2 = DistributedLoadV(load2, (span1, span1 + span2))
-load_span3 = DistributedLoadV(load3, (span1 + span2, length))
+load_span1 = UDLV(load1, (0, span1))
+load_span2 = UDLV(load2, (span1, span1 + span2))
+load_span3 = UDLV(load3, (span1 + span2, length))
 
 supports = [p1, p2, p3, p4]
 loads = [load_span1, load_span2, load_span3]

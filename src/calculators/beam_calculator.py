@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from indeterminatebeam import DistributedLoadV, Support  # type: ignore
+from indeterminatebeam import UDLV, Support  # type: ignore
 
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
@@ -58,16 +58,16 @@ class BeamCalculator:
             supports.append(next_support)
         return supports
 
-    def _build_loads(self) -> list[DistributedLoadV]:
+    def _build_loads(self) -> list[UDLV]:
         """Builds a list of distributed vertical loads for each span, combining permanent and variable loads."""
-        loads: list[DistributedLoadV] = []
+        loads: list[UDLV] = []
         start_position = 0
         for span in self._beam.spans:
             end_position = start_position + span.get_length(self._pillar_registry)
             total_load = (
                 span.permanent_load + span.variable_load
             )  # kN/m, permanent + variable as it is ELU
-            load = DistributedLoadV(-total_load, (start_position, end_position))  # pyright: ignore[reportArgumentType] # negative for downward load
+            load = UDLV(-total_load, (start_position, end_position))  # pyright: ignore[reportArgumentType] # negative for downward load
             loads.append(load)
             start_position = end_position
         return loads
@@ -75,7 +75,7 @@ class BeamCalculator:
     def _build_structural_beam(
         self,
         supports: list[Support],
-        loads: list[DistributedLoadV],
+        loads: list[UDLV],
     ) -> RectangularBeam:
         """Builds a RectangularBeam instance for structural analysis and dimensioning."""
         length = sum(

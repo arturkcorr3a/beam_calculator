@@ -31,7 +31,8 @@
         "Rodrigues",
         "Rüsch",
         "SINAPI",
-        "Usuais"
+        "Usuais",
+        "UDLV"
     ],
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",

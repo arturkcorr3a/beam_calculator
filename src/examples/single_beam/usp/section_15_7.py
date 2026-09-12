@@ -1,13 +1,13 @@
-from indeterminatebeam import DistributedLoadV, Support  # type: ignore
+from indeterminatebeam import UDLV, Support  # type: ignore
 
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
-from src.structural_elements.rectangular_beam import RectangularBeam
 from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.calculators.rebar_calculator import RebarCalculator
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups  # type: ignore
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 
 def main():
@@ -25,8 +25,8 @@ def main():
     supports = [v2, v3]
 
     default_span = (0, length)
-    p = DistributedLoadV(50, default_span)
-    q = DistributedLoadV(10, default_span)
+    p = UDLV(50, default_span)
+    q = UDLV(10, default_span)
     loads = [p, q]
 
     beam = RectangularBeam(
