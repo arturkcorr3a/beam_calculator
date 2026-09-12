@@ -1,4 +1,5 @@
 from collections import Counter
+from dataclasses import dataclass
 
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
@@ -9,6 +10,21 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 
 # TODO find a good reference for this initial guess, to have a basis in the work and know how to justify it
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
+
+
+@dataclass
+class Layer:
+    """
+    Represents a layer of reinforcement bars in a beam.
+    """
+
+    bars: list[Rebar]
+    layer_index: int
+
+    @property
+    def area(self) -> float:
+        """Returns the total area of the layer (cm²)."""
+        return sum(bar.area_cm2 for bar in self.bars)
 
 
 class Reinforcement:
@@ -27,14 +43,18 @@ class Reinforcement:
     ):
         self.beam = beam
         self.steel = beam.steel
-        self.chosen_bars: list[list[Rebar]] = [
-            [] for _ in range(APP_CONFIG.max_layers)
-        ]  # list of chosen rebar sizes per layer
+        self.chosen_bars: tuple[Layer, ...] = self._build_empty_layers()
         self.is_chosen = False
         self.rebar_choice_options = []
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
         self.stirrup_calculator = stirrup_calculator
+
+    def _build_empty_layers(self) -> tuple[Layer, ...]:
+        """Builds a tuple of empty layers for the reinforcement, based on the maximum number of layers defined in the configuration."""
+        return tuple(
+            Layer([], i) for i in range(APP_CONFIG.max_layers)
+        )  # list of chosen rebar sizes per layer
 
     def set_required_area(self, required_area: float) -> None:
         self.required_area = required_area
@@ -53,10 +73,10 @@ class Reinforcement:
                 break
             except ValueError:
                 continue
-        if len(self.chosen_bars[0]) == 0:
+        if len(self.chosen_bars[0].bars) == 0:
             raise ValueError("No valid reinforcement combination found.")
         self.is_chosen = True
-        all_bars = [bar for layer in self.chosen_bars for bar in layer]
+        all_bars = [bar for layer in self.chosen_bars for bar in layer.bars]
         counter = Counter(int(b.diameter_mm) for b in all_bars)
         bar_desc = ", ".join(
             f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
@@ -98,8 +118,9 @@ class Reinforcement:
         """
         Returns the total area of the chosen reinforcement (cm²)
         """
-        return sum(bar.area_cm2 for layer in self.chosen_bars for bar in layer)
+        return sum(layer.area for layer in self.chosen_bars)
 
+    # FIXME this is hardcoded to 3 layers. make it more flexible
     def get_layer_absolute_centroid_with_weight(
         self, layer: int
     ) -> tuple[float, float]:
@@ -113,13 +134,13 @@ class Reinforcement:
             case 0:
                 return layer_centroid, layer_weight
             case 1:
-                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0]) / 10
+                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0].bars) / 10
                 return (
                     layer_centroid + self.get_vertical_spacing(max_dia_0) + max_dia_0
                 ), layer_weight
             case 2:
-                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0]) / 10
-                max_dia_1 = max(b.diameter_mm for b in self.chosen_bars[1]) / 10
+                max_dia_0 = max(b.diameter_mm for b in self.chosen_bars[0].bars) / 10
+                max_dia_1 = max(b.diameter_mm for b in self.chosen_bars[1].bars) / 10
                 return (
                     layer_centroid
                     + 2 * self.get_vertical_spacing(max_dia_0)
@@ -138,7 +159,7 @@ class Reinforcement:
         """
         if not (0 <= layer <= 2):
             raise ValueError("Layer index must be between 0 and 2.")
-        bars = self.chosen_bars[layer]
+        bars = self.chosen_bars[layer].bars
         weighted_centroids = 0
         weights = 0
         for bar in bars:
@@ -153,7 +174,9 @@ class Reinforcement:
         Gets the optimal reinforcement combination chosen and distributes the bars in layers, ensuring that the spacing and constructability requirements are met.
         """
         if self.check_for_enough_space(optimal_reinforcement):
-            self.chosen_bars = [list(optimal_reinforcement), [], []]
+            self.chosen_bars[0].bars = list(optimal_reinforcement)
+            for layer in self.chosen_bars[1:]:
+                layer.bars = []
             return
 
         current_layer = 0
@@ -166,8 +189,10 @@ class Reinforcement:
 
     def _add_rebar_to_layers(self, rebar: Rebar, count: int, current_layer: int) -> int:
         bars_to_add = [rebar] * count
-        if self.check_for_enough_space(self.chosen_bars[current_layer] + bars_to_add):
-            self.chosen_bars[current_layer].extend(bars_to_add)
+        if self.check_for_enough_space(
+            self.chosen_bars[current_layer].bars + bars_to_add
+        ):
+            self.chosen_bars[current_layer].bars.extend(bars_to_add)
             return current_layer + 1
 
         while count > 0:
@@ -176,8 +201,10 @@ class Reinforcement:
                 raise ValueError(
                     "Cannot distribute bars within the maximum number of layers."
                 )
-            if self.check_for_enough_space(self.chosen_bars[current_layer] + [rebar]):
-                self.chosen_bars[current_layer].append(rebar)
+            if self.check_for_enough_space(
+                self.chosen_bars[current_layer].bars + [rebar]
+            ):
+                self.chosen_bars[current_layer].bars.append(rebar)
                 count -= 1
             else:
                 current_layer += 1
@@ -191,7 +218,7 @@ class Reinforcement:
         for layer in self.chosen_bars:
             self.arrange_bars_in_layer(layer)
 
-    def arrange_bars_in_layer(self, layer: list[Rebar]) -> None:
+    def arrange_bars_in_layer(self, layer: Layer) -> None:
         """
         Arranges the bars within a specific layer to maintain symmetry and proper spacing.
         """
@@ -201,7 +228,7 @@ class Reinforcement:
         """
         Clears the chosen bars, resetting the state for a new attempt at distribution.
         """
-        self.chosen_bars = [[] for _ in range(APP_CONFIG.max_layers)]
+        self.chosen_bars = self._build_empty_layers()
 
     def check_for_enough_space(self, optimal_reinforcement: list[Rebar]) -> bool:
         """
@@ -230,7 +257,7 @@ class Reinforcement:
         Sets the start and end positions for each bar in the chosen reinforcement, based on their center and necessary lengths.
         """
         for layer in self.chosen_bars:
-            for bar in layer:
+            for bar in layer.bars:
                 bar.center = self.center_position
                 # TODO calculate left_length and right_length with anchorage_calculator.py
 
