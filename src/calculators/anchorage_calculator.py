@@ -101,4 +101,6 @@ class AnchorageCalculator:
         return l_b_min
 
     # TODO actually use this function when dimensioning the rebars
+    # TODO analyse available x required and act accordingly
+    # TODO scale the layers
     # TODO analisar armadura transversal na ancoragem (9.4.2.6)
