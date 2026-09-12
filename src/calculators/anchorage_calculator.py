@@ -26,6 +26,7 @@ class AnchorageCalculator:
     def _moment_shift_length(self):
         return self.stirrup_calculator.calculate_moment_shift()
 
+    @property
     def design_bond_strength(self) -> float:
         """Calculate the design bond strength (f_bd) in kN/cm. NBR 6118 - Section 9.3.2.1"""
         eta_1 = self.steel.bond_coefficient
