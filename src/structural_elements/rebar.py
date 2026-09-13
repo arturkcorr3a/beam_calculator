@@ -17,7 +17,8 @@ class Rebar:
     )  # Center position of the rebar along the beam's length
     left_length: float = field(default=0.0, init=False, compare=False)
     right_length: float = field(default=0.0, init=False, compare=False)
-    has_hook: bool = field(default=False, init=False, compare=False)
+    left_hook_enabled: bool = field(default=False, init=False, compare=False)
+    right_hook_enabled: bool = field(default=False, init=False, compare=False)
 
     def __post_init__(self):
         if not self.steel.is_size_available(self.diameter_mm):

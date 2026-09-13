@@ -1,43 +1,16 @@
 from collections import Counter
-from dataclasses import dataclass, field
 
+from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
 from src.logger import log_element
+from src.reinforcement.layer import Layer
 from src.reinforcement.rebar_chooser import RebarChooser
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 # TODO find a good reference for this initial guess, to have a basis in the work and know how to justify it
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
-
-
-@dataclass
-class Layer:
-    """
-    Represents a layer of reinforcement bars in a beam.
-    """
-
-    bars: list[Rebar]
-    layer_index: int
-    y_centroid_position: float = field(init=False)  # cm
-
-    @property
-    def area(self) -> float:
-        """Returns the total area of the layer (cm²)."""
-        return sum(bar.area_cm2 for bar in self.bars)
-
-    def has_good_adherence(self, beam_height: float) -> bool:
-        """
-        Checks if the layer has good adherence based on the positioning inside the beam.
-
-        Reference: ABNT NBR 6118 - Section 9.3.1
-        """
-        if beam_height < 60:
-            good_adherence_threshold = 30
-        else:
-            good_adherence_threshold = beam_height - 30
-        return self.y_centroid_position <= good_adherence_threshold
 
 
 class Reinforcement:
@@ -88,6 +61,8 @@ class Reinforcement:
                 continue
         if len(self.chosen_bars[0].bars) == 0:
             raise ValueError("No valid reinforcement combination found.")
+
+        self._run_anchorage_calculation()
         self.is_chosen = True
         all_bars = [bar for layer in self.chosen_bars for bar in layer.bars]
         counter = Counter(int(b.diameter_mm) for b in all_bars)
@@ -96,6 +71,21 @@ class Reinforcement:
         )
         log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
         self._set_bar_positions()
+
+    def _run_anchorage_calculation(self) -> None:
+        for layer_index, layer in enumerate(self.chosen_bars):
+            if len(layer.bars) == 0:
+                continue
+            available_space = 0  # TODO
+            anchorage_calculator = AnchorageCalculator(
+                reinforcement=self,
+                stirrup_calculator=self.stirrup_calculator,
+                steel=self.steel,
+                concrete=self.beam.concrete,
+                layer_index=layer_index,
+            )
+            anchorage_calculator.run(available_space, left=True)
+            anchorage_calculator.run(available_space, left=False)
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """

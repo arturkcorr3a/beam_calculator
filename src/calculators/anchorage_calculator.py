@@ -1,7 +1,7 @@
 from typing import cast
 
 from src.calculators.stirrup_calculator import StirrupCalculator
-from src.logger import log_property, logger_label
+from src.logger import log_operation, log_property, logger_label
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
@@ -24,6 +24,40 @@ class AnchorageCalculator:
         self.layer = reinforcement.chosen_bars[layer_index]
         self.reinforcement = reinforcement
         self.beam_height = self.reinforcement.beam.height  # cm
+
+    def run(self, available_space: float, left: bool) -> None:
+        """
+        Checks the available space and sets the layer bars's lengths.
+        If there isn't enough space, try to add hooks and recalculate.
+
+        Raises a ValueError if there isn't enough space even after adding hooks.
+        """
+        self.left = left
+        passed = self._run_current_state(available_space, with_hooks=False)
+        if passed:
+            return
+
+        log_operation("Not enough space for anchorage; Add hooks and re-trying...")
+        passed = self._run_current_state(available_space, with_hooks=True)
+        if not passed:
+            error_message = f"Not enough space for anchorage - even with hooks. Available: {available_space:.2f} cm, Required: {self.necessary_anchorage_length:.2f} cm. Consider reducing bar diameter."
+            log_operation(error_message)
+            raise ValueError(error_message)
+
+    def _run_current_state(self, available_space: float, with_hooks: bool) -> bool:
+        """
+        Checks the available space and sets the layer bars's lengths.
+        Returns True if the available space is enough, False otherwise.
+        """
+        self.layer.set_hooks(self.left, with_hooks)
+        l_b_nec = self.necessary_anchorage_length
+
+        hooks_state = "with hooks" if with_hooks else "without hooks"
+        if available_space >= l_b_nec:
+            self.layer.set_anchorage_length(l_b_nec, self.left)
+            log_operation(f"Anchorage length of {l_b_nec:.2f} cm set {hooks_state}.")
+            return True
+        return False
 
     @property
     def _moment_shift_length(self):
@@ -71,10 +105,17 @@ class AnchorageCalculator:
         log_property(f"Basic Anchorage Length (l_b) = {l_b:.2f} cm")
         return l_b
 
+    def _check_bars_have_hooks(self) -> bool:
+        """Check if any bar in the layer has a hook."""
+        if self.left:
+            return any(bar.left_hook_enabled for bar in self.layer.bars)
+        else:
+            return any(bar.right_hook_enabled for bar in self.layer.bars)
+
     @property
     def anchorage_alpha_coefficient(self) -> float:
         """Calculate the anchorage alpha coefficient (alpha) based on NBR 6118 - Section 9.4.2.5"""
-        has_hook = any(bar.has_hook for bar in self.layer.bars)
+        has_hook = self._check_bars_have_hooks()
         alpha = 0.7 if has_hook else 1.0
         log_property(f"Anchorage Alpha Coefficient (alpha) = {alpha:.4f}")
         return alpha
@@ -100,9 +141,6 @@ class AnchorageCalculator:
         log_property(f"Minimum Anchorage Length (l_b,min) = {l_b_min:.2f} cm")
         return l_b_min
 
-    # TODO actually use this function when dimensioning the rebars
-    # TODO analyse available x required and act accordingly
     # TODO scale the layers -> by layer or more specifically by bar? -> use the area to divide
     # TODO analisar armadura transversal na ancoragem (9.4.2.6)
     # TODO in case there is not enough space, lowering the diameter of the bars (more bars, to match the required area) should lower the basic anchorage length -> raise a specific error (merge exceptions branch) and suggest another combination on the Reinforcement class
-    #
