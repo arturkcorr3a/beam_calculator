@@ -56,13 +56,14 @@ class Reinforcement:
             try:
                 self.distribute_bars_in_layers(list(optimal_reinforcement))
                 self.arrange_bars()
+                self._run_anchorage_calculation()
                 break
             except ValueError:
+                self.clear_chosen_bars()
                 continue
         if len(self.chosen_bars[0].bars) == 0:
             raise ValueError("No valid reinforcement combination found.")
 
-        self._run_anchorage_calculation()
         self.is_chosen = True
         all_bars = [bar for layer in self.chosen_bars for bar in layer.bars]
         counter = Counter(int(b.diameter_mm) for b in all_bars)
@@ -72,10 +73,13 @@ class Reinforcement:
         log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
 
     def _run_anchorage_calculation(self) -> None:
+        """
+        Runs the anchorage calculation for each layer of the chosen reinforcement, setting the necessary lengths for each bar.
+        Raises a ValueError if there isn't enough space for anchorage, even after adding hooks.
+        """
         for layer_index, layer in enumerate(self.chosen_bars):
             if len(layer.bars) == 0:
                 continue
-            available_space = 0  # TODO
             anchorage_calculator = AnchorageCalculator(
                 reinforcement=self,
                 stirrup_calculator=self.stirrup_calculator,
@@ -83,8 +87,16 @@ class Reinforcement:
                 concrete=self.beam.concrete,
                 layer_index=layer_index,
             )
-            anchorage_calculator.run(available_space, left=True)
-            anchorage_calculator.run(available_space, left=False)
+
+            left_available_space = (
+                self.center_position - RectangularBeam.nominal_covering
+            )  # cm
+            anchorage_calculator.run(left_available_space, left=True)
+
+            right_available_space = (
+                self.beam.length - RectangularBeam.nominal_covering
+            ) - self.center_position  # cm
+            anchorage_calculator.run(right_available_space, left=False)
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """

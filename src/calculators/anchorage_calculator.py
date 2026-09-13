@@ -5,6 +5,7 @@ from src.logger import log_operation, log_property, logger_label
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 
 @logger_label("Anchorage Calculator")
@@ -38,7 +39,7 @@ class AnchorageCalculator:
             return
 
         log_operation("Not enough space for anchorage; Add hooks and re-trying...")
-        passed = self._run_current_state(available_space, with_hooks=True)
+        passed = self._run_current_state(self.get_adjusted_available_space_for_hooks(available_space), with_hooks=True)
         if not passed:
             error_message = f"Not enough space for anchorage - even with hooks. Available: {available_space:.2f} cm, Required: {self.necessary_anchorage_length:.2f} cm. Consider reducing bar diameter."
             log_operation(error_message)
@@ -141,6 +142,14 @@ class AnchorageCalculator:
         log_property(f"Minimum Anchorage Length (l_b,min) = {l_b_min:.2f} cm")
         return l_b_min
 
+    def get_adjusted_available_space_for_hooks(self, regular_available_space: float) -> float:
+        """
+        Tensioned bars with hooks must have a minimum concrete cover of 3 times the bar diameter, per ABNT NBR 6118 - Section 9.4.2.5. This method calculates the adjusted available space for anchorage when hooks are present, ensuring that the minimum cover requirement is met. 
+        """
+        beam_coverage = RectangularBeam.nominal_covering # cm
+        min_coverage_for_hooks = 3 * (self.max_diameter / 10) # cm
+        adjusted_coverage = max(beam_coverage, min_coverage_for_hooks)
+        return regular_available_space + beam_coverage - adjusted_coverage
+
     # TODO scale the layers -> by layer or more specifically by bar? -> use the area to divide
     # TODO analisar armadura transversal na ancoragem (9.4.2.6)
-    # TODO in case there is not enough space, lowering the diameter of the bars (more bars, to match the required area) should lower the basic anchorage length -> raise a specific error (merge exceptions branch) and suggest another combination on the Reinforcement class
