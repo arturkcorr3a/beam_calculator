@@ -102,5 +102,7 @@ class AnchorageCalculator:
 
     # TODO actually use this function when dimensioning the rebars
     # TODO analyse available x required and act accordingly
-    # TODO scale the layers
+    # TODO scale the layers -> by layer or more specifically by bar? -> use the area to divide
     # TODO analisar armadura transversal na ancoragem (9.4.2.6)
+    # TODO in case there is not enough space, lowering the diameter of the bars (more bars, to match the required area) should lower the basic anchorage length -> raise a specific error (merge exceptions branch) and suggest another combination on the Reinforcement class
+    #
