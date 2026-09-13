@@ -70,7 +70,6 @@ class Reinforcement:
             f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
         )
         log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
-        self._set_bar_positions()
 
     def _run_anchorage_calculation(self) -> None:
         for layer_index, layer in enumerate(self.chosen_bars):
@@ -124,7 +123,6 @@ class Reinforcement:
         """
         return sum(layer.area for layer in self.chosen_bars)
 
-    # FIXME this is hardcoded to 3 layers. make it more flexible
     def get_layer_absolute_centroid_with_weight(
         self, layer_index: int
     ) -> tuple[float, float]:
@@ -275,15 +273,6 @@ class Reinforcement:
         )
         available_width = self.beam.width - 2 * max_effective_covering
         return total_width_needed <= available_width
-
-    def _set_bar_positions(self):
-        """
-        Sets the start and end positions for each bar in the chosen reinforcement, based on their center and necessary lengths.
-        """
-        for layer in self.chosen_bars:
-            for bar in layer.bars:
-                bar.center = self.center_position
-                # TODO calculate left_length and right_length with anchorage_calculator.py
 
     @staticmethod
     def is_symmetrical(combination: list[Rebar]) -> bool:
