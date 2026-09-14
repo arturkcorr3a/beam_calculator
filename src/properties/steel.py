@@ -67,6 +67,20 @@ class Steel(Enum, metaclass=_SteelMeta):
         log_property(f"fywk = {result:.1f} kN/cm²")
         return result
 
+    @property
+    def bond_coefficient(self) -> float:
+        """
+        The bond coefficient (eta_1) for the steel type, based on ABNT NBR 6118 - Section 8.3.2 - Table 8.2
+        """
+        match self:
+            case Steel.CA25:
+                return 1.00
+            case Steel.CA50:
+                return 2.25
+            case Steel.CA60:
+                return 1.00
+        return 1.0
+
     def is_size_available(self, diameter: float) -> bool:
         """
         Checks if a given rebar diameter (in mm) is available for the steel type.

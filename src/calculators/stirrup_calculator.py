@@ -1,7 +1,8 @@
 from math import cos, pi, sin
 
-from src.structural_elements.rectangular_beam import RectangularBeam
+from src.calculators.utils import cotan
 from src.logger import log_operation
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 STIRRUP_ANGLE = (
     pi / 2
@@ -27,7 +28,9 @@ class StirrupCalculator:
         """Calculate required stirrup area and spacing for a given design shear force and effective depth."""
         self.effective_depth = effective_depth
         self.verify_compressed_strut_resistance()
-        log_operation(f"required Asw/s = {self.required_ratio:.4f} cm2/cm, max spacing = {self.max_spacing:.1f} cm")
+        log_operation(
+            f"required Asw/s = {self.required_ratio:.4f} cm2/cm, max spacing = {self.max_spacing:.1f} cm"
+        )
         return self.required_ratio  # cm²/cm
 
     def verify_compressed_strut_resistance(self) -> None:
@@ -89,3 +92,20 @@ class StirrupCalculator:
         if self.design_shear_force <= 0.67 * self.compressed_strut_resistance:
             return min(0.6 * self.effective_depth, 30.0)  # cm
         return min(0.3 * self.effective_depth, 30.0)  # cm
+
+    def calculate_moment_shift(self) -> float:
+        """Calculate the moment shift length (a_l) in cm. NBR 6118 - Section 17.4.2.2."""
+        al = self.effective_depth * (
+            (
+                (
+                    self.design_shear_force
+                    / (2 * (self.design_shear_force - self.concrete_contribution))
+                )
+                * (1 + cotan(STIRRUP_ANGLE))
+            )
+            - cotan(STIRRUP_ANGLE)
+        )
+        al = min(al, self.effective_depth)
+        al = max(al, 0.5 * self.effective_depth)
+        log_operation(f"moment shift length a_l = {al:.2f} cm")
+        return max(al, 0.5 * self.effective_depth)

@@ -2,7 +2,6 @@ from functools import cached_property
 from math import sqrt
 
 from src.calculators.stirrup_calculator import StirrupCalculator
-from src.structural_elements.rectangular_beam import RectangularBeam
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -12,6 +11,7 @@ from src.logger import log_element, log_iteration
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrups import Stirrups
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 # TODO find reference for this (just a first guess)
 DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = (
@@ -25,7 +25,11 @@ class RebarCalculator:
     """
 
     def __init__(
-        self, beam: RectangularBeam, bending_moment: float, stirrups: Stirrups
+        self,
+        beam: RectangularBeam,
+        bending_moment: float,
+        stirrups: Stirrups,
+        bending_moment_position: float,
     ):
         """Initialize the RebarCalculator with a rectangular beam and its design bending moment.
 
@@ -33,12 +37,27 @@ class RebarCalculator:
             beam: Rectangular beam section.
             bending_moment: Characteristic bending moment (kN.m).
             stirrups: Stirrups instance for the beam.
+            bending_moment_position: Position along the beam's length where the bending moment is applied (cm).
         """
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
         self.design_bending_moment = design_effort_elu(bending_moment_in_kncm)
-        self.tensioned_reinforcement = Reinforcement(self.beam)
-        self.compressed_reinforcement = Reinforcement(self.beam)
+
+        is_bottom_tensioned = bending_moment >= 0
+        is_top_tensioned = not is_bottom_tensioned
+
+        self.tensioned_reinforcement = Reinforcement(
+            self.beam,
+            is_bottom_reinforcement=is_bottom_tensioned,
+            center_position=bending_moment_position,
+            stirrup_calculator=stirrups.calculator,
+        )
+        self.compressed_reinforcement = Reinforcement(
+            self.beam,
+            is_bottom_reinforcement=is_top_tensioned,
+            center_position=bending_moment_position,
+            stirrup_calculator=stirrups.calculator,
+        )
         self.stirrups = stirrups
 
     def update_bending_moment(self, bending_moment: float) -> None:
@@ -114,7 +133,7 @@ class RebarCalculator:
 
         stirrup_calculator = StirrupCalculator(self.beam, 0)
         stirrups = Stirrups(self.beam, stirrup_calculator)
-        calculator = RebarCalculator(self.beam, 0, stirrups)
+        calculator = RebarCalculator(self.beam, 0, stirrups, 0)
 
         calculator.design_bending_moment = md_min
         calculator.d = self.d  # cm

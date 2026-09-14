@@ -23,7 +23,7 @@ import matplotlib
 
 matplotlib.use("QtAgg")  # ensure the Qt backend before importing the canvas
 import matplotlib.patches as mpatches
-from indeterminatebeam import DistributedLoadV, Support
+from indeterminatebeam import UDLV, Support
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PySide6.QtCore import Qt
@@ -47,8 +47,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.calculators.rebar_calculator import RebarCalculator
+from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
-from src.structural_elements.rectangular_beam import RectangularBeam
 from src.gui.theme import (
     DARK_ACCENT,
     DARK_BG_INPUT,
@@ -63,9 +64,8 @@ from src.gui.theme import (
 )
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.calculators.rebar_calculator import RebarCalculator
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.reinforcement.stirrups import Stirrups
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 # Self-weight of reinforced concrete (ABNT NBR 6118). kN/m3.
 CONCRETE_UNIT_WEIGHT = 25.0
@@ -708,7 +708,7 @@ class BeamCalculatorWindow(QMainWindow):
             support_b = Support(length_cm, (1, 1, 0))
 
             peso = self._self_weight()
-            self_weight_load = DistributedLoadV(-peso, (0, length_cm))
+            self_weight_load = UDLV(-peso, (0, length_cm))
 
             beam = RectangularBeam(
                 length_cm,

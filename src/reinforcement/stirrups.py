@@ -1,4 +1,5 @@
 from math import pi
+from typing import cast
 
 from src.calculators.stirrup_calculator import MIN_SPACING, StirrupCalculator
 from src.logger import log_element
@@ -35,7 +36,9 @@ class Stirrups:
         self.calculator.calculate(effective_depth)
         self.required_ratio = self.calculator.required_ratio  # cm²/cm
         result = self.choose()  # Returns (spacing, diameter) in cm
-        log_element(f"stirrup: {self.diameter * 10:.0f}mm @ {self.spacing:.1f} cm")
+        log_element(
+            f"stirrup: {cast(float, self.diameter) * 10:.0f}mm @ {self.spacing:.1f} cm"
+        )
         return result
 
     def choose(self) -> tuple[float, float]:
@@ -84,7 +87,7 @@ class Stirrups:
             if diameter > self.max_diameter:
                 continue
             ratio = Stirrups.calculate_ratio(diameter, spacing)
-            if ratio >= self.required_ratio:
+            if ratio >= cast(float, self.required_ratio):
                 return diameter
         return None
 
