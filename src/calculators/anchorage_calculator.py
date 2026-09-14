@@ -1,11 +1,13 @@
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.logger import log_operation, log_property, logger_label
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.reinforcement.reinforcement import Reinforcement
 from src.structural_elements.rectangular_beam import RectangularBeam
+
+if TYPE_CHECKING:
+    from src.reinforcement.reinforcement import Reinforcement  # noqa: TC004
 
 
 @logger_label("Anchorage Calculator")

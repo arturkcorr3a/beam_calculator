@@ -3,13 +3,12 @@ from collections import Counter
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
-from src.logger import log_element
+from src.logger import log_element, log_property
 from src.reinforcement.layer import Layer
 from src.reinforcement.rebar_chooser import RebarChooser
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 
-# TODO find a good reference for this initial guess, to have a basis in the work and know how to justify it
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
 
 
@@ -56,6 +55,7 @@ class Reinforcement:
             try:
                 self.distribute_bars_in_layers(list(optimal_reinforcement))
                 self.arrange_bars()
+                self._update_layers_y_centroids()
                 self._run_anchorage_calculation()
                 break
             except ValueError:
@@ -120,13 +120,22 @@ class Reinforcement:
         weighted_centroids = 0
         weights = 0
         for index, layer in enumerate(self.chosen_bars):
-            if layer:
+            if layer.bars:
                 layer_centroid, layer_weight = (
                     self.get_layer_absolute_centroid_with_weight(index)
                 )
                 weighted_centroids += layer_centroid * layer_weight
                 weights += layer_weight
-        return (weighted_centroids / weights) / 10 if weights != 0 else 0
+        return (weighted_centroids / weights) if weights != 0 else 0
+
+    def _update_layers_y_centroids(self) -> None:
+        """
+        Updates the y_centroid_position for all non-empty layers.
+        Must be called before anchorage calculation.
+        """
+        for index, layer in enumerate(self.chosen_bars):
+            if layer.bars:
+                self._set_layer_y_centroid_position(index)
 
     @property
     def area(self) -> float:
@@ -139,7 +148,7 @@ class Reinforcement:
         self, layer_index: int
     ) -> tuple[float, float]:
         """
-        Returns the absolute centroid for each layer, considering the spacing and previous layers. Also sets it in the Layer properties
+        Returns the absolute centroid for each layer, considering the spacing and previous layers.
         """
         self._validate_layer_index(layer_index)
 
@@ -153,18 +162,18 @@ class Reinforcement:
             offset += self.get_vertical_spacing(max_dia) + max_dia
 
         layer_centroid_from_closest_edge = layer_centroid + offset
-        self._set_layer_y_centroid_position(
-            layer_index, layer_centroid_from_closest_edge
+        log_property(
+            f"Absolute Centroid for Layer {layer_index}: {layer_centroid_from_closest_edge:.2f} cm from {'bottom' if self.is_bottom_reinforcement else 'top'} edge"
         )
         return layer_centroid_from_closest_edge, layer_weight
 
-    def _set_layer_y_centroid_position(
-        self, layer_index: int, layer_centroid_from_closest_edge: float
-    ) -> None:
+    def _set_layer_y_centroid_position(self, layer_index: int) -> None:
         """
         Sets the y_centroid_position for a specific layer based on the centroids of the bars in that layer and the spacing from previous layers.
         """
-        self._validate_layer_index(layer_index)
+        layer_centroid_from_closest_edge, _ = (
+            self.get_layer_absolute_centroid_with_weight(layer_index)
+        )
 
         position_from_bottom_edge = (
             layer_centroid_from_closest_edge
