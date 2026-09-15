@@ -172,7 +172,7 @@ class ReportExporter:
             (
                 "1. GEOMETRIA E MATERIAIS",
                 "Tensão Uniforme do Concreto sig_cd",
-                f"{self.concrete.calculate_uniform_stress():.4f}",
+                f"{self.concrete.uniform_stress:.4f}",
                 "kN/cm²",
                 f"alpha_c={self.concrete.alpha_c:.2f}, lambda={self.concrete.lambda_c:.2f}",
             ),
@@ -578,7 +578,7 @@ class ReportExporter:
         )
         print(f"    - fctd = 0.7*fctm / 1.4  : {self.concrete.fctd:.4f} kN/cm²")
         print(
-            f"    - Tensão uniforme (sig_cd): {self.concrete.calculate_uniform_stress():.4f} kN/cm² (alpha_c={self.concrete.alpha_c:.2f}, lambda={self.concrete.lambda_c:.2f})"
+            f"    - Tensão uniforme (sig_cd): {self.concrete.uniform_stress:.4f} kN/cm² (alpha_c={self.concrete.alpha_c:.2f}, lambda={self.concrete.lambda_c:.2f})"
         )
         print(
             f"  • Aço                      : {self.steel.name} (fyk = {self.steel.value} kN/cm² / {self.steel.value * 10} MPa)"

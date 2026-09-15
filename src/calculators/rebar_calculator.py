@@ -181,7 +181,7 @@ class RebarCalculator:
         """
         Calculates the required tensioned rebar area (As1) for the current design bending moment, based on the actual depth of the equivalent rectangular stress block (y) and equilibrium of internal forces.
         """
-        uniform_stress = self.beam.concrete.calculate_uniform_stress()  # kN/cm²
+        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         y = self.actual_y if self.is_singly_reinforced else self.max_y  # cm
         return (uniform_stress * bw * y) / (self.beam.steel.fyd)
@@ -259,7 +259,7 @@ class RebarCalculator:
         """
         Calculates the maximum bending moment (kN.cm) that the beam can resist with single reinforcement, for the current rebar configuration (due to effective depth and maximum y)
         """
-        uniform_stress = self.beam.concrete.calculate_uniform_stress()  # kN/cm²
+        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         y_max = self.max_y  # cm
         d = self.d  # cm
@@ -271,7 +271,7 @@ class RebarCalculator:
         Calculates the actual depth of the equivalent rectangular stress block (y) (cm) for the current effective depth and design bending moment. Based on equilibrium of internal forces and moment.
         """
         d = self.d  # cm
-        uniform_stress = self.beam.concrete.calculate_uniform_stress()  # kN/cm²
+        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         return d - sqrt(d**2 - (2 * self.design_bending_moment) / (uniform_stress * bw))
 
@@ -327,7 +327,7 @@ class RebarCalculator:
         This correction ensures that the compressed reinforcement properly accounts for the stress contribution without affecting the calculation of the additional tensioned reinforcement.
         """
         sigma_s2 = self.calculate_sigma_s2()  # kN/cm²
-        return sigma_s2 - self.beam.concrete.calculate_uniform_stress()
+        return sigma_s2 - self.beam.concrete.uniform_stress
 
     def calculate_delta_bending_moment(self) -> float:
         """
