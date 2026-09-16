@@ -2,16 +2,17 @@ from math import pi
 from typing import cast
 
 from src.calculators.stirrup_calculator import MIN_SPACING, StirrupCalculator
-from src.logger import log_element
+from src.logger import log_element, logger_label
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 18.3.3.2)
 
 
+@logger_label("Stirrups - {id}")
 class Stirrups:
     """Class to manage stirrup reinforcement properties."""
 
-    def __init__(self, beam: RectangularBeam, calculator: StirrupCalculator):
+    def __init__(self, beam: RectangularBeam, calculator: StirrupCalculator, id: str = ""):
         """
         Initialize Stirrups.
         """
@@ -21,6 +22,7 @@ class Stirrups:
         self.spacing: float | None = None
         self.required_ratio: float | None = None
         self.diameter: float | None = None
+        self.id = id
 
     @property
     def max_diameter(self) -> float:

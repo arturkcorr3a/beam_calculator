@@ -7,7 +7,7 @@ from src.loading.forces import (
     max_design_bending_moment,
     min_design_bending_moment,
 )
-from src.logger import log_element, log_iteration, logger_label
+from src.logger import log_element, log_iteration, logger_label, log_operation
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrups import Stirrups
@@ -17,6 +17,7 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = (
     1.0  # cm, default diameter of stirrup bars if not chosen (10 mm)
 )
+
 
 @logger_label("Rebar Calculator - {id}")
 class RebarCalculator:
@@ -53,14 +54,14 @@ class RebarCalculator:
             is_bottom_reinforcement=is_bottom_tensioned,
             center_position=bending_moment_position,
             stirrup_calculator=stirrups.calculator,
-            id = self.id
+            id=self.id,
         )
         self.compressed_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_top_tensioned,
             center_position=bending_moment_position,
             stirrup_calculator=stirrups.calculator,
-            id = self.id
+            id=self.id,
         )
         self.stirrups = stirrups
 
@@ -135,15 +136,21 @@ class RebarCalculator:
         """
         md_min = min_design_bending_moment(self.beam)  # kN.cm
 
-        stirrup_calculator = StirrupCalculator(self.beam, 0)
-        stirrups = Stirrups(self.beam, stirrup_calculator)
-        calculator = RebarCalculator(self.beam, 0, stirrups, 0, id="Dummy for min tension rebar area calculation")
+        stirrup_calculator = StirrupCalculator(
+            self.beam, 0, "Dummy for min tension rebar area calculation"
+        )
+        stirrups = Stirrups(self.beam, stirrup_calculator, "Dummy for min tension rebar area calculation")
+        calculator = RebarCalculator(
+            self.beam, 0, stirrups, 0, id="Dummy for min tension rebar area calculation"
+        )
 
         calculator.design_bending_moment = md_min
         calculator.d = self.d  # cm
         calculated_min = calculator.as1  # cm^2
         absolute_min = 0.15 / 100 * self.beam.width * self.beam.height
-        return max(calculated_min, absolute_min)
+        min_tension_rebar_area = max(calculated_min, absolute_min)
+        log_operation(f"Minimum Tension Rebar Area = {min_tension_rebar_area:.4f} cm²")
+        return min_tension_rebar_area
 
     @property
     def max_rebar_area(self) -> float:

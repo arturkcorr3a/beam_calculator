@@ -1,7 +1,7 @@
 from math import cos, pi, sin
 
 from src.calculators.utils import cotan
-from src.logger import log_operation
+from src.logger import log_operation, logger_label
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 STIRRUP_ANGLE = (
@@ -13,13 +13,13 @@ MIN_SPACING = (
     REFERENCE_VIBRATOR_DIAMETER / 10.0
 )  # cm, minimum stirrup spacing to ensure passage of the vibrator - NBR 6118 - Section 18.3.3.2
 
-
+@logger_label("Stirrup Calculator {id}")
 class StirrupCalculator:
     """Calculate required stirrup reinforcement for rectangular beams using Model 1 (NBR 6118 - Section 17.4)."""
 
     effective_depth: float
 
-    def __init__(self, beam: RectangularBeam, design_shear_force: float):
+    def __init__(self, beam: RectangularBeam, design_shear_force: float, id: str = ""):
         """Initialize with a rectangular beam."""
         self.beam = beam
         self.design_shear_force = design_shear_force

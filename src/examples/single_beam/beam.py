@@ -62,7 +62,7 @@ design_shear_force = design_effort_elu(max_shear_force)  # kN
 stirrup_calculator = StirrupCalculator(beam, design_shear_force)
 stirrups = Stirrups(beam, stirrup_calculator)
 
-calculator = RebarCalculator(beam, max_bending_moment, stirrups, position, "Example Beam")
+calculator = RebarCalculator(beam, max_bending_moment, stirrups, position)
 calculator.calculate()
 
 compressed = calculator.compressed_reinforcement

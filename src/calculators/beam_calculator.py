@@ -125,11 +125,17 @@ class BeamCalculator:
         max_shear_force: float,
     ) -> RebarCalculator:
         design_shear_force = design_effort_elu(max_shear_force)  # kN
-        stirrup_calculator = StirrupCalculator(structural_beam, design_shear_force)
-        stirrups = Stirrups(structural_beam, stirrup_calculator)
+        stirrup_calculator = StirrupCalculator(
+            structural_beam, design_shear_force, self._beam.id
+        )
+        stirrups = Stirrups(structural_beam, stirrup_calculator, self._beam.id)
 
         calculator = RebarCalculator(
-            structural_beam, max_bending_moment, stirrups, max_bending_moment_position, self._beam.id
+            structural_beam,
+            max_bending_moment,
+            stirrups,
+            max_bending_moment_position,
+            self._beam.id,
         )
         calculator.calculate()
         return calculator

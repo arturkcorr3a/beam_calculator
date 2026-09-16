@@ -46,9 +46,7 @@ def main():
     stirrup_calculator = StirrupCalculator(beam, design_shear_force)
     stirrups = Stirrups(beam, stirrup_calculator)
 
-    calculator = RebarCalculator(
-        beam, max_bending_moment, stirrups, position, "Example Beam"
-    )
+    calculator = RebarCalculator(beam, max_bending_moment, stirrups, position)
     calculator.calculate()
 
 

@@ -727,7 +727,7 @@ class BeamCalculatorWindow(QMainWindow):
 
             stirrup_calculator = StirrupCalculator(beam, design_shear_force)
             stirrups = Stirrups(beam, stirrup_calculator)
-            calculator = RebarCalculator(beam, max_bending_moment, stirrups, position, "Standalone Beam")
+            calculator = RebarCalculator(beam, max_bending_moment, stirrups, position)
             calculator.calculate()
         except ValueError as exc:
             QMessageBox.warning(

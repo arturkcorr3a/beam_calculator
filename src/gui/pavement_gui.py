@@ -1036,8 +1036,8 @@ class BeamReportWindow(QDialog):
             max_bm, position = max_bm_and_position
             design_sf = design_effort_elu(max_sf)
 
-            stirrup_calc = StirrupCalculator(rect_beam, design_sf)
-            stirrups = Stirrups(rect_beam, stirrup_calc)
+            stirrup_calc = StirrupCalculator(rect_beam, design_sf, beam.id)
+            stirrups = Stirrups(rect_beam, stirrup_calc, beam.id)
             calculator = RebarCalculator(rect_beam, max_bm, stirrups, position, beam.id)
             calculator.calculate()
         except Exception as exc:  # noqa: BLE001

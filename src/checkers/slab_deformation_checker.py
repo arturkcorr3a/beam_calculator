@@ -165,8 +165,8 @@ class SlabDeformationChecker(DeformationChecker):
         dummy_beam.steel = Steel[APP_CONFIG.steel]
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 
-        dummy_stirrup_calculator = StirrupCalculator(dummy_beam, 0)
-        dummy_stirrups = Stirrups(dummy_beam, dummy_stirrup_calculator)
+        dummy_stirrup_calculator = StirrupCalculator(dummy_beam, 0, id="Dummy for min tension rebar area calculation")
+        dummy_stirrups = Stirrups(dummy_beam, dummy_stirrup_calculator, id="Dummy for min tension rebar area calculation")
         calculator = RebarCalculator(dummy_beam, 0, dummy_stirrups, 0, id="Dummy for min tension rebar area calculation")
 
         calculator.design_bending_moment = md_min
