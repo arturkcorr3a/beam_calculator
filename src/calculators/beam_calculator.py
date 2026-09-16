@@ -129,7 +129,7 @@ class BeamCalculator:
         stirrups = Stirrups(structural_beam, stirrup_calculator)
 
         calculator = RebarCalculator(
-            structural_beam, max_bending_moment, stirrups, max_bending_moment_position
+            structural_beam, max_bending_moment, stirrups, max_bending_moment_position, self._beam.id
         )
         calculator.calculate()
         return calculator

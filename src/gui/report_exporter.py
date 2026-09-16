@@ -7,11 +7,11 @@ import csv
 import os
 from collections import Counter
 
-from src.structural_elements.rectangular_beam import RectangularBeam
-from src.properties.steel import Steel
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
+from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 
 class ReportExporter:

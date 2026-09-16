@@ -167,7 +167,7 @@ class SlabDeformationChecker(DeformationChecker):
 
         dummy_stirrup_calculator = StirrupCalculator(dummy_beam, 0)
         dummy_stirrups = Stirrups(dummy_beam, dummy_stirrup_calculator)
-        calculator = RebarCalculator(dummy_beam, 0, dummy_stirrups)
+        calculator = RebarCalculator(dummy_beam, 0, dummy_stirrups, 0, id="Dummy for min tension rebar area calculation")
 
         calculator.design_bending_moment = md_min
         calculator.d = self.effective_depth  # cm

@@ -3,7 +3,7 @@ from collections import Counter
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
-from src.logger import log_element, log_property
+from src.logger import log_element, log_property, logger_label
 from src.reinforcement.layer import Layer
 from src.reinforcement.rebar_chooser import RebarChooser
 from src.structural_elements.rebar import Rebar
@@ -11,7 +11,7 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
 
-
+@logger_label("Longitudinal Reinforcement - {id}")
 class Reinforcement:
     """
     Defines the longitudinal reinforcement, by layer.
@@ -25,6 +25,7 @@ class Reinforcement:
         is_bottom_reinforcement: bool,
         center_position: float,
         stirrup_calculator: StirrupCalculator,
+        id: str = "",
     ):
         self.beam = beam
         self.steel = beam.steel
@@ -34,6 +35,7 @@ class Reinforcement:
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
         self.stirrup_calculator = stirrup_calculator
+        self.id = id
 
     def _build_empty_layers(self) -> tuple[Layer, ...]:
         """Builds a tuple of empty layers for the reinforcement, based on the maximum number of layers defined in the configuration."""
@@ -86,6 +88,7 @@ class Reinforcement:
                 steel=self.steel,
                 concrete=self.beam.concrete,
                 layer_index=layer_index,
+                id = f"{self.id} ; Layer {layer_index}"
             )
 
             left_available_space = (

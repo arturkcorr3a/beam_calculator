@@ -7,7 +7,7 @@ from src.loading.forces import (
     max_design_bending_moment,
     min_design_bending_moment,
 )
-from src.logger import log_element, log_iteration
+from src.logger import log_element, log_iteration, logger_label
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrups import Stirrups
@@ -18,7 +18,7 @@ DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = (
     1.0  # cm, default diameter of stirrup bars if not chosen (10 mm)
 )
 
-
+@logger_label("Rebar Calculator - {id}")
 class RebarCalculator:
     """
     Class responsible for calculating the required rebar area for a rectangular beam.
@@ -30,6 +30,7 @@ class RebarCalculator:
         bending_moment: float,
         stirrups: Stirrups,
         bending_moment_position: float,
+        id: str = "",
     ):
         """Initialize the RebarCalculator with a rectangular beam and its design bending moment.
 
@@ -45,18 +46,21 @@ class RebarCalculator:
 
         is_bottom_tensioned = bending_moment >= 0
         is_top_tensioned = not is_bottom_tensioned
+        self.id = id
 
         self.tensioned_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_bottom_tensioned,
             center_position=bending_moment_position,
             stirrup_calculator=stirrups.calculator,
+            id = self.id
         )
         self.compressed_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_top_tensioned,
             center_position=bending_moment_position,
             stirrup_calculator=stirrups.calculator,
+            id = self.id
         )
         self.stirrups = stirrups
 
@@ -133,7 +137,7 @@ class RebarCalculator:
 
         stirrup_calculator = StirrupCalculator(self.beam, 0)
         stirrups = Stirrups(self.beam, stirrup_calculator)
-        calculator = RebarCalculator(self.beam, 0, stirrups, 0)
+        calculator = RebarCalculator(self.beam, 0, stirrups, 0, id="Dummy for min tension rebar area calculation")
 
         calculator.design_bending_moment = md_min
         calculator.d = self.d  # cm
