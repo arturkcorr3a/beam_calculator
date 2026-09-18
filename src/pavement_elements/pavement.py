@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from src.logger import log_element, log_general, logger_label
+from src.logger import log_element, log_general, logger_label, log_iteration
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
@@ -28,21 +28,30 @@ class Pavement:
         if pillar.id in self.pillars:
             raise ValueError(f"Pillar '{pillar.id}' already exists.")
         self.pillars[pillar.id] = pillar
+        log_element(f"Added pillar '{pillar.id}' at ({pillar.x}, {pillar.y})")
 
     def add_beam(self, beam: ContinuousBeam) -> None:
         if beam.id in self.beams:
             raise ValueError(f"Beam '{beam.id}' already exists.")
         self.beams[beam.id] = beam
+        log_element(
+            f"Added beam '{beam.id}' from {(beam.pillar_ids[0])} to {(beam.pillar_ids[-1])}"
+        )
 
     def add_slab(self, slab: Slab) -> None:
         if slab.id in self.slabs:
             raise ValueError(f"Slab '{slab.id}' already exists.")
         self.slabs[slab.id] = slab
+        log_element(
+            f"Added slab '{slab.id}' between {', '.join(slab.corner_pillar_ids)}"
+        )
 
     def validate(self) -> None:
         """
         Performs validations and resolutions for its elements (pillars, beams, slabs). Raises ValueError on any validation failure.
         """
+        log_general("Validating pavement structure...")
+
         # 1. Clear resolved state
         for beam in self.beams.values():
             beam.clear_resolved()
@@ -63,23 +72,18 @@ class Pavement:
         pre-sizes beams and slabs, transfers slab loads onto beams, and finally
         dimensions all beams.
         """
-        log_general("validate")
         self.validate()
-        log_general("pre-size beams")
         self.pre_size_beams()
-        log_general("load beam spans")
         self.load_beam_spans()
-        log_general("pre-size slabs")
         self.pre_size_slabs()
-        log_general("unload slabs onto beams")
         self.unload_slabs_on_beams()
-        log_general("dimension beams")
         self.dimension_beams()
 
     def pre_size_beams(self) -> None:
         """
         Pre-sizes all beams based on the maximum span length of their spans.
         """
+        log_general("Pre-sizing beams...")
         for beam in self.beams.values():
             beam.pre_size(self.pillars)
 
@@ -87,19 +91,26 @@ class Pavement:
         """
         Pre-sizes all slabs based on the maximum span length of their spans.
         """
+        log_general("Pre-sizing slabs...")
+
         pass_num = 0
-        changed: list[bool | None] = [None] * len(self.slabs)
-        while False in changed or None in changed:
+        stable: list[bool | None] = [None] * len(self.slabs)
+        while False in stable or None in stable:
             pass_num += 1
             for i, slab in enumerate(self.slabs.values()):
-                changed[i] = slab.pre_size()
-            n_changed = sum(1 for c in changed if c is False)
-            log_element(f"pre-size slabs pass {pass_num}: {n_changed} slab(s) resized")
+                stable[i] = slab.pre_size()
+                
+            n_changed = sum(1 for is_stable in stable if is_stable is False)
+            log_iteration(
+                f"Iteration {pass_num}: {n_changed} slab(s) resized",
+                "Slabs Pre-sizing"
+            )
 
     def load_beam_spans(self) -> None:
         """
         Loads all beams based on the loads applied to their spans.
         """
+        log_general("Applying load to beam spans")
         for beam in self.beams.values():
             beam.load_spans()
 
@@ -107,6 +118,7 @@ class Pavement:
         """
         Unloads all slabs on their supporting beams, calculating the load and adding it to the supporting spans.
         """
+        log_general("Unloading slabs onto beams...")
         for slab in self.slabs.values():
             slab.unload_on_supporting_spans(self.pillars)
 
@@ -114,5 +126,6 @@ class Pavement:
         """
         Dimensions all beams based on the loads applied to their spans.
         """
+        log_general("Beam's calculation process starting...")
         for beam in self.beams.values():
             beam.dimension(self.pillars)

@@ -113,6 +113,7 @@ class ContinuousBeam:
             length = span.get_length(pillar_registry)
             proposed_height = length / BEAM_HEIGHT_ESTIMATION_FACTOR
             max_height = max(max_height, proposed_height)
+            
         self.height = round_up_to_multiple_of_5(max_height)
         log_element(f"chosen height = {self.height} cm")
         return self.height

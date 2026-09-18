@@ -88,7 +88,7 @@ class Reinforcement:
                 steel=self.steel,
                 concrete=self.beam.concrete,
                 layer_index=layer_index,
-                id = f"{self.id} ; Layer {layer_index}"
+                id = f"{self.id} | Layer {layer_index}"
             )
 
             left_available_space = (
