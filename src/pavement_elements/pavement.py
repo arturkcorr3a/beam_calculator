@@ -24,6 +24,9 @@ class Pavement:
     beams: dict[str, ContinuousBeam] = field(default_factory=dict[str, ContinuousBeam])
     slabs: dict[str, Slab] = field(default_factory=dict[str, Slab])
 
+    def __post_init__(self) -> None:
+        log_general("Pavement structure initialized.")
+
     def add_pillar(self, pillar: Pillar) -> None:
         if pillar.id in self.pillars:
             raise ValueError(f"Pillar '{pillar.id}' already exists.")
@@ -50,7 +53,6 @@ class Pavement:
         """
         Performs validations and resolutions for its elements (pillars, beams, slabs). Raises ValueError on any validation failure.
         """
-        log_general("Validating pavement structure...")
 
         # 1. Clear resolved state
         for beam in self.beams.values():
@@ -59,10 +61,12 @@ class Pavement:
             slab.clear_resolved()
 
         # 2. Beam pass
+        log_general("Resolving pavement beams...")
         for beam in self.beams.values():
             beam.resolve_and_validate(self.pillars)
 
         # 3. Slab pass
+        log_general("Resolving pavement slabs...")
         for slab in self.slabs.values():
             slab.resolve_and_validate(self.pillars, self.beams)
 
@@ -76,7 +80,7 @@ class Pavement:
         self.pre_size_beams()
         self.load_beam_spans()
         self.pre_size_slabs()
-        self.unload_slabs_on_beams()
+        self.unload_slabs_on_beams() # TODO PAREI AQUI
         self.dimension_beams()
 
     def pre_size_beams(self) -> None:

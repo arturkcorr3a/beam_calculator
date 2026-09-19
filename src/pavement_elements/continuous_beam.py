@@ -113,9 +113,9 @@ class ContinuousBeam:
             length = span.get_length(pillar_registry)
             proposed_height = length / BEAM_HEIGHT_ESTIMATION_FACTOR
             max_height = max(max_height, proposed_height)
-            
+
         self.height = round_up_to_multiple_of_5(max_height)
-        log_element(f"chosen height = {self.height} cm")
+        log_element(f"Chosen height = {self.height} cm")
         return self.height
 
     def dimension(self, pillar_registry: dict[str, Pillar]) -> None:
@@ -134,8 +134,9 @@ class ContinuousBeam:
         self._validate_all_pillars_support_the_whole_beam_width(pillar_registry)
         self._validate_no_skipped_pillars(pillar_registry)
         self._build_resolved_spans()
-        log_operation(
-            f"axis {self.axis.name}, centerline {self.centerline:.1f} cm, {len(self.spans)} span(s)"  # type:ignore
+
+        log_element(
+            f"Longitudinal axis: {self.axis.name} ; centerline: {self.centerline:.1f} cm; {len(self.spans)} span(s)"  # type:ignore
         )
 
     def contains_pillar(self, pillar_id: str) -> bool:
@@ -180,7 +181,7 @@ class ContinuousBeam:
         wall_weight = LinearLoads.get_wall_load(
             *self.wall.get_parameters_for_load(), wall_height
         )  # kN/m
-        log_operation(f"self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m")
+        log_operation(f"Loads: self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m")
         for span in self.spans:
             span.add_load(own_weight, permanent=True)
             span.add_load(wall_weight, permanent=True)

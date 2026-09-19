@@ -12,6 +12,7 @@ from src.loading.forces import (
     almost_permanent_combination_els,
     min_design_bending_moment,
 )
+from src.logger import log_operation
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -55,18 +56,22 @@ class SlabDeformationChecker(DeformationChecker):
 
     @property
     def service_moment(self) -> float:
-        return (
+        service_moment = (
             (self.coefficient_for_service_moment / 100.0)
             * self.design_load
             * self.span**2
         ) * self.width  # kN.cm
+        log_operation(f"Service moment = {service_moment:.2f} kN.cm")
+        return service_moment
 
     @property
     def design_load(self) -> float:
         load_kn_m2 = almost_permanent_combination_els(
             self.permanent_load, self.variable_load, self.usage
         )
-        return load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
+        design_load = load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
+        log_operation(f"Design load = {design_load:.2f} kN/cm²")
+        return design_load
 
     @property
     def immediate_deflection(self) -> float:
@@ -89,10 +94,12 @@ class SlabDeformationChecker(DeformationChecker):
             / (ecs_kn_cm2 * self.height**3)
             * (alpha / 100)
         )
-        return elastic_deflection * (
+        immediate_deflection = elastic_deflection * (
             section.moment_of_inertia(self.width, self.height)
             / self.equivalent_moment_of_inertia
         )
+        log_operation(f"Immediate deflection = {immediate_deflection:.2f} cm")
+        return immediate_deflection
 
     @property
     def coefficient_for_service_moment(self) -> float:
@@ -165,9 +172,21 @@ class SlabDeformationChecker(DeformationChecker):
         dummy_beam.steel = Steel[APP_CONFIG.steel]
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 
-        dummy_stirrup_calculator = StirrupCalculator(dummy_beam, 0, id="Dummy for min tension rebar area calculation")
-        dummy_stirrups = Stirrups(dummy_beam, dummy_stirrup_calculator, id="Dummy for min tension rebar area calculation")
-        calculator = RebarCalculator(dummy_beam, 0, dummy_stirrups, 0, id="Dummy for min tension rebar area calculation")
+        dummy_stirrup_calculator = StirrupCalculator(
+            dummy_beam, 0, id="Dummy for min tension rebar area calculation"
+        )
+        dummy_stirrups = Stirrups(
+            dummy_beam,
+            dummy_stirrup_calculator,
+            id="Dummy for min tension rebar area calculation",
+        )
+        calculator = RebarCalculator(
+            dummy_beam,
+            0,
+            dummy_stirrups,
+            0,
+            id="Dummy for min tension rebar area calculation",
+        )
 
         calculator.design_bending_moment = md_min
         calculator.d = self.effective_depth  # cm

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from src.loading.forces import (
     calculate_cracking_moment,
 )
+from src.logger import log_operation, log_property, logger_label
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -11,6 +12,7 @@ from src.properties.section_properties_calculator import (
 from src.properties.steel import Steel
 
 
+@logger_label("Deformation Checker for {id}")
 @dataclass(kw_only=True)
 class DeformationChecker(ABC):
     """
@@ -30,6 +32,7 @@ class DeformationChecker(ABC):
     tensioned_reinforcement_area: float  # cm²
     height: float = field(default=0, init=False)  # cm
     effective_depth: float = field(init=False)  # cm
+    id: str = field(default="")  # Optional identifier for logging purposes
 
     def verify(self, height: float) -> bool:
         """Verify whether the deformation of the element is within acceptable limits.
@@ -42,7 +45,12 @@ class DeformationChecker(ABC):
         """
         self.height = height
         self.effective_depth = self.height - self.effective_depth_discount
-        return self.long_term_deflection <= self.acceptable_deflection
+        result = self.long_term_deflection <= self.acceptable_deflection
+        log_operation(
+            f"Acceptable deflection = {self.acceptable_deflection:.2f} cm; "
+            f"Result = {'PASS' if result else 'FAIL'}"
+        )
+        return result
 
     @property
     @abstractmethod
@@ -59,9 +67,11 @@ class DeformationChecker(ABC):
         tensile_strength = self.concrete.fct_m  # kN/cm²
         moment_of_inertia = section.moment_of_inertia(self.width, self.height)
         distance_to_tension_fiber = self.height / 2.0
-        return calculate_cracking_moment(
+        cracking_moment = calculate_cracking_moment(
             tensile_strength, distance_to_tension_fiber, moment_of_inertia
         )
+        log_operation(f"Cracking moment = {cracking_moment:.2f} kN.cm")
+        return cracking_moment
 
     @property
     @abstractmethod
@@ -89,6 +99,9 @@ class DeformationChecker(ABC):
             self.width, self.height
         )
         if not self.is_cracked:
+            log_operation(
+                f"Element is not cracked; using gross section moment of inertia = {gross_section_moment_of_inertia:.2f} cm⁴"
+            )
             return gross_section_moment_of_inertia
 
         modular_ratio = Steel.elastic_modulus / self.concrete.ecs
@@ -105,7 +118,14 @@ class DeformationChecker(ABC):
         equivalent_moment_of_inertia = (
             moments_ratio**3 * gross_section_moment_of_inertia
         ) + ((1 - moments_ratio**3) * cracked_section_moment_of_inertia)
-        return min(equivalent_moment_of_inertia, gross_section_moment_of_inertia)
+
+        equivalent_moment_of_inertia = min(
+            equivalent_moment_of_inertia, gross_section_moment_of_inertia
+        )
+        log_operation(
+            f"Element is cracked; using equivalent moment of inertia = {equivalent_moment_of_inertia:.2f} cm⁴"
+        )
+        return equivalent_moment_of_inertia
 
     @property
     @abstractmethod
@@ -127,7 +147,11 @@ class DeformationChecker(ABC):
         time_coefficient = 2  # per ABNT NBR 6118 - Section 17.3.2.1.2, time coefficient for long term deflection (from t=0 to t=∞)
         rho = self.compressed_reinforcement_area / (self.width * self.effective_depth)
         fluency_factor = time_coefficient / (1 + 50 * rho)
-        return (1 + fluency_factor) * self.immediate_deflection
+        log_property(f"Fluency factor = {fluency_factor:.2f}")
+
+        long_term_deflection = (1 + fluency_factor) * self.immediate_deflection
+        log_operation(f"Long-term deflection = {long_term_deflection:.2f} cm")
+        return long_term_deflection
 
     @property
     def acceptable_deflection(self) -> float:

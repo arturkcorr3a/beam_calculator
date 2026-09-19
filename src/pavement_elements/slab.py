@@ -143,6 +143,7 @@ class Slab(metaclass=_SlabMeta):
             lx=lx,
             ly=ly,
             support_conditions=support_conditions,
+            id=self.id,
         )
         while not checker.verify(self.thickness):
             log_iteration(f"h = {self.thickness} cm: fail")
@@ -152,7 +153,7 @@ class Slab(metaclass=_SlabMeta):
                     f"Slab '{self.id}' cannot be stabilized; required thickness exceeds 30 cm."
                 )
 
-        log_element(f"thickness = {self.thickness} cm")
+        log_element(f"Thickness = {self.thickness} cm")
         thickness_changed = self.thickness != original_thickness
         return not thickness_changed
 
@@ -192,8 +193,8 @@ class Slab(metaclass=_SlabMeta):
         self._add_slab_to_spans()
         self._resolve_variable_load()
         lx, ly = self.dimensions
-        log_operation(
-            f"{'one-way' if self.is_one_way else 'two-way'}, {lx:.0f} x {ly:.0f} cm, variable load {self.variable_load:.1f} kN/m2"
+        log_element(
+            f"{'One-way' if self.is_one_way else 'Two-way'}; {lx/100.0:.2f} x {ly/100.0:.2f} m; Variable load: {self.variable_load:.1f} kN/m2"
         )
 
     def unload_on_supporting_spans(self, pillar_registry: dict[str, Pillar]) -> None:
@@ -344,4 +345,5 @@ class Slab(metaclass=_SlabMeta):
 
     def _resolve_variable_load(self) -> None:
         """Sets the variable load (kN/m²) to the slab's total variable load depending on the local."""
+        log_operation("Resolving variable load...")
         self.variable_load = SuperficialLoads.get_variable_usage_load(self.local)
