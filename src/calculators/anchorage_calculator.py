@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from src.reinforcement.reinforcement import Reinforcement  # noqa: TC004
 
 
-@logger_label("Anchorage Calculator")
+@logger_label("Anchorage Calculator - {logging_info}")
 class AnchorageCalculator:
     def __init__(
         self,
@@ -20,6 +20,7 @@ class AnchorageCalculator:
         concrete: Concrete,
         layer_index: int,
         reinforcement: Reinforcement,
+        id: str = "",
     ):
         self.stirrup_calculator = stirrup_calculator
         self.steel = steel
@@ -27,6 +28,7 @@ class AnchorageCalculator:
         self.layer = reinforcement.chosen_bars[layer_index]
         self.reinforcement = reinforcement
         self.beam_height = self.reinforcement.beam.height  # cm
+        self.id = id
 
     def run(self, available_space: float, left: bool) -> None:
         """
@@ -36,12 +38,16 @@ class AnchorageCalculator:
         Raises a ValueError if there isn't enough space even after adding hooks.
         """
         self.left = left
+        self.logging_info = f"{self.id} ({'Left' if self.left else 'Right'})"
         passed = self._run_current_state(available_space, with_hooks=False)
         if passed:
             return
 
         log_operation("Not enough space for anchorage; Add hooks and re-trying...")
-        passed = self._run_current_state(self.get_adjusted_available_space_for_hooks(available_space), with_hooks=True)
+        passed = self._run_current_state(
+            self.get_adjusted_available_space_for_hooks(available_space),
+            with_hooks=True,
+        )
         if not passed:
             error_message = f"Not enough space for anchorage - even with hooks. Available: {available_space:.2f} cm, Required: {self.necessary_anchorage_length:.2f} cm. Consider reducing bar diameter."
             log_operation(error_message)
@@ -144,12 +150,14 @@ class AnchorageCalculator:
         log_property(f"Minimum Anchorage Length (l_b,min) = {l_b_min:.2f} cm")
         return l_b_min
 
-    def get_adjusted_available_space_for_hooks(self, regular_available_space: float) -> float:
+    def get_adjusted_available_space_for_hooks(
+        self, regular_available_space: float
+    ) -> float:
         """
-        Tensioned bars with hooks must have a minimum concrete cover of 3 times the bar diameter, per ABNT NBR 6118 - Section 9.4.2.5. This method calculates the adjusted available space for anchorage when hooks are present, ensuring that the minimum cover requirement is met. 
+        Tensioned bars with hooks must have a minimum concrete cover of 3 times the bar diameter, per ABNT NBR 6118 - Section 9.4.2.5. This method calculates the adjusted available space for anchorage when hooks are present, ensuring that the minimum cover requirement is met.
         """
-        beam_coverage = RectangularBeam.nominal_covering # cm
-        min_coverage_for_hooks = 3 * (self.max_diameter / 10) # cm
+        beam_coverage = RectangularBeam.nominal_covering  # cm
+        min_coverage_for_hooks = 3 * (self.max_diameter / 10)  # cm
         adjusted_coverage = max(beam_coverage, min_coverage_for_hooks)
         return regular_available_space + beam_coverage - adjusted_coverage
 

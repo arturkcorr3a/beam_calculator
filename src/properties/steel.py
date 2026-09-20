@@ -25,7 +25,7 @@ class Steel(Enum, metaclass=_SteelMeta):
     CA50 = 50
     CA60 = 60
 
-    @property
+    @cached_property
     def fyd(self) -> float:
         """
         The design strength of steel (fyd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.1
@@ -48,7 +48,7 @@ class Steel(Enum, metaclass=_SteelMeta):
                 return [3.4, 3.8, 4.2, 4.6, 5.0, 5.5, 6.0, 6.4, 7.0, 8.0, 9.5, 10.0]
         return []
 
-    @property
+    @cached_property
     def fywd(self) -> float:
         """
         The design strength of steel (fywd) in kN/cm², based on ABNT NBR 6118 - Section 17.4.2.2
@@ -58,7 +58,7 @@ class Steel(Enum, metaclass=_SteelMeta):
         log_property(f"fywd = {result:.4f} kN/cm²")
         return result
 
-    @property
+    @cached_property
     def fywk(self) -> float:
         """
         The characteristic strength of steel (fywk) in kN/cm², based on ABNT NBR 6118 - Section 17.4.1.1.1
@@ -67,7 +67,7 @@ class Steel(Enum, metaclass=_SteelMeta):
         log_property(f"fywk = {result:.1f} kN/cm²")
         return result
 
-    @property
+    @cached_property
     def bond_coefficient(self) -> float:
         """
         The bond coefficient (eta_1) for the steel type, based on ABNT NBR 6118 - Section 8.3.2 - Table 8.2

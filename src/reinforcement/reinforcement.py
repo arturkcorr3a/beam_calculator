@@ -3,7 +3,13 @@ from collections import Counter
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
-from src.logger import log_element, log_property
+from src.logger import (
+    log_element,
+    log_iteration,
+    log_operation,
+    log_property,
+    logger_label,
+)
 from src.reinforcement.layer import Layer
 from src.reinforcement.rebar_chooser import RebarChooser
 from src.structural_elements.rebar import Rebar
@@ -12,6 +18,7 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
 
 
+@logger_label("Longitudinal Reinforcement - {id}")
 class Reinforcement:
     """
     Defines the longitudinal reinforcement, by layer.
@@ -25,6 +32,7 @@ class Reinforcement:
         is_bottom_reinforcement: bool,
         center_position: float,
         stirrup_calculator: StirrupCalculator,
+        id: str = "",
     ):
         self.beam = beam
         self.steel = beam.steel
@@ -34,6 +42,7 @@ class Reinforcement:
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
         self.stirrup_calculator = stirrup_calculator
+        self.id = id
 
     def _build_empty_layers(self) -> tuple[Layer, ...]:
         """Builds a tuple of empty layers for the reinforcement, based on the maximum number of layers defined in the configuration."""
@@ -46,6 +55,9 @@ class Reinforcement:
         self.choose()
 
     def choose(self) -> None:
+        log_operation(
+            f"Choosing reinforcement for required area: {self.required_area:.2f} cm²"
+        )
         if self.required_area is None:
             raise ValueError("Required area must be set before choosing reinforcement.")
 
@@ -53,12 +65,20 @@ class Reinforcement:
         self.rebar_choice_options = rebar_chooser.solutions_per_diameter
         for optimal_reinforcement in self.rebar_choice_options.values():
             try:
+                combo_label = ", ".join(
+                    f"{bar.diameter_mm}mm" for bar in optimal_reinforcement
+                )
+                log_iteration(f"Trying reinforcement combination: {combo_label}")
                 self.distribute_bars_in_layers(list(optimal_reinforcement))
                 self.arrange_bars()
                 self._update_layers_y_centroids()
                 self._run_anchorage_calculation()
+                log_iteration(f"Combination successful: {combo_label}")
                 break
             except ValueError:
+                log_iteration(
+                    "Combination failed due to spacing or anchorage constraints. Trying next combination."
+                )
                 self.clear_chosen_bars()
                 continue
         if len(self.chosen_bars[0].bars) == 0:
@@ -70,13 +90,16 @@ class Reinforcement:
         bar_desc = ", ".join(
             f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
         )
-        log_element(f"required {self.required_area:.2f} cm2: {bar_desc}")
+        log_element(
+            f"Bars chosen for required area {self.required_area:.2f} cm2: {bar_desc}"
+        )
 
     def _run_anchorage_calculation(self) -> None:
         """
         Runs the anchorage calculation for each layer of the chosen reinforcement, setting the necessary lengths for each bar.
         Raises a ValueError if there isn't enough space for anchorage, even after adding hooks.
         """
+        log_operation("Running anchorage calculation for chosen reinforcement layers.")
         for layer_index, layer in enumerate(self.chosen_bars):
             if len(layer.bars) == 0:
                 continue
@@ -86,6 +109,7 @@ class Reinforcement:
                 steel=self.steel,
                 concrete=self.beam.concrete,
                 layer_index=layer_index,
+                id=f"{self.id} | Layer {layer_index}",
             )
 
             left_available_space = (
@@ -102,20 +126,31 @@ class Reinforcement:
         """
         The minimum horizontal spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(bar_diameter, 2, 1.2 * APP_CONFIG.max_aggregate_size)
+        horizontal_spacing = max(bar_diameter, 2, 1.2 * APP_CONFIG.max_aggregate_size)
+        log_property(
+            f"Min horizontal spacing for {bar_diameter}mm bars: {horizontal_spacing} cm"
+        )
+        return horizontal_spacing
 
     @staticmethod
     def get_vertical_spacing(bar_diameter: float) -> float:
         """
         The minimum vertical spacing (cm) between bars, according to ABNT NBR 6118 - Section 18.3.2.2
         """
-        return max(bar_diameter, 2, 0.5 * APP_CONFIG.max_aggregate_size)
+        vertical_spacing = max(bar_diameter, 2, 0.5 * APP_CONFIG.max_aggregate_size)
+        log_property(
+            f"Min vertical spacing for {bar_diameter}mm bars: {vertical_spacing} cm"
+        )
+        return vertical_spacing
 
-    def get_distance_for_d_calculation(self) -> float:
+    def get_distance_for_d_calculation(self, d_calculation_label: str) -> float:
         """
         Returns the centroid for the reinforcement relative to itself (cm)
         """
         if not self.is_chosen:
+            log_property(
+                f"No reinforcement chosen, using default distance for d calculation: {DEFAULT_DISTANCE_FOR_D_CALCULATION} cm"
+            )
             return DEFAULT_DISTANCE_FOR_D_CALCULATION
         weighted_centroids = 0
         weights = 0
@@ -126,13 +161,21 @@ class Reinforcement:
                 )
                 weighted_centroids += layer_centroid * layer_weight
                 weights += layer_weight
-        return (weighted_centroids / weights) if weights != 0 else 0
+        distance_for_d_calculation = (
+            (weighted_centroids / weights) if weights != 0 else 0
+        )
+        log_property(
+            f"Centroid for the reinforcement relative to itself: {distance_for_d_calculation} cm",
+            f"Reinforcement {d_calculation_label}",
+        )
+        return distance_for_d_calculation
 
     def _update_layers_y_centroids(self) -> None:
         """
         Updates the y_centroid_position for all non-empty layers.
         Must be called before anchorage calculation.
         """
+        log_operation("Updating y_centroid_position for all non-empty layers.")
         for index, layer in enumerate(self.chosen_bars):
             if layer.bars:
                 self._set_layer_y_centroid_position(index)
@@ -181,6 +224,9 @@ class Reinforcement:
             else self.beam.height - layer_centroid_from_closest_edge
         )
 
+        log_property(
+            f"Setting y_centroid_position for Layer {layer_index}: {position_from_bottom_edge:.2f} cm from bottom edge"
+        )
         self.chosen_bars[layer_index].y_centroid_position = position_from_bottom_edge
 
     def _validate_layer_index(self, layer_index: int) -> None:
@@ -212,6 +258,7 @@ class Reinforcement:
             weights += area
         return (weighted_centroids / weights, weights) if weights != 0 else (0, 0)
 
+    # FIXME I think here there may be an unit error with the bar and available space
     def distribute_bars_in_layers(self, optimal_reinforcement: list[Rebar]) -> None:
         """
         Gets the optimal reinforcement combination chosen and distributes the bars in layers, ensuring that the spacing and constructability requirements are met.
@@ -220,6 +267,9 @@ class Reinforcement:
             self.chosen_bars[0].bars = list(optimal_reinforcement)
             for layer in self.chosen_bars[1:]:
                 layer.bars = []
+            log_operation(
+                f"All bars fit in a single layer. Total bars: {len(optimal_reinforcement)}"
+            )
             return
 
         current_layer = 0
@@ -251,6 +301,10 @@ class Reinforcement:
                 count -= 1
             else:
                 current_layer += 1
+
+        log_property(
+            f"Distributed {rebar.diameter_mm}mm bars across {current_layer + 1} layers."
+        )
         return current_layer
 
     def arrange_bars(self) -> None:
@@ -258,8 +312,12 @@ class Reinforcement:
         Arranges the bars for every layer to maintain symmetry and proper spacing, making it easier to build.
         This function should be called after distributing bars in layers, to ensure that the arrangement is optimized
         """
+        log_operation("Arranging bars in layers")
         for layer in self.chosen_bars:
             self.arrange_bars_in_layer(layer)
+            log_property(
+                f"Layer {layer.layer_index} arranged as {layer.get_bar_diameters_for_print()}."
+            )
 
     def arrange_bars_in_layer(self, layer: Layer) -> None:
         """
@@ -271,6 +329,7 @@ class Reinforcement:
         """
         Clears the chosen bars, resetting the state for a new attempt at distribution.
         """
+        log_operation("Clearing chosen bars and resetting layers.")
         self.chosen_bars = self._build_empty_layers()
 
     def check_for_enough_space(self, optimal_reinforcement: list[Rebar]) -> bool:
@@ -293,16 +352,11 @@ class Reinforcement:
             for bar in optimal_reinforcement
         )
         available_width = self.beam.width - 2 * max_effective_covering
-        return total_width_needed <= available_width
-
-    @staticmethod
-    def is_symmetrical(combination: list[Rebar]) -> bool:
-        """Check if a bar combination can be arranged symmetrically."""
-        if len(combination) % 2 == 0:
-            # Even number of bars - check if counts are even for each diameter
-            counts = Counter(combination)
-            return all(count % 2 == 0 for count in counts.values())
-        # Odd number of bars - one diameter can have odd count (will be centered)
-        counts = Counter(combination)
-        odd_counts = sum(1 for count in counts.values() if count % 2 != 0)
-        return odd_counts <= 1
+        is_there_enough_space = total_width_needed <= available_width
+        log_property(
+            f"Checking space for {len(optimal_reinforcement)} bars: "
+            f"Total width needed = {total_width_needed:.2f} cm, "
+            f"Available width = {available_width:.2f} cm, "
+            f"Enough space: {'Yes' if is_there_enough_space else 'No'}"
+        )
+        return is_there_enough_space

@@ -30,7 +30,7 @@ def max_design_bending_moment(beam: RectangularBeam, d: float, y_max: float) -> 
     Returns:
         Maximum design bending moment (kN.cm).
     """
-    uniform_stress = beam.concrete.calculate_uniform_stress()  # kN/cm²
+    uniform_stress = beam.concrete.uniform_stress  # kN/cm²
     return uniform_stress * beam.width * y_max * (d - 0.5 * y_max)
 
 

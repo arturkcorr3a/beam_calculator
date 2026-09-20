@@ -1,5 +1,6 @@
 # cSpell:ignore cbrt
 from enum import Enum
+from functools import cached_property
 from math import cbrt, log, sqrt
 from typing import cast
 
@@ -31,7 +32,7 @@ class Concrete(Enum):
     C85 = 85
     C90 = 90
 
-    @property
+    @cached_property
     def concrete_group(self) -> int:
         """
         Based on ABNT NBR 8953 concrete groups classification.
@@ -40,7 +41,7 @@ class Concrete(Enum):
         log_property(f"concrete group: {result}")
         return result
 
-    @property
+    @cached_property
     def alpha_e(self) -> float:
         """
         The alpha_e factor for concrete, based on ABNT NBR 6118 - Section 8.2.8. It depends on the type of aggregate used in the concrete mix."""
@@ -57,7 +58,7 @@ class Concrete(Enum):
             case _:
                 raise ValueError(f"Unknown aggregate type: {project_aggregate}")
 
-    @property
+    @cached_property
     def eci(self) -> float:
         """
         The initial elastic modulus of concrete (E_ci) in MPa, based on ABNT NBR 6118 - Section 8.2.8, for granite and gneiss aggregate.
@@ -70,7 +71,7 @@ class Concrete(Enum):
         log_property(f"E_ci = {eci:.2f} MPa")
         return eci
 
-    @property
+    @cached_property
     def ecs(self) -> float:
         """
         The secant elastic modulus of concrete (E_cs) in MPa, based on ABNT NBR 6118 - Section 8.2.8, for granite and gneiss aggregate.
@@ -81,7 +82,7 @@ class Concrete(Enum):
         log_property(f"alpha_i = {alpha_i:.4f} → E_cs = {result:.2f} MPa")
         return result
 
-    @property
+    @cached_property
     def g_c(self) -> float:
         """
         The shear modulus of concrete (G_c) in MPa, based on ABNT NBR 6118 - Section 8.2.9, for granite and gneiss aggregate.
@@ -91,7 +92,7 @@ class Concrete(Enum):
         log_property(f"G_c = E_cs/2.4 = {result:.2f} MPa")
         return result
 
-    @property
+    @cached_property
     def alpha_c(self) -> float:
         """
         The Rüsch effect factor (alpha_c) for concrete, based on ABNT NBR 6118 - Section 17.2.2.
@@ -103,7 +104,7 @@ class Concrete(Enum):
         log_property(f"alpha_c = {result:.4f}")
         return result
 
-    @property
+    @cached_property
     def eta_c(self) -> float:
         """
         The brittleness factor (eta_c) for concrete, based on ABNT NBR 6118 - Section 8.2.10.1.
@@ -115,7 +116,7 @@ class Concrete(Enum):
         log_property(f"eta_c = {result:.4f}")
         return result
 
-    @property
+    @cached_property
     def fcd(self) -> float:
         """
         The design compressive strength of concrete (fcd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.3. Considers only normal action combinations (factor 1.4)
@@ -124,7 +125,8 @@ class Concrete(Enum):
         log_property(f"fcd = {result:.4f} kN/cm²")
         return result
 
-    def calculate_uniform_stress(self) -> float:
+    @cached_property
+    def uniform_stress(self) -> float:
         """
         Calculates the equivalent uniform stress in concrete in kN/cm², based on ABNT NBR 6118 - Section 17.2.2.
         """
@@ -137,7 +139,7 @@ class Concrete(Enum):
         )
         return result
 
-    @property
+    @cached_property
     def lambda_c(self) -> float:
         """
         The stress block depth factor (lambda) based on ABNT NBR 6118 - Section 17.2.2.
@@ -151,7 +153,7 @@ class Concrete(Enum):
         log_property(f"lambda_c = {result:.4f}")
         return result
 
-    @property
+    @cached_property
     def epsilon_c2(self) -> float:
         """
         The compressive strain at the onset of the plastic plateau of concrete (epsilon_c2) based on ABNT NBR 6118 - Section 8.10.1.
@@ -163,7 +165,7 @@ class Concrete(Enum):
         log_property(f"epsilon_c2 = {result:.6f}")
         return result
 
-    @property
+    @cached_property
     def epsilon_cu(self) -> float:
         """
         Ultimate compressive strain of concrete (epsilon_cu) based on ABNT NBR 6118 - Section 8.10.1.
@@ -175,7 +177,7 @@ class Concrete(Enum):
         log_property(f"epsilon_cu = {result:.6f}")
         return result
 
-    @property
+    @cached_property
     def fct_m(self) -> float:
         """
         The mean tensile strength of concrete (fct_m) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
@@ -187,7 +189,7 @@ class Concrete(Enum):
         log_property(f"fct_m = {result:.4f} kN/cm²")
         return result
 
-    @property
+    @cached_property
     def fctk_sup(self) -> float:
         """
         The upper characteristic tensile strength of concrete (f_ctk_sup) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
@@ -196,7 +198,7 @@ class Concrete(Enum):
         log_property(f"fctk_sup = 1.3 × fct_m = {result:.4f} kN/cm²")
         return result
 
-    @property
+    @cached_property
     def fctk_inf(self) -> float:
         """
         The lower characteristic tensile strength of concrete (f_ctk_inf) in kN/cm², based on ABNT NBR 6118 - Section 8.2.5.
@@ -205,7 +207,7 @@ class Concrete(Enum):
         log_property(f"fctk_inf = 0.7 × fct_m = {result:.4f} kN/cm²")
         return result
 
-    @property
+    @cached_property
     def fctd(self) -> float:
         """
         The design tensile strength of concrete (fctd) in kN/cm², based on ABNT NBR 6118 - Section 12.3.3.
@@ -218,7 +220,7 @@ class Concrete(Enum):
         )
         return result
 
-    @property
+    @cached_property
     def alpha_v2(self) -> float:
         """
         The alpha_v2 factor for shear design of concrete, for stirrup calculation with model 1, based on ABNT NBR 6118 - Section 17.4.2.2.

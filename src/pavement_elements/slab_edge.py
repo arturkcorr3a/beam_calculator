@@ -96,7 +96,7 @@ class SlabEdge:
         variable_linear_load = (
             self.slab.variable_load * self.influence_area / edge_length_m
         )  # kN/m
-        log_interaction(f"{self.edge.value}: permanent {permanent_linear_load:.2f} kN/m, variable {variable_linear_load:.2f} kN/m")
+        log_interaction(f"Unloading on {len(self.spans)} spans: permanent {permanent_linear_load:.2f} kN/m, variable {variable_linear_load:.2f} kN/m", f"{self.label} → {self.beam.id}")
         for span in self.spans:
             span.add_load(permanent_linear_load, permanent=True)
             span.add_load(variable_linear_load, permanent=False)

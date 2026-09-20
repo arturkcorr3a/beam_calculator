@@ -1018,11 +1018,11 @@ class BeamReportWindow(QDialog):
 
     def _run(self) -> None:
         from src.calculators.beam_calculator import BeamCalculator
+        from src.calculators.rebar_calculator import RebarCalculator
+        from src.calculators.stirrup_calculator import StirrupCalculator
         from src.loading.forces import (
             design_effort_elu,
         )
-        from src.calculators.rebar_calculator import RebarCalculator
-        from src.calculators.stirrup_calculator import StirrupCalculator
         from src.reinforcement.stirrups import Stirrups
 
         beam = self._beam
@@ -1032,12 +1032,13 @@ class BeamReportWindow(QDialog):
             loads = calc._build_loads()
             rect_beam = calc._build_structural_beam(supports, loads)
 
-            max_bm, max_sf = calc._get_max_forces(rect_beam)
+            max_bm_and_position, max_sf = calc._get_max_forces(rect_beam)
+            max_bm, position = max_bm_and_position
             design_sf = design_effort_elu(max_sf)
 
-            stirrup_calc = StirrupCalculator(rect_beam, design_sf)
-            stirrups = Stirrups(rect_beam, stirrup_calc)
-            calculator = RebarCalculator(rect_beam, max_bm, stirrups)
+            stirrup_calc = StirrupCalculator(rect_beam, design_sf, beam.id)
+            stirrups = Stirrups(rect_beam, stirrup_calc, beam.id)
+            calculator = RebarCalculator(rect_beam, max_bm, stirrups, position, beam.id)
             calculator.calculate()
         except Exception as exc:  # noqa: BLE001
             self._status_label.setText(f"Error: {exc}")

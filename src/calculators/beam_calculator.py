@@ -70,12 +70,15 @@ class BeamCalculator:
         """Builds a list of distributed vertical loads for each span, combining permanent and variable loads."""
         loads: list[UDLV] = []
         start_position = 0
-        for span in self._beam.spans:
+        for i, span in enumerate(self._beam.spans):
             end_position = start_position + span.get_length(self._pillar_registry)
             total_load = (
                 span.permanent_load + span.variable_load
             )  # kN/m, permanent + variable as it is ELU
             load = UDLV(-total_load, (start_position, end_position))  # pyright: ignore[reportArgumentType] # negative for downward load
+            log_operation(
+                f"Span {i}: permanent {span.permanent_load:.2f} kN/m, variable {span.variable_load:.2f} kN/m, total {total_load:.2f} kN/m"
+            )
             loads.append(load)
             start_position = end_position
         return loads
@@ -99,6 +102,7 @@ class BeamCalculator:
             steel,
             supports,
             loads,  # pyright: ignore[reportArgumentType]
+            self.label,
         )
 
     def _get_max_forces(
@@ -113,7 +117,7 @@ class BeamCalculator:
 
         max_shear_force = cast(float, structural_beam.get_shear_force(return_max=True))  # pyright: ignore[reportUnknownMemberType] # kN
         log_operation(
-            f"max moment {max_bending_moment_and_position[0]:.2f} kN.m at {max_bending_moment_and_position[1]:.2f} cm and max shear {max_shear_force:.2f} kN"
+            f"Maximum bending moment {max_bending_moment_and_position[0]:.2f} kN.m at {max_bending_moment_and_position[1]:.2f} cm and max shear force {max_shear_force:.2f} kN"
         )
         return max_bending_moment_and_position, max_shear_force
 
@@ -125,11 +129,17 @@ class BeamCalculator:
         max_shear_force: float,
     ) -> RebarCalculator:
         design_shear_force = design_effort_elu(max_shear_force)  # kN
-        stirrup_calculator = StirrupCalculator(structural_beam, design_shear_force)
-        stirrups = Stirrups(structural_beam, stirrup_calculator)
+        stirrup_calculator = StirrupCalculator(
+            structural_beam, design_shear_force, self.label
+        )
+        stirrups = Stirrups(structural_beam, stirrup_calculator, self.label)
 
         calculator = RebarCalculator(
-            structural_beam, max_bending_moment, stirrups, max_bending_moment_position
+            structural_beam,
+            max_bending_moment,
+            stirrups,
+            max_bending_moment_position,
+            self.label,
         )
         calculator.calculate()
         return calculator
@@ -147,11 +157,12 @@ class BeamCalculator:
             compressed_reinforcement_area=rebar_calculator.compressed_reinforcement.area,
             effective_depth_compressed=rebar_calculator.d_compressed,
             effective_depth_discount=effective_depth_discount,
-            span=structural_beam.length,
+            span=most_loaded_span.get_length(self._pillar_registry),
             width=structural_beam.width,
             concrete=structural_beam.concrete,
             permanent_load=most_loaded_span.permanent_load,
             variable_load=most_loaded_span.variable_load,
+            id=self.label,
         )
         is_deformation_ok = checker.verify(structural_beam.height)
         if is_deformation_ok:

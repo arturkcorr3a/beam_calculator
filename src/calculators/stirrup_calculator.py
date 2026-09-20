@@ -1,7 +1,7 @@
 from math import cos, pi, sin
 
 from src.calculators.utils import cotan
-from src.logger import log_operation
+from src.logger import log_element, log_operation, logger_label
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 STIRRUP_ANGLE = (
@@ -14,22 +14,24 @@ MIN_SPACING = (
 )  # cm, minimum stirrup spacing to ensure passage of the vibrator - NBR 6118 - Section 18.3.3.2
 
 
+@logger_label("Stirrup Calculator {id}")
 class StirrupCalculator:
     """Calculate required stirrup reinforcement for rectangular beams using Model 1 (NBR 6118 - Section 17.4)."""
 
     effective_depth: float
 
-    def __init__(self, beam: RectangularBeam, design_shear_force: float):
+    def __init__(self, beam: RectangularBeam, design_shear_force: float, id: str = ""):
         """Initialize with a rectangular beam."""
         self.beam = beam
         self.design_shear_force = design_shear_force
+        self.id = id
 
     def calculate(self, effective_depth: float) -> float:
         """Calculate required stirrup area and spacing for a given design shear force and effective depth."""
         self.effective_depth = effective_depth
         self.verify_compressed_strut_resistance()
-        log_operation(
-            f"required Asw/s = {self.required_ratio:.4f} cm2/cm, max spacing = {self.max_spacing:.1f} cm"
+        log_element(
+            f"Required Asw/s = {self.required_ratio:.4f} cm²/cm, with max spacing = {self.max_spacing:.1f} cm"
         )
         return self.required_ratio  # cm²/cm
 
@@ -39,6 +41,9 @@ class StirrupCalculator:
             raise ValueError(
                 f"Design shear force (V_Sd = {self.design_shear_force:.2f} kN) exceeds compressed strut resistance (V_Rd2 = {self.compressed_strut_resistance:.2f} kN). Design not verified."
             )
+        log_operation(
+            "Shear force does not exceed the compressed strut resistance (V_Rd2) - OK."
+        )
 
     @property
     def compressed_strut_resistance(self) -> float:
@@ -46,22 +51,35 @@ class StirrupCalculator:
         alpha_v2 = self.beam.concrete.alpha_v2  # dimensionless
         fcd = self.beam.concrete.fcd  # kN/cm²
         bw = self.beam.width  # cm
-        return 0.27 * alpha_v2 * fcd * bw * self.effective_depth  # kN
+        compressed_strut_resistance = (
+            0.27 * alpha_v2 * fcd * bw * self.effective_depth
+        )  # kN
+        log_operation(
+            f"compressed strut resistance V_Rd2 = {compressed_strut_resistance:.2f} kN"
+        )
+        return compressed_strut_resistance
 
     @property
     def concrete_contribution(self) -> float:
         """Concrete contribution to shear resistance (V_c = V_c0) in kN. NBR 6118 - Section 17.4.2.2."""
         fctd = self.beam.concrete.fctd  # kN/cm²
         bw = self.beam.width  # cm
-        return 0.6 * fctd * bw * self.effective_depth  # kN
+        concrete_contribution = 0.6 * fctd * bw * self.effective_depth  # kN
+        log_operation(
+            f"Concrete contribution V_c = V_c0 = {concrete_contribution:.2f} kN"
+        )
+        return concrete_contribution
 
     @property
     def required_contribution(self) -> float:
         """Required shear resistance from stirrups (V_sw) in kN. NBR 6118 - Section 17.4.2.2."""
         vc = self.concrete_contribution  # kN
-
         vsw_required = self.design_shear_force - vc  # kN
-        return max(vsw_required, 0)
+        required_contribution = max(vsw_required, 0)
+        log_operation(
+            f"Required stirrup contribution V_sw = {required_contribution:.2f} kN"
+        )
+        return required_contribution
 
     @property
     def required_ratio(self) -> float:
@@ -76,7 +94,11 @@ class StirrupCalculator:
             * (sin(STIRRUP_ANGLE) + cos(STIRRUP_ANGLE))
         )  # cm²/cm
         asw_s_min = self.minimum_ratio  # cm²/cm
-        return max(asw_s, asw_s_min)
+        required_ratio = max(asw_s, asw_s_min)
+        log_operation(
+            f"Required stirrup reinforcement ratio A_sw/s = {required_ratio:.2f} cm²/cm"
+        )
+        return required_ratio
 
     @property
     def minimum_ratio(self) -> float:
@@ -84,14 +106,21 @@ class StirrupCalculator:
         fct_m = self.beam.concrete.fct_m  # MPa
         fywk = self.beam.steel.fywk  # kN/cm²
         bw = self.beam.width  # cm
-        return 0.2 * fct_m / fywk * bw * sin(STIRRUP_ANGLE)  # cm²/cm
+        minimum_ratio = 0.2 * fct_m / fywk * bw * sin(STIRRUP_ANGLE)  # cm²/cm
+        log_operation(
+            f"Minimum stirrup reinforcement ratio A_sw_min/s = {minimum_ratio:.2f} cm²/cm"
+        )
+        return minimum_ratio
 
     @property
     def max_spacing(self) -> float:
         """Calculate maximum stirrup spacing (s_max) in cm. NBR 6118 - Section 18.3.3.2"""
         if self.design_shear_force <= 0.67 * self.compressed_strut_resistance:
-            return min(0.6 * self.effective_depth, 30.0)  # cm
-        return min(0.3 * self.effective_depth, 30.0)  # cm
+            max_spacing = min(0.6 * self.effective_depth, 30.0)  # cm
+        else:
+            max_spacing = min(0.3 * self.effective_depth, 30.0)  # cm
+        log_operation(f"Maximum stirrup spacing s_max = {max_spacing:.2f} cm")
+        return max_spacing
 
     def calculate_moment_shift(self) -> float:
         """Calculate the moment shift length (a_l) in cm. NBR 6118 - Section 17.4.2.2."""
@@ -107,5 +136,6 @@ class StirrupCalculator:
         )
         al = min(al, self.effective_depth)
         al = max(al, 0.5 * self.effective_depth)
-        log_operation(f"moment shift length a_l = {al:.2f} cm")
-        return max(al, 0.5 * self.effective_depth)
+        moment_shift = max(al, 0.5 * self.effective_depth)
+        log_operation(f"moment shift length a_l = {moment_shift:.2f} cm")
+        return moment_shift

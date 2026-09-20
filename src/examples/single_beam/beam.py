@@ -50,7 +50,7 @@ beam = RectangularBeam(length, width, height, concrete, steel, supports, loads)
 # ==============================================================================
 # 2. STRUCTURAL ANALYSIS / ESFORÇOS SOLICITANTES
 # ==============================================================================
-max_bending_moment = beam.get_bending_moment(return_max=True)  # kN.m
+max_bending_moment, position = beam.get_max_bending_moment()  # kN.m
 max_shear_force = beam.get_shear_force(return_max=True)  # kN
 
 design_bending_moment = design_effort_elu(max_bending_moment)  # kN.m
@@ -62,7 +62,7 @@ design_shear_force = design_effort_elu(max_shear_force)  # kN
 stirrup_calculator = StirrupCalculator(beam, design_shear_force)
 stirrups = Stirrups(beam, stirrup_calculator)
 
-calculator = RebarCalculator(beam, max_bending_moment, stirrups)
+calculator = RebarCalculator(beam, max_bending_moment, stirrups, position)
 calculator.calculate()
 
 compressed = calculator.compressed_reinforcement

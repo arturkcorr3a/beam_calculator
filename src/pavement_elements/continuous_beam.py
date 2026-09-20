@@ -5,7 +5,7 @@ from src.calculators.beam_calculator import BeamCalculator
 from src.config import APP_CONFIG
 from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
-from src.logger import log_element, log_operation, logger_label
+from src.logger import log_element, log_general, log_operation, logger_label
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.geometry_utils import (
     TOLERANCE,
@@ -113,12 +113,14 @@ class ContinuousBeam:
             length = span.get_length(pillar_registry)
             proposed_height = length / BEAM_HEIGHT_ESTIMATION_FACTOR
             max_height = max(max_height, proposed_height)
+
         self.height = round_up_to_multiple_of_5(max_height)
-        log_element(f"chosen height = {self.height} cm")
+        log_element(f"Chosen height = {self.height} cm")
         return self.height
 
     def dimension(self, pillar_registry: dict[str, Pillar]) -> None:
         """Runs structural dimensioning: builds the model, calculates reinforcement, and exports the report."""
+        log_general("Start calculation process...")
         BeamCalculator(self, pillar_registry).run()
         log_element(f"dimensioned {self.width:.0f} x {self.height:.0f} cm")
 
@@ -133,8 +135,9 @@ class ContinuousBeam:
         self._validate_all_pillars_support_the_whole_beam_width(pillar_registry)
         self._validate_no_skipped_pillars(pillar_registry)
         self._build_resolved_spans()
-        log_operation(
-            f"axis {self.axis.name}, centerline {self.centerline:.1f} cm, {len(self.spans)} span(s)"  # type:ignore
+
+        log_element(
+            f"Longitudinal axis: {self.axis.name} ; centerline: {self.centerline:.1f} cm; {len(self.spans)} span(s)"  # type:ignore
         )
 
     def contains_pillar(self, pillar_id: str) -> bool:
@@ -179,7 +182,9 @@ class ContinuousBeam:
         wall_weight = LinearLoads.get_wall_load(
             *self.wall.get_parameters_for_load(), wall_height
         )  # kN/m
-        log_operation(f"self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m")
+        log_operation(
+            f"Loads: self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m"
+        )
         for span in self.spans:
             span.add_load(own_weight, permanent=True)
             span.add_load(wall_weight, permanent=True)
@@ -188,12 +193,16 @@ class ContinuousBeam:
         """Returns the span with the highest total load (permanent + variable)."""
         if not self.spans:
             raise ValueError(f"Beam '{self.id}' has no spans to evaluate.")
-        return max(
+        most_loaded_span_for_els = max(
             self.spans,
             key=lambda span: almost_permanent_combination_els(
                 span.permanent_load, span.variable_load
             ),
         )
+        log_operation(
+            f"Most loaded span for ELS: {most_loaded_span_for_els.start_pillar_id} to {most_loaded_span_for_els.end_pillar_id} with total load {almost_permanent_combination_els(most_loaded_span_for_els.permanent_load, most_loaded_span_for_els.variable_load):.2f} kN/m"
+        )
+        return most_loaded_span_for_els
 
     # ------------------------------------------------------------------
     # Validation helpers

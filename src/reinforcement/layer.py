@@ -51,3 +51,7 @@ class Layer:
                 bar.left_hook_enabled = enable
             else:
                 bar.right_hook_enabled = enable
+
+    def get_bar_diameters_for_print(self) -> str:
+        """Returns a string representation of the bar diameters in the layer."""
+        return ", ".join(f"{bar.diameter_mm}mm" for bar in self.bars)
