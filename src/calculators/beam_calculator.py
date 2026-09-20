@@ -140,7 +140,7 @@ class BeamCalculator:
             stirrups,
             max_bending_moment_position,
             self.label,
-        )  # TODO improve logging
+        )
         calculator.calculate()
         return calculator
 

@@ -9,7 +9,7 @@ from src.properties.steel import Steel
 from src.structural_elements.rebar import Rebar
 
 
-@logger_label("Rebar Chooser - {steel_name} - {required_area:.2f} cm²")
+@logger_label("Rebar Chooser - {label}")
 class RebarChooser:
     """Select and store rebar solutions for a given steel grade and required area."""
 
@@ -21,6 +21,10 @@ class RebarChooser:
         self.steel = steel
         self.required_area = required_area
         self.set_solutions_per_diameter()
+
+    @property
+    def label(self) -> str:
+        return f"{self.steel.name} - {self.required_area:.2f} cm²"
 
     def set_solutions_per_diameter(self) -> None:
         """Build the cached best solution for each possible bar-diameter combination."""
