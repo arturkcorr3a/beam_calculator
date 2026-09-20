@@ -1,8 +1,10 @@
+from typing import cast
+
 from indeterminatebeam import Beam, Support  # type: ignore
 from indeterminatebeam.loading import UDLV  # type: ignore
-from matplotlib.pylab import cast  # type: ignore
 
 from src.config import APP_CONFIG
+from src.logger import log_element, logger_label
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.properties.steel import Steel
@@ -21,7 +23,6 @@ UNITS = {
 }
 
 _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
-
 
 class _BeamMeta(type):
     @property
@@ -45,6 +46,7 @@ class _BeamMeta(type):
                 )
 
 
+@logger_label("Structural {label}")
 class RectangularBeam(Beam, metaclass=_BeamMeta):
     """
     Extends indeterminatebeam.Beam to a rectangular cross-section beam, with necessary properties and methods for dimensioning analysis.
@@ -59,6 +61,7 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
         steel: Steel,
         supports: list[Support],
         loads: list[UDLV],
+        label: str = "",
     ):
         """Initialize a rectangular beam, with the analysis done.
 
@@ -71,6 +74,7 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
             supports: List of indeterminatebeam.Support instances.
             loads: List of indeterminatebeam.Load instances.
         """
+        self.label = label
         self.width = width
         self.height = height
         self._validate_width()
@@ -98,8 +102,10 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
 
         self.add_loads(*loads)  # type: ignore
         self.add_supports(*supports)  # type: ignore
-
         self.analyse()
+        
+        log_element(f"{self.width:.0f} x {self.height:.0f} cm; {self.length:.2f} m long, {self.concrete.name}, {self.steel.name}")
+
 
     def update_units_local(self) -> None:
         for key, unit in UNITS.items():
