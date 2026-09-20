@@ -60,7 +60,7 @@ class RebarCalculator:
             center_position=bending_moment_position,
             stirrup_calculator=stirrups.calculator,
             id=self.id,
-        )  # TODO improve logging on Reinforcement
+        )
         self.compressed_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_top_tensioned,
@@ -306,7 +306,7 @@ class RebarCalculator:
         d = (
             self.beam.height
             - covering
-            - self.tensioned_reinforcement.get_distance_for_d_calculation()
+            - self.tensioned_reinforcement.get_distance_for_d_calculation(label)
             - stirrup_diameter
         )
         log_operation(f"Effective depth (d) = {d:.2f} cm")
@@ -399,7 +399,7 @@ class RebarCalculator:
         d_compressed = (
             covering
             + stirrup_diameter
-            + self.compressed_reinforcement.get_distance_for_d_calculation()
+            + self.compressed_reinforcement.get_distance_for_d_calculation(label)
         )
         log_operation(f"d' = {d_compressed:.2f} cm")
         return d_compressed
