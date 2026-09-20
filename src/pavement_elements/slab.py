@@ -92,7 +92,9 @@ class Slab(metaclass=_SlabMeta):
 
     @staticmethod
     def _corner_yield_slope(
-        horizontal_cond: SupportCondition, vertical_cond: SupportCondition
+        horizontal_cond: SupportCondition,
+        vertical_cond: SupportCondition,
+        horizontal_and_vertical_labels: tuple[str, str] = ("horizontal", "vertical"),
     ) -> float:
         """Returns the yield-line slope (tan theta) at a corner, where theta is measured from the horizontal edge, based on ABNT NBR 6118 - Section 14.7.6.1.
 
@@ -101,9 +103,18 @@ class Slab(metaclass=_SlabMeta):
         - Horizontal pinned, vertical fixed: 30 degrees (1/sqrt(3)).
         """
         if horizontal_cond == vertical_cond:
+            log_property(
+                f"{horizontal_and_vertical_labels[0]} = {horizontal_cond}, {horizontal_and_vertical_labels[1]} = {vertical_cond} => 45° (1.0)"
+            )
             return 1.0
         if horizontal_cond == "fixed":
+            log_property(
+                f"{horizontal_and_vertical_labels[0]} = {horizontal_cond}, {horizontal_and_vertical_labels[1]} = {vertical_cond} => 60° (sqrt(3))"
+            )
             return math.sqrt(3)
+        log_property(
+            f"{horizontal_and_vertical_labels[0]} = {horizontal_cond}, {horizontal_and_vertical_labels[1]} = {vertical_cond} => 30° (1/sqrt(3))"
+        )
         return 1.0 / math.sqrt(3)
 
     def _setup_edges(self) -> None:
@@ -194,7 +205,7 @@ class Slab(metaclass=_SlabMeta):
         self._resolve_variable_load()
         lx, ly = self.dimensions
         log_element(
-            f"{'One-way' if self.is_one_way else 'Two-way'}; {lx/100.0:.2f} x {ly/100.0:.2f} m; Variable load: {self.variable_load:.1f} kN/m2"
+            f"{'One-way' if self.is_one_way else 'Two-way'}; {lx / 100.0:.2f} x {ly / 100.0:.2f} m; Variable load: {self.variable_load:.1f} kN/m2"
         )
 
     def unload_on_supporting_spans(self, pillar_registry: dict[str, Pillar]) -> None:
@@ -211,18 +222,22 @@ class Slab(metaclass=_SlabMeta):
         slope_bl = Slab._corner_yield_slope(
             self.edges[Edges.BOTTOM].support_condition,
             self.edges[Edges.LEFT].support_condition,
+            ("bottom", "left"),
         )
         slope_br = Slab._corner_yield_slope(
             self.edges[Edges.BOTTOM].support_condition,
             self.edges[Edges.RIGHT].support_condition,
+            ("bottom", "right"),
         )
         slope_tl = Slab._corner_yield_slope(
             self.edges[Edges.TOP].support_condition,
             self.edges[Edges.LEFT].support_condition,
+            ("top", "left"),
         )
         slope_tr = Slab._corner_yield_slope(
             self.edges[Edges.TOP].support_condition,
             self.edges[Edges.RIGHT].support_condition,
+            ("top", "right"),
         )
 
         p_bl = Point(0, 0)
@@ -275,8 +290,8 @@ class Slab(metaclass=_SlabMeta):
             )
 
         for edge in Edges:
-            log_property(
-                f"{edge.value}: area = {self.edges[edge].influence_area:.4f} m2"
+            log_operation(
+                f"{edge.value} influence area = {self.edges[edge].influence_area:.4f} m²"
             )
 
     @property

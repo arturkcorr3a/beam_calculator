@@ -80,7 +80,9 @@ class Pavement:
         self.pre_size_beams()
         self.load_beam_spans()
         self.pre_size_slabs()
-        self.unload_slabs_on_beams() # TODO PAREI AQUI
+        self.unload_slabs_on_beams()
+
+        log_general("Pavement pre-processing complete. Starting beam dimensioning...")
         self.dimension_beams()
 
     def pre_size_beams(self) -> None:
@@ -130,6 +132,6 @@ class Pavement:
         """
         Dimensions all beams based on the loads applied to their spans.
         """
-        log_general("Beam's calculation process starting...")
+        log_general("Beams' calculation process starting")
         for beam in self.beams.values():
             beam.dimension(self.pillars)

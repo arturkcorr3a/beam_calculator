@@ -5,7 +5,7 @@ from src.calculators.beam_calculator import BeamCalculator
 from src.config import APP_CONFIG
 from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
-from src.logger import log_element, log_operation, logger_label
+from src.logger import log_element, log_general, log_operation, logger_label
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.geometry_utils import (
     TOLERANCE,
@@ -120,6 +120,7 @@ class ContinuousBeam:
 
     def dimension(self, pillar_registry: dict[str, Pillar]) -> None:
         """Runs structural dimensioning: builds the model, calculates reinforcement, and exports the report."""
+        log_general("Start calculation process...")
         BeamCalculator(self, pillar_registry).run()
         log_element(f"dimensioned {self.width:.0f} x {self.height:.0f} cm")
 
@@ -181,7 +182,9 @@ class ContinuousBeam:
         wall_weight = LinearLoads.get_wall_load(
             *self.wall.get_parameters_for_load(), wall_height
         )  # kN/m
-        log_operation(f"Loads: self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m")
+        log_operation(
+            f"Loads: self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m"
+        )
         for span in self.spans:
             span.add_load(own_weight, permanent=True)
             span.add_load(wall_weight, permanent=True)
