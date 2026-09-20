@@ -1,12 +1,15 @@
+from collections import Counter
 from functools import cached_property
 from itertools import combinations
 from math import ceil
 
 from src.config import APP_CONFIG
+from src.logger import log_operation, log_property, logger_label
 from src.properties.steel import Steel
 from src.structural_elements.rebar import Rebar
 
 
+@logger_label("Rebar Chooser - {steel_name} - {required_area:.2f} cm²")
 class RebarChooser:
     """Select and store rebar solutions for a given steel grade and required area."""
 
@@ -21,10 +24,18 @@ class RebarChooser:
 
     def set_solutions_per_diameter(self) -> None:
         """Build the cached best solution for each possible bar-diameter combination."""
-        solutions = {}
+        log_operation(
+            f"Finding optimal rebar combinations for required area: {self.required_area:.2f} cm² ({self.steel.name})"
+        )
+        solutions: dict[tuple[float, ...], tuple[Rebar, ...]] = {}
         for combination in self.possible_diameter_combinations:
             solutions[combination] = self.choose_best_combination(combination)
         self.solutions_per_diameter = solutions
+
+        valid_solutions = sum(1 for s in solutions.values() if s)
+        log_property(
+            f"Evaluated {len(solutions)} combinations: {valid_solutions} valid solutions found"
+        )
 
     @cached_property
     def possible_diameter_combinations(self) -> set[tuple[float, ...]]:
@@ -34,6 +45,10 @@ class RebarChooser:
         for i in range(1, APP_CONFIG.max_bar_types + 1):
             possible_combinations.update(combinations(self.steel.available_sizes, i))
 
+        log_property(f"Available steel sizes: {self.steel.available_sizes}")
+        log_property(
+            f"Generated {len(possible_combinations)} possible diameter combinations (max bar types: {APP_CONFIG.max_bar_types})"
+        )
         return possible_combinations
 
     def choose_best_combination(
@@ -42,7 +57,7 @@ class RebarChooser:
         """Find the optimal bar combination for a fixed diameter subset using unbounded coin-change DP.
 
         Primary goal: minimum total area >= required_area.
-        Secondary goal: fewest bars (minimised implicitly per DP step).
+        Secondary goal: fewest bars (minimized implicitly per DP step).
         Minimum bars: at least 2 bars in the output.
 
         Args:
@@ -85,7 +100,9 @@ class RebarChooser:
                 best = slot
                 break
 
+        combo_label = ", ".join(f"{d:g}mm" for d in combination)
         if best == -1:
+            log_property(f"No valid combination found for diameters ({combo_label})")
             return ()
 
         # Walk the previous[] chain to reconstruct the chosen bars
@@ -95,6 +112,15 @@ class RebarChooser:
             rebar_index = previous[slot]
             result.append(rebars[rebar_index])
             slot -= coins[rebar_index]
+
+        total_area = sum(bar.area_cm2 for bar in result)
+        counter = Counter(bar.diameter_mm for bar in result)
+        bars_description = ", ".join(
+            f"{count}x{diameter:g}mm" for diameter, count in sorted(counter.items())
+        )
+        log_property(
+            f"Best combination for ({combo_label}): {bars_description} (area = {total_area:.2f} cm², bars = {len(result)})"
+        )
         return tuple(result)
 
     def get_best_solution_for_combo(
@@ -108,4 +134,17 @@ class RebarChooser:
         Returns:
             Tuple of Rebar instances, or an empty tuple if no solution exists.
         """
-        return self.solutions_per_diameter.get(combination, ())
+        solution = self.solutions_per_diameter.get(combination, ())
+        combo_label = ", ".join(f"{d:g}mm" for d in combination)
+        if solution:
+            counter = Counter(b.diameter_mm for b in solution)
+            bars_desc = ", ".join(
+                f"{count}x{d:g}mm" for d, count in sorted(counter.items())
+            )
+            total_area = sum(b.area_cm2 for b in solution)
+            log_property(
+                f"Retrieved solution for ({combo_label}): {bars_desc} (area = {total_area:.2f} cm²)"
+            )
+        else:
+            log_property(f"No cached solution found for ({combo_label})")
+        return solution
