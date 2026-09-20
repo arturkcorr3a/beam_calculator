@@ -67,6 +67,7 @@ class Stirrups:
         self.spacing, self.diameter = best_option
         return best_option
 
+    # FIXME Inverted Stirrup Selection Optimization (Absurdly Dense Stirrup Spacing)
     @staticmethod
     def _pick_best_option(options: list[tuple[float, float]]) -> tuple[float, float]:
         """

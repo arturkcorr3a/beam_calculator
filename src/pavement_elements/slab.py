@@ -56,7 +56,8 @@ class _SlabMeta(type):
                     f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."
                 )
 
-
+# FIXME when is_one_way, the unloading on spans should happen only on the shorter direction
+# FIXME permanent weight is not being applied
 @logger_label("{id}")
 @dataclass
 class Slab(metaclass=_SlabMeta):
@@ -179,6 +180,7 @@ class Slab(metaclass=_SlabMeta):
         )
         return (x_dimension, y_dimension)
 
+    # FIXME when is_one_way, the unloading on spans should happen only on the shorter direction 
     @cached_property
     def is_one_way(self) -> bool:
         """Returns True if the slab is a one-way slab, based on the ratio of its dimensions.
@@ -186,7 +188,7 @@ class Slab(metaclass=_SlabMeta):
         Based on 'Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado', item 7.3."""
         biggest = max(self.dimensions)
         smallest = min(self.dimensions)
-        return (biggest / smallest) <= ONE_WAY_SLAB_THRESHOLD_RATIO
+        return (biggest / smallest) > ONE_WAY_SLAB_THRESHOLD_RATIO
 
     def add_permanent_load(self, load: float) -> None:
         """Adds a permanent load (kN/m²) to the slab's total permanent load."""

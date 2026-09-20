@@ -13,7 +13,9 @@ class BeamDeformationChecker(DeformationChecker):
 
     @property
     def service_moment(self) -> float:
-        service_moment = cast(float, self.structural_beam.get_bending_moment(return_absmax=True))  # type: ignore , kN.m
+        service_moment = cast(
+            float, self.structural_beam.get_bending_moment(return_absmax=True)
+        )  # type: ignore , kN.m
         log_operation(f"Service bending moment: {service_moment:.2f} kN.m")
         return service_moment
 
@@ -31,6 +33,10 @@ class BeamDeformationChecker(DeformationChecker):
         """
         The immediate deflection (cm) is the deflection of the beam under service loads, calculated using the structural analysis of the beam via lib indeterminatebeam.
         """
-        immediate_deflection = cast(float, self.structural_beam.get_deflection(return_absmax=True))  # type: ignore , cm
+        immediate_deflection = cast(
+            float, self.structural_beam.get_deflection(return_absmax=True)
+        )  # type: ignore , cm
         log_operation(f"Immediate deflection: {immediate_deflection:.2f} cm")
         return immediate_deflection
+
+    # FIXME this queries structural_beam.get_deflection(return_absmax=True) from indeterminatebeam, which assumes an uncracked gross section Unlike SlabDeformationChecker, it never applies (Branson's equation).

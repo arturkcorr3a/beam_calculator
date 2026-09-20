@@ -103,12 +103,16 @@ class Pavement:
         stable: list[bool | None] = [None] * len(self.slabs)
         while False in stable or None in stable:
             pass_num += 1
+            log_iteration(
+                f"Passing {pass_num} starting...",
+                "Slabs Pre-sizing"
+            )
             for i, slab in enumerate(self.slabs.values()):
                 stable[i] = slab.pre_size()
                 
             n_changed = sum(1 for is_stable in stable if is_stable is False)
             log_iteration(
-                f"Iteration {pass_num}: {n_changed} slab(s) resized",
+                f"Passing {pass_num}: {n_changed} slab(s) resized",
                 "Slabs Pre-sizing"
             )
 

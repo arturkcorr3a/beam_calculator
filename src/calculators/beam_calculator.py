@@ -157,7 +157,7 @@ class BeamCalculator:
             compressed_reinforcement_area=rebar_calculator.compressed_reinforcement.area,
             effective_depth_compressed=rebar_calculator.d_compressed,
             effective_depth_discount=effective_depth_discount,
-            span=structural_beam.length,
+            span=most_loaded_span.get_length(self._pillar_registry),
             width=structural_beam.width,
             concrete=structural_beam.concrete,
             permanent_load=most_loaded_span.permanent_load,

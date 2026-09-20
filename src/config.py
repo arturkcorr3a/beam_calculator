@@ -35,7 +35,7 @@ class AppConfig:
     # log_level options: PROPERTY, OPERATION, ITERATION, ELEMENT, INTERACTION, GENERAL, DISABLED
     log_level: str = "PROPERTY"
     # log_output options: console, file, both
-    log_output: str = "console"
+    log_output: str = "both"
 
 
 APP_CONFIG = AppConfig()

@@ -258,6 +258,7 @@ class Reinforcement:
             weights += area
         return (weighted_centroids / weights, weights) if weights != 0 else (0, 0)
 
+    # FIXME I think here there may be an unit error with the bar and available space
     def distribute_bars_in_layers(self, optimal_reinforcement: list[Rebar]) -> None:
         """
         Gets the optimal reinforcement combination chosen and distributes the bars in layers, ensuring that the spacing and constructability requirements are met.

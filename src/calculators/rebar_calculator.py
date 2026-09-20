@@ -48,7 +48,7 @@ class RebarCalculator:
         """
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
-        self.design_bending_moment = design_effort_elu(bending_moment_in_kncm)
+        self.design_bending_moment = abs(design_effort_elu(bending_moment_in_kncm))
 
         is_bottom_tensioned = bending_moment >= 0
         is_top_tensioned = not is_bottom_tensioned
