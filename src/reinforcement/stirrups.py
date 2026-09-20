@@ -1,8 +1,9 @@
+from functools import cached_property
 from math import pi
 from typing import cast
 
 from src.calculators.stirrup_calculator import MIN_SPACING, StirrupCalculator
-from src.logger import log_element, logger_label
+from src.logger import log_element, log_property, logger_label
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 18.3.3.2)
@@ -24,12 +25,14 @@ class Stirrups:
         self.diameter: float | None = None
         self.id = id
 
-    @property
+    @cached_property
     def max_diameter(self) -> float:
         """
         Calculate the maximum diameter of stirrup bars (phi_max) in cm, based on the required reinforcement ratio and minimum spacing.
         """
-        return self.beam.width / 10  # cm
+        max_diameter = self.beam.width / 10  # cm
+        log_property(f"Maximum stirrup diameter phi_max = {max_diameter:.2f} cm")
+        return max_diameter
 
     def calculate_and_choose(self, effective_depth: float) -> tuple[float, float]:
         """
@@ -39,7 +42,7 @@ class Stirrups:
         self.required_ratio = self.calculator.required_ratio  # cm²/cm
         result = self.choose()  # Returns (spacing, diameter) in cm
         log_element(
-            f"stirrup: {cast(float, self.diameter) * 10:.0f}mm @ {self.spacing:.1f} cm"
+            f"Stirrup: {cast(float, self.diameter) * 10:.0f}mm every {self.spacing:.1f} cm"
         )
         return result
 

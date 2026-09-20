@@ -50,7 +50,7 @@ class BeamCalculator:
             max_bending_moment=max_bending_moment,
             max_bending_moment_position=max_bending_moment_position,
             max_shear_force=max_shear_force,
-        )  # TODO improve logging on _calculate()
+        )
         self._verify_deformation(structural_beam, calculator)
 
     # FIXME considering all supports as pinned -> fix to include pillar coherence and rigidity
@@ -130,17 +130,17 @@ class BeamCalculator:
     ) -> RebarCalculator:
         design_shear_force = design_effort_elu(max_shear_force)  # kN
         stirrup_calculator = StirrupCalculator(
-            structural_beam, design_shear_force, self._beam.id
+            structural_beam, design_shear_force, self.label
         )
-        stirrups = Stirrups(structural_beam, stirrup_calculator, self._beam.id)
+        stirrups = Stirrups(structural_beam, stirrup_calculator, self.label)
 
         calculator = RebarCalculator(
             structural_beam,
             max_bending_moment,
             stirrups,
             max_bending_moment_position,
-            self._beam.id,
-        )
+            self.label,
+        )  # TODO improve logging
         calculator.calculate()
         return calculator
 

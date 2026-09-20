@@ -118,6 +118,7 @@ class Reinforcement:
         """
         Returns the centroid for the reinforcement relative to itself (cm)
         """
+        # TODO add log_property logs here
         if not self.is_chosen:
             return DEFAULT_DISTANCE_FOR_D_CALCULATION
         weighted_centroids = 0

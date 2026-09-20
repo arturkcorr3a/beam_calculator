@@ -24,6 +24,7 @@ UNITS = {
 
 _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
 
+
 class _BeamMeta(type):
     @property
     def nominal_covering(self) -> float:
@@ -103,9 +104,10 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
         self.add_loads(*loads)  # type: ignore
         self.add_supports(*supports)  # type: ignore
         self.analyse()
-        
-        log_element(f"{self.width:.0f} x {self.height:.0f} cm; {self.length:.2f} m long, {self.concrete.name}, {self.steel.name}")
 
+        log_element(
+            f"{self.width:.0f} x {self.height:.0f} cm; {self.length / 100.0:.2f} m long, {self.concrete.name}, {self.steel.name}"
+        )
 
     def update_units_local(self) -> None:
         for key, unit in UNITS.items():
