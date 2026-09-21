@@ -13,7 +13,9 @@ MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 1
 class Stirrups:
     """Class to manage stirrup reinforcement properties."""
 
-    def __init__(self, beam: RectangularBeam, calculator: StirrupCalculator, id: str = ""):
+    def __init__(
+        self, beam: RectangularBeam, calculator: StirrupCalculator, id: str = ""
+    ):
         """
         Initialize Stirrups.
         """
@@ -53,21 +55,17 @@ class Stirrups:
         options: list[tuple[float, float]] = []
 
         spacing = self.calculator.max_spacing
-        diameter = self.pick_diameter_for_spacing(spacing)
-        if diameter is not None:
-            options.append((spacing, diameter))
 
         while spacing > MIN_SPACING:
-            spacing -= 1
             diameter = self.pick_diameter_for_spacing(spacing)
             if diameter is not None:
                 options.append((spacing, diameter))
+            spacing -= 1
 
         best_option = self._pick_best_option(options)
         self.spacing, self.diameter = best_option
         return best_option
 
-    # FIXME Inverted Stirrup Selection Optimization (Absurdly Dense Stirrup Spacing)
     @staticmethod
     def _pick_best_option(options: list[tuple[float, float]]) -> tuple[float, float]:
         """
@@ -78,8 +76,8 @@ class Stirrups:
             for spacing, diameter in options
         ]
         option_ratios.sort(
-            key=lambda x: x[2], reverse=True
-        )  # Sort by ratio, descending
+            key=lambda x: x[2], reverse=False
+        )  # Sort by ratio, ascending
         return option_ratios[0][:2]  # Return spacing and diameter of the best option
 
     def pick_diameter_for_spacing(self, spacing: float) -> float | None:
@@ -87,11 +85,9 @@ class Stirrups:
         Pick the diameter (cm) of stirrup bars for a given spacing to meet the required reinforcement ratio.
         """
         for diameter in self.steel.available_sizes:
-            diameter = max(
-                diameter / 10, MIN_DIAMETER
-            )  # cm; Ensure diameter is at least the minimum
-            if diameter > self.max_diameter:
-                continue
+            diameter = diameter / 10  # cm; Ensure diameter is at least the minimum
+            if not MIN_DIAMETER <= diameter <= self.max_diameter:
+                continue  # skips invalid diameters
             ratio = Stirrups.calculate_ratio(diameter, spacing)
             if ratio >= cast(float, self.required_ratio):
                 return diameter
