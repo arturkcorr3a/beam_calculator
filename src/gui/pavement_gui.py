@@ -1038,7 +1038,13 @@ class BeamReportWindow(QDialog):
 
             stirrup_calc = StirrupCalculator(rect_beam, design_sf, beam.id)
             stirrups = Stirrups(rect_beam, stirrup_calc, beam.id)
-            calculator = RebarCalculator(rect_beam, max_bm, stirrups, position, beam.id)
+            calculator = RebarCalculator(
+                beam=rect_beam,
+                bending_moment=max_bm,
+                stirrups=stirrups,
+                bending_moment_position=position,
+                id=beam.id,
+            )
             calculator.calculate()
         except Exception as exc:  # noqa: BLE001
             self._status_label.setText(f"Error: {exc}")

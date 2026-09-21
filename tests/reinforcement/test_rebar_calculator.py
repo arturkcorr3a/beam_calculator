@@ -2,10 +2,10 @@ from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
-from src.structural_elements.rectangular_beam import RectangularBeam
+from src.calculators.rebar_calculator import RebarCalculator
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.calculators.rebar_calculator import RebarCalculator
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 
 @pytest.fixture
@@ -17,12 +17,20 @@ def calculator() -> RebarCalculator:
     beam.concrete = Concrete.C25
     beam.steel = Steel.CA50
     beam.area = 1200  # cm^2
-    with patch.object(RectangularBeam, "nominal_covering", new_callable=PropertyMock) as mock_nominal_covering:
+    with patch.object(
+        RectangularBeam, "nominal_covering", new_callable=PropertyMock
+    ) as mock_nominal_covering:
         mock_nominal_covering.return_value = 3
 
         bending_moment = 272  # kN.m
         stirrups = Mock()
-        calculator = RebarCalculator(beam, bending_moment, stirrups, beam.length / 2, "Test Beam")
+        calculator = RebarCalculator(
+            beam=beam,
+            bending_moment=bending_moment,
+            stirrups=stirrups,
+            bending_moment_position=beam.length / 2,
+            id="Test Beam",
+        )
         calculator.d = 56  # cm (effective depth)
         calculator.d_compressed = 4  # cm (distance from compression face to centroid of compression reinforcement)
         return calculator

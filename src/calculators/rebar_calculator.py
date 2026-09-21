@@ -32,11 +32,14 @@ class RebarCalculator:
 
     def __init__(
         self,
+        *,  # This forces the use of keyword arguments for clarity
         beam: RectangularBeam,
         bending_moment: float,
         stirrups: Stirrups,
         bending_moment_position: float,
         id: str = "",
+        d: float | None = None,  # Optional effective depth parameter
+        d_compressed: float | None = None,  # Optional effective depth parameter
     ):
         """Initialize the RebarCalculator with a rectangular beam and its design bending moment.
 
@@ -46,6 +49,9 @@ class RebarCalculator:
             stirrups: Stirrups instance for the beam.
             bending_moment_position: Position along the beam's length where the bending moment is applied (cm).
         """
+        self.preset_d = d
+        self.preset_d_compressed = d_compressed
+
         self.beam = beam
         bending_moment_in_kncm = bending_moment * 100
         self.design_bending_moment = abs(design_effort_elu(bending_moment_in_kncm))
@@ -142,7 +148,13 @@ class RebarCalculator:
             "Dummy for min tension rebar area calculation",
         )
         calculator = RebarCalculator(
-            self.beam, 0, stirrups, 0, id="Dummy for min tension rebar area calculation"
+            beam=self.beam,
+            bending_moment=0,
+            stirrups=stirrups,
+            bending_moment_position=0,
+            id="Dummy for min tension rebar area calculation",
+            d=self.d,
+            d_compressed=self.d_compressed,
         )
 
         calculator.design_bending_moment = md_min
@@ -274,6 +286,10 @@ class RebarCalculator:
         """
         Calculates the effective depth (cm) of the beam, considering the nominal covering and reinforcements.
         """
+        if self.preset_d is not None:
+            log_operation(f"Using preset effective depth (d) = {self.preset_d:.2f} cm")
+            return self.preset_d
+
         log_operation("Calculating effective depth (d)...")
         label = f"Effective depth (d) calculation for {self.id}"
         covering = RectangularBeam.nominal_covering  # cm
@@ -362,6 +378,10 @@ class RebarCalculator:
         """
         Calculates the distance (cm) from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
+        if self.preset_d_compressed is not None:
+            log_operation(f"Using preset compressed effective depth (d') = {self.preset_d_compressed:.2f} cm")
+            return self.preset_d_compressed
+
         log_operation("Calculating compressed effective depth (d')...")
         label = f"Compressed effective depth (d') calculation for {self.id}"
         covering = RectangularBeam.nominal_covering  # cm

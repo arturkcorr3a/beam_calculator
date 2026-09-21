@@ -181,10 +181,10 @@ class SlabDeformationChecker(DeformationChecker):
             id="Dummy for min tension rebar area calculation",
         )
         calculator = RebarCalculator(
-            dummy_beam,
-            0,
-            dummy_stirrups,
-            0,
+            beam=dummy_beam,
+            bending_moment=0,
+            stirrups=dummy_stirrups,
+            bending_moment_position=0,
             id="Dummy for min tension rebar area calculation",
         )
 
