@@ -1299,7 +1299,7 @@ class ConfigDialog(QDialog):
         cfg_beam_concrete = QComboBox()
         for c in Concrete:
             cfg_beam_concrete.addItem(c.name, c)
-        cfg_beam_concrete.setCurrentText(APP_CONFIG.default_concrete)
+        cfg_beam_concrete.setCurrentText(APP_CONFIG.pavement_concrete)
         cfg_beam_concrete.currentTextChanged.connect(
             lambda v: setattr(APP_CONFIG, "default_concrete", v)
         )
@@ -1308,7 +1308,7 @@ class ConfigDialog(QDialog):
         cfg_beam_steel = QComboBox()
         for s in Steel:
             cfg_beam_steel.addItem(s.name, s)
-        cfg_beam_steel.setCurrentText(APP_CONFIG.steel)
+        cfg_beam_steel.setCurrentText(APP_CONFIG.pavement_steel)
         cfg_beam_steel.currentTextChanged.connect(
             lambda v: setattr(APP_CONFIG, "steel", v)
         )

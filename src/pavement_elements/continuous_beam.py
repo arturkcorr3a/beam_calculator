@@ -55,12 +55,12 @@ class ContinuousBeam:
     width: float
     alignment: Alignment
     wall: WallDefinition
-    height: float = 0
 
     id: str = field(default="", init=False)
     axis: Axis | None = field(default=None, init=False)
     centerline: float | None = field(default=None, init=False)
     spans: list[Span] = field(default_factory=list[Span], init=False)
+    height: float = field(default=0.0, init=False)  # cm
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 

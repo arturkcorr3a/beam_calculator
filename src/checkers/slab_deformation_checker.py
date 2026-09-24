@@ -12,6 +12,7 @@ from src.loading.forces import (
     almost_permanent_combination_els,
     min_design_bending_moment,
 )
+from src.loading.superficial_loads import SuperficialLoads
 from src.logger import log_operation
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 from src.properties.section_properties_calculator import (
@@ -53,6 +54,10 @@ class SlabDeformationChecker(DeformationChecker):
         self.span = min(
             self.lx, self.ly
         )  # Use the shorter span for deflection calculations
+        self.permanent_load = (
+            self.permanent_load
+            + SuperficialLoads.get_concrete_element_own_weight(self.height / 100.0)
+        )
 
     @property
     def service_moment(self) -> float:
@@ -87,7 +92,8 @@ class SlabDeformationChecker(DeformationChecker):
         Returns:
             float: Immediate elastic deflection.
         """
-        alpha = self.alpha_for_deflection
+        # FIXME não sei se estou fazendo o / 100 cm correto
+        alpha = self.alpha_for_deflection  # FIXME acho que é aqui o problema
         ecs_kn_cm2 = self.concrete.ecs / 10  # MPa to kN/cm²
         elastic_deflection = (
             (self.design_load * self.span**4)
@@ -169,7 +175,7 @@ class SlabDeformationChecker(DeformationChecker):
         dummy_beam.width = self.width
         dummy_beam.height = self.height
         dummy_beam.concrete = self.concrete
-        dummy_beam.steel = Steel[APP_CONFIG.steel]
+        dummy_beam.steel = Steel[APP_CONFIG.pavement_steel]
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 
         dummy_stirrup_calculator = StirrupCalculator(
