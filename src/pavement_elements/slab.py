@@ -183,8 +183,12 @@ class Slab(metaclass=_SlabMeta):
                     f"Slab '{self.id}' cannot be stabilized; required thickness exceeds {self.max_thickness} cm."
                 )
 
-        log_element(f"Thickness = {self.thickness} cm")
         thickness_changed = self.thickness != original_thickness
+        if thickness_changed:
+            log_iteration(f"h = {self.thickness} cm: pass")
+        else:
+            log_iteration(f"h = {self.thickness} cm: no change")
+        log_element(f"Thickness = {self.thickness} cm")
         return not thickness_changed
 
     @cached_property

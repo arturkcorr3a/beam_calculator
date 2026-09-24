@@ -99,6 +99,7 @@ def build_pavement() -> Pavement:
     )  # 1.0 kN/m²
     ceiling_finish = "Ventilation ducts, without thermal insulation"  # 0.2 kN/m², closest equivalent to 1 cm of plaster
 
+    Slab(("", "", "", ""), "")  # create dummy slab to skip L1
     l2 = Slab((p1.id, p2.id, p11.id, p12.id), "Bedrooms", top_finish, ceiling_finish)
     l3 = Slab(
         (p2.id, p3.id, p12.id, p13.id),
@@ -144,6 +145,7 @@ def build_pavement() -> Pavement:
 def main():
     pavement = build_pavement()
     pavement.resolve()
+
 
 if __name__ == "__main__":
     main()
