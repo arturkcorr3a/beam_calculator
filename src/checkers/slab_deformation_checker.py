@@ -181,7 +181,6 @@ class SlabDeformationChecker(DeformationChecker):
             self.support_conditions, self.lx, self.ly
         )
 
-    # REVIEW this is working
     @property
     @override
     def _tensioned_reinforcement_area(self):
@@ -203,7 +202,7 @@ class SlabDeformationChecker(DeformationChecker):
         )
         calculator = RebarCalculator(
             beam=dummy_beam,
-            bending_moment=0,
+            bending_moment=self.service_moment,
             stirrups=dummy_stirrups,
             bending_moment_position=0,
             id="Dummy for min tension rebar area calculation",
