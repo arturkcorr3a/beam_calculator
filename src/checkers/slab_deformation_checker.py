@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import override
 
@@ -12,6 +13,7 @@ from src.loading.forces import (
     almost_permanent_combination_els,
     min_design_bending_moment,
 )
+from src.loading.superficial_loads import SuperficialLoads
 from src.logger import log_operation
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 from src.properties.section_properties_calculator import (
@@ -54,6 +56,25 @@ class SlabDeformationChecker(DeformationChecker):
             self.lx, self.ly
         )  # Use the shorter span for deflection calculations
 
+    @override
+    def verify(self, height: float) -> bool:
+        with self.own_weight_for_current_height(height):
+            return super().verify(height)
+
+    @contextmanager
+    def own_weight_for_current_height(self, height: float):
+        """Adjust the permanent load to account for the self-weight of the slab."""
+        self.permanent_load += SuperficialLoads.get_concrete_element_own_weight(
+            height / 100.0
+        )
+        try:
+            yield
+        finally:
+            # Reset the permanent load after the context
+            self.permanent_load -= SuperficialLoads.get_concrete_element_own_weight(
+                height / 100.0
+            )
+
     @property
     def service_moment(self) -> float:
         service_moment = (
@@ -70,7 +91,7 @@ class SlabDeformationChecker(DeformationChecker):
             self.permanent_load, self.variable_load, self.usage
         )
         design_load = load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
-        log_operation(f"Design load = {design_load:.2f} kN/cm²")
+        log_operation(f"Design load = {design_load:.4f} kN/cm²")
         return design_load
 
     @property
@@ -160,7 +181,6 @@ class SlabDeformationChecker(DeformationChecker):
             self.support_conditions, self.lx, self.ly
         )
 
-    # REVIEW this is working
     @property
     @override
     def _tensioned_reinforcement_area(self):
@@ -169,7 +189,7 @@ class SlabDeformationChecker(DeformationChecker):
         dummy_beam.width = self.width
         dummy_beam.height = self.height
         dummy_beam.concrete = self.concrete
-        dummy_beam.steel = Steel[APP_CONFIG.steel]
+        dummy_beam.steel = Steel[APP_CONFIG.pavement_steel]
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 
         dummy_stirrup_calculator = StirrupCalculator(
@@ -182,7 +202,7 @@ class SlabDeformationChecker(DeformationChecker):
         )
         calculator = RebarCalculator(
             beam=dummy_beam,
-            bending_moment=0,
+            bending_moment=self.service_moment,
             stirrups=dummy_stirrups,
             bending_moment_position=0,
             id="Dummy for min tension rebar area calculation",

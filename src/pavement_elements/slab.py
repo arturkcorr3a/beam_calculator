@@ -2,7 +2,7 @@ import math
 from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import count
-from typing import Literal, cast
+from typing import Literal, NamedTuple, cast
 
 from src.checkers.slab_deformation_checker import SlabDeformationChecker
 from src.config import APP_CONFIG
@@ -35,6 +35,13 @@ CORNER_EDGE_DICT: dict[Edges, tuple[CornerKey, CornerKey]] = {
 }
 
 
+class PermanentLoadDefinition(NamedTuple):
+    """Definition of a permanent load."""
+
+    material_description: str
+    weight: float
+
+
 class _SlabMeta(type):
     @property
     def nominal_covering(self) -> float:
@@ -42,22 +49,27 @@ class _SlabMeta(type):
         Returns the nominal covering (cm) for the slab with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
         """
         exposure_class = APP_CONFIG.exposure_class
+        fck = Concrete[APP_CONFIG.pavement_concrete].value
+
+        discount_for_concrete_greater_than_minimum = (
+            0.5 if APP_CONFIG.is_concrete_greater_than_minimum(fck) else 0.0
+        )  # cm — ABNT NBR 6118 - Section 7.4.7.6
         match exposure_class:
             case 1:
-                return 2.0
+                return 2.0 - discount_for_concrete_greater_than_minimum
             case 2:
-                return 2.5
+                return 2.5 - discount_for_concrete_greater_than_minimum
             case 3:
-                return 3.5
+                return 3.5 - discount_for_concrete_greater_than_minimum
             case 4:
-                return 4.5
+                return 4.5 - discount_for_concrete_greater_than_minimum
             case _:
                 raise ValueError(
                     f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."
                 )
 
+
 # FIXME when is_one_way, the unloading on spans should happen only on the shorter direction
-# FIXME permanent weight is not being applied
 @logger_label("{id}")
 @dataclass
 class Slab(metaclass=_SlabMeta):
@@ -83,6 +95,12 @@ class Slab(metaclass=_SlabMeta):
     thickness: int = field(default=SLAB_MIN_THICKNESS, init=False)
     permanent_load: float = field(default=0.0, init=False)
     variable_load: float = field(default=0.0, init=False)
+
+    top_finish: PermanentLoadDefinition = field(
+        default=PermanentLoadDefinition("", 0.0)
+    )
+    ceiling_finish: str = field(default="")
+    infill: PermanentLoadDefinition = field(default=PermanentLoadDefinition("", 0.0))
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -162,11 +180,15 @@ class Slab(metaclass=_SlabMeta):
             self.thickness += 1
             if self.thickness > self.max_thickness:
                 raise ValueError(
-                    f"Slab '{self.id}' cannot be stabilized; required thickness exceeds 30 cm."
+                    f"Slab '{self.id}' cannot be stabilized; required thickness exceeds {self.max_thickness} cm."
                 )
 
-        log_element(f"Thickness = {self.thickness} cm")
         thickness_changed = self.thickness != original_thickness
+        if thickness_changed:
+            log_iteration(f"h = {self.thickness} cm: pass")
+        else:
+            log_iteration(f"h = {self.thickness} cm: no change")
+        log_element(f"Thickness = {self.thickness} cm")
         return not thickness_changed
 
     @cached_property
@@ -180,7 +202,6 @@ class Slab(metaclass=_SlabMeta):
         )
         return (x_dimension, y_dimension)
 
-    # FIXME when is_one_way, the unloading on spans should happen only on the shorter direction 
     @cached_property
     def is_one_way(self) -> bool:
         """Returns True if the slab is a one-way slab, based on the ratio of its dimensions.
@@ -204,6 +225,7 @@ class Slab(metaclass=_SlabMeta):
         self._map_pillars_to_corners(pillar_registry)
         self._resolve_supporting_beams(beam_registry)
         self._add_slab_to_spans()
+        self._resolve_permanent_load_without_own_weight()
         self._resolve_variable_load()
         lx, ly = self.dimensions
         log_element(
@@ -297,11 +319,11 @@ class Slab(metaclass=_SlabMeta):
             )
 
     @property
-    def max_thickness(self) -> float:
+    def max_thickness(self) -> int:
         """
         It is the max thickness to be considered a surface, Based on ABNT NBR 6118 - Section 14.4.2.1
         """
-        return min(self.dimensions) / 3  # cm
+        return math.ceil(min(self.dimensions) / 3)  # cm
 
     # ------------------------------------------------------------------
     # Validation helpers
@@ -359,6 +381,15 @@ class Slab(metaclass=_SlabMeta):
         for edge in Edges:
             for span in self.edges[edge].spans:
                 span.add_supported_slab(self)
+
+    def _resolve_permanent_load_without_own_weight(self) -> None:
+        """Sets the permanent load (kN/m²) to the slab's total permanent load depending on the local."""
+        log_operation("Resolving permanent load (no own weight)...")
+        self.permanent_load = (
+            SuperficialLoads.get_top_finish_weight(*(self.top_finish))
+            + SuperficialLoads.get_ceiling_weight(self.ceiling_finish)
+            + SuperficialLoads.get_infill_weight(*(self.infill))
+        )
 
     def _resolve_variable_load(self) -> None:
         """Sets the variable load (kN/m²) to the slab's total variable load depending on the local."""

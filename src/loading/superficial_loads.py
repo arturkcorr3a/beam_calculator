@@ -3,6 +3,7 @@ from src.data.nbr6120_2019.table_4.data import TABLE_4
 from src.data.nbr6120_2019.table_7.data import TABLE_7
 from src.data.nbr6120_2019.table_8.data import TABLE_8
 from src.data.nbr6120_2019.table_10.data import TABLE_10
+from src.logger import log_property
 from src.properties.concrete import Concrete
 
 
@@ -28,18 +29,26 @@ class SuperficialLoads:
         return own_weight
 
     @staticmethod
-    def get_infill_weight(material_description: str) -> float:
+    def get_infill_weight(material_description: str, thickness: float) -> float:
         """Calculate the weight of infill (kN/m²).
 
         Based on ABNT NBR 6120:2019, Table 7.
 
         Args:
             material_description: Description of the infill material.
+            thickness: Thickness of the infill (cm).
 
         Returns:
             Weight of infill (kN/m²).
         """
-        return TABLE_7.find_material(material_description).weight_avg
+        if material_description == "" or thickness <= 0:
+            log_property(
+                "Infill material description is empty or thickness is non-positive. Returning 0.0 kN/m² for infill weight."
+            )
+            return 0.0
+        return TABLE_7.find_material(material_description).weight_avg * (
+            thickness / 100.0
+        )
 
     @staticmethod
     def get_ceiling_weight(material_description: str) -> float:
@@ -53,6 +62,11 @@ class SuperficialLoads:
         Returns:
             Ceiling weight load (kN/m²).
         """
+        if material_description == "":
+            log_property(
+                "Ceiling material description is empty. Returning 0.0 kN/m² for ceiling weight."
+            )
+            return 0.0
         return TABLE_8.find_material(material_description).weight
 
     @staticmethod
@@ -68,6 +82,11 @@ class SuperficialLoads:
         Returns:
             Top finish weight load (kN/m²).
         """
+        if material_description == "" or thickness <= 0:
+            log_property(
+                "Top finish material description is empty or thickness is non-positive. Returning 0.0 kN/m² for top finish weight."
+            )
+            return 0.0
         return TABLE_4.find_material(material_description).get_weight(thickness)
 
     @staticmethod

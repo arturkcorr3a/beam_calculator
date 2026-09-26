@@ -182,5 +182,5 @@ def main():
 
     save_pavement(pavement, PATH)
 
-
-main()
+if __name__ == "__main__":
+    main()

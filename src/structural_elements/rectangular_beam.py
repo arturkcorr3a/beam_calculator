@@ -32,15 +32,21 @@ class _BeamMeta(type):
         Returns the nominal covering (cm) for the beam with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
         """
         exposure_class = APP_CONFIG.exposure_class
+        fck = Concrete[APP_CONFIG.pavement_concrete].value
+
+        discount_for_concrete_greater_than_minimum = (
+            0.5 if APP_CONFIG.is_concrete_greater_than_minimum(fck) else 0.0
+        )  # cm — ABNT NBR 6118 - Section 7.4.7.6
+
         match exposure_class:
             case 1:
-                return 2.5
+                return 2.5 - discount_for_concrete_greater_than_minimum
             case 2:
-                return 3.0
+                return 3.0 - discount_for_concrete_greater_than_minimum
             case 3:
-                return 4.0
+                return 4.0 - discount_for_concrete_greater_than_minimum
             case 4:
-                return 5.0
+                return 5.0 - discount_for_concrete_greater_than_minimum
             case _:
                 raise ValueError(
                     f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."

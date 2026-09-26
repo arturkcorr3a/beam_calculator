@@ -6,13 +6,10 @@ from dataclasses import dataclass
 # src/persistency/schema.py, config_to_dict in serialization.py, and
 # config_from_dict in deserialization.py in lockstep.
 
+
 # TODO use more robust typing, with literals and enums
 @dataclass
 class AppConfig:
-    # Default material grades — map to Steel/Concrete enum names, resolved at runtime
-    steel: str = "CA50"
-    default_concrete: str = "C30"
-
     # options: granite, basalt, diabase, limestone, sandstone
     aggregate: str = "granite"
     # Reinforcement layout — user-facing construction preferences
@@ -27,7 +24,7 @@ class AppConfig:
     building_category: str = "Residential buildings"
 
     # options: 1 (weak), 2 (moderate), 3 (severe), 4 (very severe)
-    exposure_class: int = 2  # ABNT NBR 6118 - Section 6.4 - Table 6.1 
+    exposure_class: int = 2  # ABNT NBR 6118 - Section 6.4 - Table 6.1
 
     ceiling_height: float = 2.5  # m, reference: ABNT NBR 15575-1, section 16.1
 
@@ -36,6 +33,23 @@ class AppConfig:
     log_level: str = "PROPERTY"
     # log_output options: console, file, both
     log_output: str = "both"
+
+    def is_concrete_greater_than_minimum(self, fck: float) -> bool:
+        """Get the minimum concrete grade for the configured exposure class, based on ABNT NBR 6118 - Section 7.4.2 - Table 7.1."""
+        exposure_class = self.exposure_class
+        match exposure_class:
+            case 1:
+                return fck > 20
+            case 2:
+                return fck > 25
+            case 3:
+                return fck > 30
+            case 4:
+                return fck > 40
+            case _:
+                raise ValueError(
+                    f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."
+                )
 
 
 APP_CONFIG = AppConfig()
