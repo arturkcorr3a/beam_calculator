@@ -323,7 +323,7 @@ class Slab(metaclass=_SlabMeta):
         """
         It is the max thickness to be considered a surface, Based on ABNT NBR 6118 - Section 14.4.2.1
         """
-        return 15# math.ceil(min(self.dimensions) / 3)  # cm
+        return math.ceil(min(self.dimensions) / 3)  # cm
 
     # ------------------------------------------------------------------
     # Validation helpers

@@ -149,6 +149,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# FIXME: ValueError: Slab 'L1' cannot be stabilized; required thickness exceeds 30 cm.
-# FIXME acho que tem esse erro por algum erro de unidade no cálculo do slab_deformation_checker

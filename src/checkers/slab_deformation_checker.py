@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import override
 
@@ -54,10 +55,25 @@ class SlabDeformationChecker(DeformationChecker):
         self.span = min(
             self.lx, self.ly
         )  # Use the shorter span for deflection calculations
-        self.permanent_load = (
-            self.permanent_load
-            + SuperficialLoads.get_concrete_element_own_weight(self.height / 100.0)
+
+    @override
+    def verify(self, height: float) -> bool:
+        with self.own_weight_for_current_height(height):
+            return super().verify(height)
+
+    @contextmanager
+    def own_weight_for_current_height(self, height: float):
+        """Adjust the permanent load to account for the self-weight of the slab."""
+        self.permanent_load += SuperficialLoads.get_concrete_element_own_weight(
+            height / 100.0
         )
+        try:
+            yield
+        finally:
+            # Reset the permanent load after the context
+            self.permanent_load -= SuperficialLoads.get_concrete_element_own_weight(
+                height / 100.0
+            )
 
     @property
     def service_moment(self) -> float:
@@ -75,7 +91,7 @@ class SlabDeformationChecker(DeformationChecker):
             self.permanent_load, self.variable_load, self.usage
         )
         design_load = load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
-        log_operation(f"Design load = {design_load:.2f} kN/cm²")
+        log_operation(f"Design load = {design_load:.4f} kN/cm²")
         return design_load
 
     @property
@@ -92,8 +108,7 @@ class SlabDeformationChecker(DeformationChecker):
         Returns:
             float: Immediate elastic deflection.
         """
-        # FIXME não sei se estou fazendo o / 100 cm correto
-        alpha = self.alpha_for_deflection  # FIXME acho que é aqui o problema
+        alpha = self.alpha_for_deflection
         ecs_kn_cm2 = self.concrete.ecs / 10  # MPa to kN/cm²
         elastic_deflection = (
             (self.design_load * self.span**4)
