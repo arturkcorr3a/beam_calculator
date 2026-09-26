@@ -1,14 +1,209 @@
-from src.properties.steel import Steel
+"""Unit tests for the Steel enum and its material properties."""
+
 import pytest
+
+from src.properties.steel import GAMMA_S, Steel
+from tests.helpers import assert_approx
+
+
+@pytest.fixture
+def steel_ca25() -> Steel:
+    return Steel.CA25
+
 
 @pytest.fixture
 def steel_ca50() -> Steel:
     return Steel.CA50
 
-def test_fyd(steel_ca50: Steel):
-    expected_fyd = 50 / 1.15
-    assert steel_ca50.fyd == pytest.approx(expected_fyd), "For CA-50 steel, fyd should be approximately 43.48 kN/cm²"
 
-def test_elastic_modulus(steel_ca50: Steel):
-    expected_elastic_modulus = 210_000
-    assert steel_ca50.elastic_modulus == expected_elastic_modulus, "The elastic modulus of steel should be 210,000 MPa"
+@pytest.fixture
+def steel_ca60() -> Steel:
+    return Steel.CA60
+
+
+class TestSafetyFactor:
+    """Tests for the steel safety factor constant."""
+
+    def test_gamma_s(self) -> None:
+        expected_gamma_s = 1.15
+        assert GAMMA_S == expected_gamma_s, (
+            "The steel safety factor (gamma_s) should be 1.15"
+        )
+
+
+class TestCharacteristicYieldStrength:
+    """Tests for the characteristic yield strength (fy) enum values in kN/cm²."""
+
+    def test_ca25_yield_strength(self, steel_ca25: Steel) -> None:
+        expected_fy = 25
+        assert steel_ca25.value == expected_fy, (
+            "For CA-25 steel, fy should be 25 kN/cm²"
+        )
+
+    def test_ca50_yield_strength(self, steel_ca50: Steel) -> None:
+        expected_fy = 50
+        assert steel_ca50.value == expected_fy, (
+            "For CA-50 steel, fy should be 50 kN/cm²"
+        )
+
+    def test_ca60_yield_strength(self, steel_ca60: Steel) -> None:
+        expected_fy = 60
+        assert steel_ca60.value == expected_fy, (
+            "For CA-60 steel, fy should be 60 kN/cm²"
+        )
+
+
+class TestElasticModulus:
+    """Tests for the class-level elastic modulus property."""
+
+    def test_elastic_modulus(self) -> None:
+        expected_elastic_modulus = 210_000
+        assert Steel.elastic_modulus == expected_elastic_modulus, (
+            "The elastic modulus of steel (E_s) should be 210,000 kN/cm²"
+        )
+
+
+class TestDesignYieldStrength:
+    """Tests for the design yield strength (fyd) in kN/cm²."""
+
+    def test_ca25_design_yield_strength(self, steel_ca25: Steel) -> None:
+        expected_fyd = 21.73913  # kN/cm²
+        assert_approx(
+            steel_ca25.fyd,
+            expected_fyd,
+            "For CA-25 steel, fyd should be approximately 21.73913 kN/cm²",
+        )
+
+    def test_ca50_design_yield_strength(self, steel_ca50: Steel) -> None:
+        expected_fyd = 43.47826  # kN/cm²
+        assert_approx(
+            steel_ca50.fyd,
+            expected_fyd,
+            "For CA-50 steel, fyd should be approximately 43.47826 kN/cm²",
+        )
+
+    def test_ca60_design_yield_strength(self, steel_ca60: Steel) -> None:
+        expected_fyd = 52.17391  # kN/cm²
+        assert_approx(
+            steel_ca60.fyd,
+            expected_fyd,
+            "For CA-60 steel, fyd should be approximately 52.17391 kN/cm²",
+        )
+
+
+class TestShearDesignYieldStrength:
+    """Tests for the design shear yield strength (fywd), capped at 43.5 kN/cm²."""
+
+    def test_ca25_shear_design_strength(self, steel_ca25: Steel) -> None:
+        expected_fywd = 21.73913  # kN/cm²
+        assert_approx(
+            steel_ca25.fywd,
+            expected_fywd,
+            "For CA-25 steel, fywd should be approximately 21.73913 kN/cm²",
+        )
+
+    def test_ca50_shear_design_strength(self, steel_ca50: Steel) -> None:
+        expected_fywd = 43.47826  # kN/cm²
+        assert_approx(
+            steel_ca50.fywd,
+            expected_fywd,
+            "For CA-50 steel, fywd should be approximately 43.47826 kN/cm²",
+        )
+
+    def test_ca60_shear_design_strength_is_capped(self, steel_ca60: Steel) -> None:
+        expected_fywd = 43.5  # kN/cm², capped
+        assert_approx(
+            steel_ca60.fywd,
+            expected_fywd,
+            "For CA-60 steel, fywd should be capped at 43.5 kN/cm²",
+        )
+
+
+class TestShearCharacteristicYieldStrength:
+    """Tests for the characteristic shear yield strength (fywk), capped at 50 kN/cm²."""
+
+    def test_ca25_shear_characteristic_strength(self, steel_ca25: Steel) -> None:
+        expected_fywk = 25  # kN/cm²
+        assert steel_ca25.fywk == expected_fywk, (
+            "For CA-25 steel, fywk should be 25 kN/cm²"
+        )
+
+    def test_ca50_shear_characteristic_strength(self, steel_ca50: Steel) -> None:
+        expected_fywk = 50  # kN/cm²
+        assert steel_ca50.fywk == expected_fywk, (
+            "For CA-50 steel, fywk should be 50 kN/cm²"
+        )
+
+    def test_ca60_shear_characteristic_strength_is_capped(
+        self, steel_ca60: Steel
+    ) -> None:
+        expected_fywk = 50  # kN/cm², capped
+        assert steel_ca60.fywk == expected_fywk, (
+            "For CA-60 steel, fywk should be capped at 50 kN/cm²"
+        )
+
+
+class TestBondCoefficient:
+    """Tests for the bond coefficient (eta_1)."""
+
+    def test_ca25_bond_coefficient(self, steel_ca25: Steel) -> None:
+        expected_bond_coefficient = 1.00
+        assert steel_ca25.bond_coefficient == expected_bond_coefficient, (
+            "For CA-25 steel, the bond coefficient should be 1.00"
+        )
+
+    def test_ca50_bond_coefficient(self, steel_ca50: Steel) -> None:
+        expected_bond_coefficient = 2.25
+        assert steel_ca50.bond_coefficient == expected_bond_coefficient, (
+            "For CA-50 steel, the bond coefficient should be 2.25"
+        )
+
+    def test_ca60_bond_coefficient(self, steel_ca60: Steel) -> None:
+        expected_bond_coefficient = 1.00
+        assert steel_ca60.bond_coefficient == expected_bond_coefficient, (
+            "For CA-60 steel, the bond coefficient should be 1.00"
+        )
+
+
+class TestAvailableSizes:
+    """Tests for the available rebar diameters (mm)."""
+
+    def test_ca25_available_sizes(self, steel_ca25: Steel) -> None:
+        expected_sizes: list[float] = [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
+        assert steel_ca25.available_sizes == expected_sizes, (
+            "CA-25 should offer the standard NBR 7480 rebar diameters"
+        )
+
+    def test_ca50_available_sizes(self, steel_ca50: Steel) -> None:
+        expected_sizes: list[float] = [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
+        assert steel_ca50.available_sizes == expected_sizes, (
+            "CA-50 should offer the standard NBR 7480 rebar diameters"
+        )
+
+    def test_ca60_available_sizes(self, steel_ca60: Steel) -> None:
+        expected_sizes: list[float] = [3.4, 3.8, 4.2, 4.6, 5.0, 5.5, 6.0, 6.4, 7.0, 8.0, 9.5, 10.0]
+        assert steel_ca60.available_sizes == expected_sizes, (
+            "CA-60 should offer the thin-wire NBR 7480 rebar diameters"
+        )
+
+
+class TestIsSizeAvailable:
+    """Tests for the is_size_available membership check."""
+
+    def test_available_diameter_returns_true(self, steel_ca50: Steel) -> None:
+        available_diameter = 12.5
+        assert steel_ca50.is_size_available(available_diameter) is True, (
+            "A 12.5 mm bar should be available for CA-50 steel"
+        )
+
+    def test_unavailable_diameter_returns_false(self, steel_ca50: Steel) -> None:
+        unavailable_diameter = 9.5
+        assert steel_ca50.is_size_available(unavailable_diameter) is False, (
+            "A 9.5 mm bar should not be available for CA-50 steel"
+        )
+
+    def test_thin_wire_diameter_available_for_ca60(self, steel_ca60: Steel) -> None:
+        available_diameter = 9.5
+        assert steel_ca60.is_size_available(available_diameter) is True, (
+            "A 9.5 mm bar should be available for CA-60 steel"
+        )
