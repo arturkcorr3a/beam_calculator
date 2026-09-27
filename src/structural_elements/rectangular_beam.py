@@ -2,6 +2,7 @@ from typing import cast
 
 from indeterminatebeam import Beam, Support  # type: ignore
 from indeterminatebeam.loading import UDLV  # type: ignore
+from sympy import Expr  # type: ignore
 
 from src.config import APP_CONFIG
 from src.logger import log_element, logger_label
@@ -140,6 +141,16 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
         Returns the cross-sectional area (cm²) of the beam.
         """
         return self._A
+
+    @property
+    def bending_moment_expression(self) -> Expr:
+        """Return the symbolic bending moment M(x) expression in x (kN.m; x in cm)."""
+        return self._bending_moments  # type: ignore[return-value]
+
+    @property
+    def shear_force_expression(self) -> Expr:
+        """Return the symbolic shear force V(x) expression in x (kN; x in cm)."""
+        return self._shear_forces  # type: ignore[return-value]
 
     def get_max_bending_moment(self) -> tuple[float, float]:
         """
