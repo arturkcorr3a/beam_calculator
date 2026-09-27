@@ -1,7 +1,10 @@
 [run]
+source=src
 omit =
     **/__init__.py
-    tests/*
+    **/gui/*
+    **/examples/*
+    main.py
 
 [report]
 show_missing = True
