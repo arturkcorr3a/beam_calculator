@@ -60,8 +60,6 @@ Do not guess units or normative references — incorrect documentation is worse 
 
 ## Project Rules
 
-- **Ignore Tests**: Do not worry about, create, or modify tests for now unless explicitly instructed to do so.
-
 - **`AppConfig` ↔ persistency sync**: Whenever a field is added to, removed from, or renamed in `src/config.py`'s `AppConfig`, the persistency layer must be updated in lockstep:
   - `src/persistency/schema.py` — add/remove/rename the field in `ConfigDict`
   - `src/persistency/serialization.py` — add/remove/rename the field in `config_to_dict`
@@ -71,7 +69,7 @@ Do not guess units or normative references — incorrect documentation is worse 
 
 ## Testing conventions
 
-When writing tests (only when explicitly instructed — see "Ignore Tests" above),
+When writing tests,
 follow the patterns established in `tests/properties/`:
 
 - **Class-based tests** (`class TestXxx`), generally one discrete named method per
