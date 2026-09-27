@@ -211,3 +211,6 @@ results/
 
 # MACOS
 .DS_Store
+
+# Git
+*.patch
