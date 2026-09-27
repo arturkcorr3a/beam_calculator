@@ -74,8 +74,11 @@ Do not guess units or normative references — incorrect documentation is worse 
 When writing tests (only when explicitly instructed — see "Ignore Tests" above),
 follow the patterns established in `tests/properties/`:
 
-- **Class-based tests only** (`class TestXxx`), one discrete named method per case.
-  No `@pytest.mark.parametrize`.
+- **Class-based tests** (`class TestXxx`), generally one discrete named method per
+  case. `@pytest.mark.parametrize` is allowed when a single behavior has many
+  mechanical input/output variations (e.g. a lookup-table grid) and separate
+  methods would only duplicate one assertion; keep distinct behaviors in
+  distinct methods.
 - **Float comparisons**: `assert_approx(actual, expected, "message")` from
   `tests.helpers`.
 - **Exact/integer comparisons**: `assert x == expected, "message"`.

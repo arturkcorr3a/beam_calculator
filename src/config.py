@@ -34,6 +34,7 @@ class AppConfig:
     # log_output options: console, file, both
     log_output: str = "both"
 
+    # TODO should validate lower than the minimum concrete grade for the exposure class
     def is_concrete_greater_than_minimum(self, fck: float) -> bool:
         """Get the minimum concrete grade for the configured exposure class, based on ABNT NBR 6118 - Section 7.4.2 - Table 7.1."""
         exposure_class = self.exposure_class
