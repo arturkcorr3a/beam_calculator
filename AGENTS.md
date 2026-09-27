@@ -66,3 +66,25 @@ Do not guess units or normative references — incorrect documentation is worse 
   - `src/persistency/schema.py` — add/remove/rename the field in `ConfigDict`
   - `src/persistency/serialization.py` — add/remove/rename the field in `config_to_dict`
   - `src/persistency/deserialization.py` — add/remove/rename the field in `config_from_dict`
+
+---
+
+## Testing conventions
+
+When writing tests (only when explicitly instructed — see "Ignore Tests" above),
+follow the patterns established in `tests/properties/`:
+
+- **Class-based tests only** (`class TestXxx`), one discrete named method per case.
+  No `@pytest.mark.parametrize`.
+- **Float comparisons**: `assert_approx(actual, expected, "message")` from
+  `tests.helpers`.
+- **Exact/integer comparisons**: `assert x == expected, "message"`.
+- **`APP_CONFIG` overrides**: `monkeypatch.setattr(APP_CONFIG, "field", value)`.
+- **Fixtures**: module-level `@pytest.fixture` with full return-type annotations.
+  No `conftest.py`.
+- **Test doubles**: prefer `types.SimpleNamespace` over `MagicMock` — it fails
+  loudly on missing attributes instead of fabricating them.
+- **Imports**: `from src.*` for production code, `from tests.helpers import
+  assert_approx`.
+- **Docstrings**: Google-style, imperative summary, no trailing period (per the
+  docstring standard above).
