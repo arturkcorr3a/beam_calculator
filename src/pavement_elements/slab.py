@@ -14,7 +14,7 @@ from src.logger import (
     log_property,
     logger_label,
 )
-from src.pavement_elements.continuous_beam import ContinuousBeam, Span
+from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.geometry_utils import Point, calculate_polygon_area
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab_edge import Edges, SlabEdge, SupportCondition
@@ -85,9 +85,6 @@ class Slab(metaclass=_SlabMeta):
     supporting_beam_ids: list[str] = field(default_factory=list[str], init=False)
     edges: dict[Edges, SlabEdge] = field(
         default_factory=dict[Edges, SlabEdge], init=False
-    )
-    edge_spans: dict[Edges, list[Span]] = field(
-        default_factory=dict[Edges, list[Span]], init=False
     )
     corners_pillar_dict: dict[CornerKey, Pillar] = field(
         default_factory=dict[CornerKey, Pillar], init=False
