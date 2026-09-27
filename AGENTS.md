@@ -60,6 +60,11 @@ Do not guess units or normative references — incorrect documentation is worse 
 
 ## Project Rules
 
+- **Strict typing**: All Python code must pass Pylance's `strict` type-checking mode (`.vscode/settings.json` sets `"python.analysis.typeCheckingMode": "strict"`). This means:
+  - Every function and method must have fully annotated parameters and return types.
+  - Bare `dict` or `list` without type arguments is not allowed — use `dict[str, object]`, a `TypedDict`, or a concrete parameterized type.
+  - `**spread` into a `TypedDict` constructor is not allowed when the source is `dict[str, object]` — construct TypedDicts with explicit keyword arguments instead.
+
 - **`AppConfig` ↔ persistency sync**: Whenever a field is added to, removed from, or renamed in `src/config.py`'s `AppConfig`, the persistency layer must be updated in lockstep:
   - `src/persistency/schema.py` — add/remove/rename the field in `ConfigDict`
   - `src/persistency/serialization.py` — add/remove/rename the field in `config_to_dict`
