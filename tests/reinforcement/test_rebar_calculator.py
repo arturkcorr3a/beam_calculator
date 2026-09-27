@@ -5,7 +5,7 @@ import pytest
 from src.calculators.rebar_calculator import RebarCalculator
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.structural_elements.rectangular_beam import RectangularBeam
+from src.structural_elements.rectangular_beam import RectangularBeam, _BeamMeta
 
 
 @pytest.fixture
@@ -14,11 +14,16 @@ def calculator() -> RebarCalculator:
     beam = Mock(spec=RectangularBeam)
     beam.width = 20  # cm
     beam.height = 60  # cm
+    beam.length = 500  # cm
     beam.concrete = Concrete.C25
     beam.steel = Steel.CA50
     beam.area = 1200  # cm^2
+    # nominal_covering is a property on the _BeamMeta metaclass (accessed as
+    # RectangularBeam.nominal_covering), so it must be patched on the metaclass
+    # itself — patching it on RectangularBeam fails since the descriptor and its
+    # missing setter live on the metaclass.
     with patch.object(
-        RectangularBeam, "nominal_covering", new_callable=PropertyMock
+        _BeamMeta, "nominal_covering", new_callable=PropertyMock
     ) as mock_nominal_covering:
         mock_nominal_covering.return_value = 3
 

@@ -2,13 +2,82 @@
 
 import pytest
 
-from src.examples.manual_example_pavement import build_pavement
+from src.loading.superficial_loads import SuperficialLoads
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.geometry_utils import Alignment
+from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pillar import Pillar
+from src.pavement_elements.slab import Slab
 from src.persistency import (
     load_pavement,
     pavement_from_dict,
     pavement_to_dict,
     save_pavement,
 )
+
+
+def build_pavement() -> Pavement:
+    """Assemble a 4-pillar / 4-beam / 1-slab residential pavement fixture.
+
+    Mirrors the manual single-panel example: four corner pillars with distinct
+    sections, an outer-aligned rectangular beam perimeter, and one slab spanning
+    the four corners under a residential permanent load (NBR 6120).
+    """
+    bottom_left = Pillar(x=0, y=0, width=20, depth=25)
+    bottom_right = Pillar(x=500, y=0, width=30, depth=25)
+    top_left = Pillar(x=0, y=400, width=20, depth=35)
+    top_right = Pillar(x=500, y=400, width=30, depth=35)
+    pillars = [bottom_left, bottom_right, top_left, top_right]
+
+    pavement = Pavement()
+    for pillar in pillars:
+        pavement.add_pillar(pillar)
+
+    wall = WallDefinition(
+        structural=False,
+        masonry_type="hollow concrete block",
+        nominal_thickness=14,  # cm
+        coating_thickness=1,  # cm per face
+    )
+
+    beam_width = 16  # cm
+    beam_specs = [
+        ([bottom_left.id, bottom_right.id], bottom_left.id, Alignment.BOTTOM),
+        ([top_left.id, top_right.id], top_left.id, Alignment.TOP),
+        ([bottom_left.id, top_left.id], bottom_left.id, Alignment.LEFT),
+        ([bottom_right.id, top_right.id], bottom_right.id, Alignment.RIGHT),
+    ]
+    for pillar_ids, reference_id, alignment in beam_specs:
+        pavement.add_beam(
+            ContinuousBeam(
+                pillar_ids=pillar_ids,
+                reference_pillar_id=reference_id,
+                width=beam_width,
+                alignment=alignment,
+                wall=wall,
+            )
+        )
+
+    slab = Slab(
+        corner_pillar_ids=(
+            bottom_left.id,
+            bottom_right.id,
+            top_left.id,
+            top_right.id,
+        ),
+        local="Bedrooms",
+    )
+    floor_covering = SuperficialLoads.get_top_finish_weight(
+        "Floor coverings of residential", thickness=5.0
+    )  # kN/m²
+    ceiling = SuperficialLoads.get_ceiling_weight("plaster")  # kN/m²
+    self_weight = SuperficialLoads.get_concrete_element_own_weight(
+        slab.thickness / 100  # cm -> m
+    )  # kN/m²
+    slab.add_permanent_load(floor_covering + ceiling + self_weight)
+
+    pavement.add_slab(slab)
+    return pavement
 
 
 def _normalize(document: dict) -> dict:
