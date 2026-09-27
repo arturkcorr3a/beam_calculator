@@ -6,7 +6,6 @@ conservative 20×60 C25/CA50 single-span beam.
 """
 
 import types
-from unittest.mock import Mock
 
 import pytest
 
@@ -54,6 +53,7 @@ def _make_beam_stub(
         width=width,
         height=height,
         spans=spans,
+        reinforcement=[],
         get_most_loaded_span_for_els=lambda: spans[0],
     )
 
@@ -201,31 +201,76 @@ class TestBuildStructuralBeam:
 
 
 # ---------------------------------------------------------------------------
-# TestGetMaxForces
+# TestInterestPoints
 # ---------------------------------------------------------------------------
 
 
-class TestGetMaxForces:
-    """Tests for _get_max_forces() — calls structural beam methods."""
+class TestInterestPoints:
+    """Tests for _interest_points() — delegates to bending_moment_extremes_per_segment."""
 
-    def test_returns_bending_moment_and_shear(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """_get_max_forces() returns the tuple from structural beam analysis (kN, kN.m)."""
-        from src.structural_elements.rectangular_beam import RectangularBeam
+    def test_returns_extreme_per_segment(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """_interest_points() forwards the beam's symbolic expressions and domain (cm, kN.m)."""
+        import src.calculators.beam_calculator as beam_calculator_module
 
-        structural_beam = Mock(spec=RectangularBeam)
-        structural_beam.get_max_bending_moment.return_value = (42.0, 250.0)
-        structural_beam.get_shear_force.return_value = 15.0
+        captured: dict[str, object] = {}
 
-        bc = BeamCalculator(_make_beam_stub(), {})  # type: ignore[arg-type]
-        result_bm, result_sf = bc._get_max_forces(structural_beam)  # pyright: ignore[reportPrivateUsage]
+        def fake_extremes(
+            bending: object, shear: object, lower: float, upper: float
+        ) -> list[tuple[float, float]]:
+            captured["bending"] = bending
+            captured["shear"] = shear
+            captured["lower"] = lower
+            captured["upper"] = upper
+            return [(250.0, 42.0), (500.0, -30.0)]
 
-        assert result_bm == (42.0, 250.0), (
-            "_get_max_forces should return (bm, position) from get_max_bending_moment"
+        monkeypatch.setattr(
+            beam_calculator_module,
+            "bending_moment_extremes_per_segment",
+            fake_extremes,
         )
-        assert_approx(result_sf, 15.0, "max shear force (kN)")
-        structural_beam.get_shear_force.assert_called_once_with(return_max=True)
+
+        structural_beam = types.SimpleNamespace(
+            bending_moment_expression="M(x)",
+            shear_force_expression="V(x)",
+            length=800.0,
+        )
+        bc = BeamCalculator(_make_beam_stub(), {})  # type: ignore[arg-type]
+        points = bc._interest_points(structural_beam)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+
+        assert points == [(250.0, 42.0), (500.0, -30.0)], (
+            "_interest_points should return the per-segment extremes"
+        )
+        assert captured["bending"] == "M(x)", "should forward bending_moment_expression"
+        assert captured["shear"] == "V(x)", "should forward shear_force_expression"
+        assert captured["lower"] == 0.0, "lower bound should be 0 cm"
+        assert captured["upper"] == 800.0, "upper bound should be beam length (cm)"
+
+
+# ---------------------------------------------------------------------------
+# TestSpanAt
+# ---------------------------------------------------------------------------
+
+
+class TestSpanAt:
+    """Tests for _span_at() — maps a position (cm) to its owning span."""
+
+    def test_maps_position_to_correct_span(self) -> None:
+        """_span_at() returns the span whose cumulative range contains the position (cm)."""
+        first = _make_span_stub(length_cm=300.0)
+        second = _make_span_stub(length_cm=200.0)
+        bc = BeamCalculator(_make_beam_stub(spans=[first, second]), {})  # type: ignore[arg-type]
+
+        assert bc._span_at(150.0) is first, "position 150 cm is in the first span"  # pyright: ignore[reportPrivateUsage]
+        assert bc._span_at(300.0) is first, "position 300 cm is the first span's edge"  # pyright: ignore[reportPrivateUsage]
+        assert bc._span_at(450.0) is second, "position 450 cm is in the second span"  # pyright: ignore[reportPrivateUsage]
+
+    def test_position_past_end_returns_last_span(self) -> None:
+        """_span_at() returns the last span for a position at/after the beam end (cm)."""
+        first = _make_span_stub(length_cm=300.0)
+        second = _make_span_stub(length_cm=200.0)
+        bc = BeamCalculator(_make_beam_stub(spans=[first, second]), {})  # type: ignore[arg-type]
+
+        assert bc._span_at(500.0) is second, "end position maps to the last span"  # pyright: ignore[reportPrivateUsage]
 
 
 # ---------------------------------------------------------------------------
@@ -242,8 +287,8 @@ class TestVerifyDeformation:
             width=20.0,
             height=60.0,
             concrete=Concrete.C25,
-            get_bending_moment=lambda return_absmax=False: 150.0,
-            get_deflection=lambda return_absmax=False: 0.1,
+            get_bending_moment=lambda position: 150.0,  # pyright: ignore[reportUnknownLambdaType]
+            get_deflection=lambda position: 0.1,  # pyright: ignore[reportUnknownLambdaType]
         )
 
     def _make_rebar_calculator_stub(self) -> types.SimpleNamespace:
@@ -269,6 +314,7 @@ class TestVerifyDeformation:
         result = bc._verify_deformation(  # type: ignore[arg-type]
             self._make_structural_beam_stub(),  # type: ignore[arg-type]
             self._make_rebar_calculator_stub(),  # type: ignore[arg-type]
+            250.0,
         )
         assert result is None, "_verify_deformation should return None on success"
 
@@ -300,6 +346,7 @@ class TestVerifyDeformation:
             bc._verify_deformation(  # type: ignore[arg-type]
                 self._make_structural_beam_stub(),  # type: ignore[arg-type]
                 self._make_rebar_calculator_stub(),  # type: ignore[arg-type]
+                250.0,
             )
 
 
@@ -326,8 +373,8 @@ class TestRunIntegration:
         """run() completes without raising for a modest single-span 20×60 C25/CA50 beam.
 
         Integration test — transitively covers _build_supports, _build_loads,
-        _build_structural_beam, _get_max_forces, _calculate (RebarCalculator
-        convergence), and _verify_deformation (pass branch).
+        _build_structural_beam, _interest_points, _calculate (RebarCalculator
+        convergence), _store_reinforcement, and _verify_deformation (pass branch).
         """
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
         monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
@@ -339,3 +386,7 @@ class TestRunIntegration:
         bc = BeamCalculator(beam_stub, {})  # type: ignore[arg-type]
         # Must complete without raising any exception
         bc.run()
+
+        assert beam_stub.reinforcement, (
+            "run() should populate the beam's reinforcement list"
+        )

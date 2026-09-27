@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from itertools import count
 
@@ -18,6 +20,7 @@ from src.pavement_elements.geometry_utils import (
     y_coord,
 )
 from src.pavement_elements.pillar import Pillar
+from src.reinforcement.reinforcement import Reinforcement
 
 # PAPER find reference for this value, I think they are not in NBR 6118, but should be in the classical literature - I know it's between 12 and 15
 BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
@@ -61,6 +64,9 @@ class ContinuousBeam:
     centerline: float | None = field(default=None, init=False)
     spans: list[Span] = field(default_factory=list[Span], init=False)
     height: float = field(default=0.0, init=False)  # cm
+    reinforcement: list[Reinforcement] = field(
+        default_factory=list[Reinforcement], init=False
+    )
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
