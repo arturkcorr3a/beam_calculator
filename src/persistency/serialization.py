@@ -124,15 +124,13 @@ def config_to_dict(config: AppConfig) -> ConfigDict:
         A dict holding all AppConfig fields.
     """
     return {
-        "steel": config.steel,
-        "default_concrete": config.default_concrete,
+        "aggregate": config.aggregate,
         "max_aggregate_size": config.max_aggregate_size,
         "max_bar_types": config.max_bar_types,
         "max_layers": config.max_layers,
         "pavement_concrete": config.pavement_concrete,
         "pavement_steel": config.pavement_steel,
         "building_category": config.building_category,
-        "ceiling_height": config.ceiling_height,
         "exposure_class": config.exposure_class,
-        "aggregate": config.aggregate,
+        "ceiling_height": config.ceiling_height,
     }

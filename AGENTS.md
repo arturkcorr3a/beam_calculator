@@ -60,9 +60,37 @@ Do not guess units or normative references — incorrect documentation is worse 
 
 ## Project Rules
 
-- **Ignore Tests**: Do not worry about, create, or modify tests for now unless explicitly instructed to do so.
+- **Strict typing**: All Python code must pass Pylance's `strict` type-checking mode (`.vscode/settings.json` sets `"python.analysis.typeCheckingMode": "strict"`). This means:
+  - Every function and method must have fully annotated parameters and return types.
+  - Bare `dict` or `list` without type arguments is not allowed — use `dict[str, object]`, a `TypedDict`, or a concrete parameterized type.
+  - `**spread` into a `TypedDict` constructor is not allowed when the source is `dict[str, object]` — construct TypedDicts with explicit keyword arguments instead.
 
 - **`AppConfig` ↔ persistency sync**: Whenever a field is added to, removed from, or renamed in `src/config.py`'s `AppConfig`, the persistency layer must be updated in lockstep:
   - `src/persistency/schema.py` — add/remove/rename the field in `ConfigDict`
   - `src/persistency/serialization.py` — add/remove/rename the field in `config_to_dict`
   - `src/persistency/deserialization.py` — add/remove/rename the field in `config_from_dict`
+
+---
+
+## Testing conventions
+
+When writing tests,
+follow the patterns established in `tests/properties/`:
+
+- **Class-based tests** (`class TestXxx`), generally one discrete named method per
+  case. `@pytest.mark.parametrize` is allowed when a single behavior has many
+  mechanical input/output variations (e.g. a lookup-table grid) and separate
+  methods would only duplicate one assertion; keep distinct behaviors in
+  distinct methods.
+- **Float comparisons**: `assert_approx(actual, expected, "message")` from
+  `tests.helpers`.
+- **Exact/integer comparisons**: `assert x == expected, "message"`.
+- **`APP_CONFIG` overrides**: `monkeypatch.setattr(APP_CONFIG, "field", value)`.
+- **Fixtures**: module-level `@pytest.fixture` with full return-type annotations.
+  No `conftest.py`.
+- **Test doubles**: prefer `types.SimpleNamespace` over `MagicMock` — it fails
+  loudly on missing attributes instead of fabricating them.
+- **Imports**: `from src.*` for production code, `from tests.helpers import
+  assert_approx`.
+- **Docstrings**: Google-style, imperative summary, no trailing period (per the
+  docstring standard above).

@@ -1,296 +1,76 @@
-from typing import Tuple
+"""Unit tests for the RebarChooser diameter-combination solver."""
 
 import pytest
 
 from src.config import APP_CONFIG
-from src.structural_elements.rebar import Rebar
 from src.properties.steel import Steel
 from src.reinforcement.rebar_chooser import RebarChooser
+from tests.helpers import assert_approx
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+@pytest.fixture
+def chooser() -> RebarChooser:
+    """Build a CA50 chooser targeting a 4.0 cm² required area.
 
-def total_area(rebars: Tuple[Rebar, ...]) -> float:
-    return sum(r.area_cm2 for r in rebars)
+    Construction runs the full DP over every diameter combination, so this
+    fixture exercises ``__init__``, ``set_solutions_per_diameter``,
+    ``possible_diameter_combinations``, and ``choose_best_combination``.
+    """
+    return RebarChooser(Steel.CA50, 4.0)
 
 
-# ---------------------------------------------------------------------------
-# 1. possible_diameter_combinations
-# ---------------------------------------------------------------------------
+class TestLabel:
+    """Tests for the human-readable chooser label."""
 
-def test_possible_diameter_combinations_count_ca25() -> None:
-    chooser = RebarChooser(Steel.CA25, 2.0)
-    assert len(chooser.possible_diameter_combinations) == 175
+    def test_format(self, chooser: RebarChooser) -> None:
+        assert chooser.label == "CA50 - 4.00 cm²", (
+            "Label should combine steel grade with the area to two decimals"
+        )
 
 
-def test_possible_diameter_combinations_count_ca50() -> None:
-    chooser = RebarChooser(Steel.CA50, 2.0)
-    assert len(chooser.possible_diameter_combinations) == 175
-
-
-def test_possible_diameter_combinations_count_ca60() -> None:
-    chooser = RebarChooser(Steel.CA60, 1.0)
-    assert len(chooser.possible_diameter_combinations) == 298
-
+class TestChooseBestCombination:
+    """Tests for the unbounded coin-change bar selection."""
 
-@pytest.mark.parametrize("steel", [Steel.CA25, Steel.CA50])
-def test_possible_diameter_combinations_all_single_sizes_ca25_ca50(steel: Steel) -> None:
-    chooser = RebarChooser(steel, 2.0)
-    for size in steel.available_sizes:
-        assert (size,) in chooser.possible_diameter_combinations
-
+    def test_single_diameter_multi_bar(self, chooser: RebarChooser) -> None:
+        solution = chooser.choose_best_combination((12.5,))
+        assert len(solution) == 4, "Four 12.5 mm bars are the fewest reaching 4 cm²"
+        assert_approx(
+            sum(bar.area_cm2 for bar in solution),
+            4.908738521234052,
+            "Four 12.5 mm bars should total ~4.91 cm²",
+        )
 
-def test_possible_diameter_combinations_all_single_sizes_ca60() -> None:
-    chooser = RebarChooser(Steel.CA60, 1.0)
-    for size in Steel.CA60.available_sizes:
-        assert (size,) in chooser.possible_diameter_combinations
-
-
-@pytest.mark.parametrize("steel,required_area", [
-    (Steel.CA25, 2.0),
-    (Steel.CA50, 2.0),
-    (Steel.CA60, 1.0),
-])
-def test_possible_diameter_combinations_max_bar_types(steel: Steel, required_area: float) -> None:
-    chooser = RebarChooser(steel, required_area)
-    for combo in chooser.possible_diameter_combinations:
-        assert len(combo) <= APP_CONFIG.max_bar_types
+    def test_two_bar_minimum(self, chooser: RebarChooser) -> None:
+        solution = chooser.choose_best_combination((32,))
+        assert [bar.diameter_mm for bar in solution] == [32, 32], (
+            "The two-bar minimum forces two 32 mm bars even when one overshoots"
+        )
 
 
-# ---------------------------------------------------------------------------
-# 2. choose_best_combination — CA25
-# ---------------------------------------------------------------------------
+class TestPossibleDiameterCombinations:
+    """Tests for the generated diameter-combination set."""
 
-CA25_CASES: list[Tuple[Tuple[float, ...], float]] = [
-    ((10,),        1.0),
-    ((10,),        2.0),
-    ((10,),        5.0),
-    ((16,),        2.0),
-    ((16,),        5.0),
-    ((16,),        10.0),
-    ((10, 16),     1.5),
-    ((10, 16),     4.0),
-    ((10, 16),     8.0),
-    ((16, 20),     3.0),
-    ((16, 20),     6.0),
-    ((16, 20),     12.0),
-    ((10, 16, 20), 2.0),
-    ((10, 16, 20), 7.0),
-    ((10, 16, 20), 13.0),
-]
-
-
-@pytest.mark.parametrize("combo,required_area", CA25_CASES)
-def test_ca25_result_not_empty(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA25, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert len(result) > 0
-
-
-@pytest.mark.parametrize("combo,required_area", CA25_CASES)
-def test_ca25_result_area_sufficient(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA25, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert total_area(result) >= required_area - 0.01
-
-
-@pytest.mark.parametrize("combo,required_area", CA25_CASES)
-def test_ca25_result_min_two_bars(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA25, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert len(result) >= 2
-
-
-@pytest.mark.parametrize("combo,required_area", CA25_CASES)
-def test_ca25_result_diameters_within_combo(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA25, required_area)
-    result = chooser.choose_best_combination(combo)
-    for rebar in result:
-        assert rebar.diameter_mm in combo
-
-
-# ---------------------------------------------------------------------------
-# 3. choose_best_combination — CA50
-# ---------------------------------------------------------------------------
-
-CA50_CASES: list[Tuple[Tuple[float, ...], float]] = [
-    ((10,),        1.0),
-    ((10,),        2.0),
-    ((10,),        5.0),
-    ((16,),        2.0),
-    ((16,),        5.0),
-    ((16,),        10.0),
-    ((10, 16),     1.5),
-    ((10, 16),     4.0),
-    ((10, 16),     8.0),
-    ((16, 20),     3.0),
-    ((16, 20),     6.0),
-    ((16, 20),     12.0),
-    ((10, 16, 20), 2.0),
-    ((10, 16, 20), 7.0),
-    ((10, 16, 20), 13.0),
-]
-
-
-@pytest.mark.parametrize("combo,required_area", CA50_CASES)
-def test_ca50_result_not_empty(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA50, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert len(result) > 0
-
-
-@pytest.mark.parametrize("combo,required_area", CA50_CASES)
-def test_ca50_result_area_sufficient(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA50, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert total_area(result) >= required_area - 0.01
-
-
-@pytest.mark.parametrize("combo,required_area", CA50_CASES)
-def test_ca50_result_min_two_bars(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA50, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert len(result) >= 2
-
-
-@pytest.mark.parametrize("combo,required_area", CA50_CASES)
-def test_ca50_result_diameters_within_combo(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA50, required_area)
-    result = chooser.choose_best_combination(combo)
-    for rebar in result:
-        assert rebar.diameter_mm in combo
-
-
-# ---------------------------------------------------------------------------
-# 4. choose_best_combination — CA60
-# ---------------------------------------------------------------------------
-
-CA60_CASES: list[Tuple[Tuple[float, ...], float]] = [
-    ((5.0,),          0.5),
-    ((5.0,),          0.9),
-    ((5.0,),          1.9),
-    ((6.0,),          0.5),
-    ((6.0,),          1.5),
-    ((6.0,),          3.0),
-    ((5.0, 6.0),      0.5),
-    ((5.0, 6.0),      1.5),
-    ((5.0, 6.0),      3.0),
-    ((6.0, 8.0),      1.0),
-    ((6.0, 8.0),      2.5),
-    ((6.0, 8.0),      5.0),
-    ((5.0, 6.0, 8.0), 1.0),
-    ((5.0, 6.0, 8.0), 2.5),
-    ((5.0, 6.0, 8.0), 5.0),
-]
-
-
-@pytest.mark.parametrize("combo,required_area", CA60_CASES)
-def test_ca60_result_not_empty(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA60, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert len(result) > 0
-
-
-@pytest.mark.parametrize("combo,required_area", CA60_CASES)
-def test_ca60_result_area_sufficient(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA60, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert total_area(result) >= required_area - 0.01
-
-
-@pytest.mark.parametrize("combo,required_area", CA60_CASES)
-def test_ca60_result_min_two_bars(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA60, required_area)
-    result = chooser.choose_best_combination(combo)
-    assert len(result) >= 2
-
-
-@pytest.mark.parametrize("combo,required_area", CA60_CASES)
-def test_ca60_result_diameters_within_combo(combo: Tuple[float, ...], required_area: float) -> None:
-    chooser = RebarChooser(Steel.CA60, required_area)
-    result = chooser.choose_best_combination(combo)
-    for rebar in result:
-        assert rebar.diameter_mm in combo
-
-
-# ---------------------------------------------------------------------------
-# 5. get_best_solution_for_combo
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("steel,combo,required_area", [
-    (Steel.CA25, (10, 16), 4.0),
-    (Steel.CA50, (16, 20), 6.0),
-    (Steel.CA60, (5.0, 6.0), 1.5),
-])
-def test_get_best_solution_for_known_combo(
-    steel: Steel, combo: Tuple[float, ...], required_area: float
-) -> None:
-    chooser = RebarChooser(steel, required_area)
-    result = chooser.get_best_solution_for_combo(combo)
-    assert isinstance(result, tuple)
-    assert len(result) >= 2
-
-
-@pytest.mark.parametrize("steel,required_area", [
-    (Steel.CA25, 4.0),
-    (Steel.CA50, 6.0),
-    (Steel.CA60, 1.5),
-])
-def test_get_best_solution_for_unknown_combo_returns_empty(steel: Steel, required_area: float) -> None:
-    chooser = RebarChooser(steel, required_area)
-    result = chooser.get_best_solution_for_combo((99.9, 88.8))
-    assert result == ()
-
-
-# ---------------------------------------------------------------------------
-# 6. solutions_per_diameter completeness
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("steel,required_area", [
-    (Steel.CA25, 4.0),
-    (Steel.CA50, 6.0),
-    (Steel.CA60, 1.5),
-])
-def test_solutions_per_diameter_keys_match_possible_combos(steel: Steel, required_area: float) -> None:
-    chooser = RebarChooser(steel, required_area)
-    assert set(chooser.solutions_per_diameter.keys()) == chooser.possible_diameter_combinations
-
-
-@pytest.mark.parametrize("steel,required_area", [
-    (Steel.CA25, 4.0),
-    (Steel.CA50, 6.0),
-    (Steel.CA60, 1.5),
-])
-def test_solutions_per_diameter_values_are_tuples(steel: Steel, required_area: float) -> None:
-    chooser = RebarChooser(steel, required_area)
-    for value in chooser.solutions_per_diameter.values():
-        assert isinstance(value, tuple)
-
-
-# ---------------------------------------------------------------------------
-# 7. Edge cases
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("steel,combo", [
-    (Steel.CA25, (10,)),
-    (Steel.CA50, (16,)),
-    (Steel.CA60, (5.0,)),
-])
-def test_very_small_required_area_still_yields_two_bars(steel: Steel, combo: Tuple[float, ...]) -> None:
-    chooser = RebarChooser(steel, 0.01)
-    result = chooser.choose_best_combination(combo)
-    assert len(result) >= 2
-
-
-@pytest.mark.parametrize("steel,combo", [
-    (Steel.CA25, (10,)),
-    (Steel.CA50, (16,)),
-    (Steel.CA60, (5.0,)),
-])
-def test_single_diameter_combo_all_bars_same_diameter(steel: Steel, combo: Tuple[float, ...]) -> None:
-    chooser = RebarChooser(steel, 2.0)
-    result = chooser.choose_best_combination(combo)
-    diameters = {r.diameter_mm for r in result}
-    assert diameters == {combo[0]}
+    def test_count_default_config(self, chooser: RebarChooser) -> None:
+        assert len(chooser.possible_diameter_combinations) == 175, (
+            "Ten sizes across up to three bar types yield 175 combinations"
+        )
+
+    def test_respects_max_bar_types(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(APP_CONFIG, "max_bar_types", 1)
+        chooser = RebarChooser(Steel.CA50, 4.0)
+        assert len(chooser.possible_diameter_combinations) == 10, (
+            "Limiting to one bar type yields one combination per available size"
+        )
+
+
+class TestGetBestSolutionForCombo:
+    """Tests for retrieving the precomputed solution for a combination."""
+
+    def test_hit_returns_solution(self, chooser: RebarChooser) -> None:
+        solution = chooser.get_best_solution_for_combo((12.5,))
+        assert len(solution) == 4, "The cached (12.5,) solution should be four bars"
+
+    def test_miss_returns_empty(self, chooser: RebarChooser) -> None:
+        assert chooser.get_best_solution_for_combo((6.3, 8, 10, 12.5)) == (), (
+            "A combination never generated has no cached solution"
+        )

@@ -16,7 +16,7 @@ def make_slab(
     top: SupportCondition,
     right: SupportCondition,
 ) -> Slab:
-    slab = Slab(("P1", "P2", "P3", "P4"))
+    slab = Slab(("P1", "P2", "P3", "P4"), "Bedrooms")
     for edge, centerline in [
         (Edges.LEFT, 0.0),
         (Edges.RIGHT, lx_cm),

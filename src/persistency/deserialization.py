@@ -235,13 +235,13 @@ def config_from_dict(data: ConfigDict) -> AppConfig:
         ValueError: If a required key is missing.
     """
     return AppConfig(
-        steel=_require(data, "steel", CONFIG_CONTEXT, str),
-        default_concrete=_require(data, "default_concrete", CONFIG_CONTEXT, str),
+        aggregate=_require(data, "aggregate", CONFIG_CONTEXT, str),
         max_aggregate_size=_require(data, "max_aggregate_size", CONFIG_CONTEXT, float),
         max_bar_types=_require(data, "max_bar_types", CONFIG_CONTEXT, int),
         max_layers=_require(data, "max_layers", CONFIG_CONTEXT, int),
         pavement_concrete=_require(data, "pavement_concrete", CONFIG_CONTEXT, str),
         pavement_steel=_require(data, "pavement_steel", CONFIG_CONTEXT, str),
         building_category=_require(data, "building_category", CONFIG_CONTEXT, str),
+        exposure_class=_require(data, "exposure_class", CONFIG_CONTEXT, int),
         ceiling_height=_require(data, "ceiling_height", CONFIG_CONTEXT, float),
     )
