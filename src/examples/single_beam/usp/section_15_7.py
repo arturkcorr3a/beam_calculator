@@ -1,9 +1,11 @@
+from typing import cast
+
 from indeterminatebeam import UDLV, Support  # type: ignore
 
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
-from src.loading.forces import design_effort_elu
+from src.loading.forces import bending_moment_extremes_per_segment, design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups  # type: ignore
@@ -39,8 +41,13 @@ def main():
         supports=supports,
     )
 
-    max_bending_moment, position = beam.get_max_bending_moment()  # kN.m
-    max_shear_force = beam.get_shear_force(return_max=True)  # kN
+    interest_points = bending_moment_extremes_per_segment(
+        beam.bending_moment_expression, beam.shear_force_expression, 0.0, length
+    )
+    position, max_bending_moment = max(
+        interest_points, key=lambda point: abs(point[1])
+    )  # kN.m
+    max_shear_force = cast(float, beam.get_shear_force(return_max=True))  # type: ignore # kN
 
     design_shear_force = design_effort_elu(max_shear_force)  # kN
     stirrup_calculator = StirrupCalculator(beam, design_shear_force)

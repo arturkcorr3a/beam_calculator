@@ -1,7 +1,6 @@
-from typing import cast
-
 from indeterminatebeam import Beam, Support  # type: ignore
 from indeterminatebeam.loading import UDLV  # type: ignore
+from sympy import Expr  # type: ignore
 
 from src.config import APP_CONFIG
 from src.logger import log_element, logger_label
@@ -141,39 +140,12 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
         """
         return self._A
 
-    def get_max_bending_moment(self) -> tuple[float, float]:
-        """
-        Returns a tuple (max_bending_moment, position) for the largest-magnitude
-        bending moment (kN.m) along the beam and the x-coordinate (cm) where it occurs.
+    @property
+    def bending_moment_expression(self) -> Expr:
+        """Return the symbolic bending moment M(x) expression in x (kN.m; x in cm)."""
+        return self._bending_moments  # type: ignore[return-value]
 
-        Exact, since with UDLV-only loading, shear force is piecewise-linear
-        everywhere: critical points can only occur at supports or UDL span
-        edges, or at interior shear zero-crossings (found here by exact linear
-        interpolation between those breakpoints).
-        """
-        breakpoints: set[float] = {0.0, float(self._x1)}
-        breakpoints.update(float(support._position) for support in self._supports)  # type: ignore
-        for load in self._loads:  # type: ignore
-            x0, x1 = cast(tuple[float, float], load.span)  # type: ignore
-            breakpoints.add(float(x0))
-            breakpoints.add(float(x1))
-
-        sorted_breakpoints: list[float] = sorted(breakpoints)
-
-        raw_shear = self.get_shear_force(*sorted_breakpoints)  # type: ignore
-        shear_values: list[float] = [float(v) for v in cast(list[float], raw_shear)]
-
-        candidates: set[float] = set(sorted_breakpoints)
-        for i in range(len(sorted_breakpoints) - 1):
-            x0, x1 = sorted_breakpoints[i], sorted_breakpoints[i + 1]
-            v0, v1 = shear_values[i], shear_values[i + 1]
-            if v0 * v1 < 0:
-                x_zero: float = x0 - v0 * (x1 - x0) / (v1 - v0)
-                candidates.add(x_zero)
-
-        sorted_candidates: list[float] = sorted(candidates)
-        raw_moments = self.get_bending_moment(*sorted_candidates)  # type: ignore
-        moment_values: list[float] = [float(m) for m in cast(list[float], raw_moments)]
-
-        idx: int = max(range(len(moment_values)), key=lambda i: abs(moment_values[i]))
-        return moment_values[idx], sorted_candidates[idx]
+    @property
+    def shear_force_expression(self) -> Expr:
+        """Return the symbolic shear force V(x) expression in x (kN; x in cm)."""
+        return self._shear_forces  # type: ignore[return-value]

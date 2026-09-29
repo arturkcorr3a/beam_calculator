@@ -6,7 +6,7 @@ from indeterminatebeam import UDLV, Support
 
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
-from src.loading.forces import design_effort_elu
+from src.loading.forces import bending_moment_extremes_per_segment, design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups
@@ -50,7 +50,12 @@ beam = RectangularBeam(length, width, height, concrete, steel, supports, loads)
 # ==============================================================================
 # 2. STRUCTURAL ANALYSIS / ESFORÇOS SOLICITANTES
 # ==============================================================================
-max_bending_moment, position = beam.get_max_bending_moment()  # kN.m
+interest_points = bending_moment_extremes_per_segment(
+    beam.bending_moment_expression, beam.shear_force_expression, 0.0, length
+)
+position, max_bending_moment = max(
+    interest_points, key=lambda point: abs(point[1])
+)  # kN.m
 max_shear_force = beam.get_shear_force(return_max=True)  # kN
 
 design_bending_moment = design_effort_elu(max_bending_moment)  # kN.m

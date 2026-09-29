@@ -8,8 +8,9 @@ from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
-from src.loading.forces import design_effort_elu
+from src.loading.forces import bending_moment_extremes_per_segment, design_effort_elu
 from src.logger import log_operation, logger_label
+from src.pavement_elements.beam_span import Span
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups
@@ -35,23 +36,63 @@ class BeamCalculator:
         return self._beam.id
 
     def run(self) -> None:
-        """Dimensions the beam: builds the structural model, computes forces, and calculates reinforcement."""
+        """Dimensions the beam: builds the structural model, computes forces, and calculates reinforcement at every interest point."""
         supports = self._build_supports()
         loads = self._build_loads()
         structural_beam = self._build_structural_beam(supports, loads)
-        max_bending_moment_and_position, max_shear_force = self._get_max_forces(
-            structural_beam
+
+        # FIXME split the stirrups instantiation into a dedicated private function, so it does not clutter this one
+        interest_points = self._interest_points(structural_beam)
+        max_shear_force = cast(
+            float,
+            structural_beam.get_shear_force(return_max=True),  # pyright: ignore[reportUnknownMemberType]
+        )  # kN
+        design_shear_force = design_effort_elu(max_shear_force)  # kN
+        stirrup_calculator = StirrupCalculator(
+            structural_beam, design_shear_force, self.label
         )
-        max_bending_moment, max_bending_moment_position = (
-            max_bending_moment_and_position
+        stirrups = Stirrups(structural_beam, stirrup_calculator, self.label)
+
+        self._beam.reinforcement = []
+        for position, moment in interest_points:
+            log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
+            # TODO the Reinforcement anchorage model assumes a full-length bar
+            # centered at the point and anchored at both beam ends, which does not
+            # hold for hogging bars over a support (center_position at/near a
+            # support -> negative available anchorage space -> ValueError). Guard
+            # and skip such points for now; the correct fix is to anchor hogging
+            # bars into the adjacent spans. See _run_anchorage_calculation.
+            try:
+                calculator = self._calculate(
+                    structural_beam=structural_beam,
+                    stirrups=stirrups,
+                    bending_moment=moment,
+                    bending_moment_position=position,
+                )
+            except ValueError as error:
+                log_operation(
+                    f"Skipping interest point at {position:.2f} cm — reinforcement "
+                    f"could not be dimensioned: {error}"
+                )
+                continue
+            self._store_reinforcement(calculator)
+            self._verify_deformation(structural_beam, calculator, position)
+
+    def _interest_points(
+        self, structural_beam: RectangularBeam
+    ) -> list[tuple[float, float]]:
+        """Finds the dominant bending-moment extreme per segment along the beam.
+
+        Returns:
+            One `(position, moment)` per segment between bending-moment zeros
+            (position in cm, moment in kN.m), sorted left to right.
+        """
+        return bending_moment_extremes_per_segment(
+            structural_beam.bending_moment_expression,
+            structural_beam.shear_force_expression,
+            0.0,
+            structural_beam.length,
         )
-        calculator = self._calculate(
-            structural_beam=structural_beam,
-            max_bending_moment=max_bending_moment,
-            max_bending_moment_position=max_bending_moment_position,
-            max_shear_force=max_shear_force,
-        )
-        self._verify_deformation(structural_beam, calculator)
 
     # FIXME considering all supports as pinned -> fix to include pillar coherence and rigidity
     def _build_supports(self) -> list[Support]:
@@ -105,63 +146,72 @@ class BeamCalculator:
             self.label,
         )
 
-    def _get_max_forces(
-        self, structural_beam: RectangularBeam
-    ) -> tuple[tuple[float, float], float]:
-        """Calculates the design bending moment and shear force for the given structural beam.
-
-        Returns:
-            A tuple containing the max bending moment (kN.m) and max shear force (kN).
-        """
-        max_bending_moment_and_position = structural_beam.get_max_bending_moment()
-
-        max_shear_force = cast(float, structural_beam.get_shear_force(return_max=True))  # pyright: ignore[reportUnknownMemberType] # kN
-        log_operation(
-            f"Maximum bending moment {max_bending_moment_and_position[0]:.2f} kN.m at {max_bending_moment_and_position[1]:.2f} cm and max shear force {max_shear_force:.2f} kN"
-        )
-        return max_bending_moment_and_position, max_shear_force
-
     def _calculate(
         self,
         structural_beam: RectangularBeam,
-        max_bending_moment: float,
-        max_bending_moment_position: float,
-        max_shear_force: float,
+        stirrups: Stirrups,
+        bending_moment: float,
+        bending_moment_position: float,
     ) -> RebarCalculator:
-        design_shear_force = design_effort_elu(max_shear_force)  # kN
-        stirrup_calculator = StirrupCalculator(
-            structural_beam, design_shear_force, self.label
-        )
-        stirrups = Stirrups(structural_beam, stirrup_calculator, self.label)
+        """Dimensions the longitudinal reinforcement for a single interest point.
 
+        Args:
+            bending_moment: Characteristic bending moment at the point (kN.m); its
+                sign selects the tensioned face.
+            bending_moment_position: Position of the point along the beam (cm).
+        """
         calculator = RebarCalculator(
             beam=structural_beam,
-            bending_moment=max_bending_moment,
+            bending_moment=bending_moment,
             stirrups=stirrups,
-            bending_moment_position=max_bending_moment_position,
+            bending_moment_position=bending_moment_position,
             id=self.label,
         )
         calculator.calculate()
         return calculator
 
+    def _store_reinforcement(self, calculator: RebarCalculator) -> None:
+        """Appends the point's tensioned reinforcement (and compressed, if doubly reinforced) to the beam."""
+        self._beam.reinforcement.append(calculator.tensioned_reinforcement)
+        if not calculator.is_singly_reinforced:
+            self._beam.reinforcement.append(calculator.compressed_reinforcement)
+
+    def _span_at(self, position: float) -> Span:
+        """Returns the span containing the given position along the beam (cm)."""
+        start_position = 0.0
+        for span in self._beam.spans:
+            end_position = start_position + span.get_length(self._pillar_registry)
+            if position <= end_position:
+                return span
+            start_position = end_position
+        return self._beam.spans[-1]
+
     def _verify_deformation(
-        self, structural_beam: RectangularBeam, rebar_calculator: RebarCalculator
+        self,
+        structural_beam: RectangularBeam,
+        rebar_calculator: RebarCalculator,
+        position: float,
     ) -> None:
-        # ASK if this is ok (getting the most loaded span) or if I should make it by span, with each span with its own checker
-        most_loaded_span = self._beam.get_most_loaded_span_for_els()
+        """Verifies the ELS deflection limit at a single interest point using its own span's loads.
+
+        Raises:
+            ValueError: If the long-term deflection at the point exceeds the limit.
+        """
+        span = self._span_at(position)
 
         effective_depth_discount = structural_beam.height - rebar_calculator.d
         checker = BeamDeformationChecker(
             structural_beam=structural_beam,
+            position=position,
             tensioned_reinforcement_area=rebar_calculator.tensioned_reinforcement.area,
             compressed_reinforcement_area=rebar_calculator.compressed_reinforcement.area,
             effective_depth_compressed=rebar_calculator.d_compressed,
             effective_depth_discount=effective_depth_discount,
-            span=most_loaded_span.get_length(self._pillar_registry),
+            span=span.get_length(self._pillar_registry),
             width=structural_beam.width,
             concrete=structural_beam.concrete,
-            permanent_load=most_loaded_span.permanent_load,
-            variable_load=most_loaded_span.variable_load,
+            permanent_load=span.permanent_load,
+            variable_load=span.variable_load,
             id=self.label,
         )
         is_deformation_ok = checker.verify(structural_beam.height)
@@ -169,7 +219,6 @@ class BeamCalculator:
             log_operation("Deformation is within acceptable limits.")
             return
 
-        log_operation("Deformation exceeds acceptable limits.")
-        raise ValueError(
-            f"Deformation exceeds acceptable limits. Immediate deflection: {checker.immediate_deflection:.2f} cm, Long-term deflection: {checker.long_term_deflection:.2f} cm, Acceptable deflection: {checker.acceptable_deflection:.2f} cm."
-        )
+        log_message = f"Deformation exceeds acceptable limits at {position:.2f} cm. Immediate deflection: {checker.immediate_deflection:.2f} cm, Long-term deflection: {checker.long_term_deflection:.2f} cm, Acceptable deflection: {checker.acceptable_deflection:.2f} cm."
+        log_operation(log_message)
+        raise ValueError(log_message)

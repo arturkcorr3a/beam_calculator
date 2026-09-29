@@ -8,7 +8,6 @@ from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
-from tests.helpers import assert_approx
 
 
 @pytest.fixture
@@ -17,8 +16,7 @@ def simply_supported_beam() -> RectangularBeam:
 
     A uniform vertical load of -1 kN/cm spans the full length. Construction runs
     the full indeterminatebeam analysis, so this fixture exercises ``__init__``,
-    ``update_units_local``, ``_validate_width`` (valid path), ``area``, and
-    ``get_max_bending_moment``.
+    ``update_units_local``, ``_validate_width`` (valid path), and ``area``.
     """
     return RectangularBeam(
         length=500.0,
@@ -26,8 +24,8 @@ def simply_supported_beam() -> RectangularBeam:
         height=60.0,
         concrete=Concrete.C25,
         steel=Steel.CA50,
-        supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))], # pyright: ignore[reportArgumentType]
-        loads=[UDLV(-1.0, (0.0, 500.0))], # pyright: ignore[reportArgumentType]
+        supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))],  # pyright: ignore[reportArgumentType]
+        loads=[UDLV(-1.0, (0.0, 500.0))],  # pyright: ignore[reportArgumentType]
         label="B1",
     )
 
@@ -41,20 +39,12 @@ class TestConstruction:
             "A 20x60 cm section should have a 1200 cm² area"
         )
 
-    def test_stores_dimensions(
-        self, simply_supported_beam: RectangularBeam
-    ) -> None:
+    def test_stores_dimensions(self, simply_supported_beam: RectangularBeam) -> None:
         assert simply_supported_beam.width == 20.0, "Width should be stored as given"
-        assert simply_supported_beam.height == 60.0, (
-            "Height should be stored as given"
-        )
-        assert simply_supported_beam.length == 500.0, (
-            "Length should be stored as given"
-        )
+        assert simply_supported_beam.height == 60.0, "Height should be stored as given"
+        assert simply_supported_beam.length == 500.0, "Length should be stored as given"
 
-    def test_stores_materials(
-        self, simply_supported_beam: RectangularBeam
-    ) -> None:
+    def test_stores_materials(self, simply_supported_beam: RectangularBeam) -> None:
         assert simply_supported_beam.concrete == Concrete.C25, (
             "Concrete class should be stored as given"
         )
@@ -74,8 +64,8 @@ class TestValidateWidth:
                 height=60.0,
                 concrete=Concrete.C25,
                 steel=Steel.CA50,
-                supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))], # pyright: ignore[reportArgumentType]
-                loads=[UDLV(-1.0, (0.0, 500.0))], # pyright: ignore[reportArgumentType]
+                supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))],  # pyright: ignore[reportArgumentType]
+                loads=[UDLV(-1.0, (0.0, 500.0))],  # pyright: ignore[reportArgumentType]
             )
 
     def test_at_minimum_constructs(self) -> None:
@@ -85,31 +75,10 @@ class TestValidateWidth:
             height=60.0,
             concrete=Concrete.C25,
             steel=Steel.CA50,
-            supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))], # pyright: ignore[reportArgumentType]
-            loads=[UDLV(-1.0, (0.0, 500.0))], # pyright: ignore[reportArgumentType]
+            supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))],  # pyright: ignore[reportArgumentType]
+            loads=[UDLV(-1.0, (0.0, 500.0))],  # pyright: ignore[reportArgumentType]
         )
         assert beam.width == 12.0, "A 12 cm width sits exactly at the minimum"
-
-
-class TestGetMaxBendingMoment:
-    """Tests for the largest-magnitude bending moment and its position."""
-
-    def test_simply_supported_udl(
-        self, simply_supported_beam: RectangularBeam
-    ) -> None:
-        moment, position = simply_supported_beam.get_max_bending_moment()
-        expected_moment = 3.125  # kN.m (w*L²/8 for the analysed unit load)
-        expected_position = 250.0  # cm (midspan)
-        assert_approx(
-            moment,
-            expected_moment,
-            "Max moment of a simply supported UDL beam should be at midspan",
-        )
-        assert_approx(
-            position,
-            expected_position,
-            "The max moment should occur at midspan (250 cm)",
-        )
 
 
 class TestNominalCovering:
