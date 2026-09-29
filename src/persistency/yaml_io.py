@@ -8,11 +8,11 @@ format isolated from the mapping logic.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import yaml
 
-from src.config import APP_CONFIG, AppConfig
+from src.config import APP_CONFIG
 from src.pavement_elements.pavement import Pavement
 from src.persistency.deserialization import config_from_dict, pavement_from_dict
 from src.persistency.schema import ConfigDict, PavementDict
@@ -28,7 +28,10 @@ def save_pavement(pavement: Pavement, path: str | Path) -> None:
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    document = {**pavement_to_dict(pavement), "config": config_to_dict(APP_CONFIG)}
+    document: dict[str, Any] = {
+        **pavement_to_dict(pavement),
+        "config": config_to_dict(APP_CONFIG),
+    }
     with path.open("w", encoding="utf-8") as file:
         yaml.safe_dump(
             document,
@@ -59,11 +62,11 @@ def load_pavement(path: str | Path) -> Pavement:
         ValueError: If the file is malformed (see pavement_from_dict / config_from_dict).
     """
     with Path(path).open("r", encoding="utf-8") as file:
-        data: dict = yaml.safe_load(file)
+        data: dict[str, Any] = yaml.safe_load(file)
 
     if "config" in data:
         loaded_config = config_from_dict(cast(ConfigDict, data["config"]))
-        for field in AppConfig.__dataclass_fields__:
+        for field in config_to_dict(loaded_config):
             setattr(APP_CONFIG, field, getattr(loaded_config, field))
 
     return pavement_from_dict(cast(PavementDict, data))
