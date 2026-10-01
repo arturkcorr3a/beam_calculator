@@ -69,7 +69,6 @@ class _SlabMeta(type):
                 )
 
 
-# FIXME when is_one_way, the unloading on spans should happen only on the shorter direction
 @logger_label("{id}")
 @dataclass
 class Slab(metaclass=_SlabMeta):
@@ -133,6 +132,31 @@ class Slab(metaclass=_SlabMeta):
         )
         return 1.0 / math.sqrt(3)
 
+    # PAPER get reference for the one-way strip reaction coefficients
+    @staticmethod
+    def _one_way_reaction_fraction(
+        own: SupportCondition, opposite: SupportCondition
+    ) -> float:
+        """Return the fraction of a one-way slab's load carried by one supporting edge
+
+        The slab is treated as a strip spanning the short direction between the
+        two long edges, under uniform load. Pinned-pinned and fixed-fixed strips
+        split the load equally; a fixed-pinned strip sends 5/8 to the fixed end
+        and 3/8 to the pinned end.
+
+        Args:
+            own: Support condition of the edge whose fraction is returned.
+            opposite: Support condition of the opposite (parallel) edge.
+
+        Returns:
+            Fraction of the slab's total load carried by the edge, in [0, 1].
+        """
+        if own == opposite:
+            return 0.5
+        if own == "fixed":
+            return 5.0 / 8.0
+        return 3.0 / 8.0
+
     def _setup_edges(self) -> None:
         """Initializes the edges dictionary with SlabEdge instances for each edge."""
         self.edges = {edge: SlabEdge(edge, self) for edge in Edges}
@@ -190,7 +214,7 @@ class Slab(metaclass=_SlabMeta):
 
     @cached_property
     def dimensions(self) -> tuple[float, float]:
-        """X and y dimensions of the slab (cm)."""
+        """x and y dimensions of the slab (cm), in that order."""
         x_dimension = cast(float, self.edges[Edges.RIGHT].beam.centerline) - cast(
             float, self.edges[Edges.LEFT].beam.centerline
         )
@@ -233,12 +257,75 @@ class Slab(metaclass=_SlabMeta):
         """Unloads the slab's load on its supporting spans."""
         self.resolve_influence_areas()
         for edge in Edges:
+            if self.edges[edge].influence_area <= 0.0:
+                continue
             self.edges[edge].unload_on_spans(pillar_registry)
 
     def resolve_influence_areas(self) -> None:
-        """Calculates each edge's influence area (m²) using the Yield Line Theory, based on based on ABNT NBR 6118 - Section 14.7.6.1."""
+        """Calculates each edge's influence area (m²).
+
+        Two-way slabs use the Yield Line Theory, based on ABNT NBR 6118 - Section 14.7.6.1.
+        One-way slabs load only the two long edges (see _resolve_one_way_influence_areas).
+        """
         lx_cm, ly_cm = self.dimensions
         lx, ly = lx_cm / 100, ly_cm / 100
+
+        if self.is_one_way:
+            self._resolve_one_way_influence_areas(lx, ly)
+        else:
+            self._resolve_two_way_influence_areas(lx, ly)
+
+        for edge in Edges:
+            log_operation(
+                f"{edge.value} influence area = {self.edges[edge].influence_area:.4f} m²"
+            )
+
+    def _resolve_one_way_influence_areas(self, lx: float, ly: float) -> None:
+        """Distribute a one-way slab's area between its two long edges
+
+        The slab spans the short direction, so only the beams along the long
+        edges support it; the short edges receive no load.
+
+        Args:
+            lx: Slab dimension along x (m).
+            ly: Slab dimension along y (m).
+
+        References:
+            Carvalho & Figueiredo Filho — Cálculo e Detalhamento de Estruturas
+                Usuais de Concreto Armado, item 7.3.
+        """
+        if lx > ly:
+            supporting, unsupported = (
+                (Edges.BOTTOM, Edges.TOP),
+                (Edges.LEFT, Edges.RIGHT),
+            )
+        else:
+            supporting, unsupported = (
+                (Edges.LEFT, Edges.RIGHT),
+                (Edges.BOTTOM, Edges.TOP),
+            )
+
+        total_area = lx * ly
+        edge_a, edge_b = supporting
+
+        condition_a = self.edges[edge_a].support_condition
+        condition_b = self.edges[edge_b].support_condition
+
+        fraction_a = Slab._one_way_reaction_fraction(condition_a, condition_b)
+        fraction_b = Slab._one_way_reaction_fraction(condition_b, condition_a)
+
+        log_operation(
+            f"One-way: {edge_a.value} ({condition_a}) = {fraction_a:.3f}, {edge_b.value} ({condition_b}) = {fraction_b:.3f}"
+        )
+
+        self.edges[edge_a].influence_area = total_area * fraction_a
+        self.edges[edge_b].influence_area = total_area * fraction_b
+
+        for edge in unsupported:
+            self.edges[edge].influence_area = 0.0
+
+    def _resolve_two_way_influence_areas(self, lx: float, ly: float) -> None:
+        """Calculates each edge's influence area (m²) using the Yield Line Theory, based on ABNT NBR 6118 - Section 14.7.6.1."""
 
         slope_bl = Slab._corner_yield_slope(
             self.edges[Edges.BOTTOM].support_condition,
@@ -308,11 +395,6 @@ class Slab(metaclass=_SlabMeta):
             )
             self.edges[Edges.TOP].influence_area = calculate_polygon_area(
                 [p_tl, p_tr, p_right, p_left]
-            )
-
-        for edge in Edges:
-            log_operation(
-                f"{edge.value} influence area = {self.edges[edge].influence_area:.4f} m²"
             )
 
     @property

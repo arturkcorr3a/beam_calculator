@@ -430,3 +430,49 @@ class TestResolveLoads:
         assert_approx(
             s.variable_load, 1.5, "variable_load should come from SuperficialLoads"
         )
+
+
+# ---------------------------------------------------------------------------
+# TestUnloadOnSupportingSpans
+# ---------------------------------------------------------------------------
+
+
+class TestUnloadOnSupportingSpans:
+    """unload_on_supporting_spans skips edges that carry no load."""
+
+    def _record_unloads(self, s: Slab, monkeypatch: pytest.MonkeyPatch) -> list[Edges]:
+        """Replace each edge's unload_on_spans with a recorder of the edge name"""
+        unloaded: list[Edges] = []
+        for edge in Edges:
+            monkeypatch.setattr(
+                s.edges[edge],
+                "unload_on_spans",
+                lambda registry, e=edge: unloaded.append(e),  # pyright: ignore
+            )
+        return unloaded
+
+    def test_one_way_horizontal_unloads_only_bottom_and_top(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        s = _make_slab_with_beams(1250.0, 500.0)
+        unloaded = self._record_unloads(s, monkeypatch)
+        s.unload_on_supporting_spans({})
+        assert unloaded == [Edges.BOTTOM, Edges.TOP], (
+            "one-way slab along x should unload only on bottom/top beams"
+        )
+
+    def test_one_way_vertical_unloads_only_left_and_right(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        s = _make_slab_with_beams(500.0, 1250.0)
+        unloaded = self._record_unloads(s, monkeypatch)
+        s.unload_on_supporting_spans({})
+        assert unloaded == [Edges.LEFT, Edges.RIGHT], (
+            "one-way slab along y should unload only on left/right beams"
+        )
+
+    def test_two_way_unloads_all_edges(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        s = _make_slab_with_beams(500.0, 500.0)
+        unloaded = self._record_unloads(s, monkeypatch)
+        s.unload_on_supporting_spans({})
+        assert unloaded == list(Edges), "two-way slab should unload on all four edges"
