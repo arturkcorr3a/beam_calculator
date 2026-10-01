@@ -95,15 +95,15 @@ _RECT15_IDS = [
 ]
 
 _RECT25_CASES = [
-    ("fixed",  "fixed", "fixed", "fixed",  25.00,  6.25, 25.00,  6.25),
-    ("fixed",  "fixed", "pinned","fixed",  29.58,  7.92, 17.08,  7.92),
-    ("fixed",  "fixed", "fixed", "pinned", 26.32,  6.25, 26.32,  3.61),
-    ("pinned", "fixed", "pinned","fixed",  20.42, 10.83, 20.42, 10.83),
-    ("fixed",  "pinned","fixed", "pinned", 27.64,  3.61, 27.64,  3.61),
-    ("fixed",  "fixed", "pinned","pinned", 31.70,  7.92, 18.30,  4.58),
-    ("fixed",  "pinned","pinned","pinned", 33.82,  4.58, 19.53,  4.58),
-    ("pinned", "pinned","pinned","fixed",  22.71,  6.25, 22.71, 10.83),
-    ("pinned", "pinned","pinned","pinned", 25.00,  6.25, 25.00,  6.25),
+    ("fixed",  "fixed", "fixed", "fixed",  31.25,  0.00, 31.25,  0.00),
+    ("fixed",  "fixed", "pinned","fixed",  39.06,  0.00, 23.44,  0.00),
+    ("fixed",  "fixed", "fixed", "pinned", 31.25,  0.00, 31.25,  0.00),
+    ("pinned", "fixed", "pinned","fixed",  31.25,  0.00, 31.25,  0.00),
+    ("fixed",  "pinned","fixed", "pinned", 31.25,  0.00, 31.25,  0.00),
+    ("fixed",  "fixed", "pinned","pinned", 39.06,  0.00, 23.44,  0.00),
+    ("fixed",  "pinned","pinned","pinned", 39.06,  0.00, 23.44,  0.00),
+    ("pinned", "pinned","pinned","fixed",  31.25,  0.00, 31.25,  0.00),
+    ("pinned", "pinned","pinned","pinned", 31.25,  0.00, 31.25,  0.00),
 ]
 _RECT25_IDS = [
     "Rect25_all_fixed",
@@ -141,15 +141,15 @@ _RECTY15_IDS = [
 ]
 
 _RECTY25_CASES = [
-    ("fixed",  "fixed", "fixed", "fixed",   6.25, 25.00,  6.25, 25.00),
-    ("fixed",  "fixed", "pinned","fixed",   6.25, 26.32,  3.61, 26.32),
-    ("fixed",  "fixed", "fixed", "pinned",  7.92, 29.58,  7.92, 17.08),
-    ("pinned", "fixed", "pinned","fixed",   3.61, 27.64,  3.61, 27.64),
-    ("fixed",  "pinned","fixed", "pinned", 10.83, 20.42, 10.83, 20.42),
-    ("fixed",  "fixed", "pinned","pinned",  7.92, 31.70,  4.58, 18.30),
-    ("fixed",  "pinned","pinned","pinned", 10.83, 22.71,  6.25, 22.71),
-    ("pinned", "pinned","pinned","fixed",   4.58, 19.53,  4.58, 33.82),
-    ("pinned", "pinned","pinned","pinned",  6.25, 25.00,  6.25, 25.00),
+    ("fixed",  "fixed", "fixed", "fixed",   0.00, 31.25,  0.00, 31.25),
+    ("fixed",  "fixed", "pinned","fixed",   0.00, 31.25,  0.00, 31.25),
+    ("fixed",  "fixed", "fixed", "pinned",  0.00, 39.06,  0.00, 23.44),
+    ("pinned", "fixed", "pinned","fixed",   0.00, 31.25,  0.00, 31.25),
+    ("fixed",  "pinned","fixed", "pinned",  0.00, 31.25,  0.00, 31.25),
+    ("fixed",  "fixed", "pinned","pinned",  0.00, 39.06,  0.00, 23.44),
+    ("fixed",  "pinned","pinned","pinned",  0.00, 31.25,  0.00, 31.25),
+    ("pinned", "pinned","pinned","fixed",   0.00, 23.44,  0.00, 39.06),
+    ("pinned", "pinned","pinned","pinned",  0.00, 31.25,  0.00, 31.25),
 ]
 _RECTY25_IDS = [
     "RectY25_all_fixed",
@@ -214,7 +214,7 @@ class TestHorizontalSlabRatio15:
 
 
 class TestHorizontalSlabRatio25:
-    """lx = 1250 cm, ly = 500 cm (lx/ly = 2.5)"""
+    """lx = 1250 cm, ly = 500 cm (lx/ly = 2.5): one-way, loads only bottom/top"""
 
     @pytest.mark.parametrize(
         "bottom,left,top,right,exp_bottom,exp_left,exp_top,exp_right",
@@ -262,7 +262,7 @@ class TestVerticalSlabRatio15:
 
 
 class TestVerticalSlabRatio25:
-    """lx = 500 cm, ly = 1250 cm (ly/lx = 2.5)"""
+    """lx = 500 cm, ly = 1250 cm (ly/lx = 2.5): one-way, loads only left/right"""
 
     @pytest.mark.parametrize(
         "bottom,left,top,right,exp_bottom,exp_left,exp_top,exp_right",
