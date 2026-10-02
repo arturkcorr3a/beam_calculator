@@ -9,6 +9,8 @@ from src.pavement_elements.geometry_utils import (
     Point,
     between,
     calculate_polygon_area,
+    effective_span,
+    get_pillar_parallel_extent,
     get_pillar_perpendicular_range,
     round_up_to_multiple_of_5,
 )
@@ -207,3 +209,59 @@ class TestGetPillarPerpendicularRange:
     def test_y_axis_returns_x_range(self, pillar: Pillar) -> None:
         result = get_pillar_perpendicular_range(pillar, Axis.Y)
         assert result == (90.0, 110.0), "Y axis should return x_range of pillar"
+
+
+# ---------------------------------------------------------------------------
+# TestGetPillarParallelExtent
+# ---------------------------------------------------------------------------
+
+
+class TestGetPillarParallelExtent:
+    """get_pillar_parallel_extent returns the pillar size along the given axis."""
+
+    def test_x_axis_returns_width(self, pillar: Pillar) -> None:
+        assert get_pillar_parallel_extent(pillar, Axis.X) == 20, (
+            "X axis should return the pillar width"
+        )
+
+    def test_y_axis_returns_depth(self, pillar: Pillar) -> None:
+        assert get_pillar_parallel_extent(pillar, Axis.Y) == 30, (
+            "Y axis should return the pillar depth"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestEffectiveSpan
+# ---------------------------------------------------------------------------
+
+
+class TestEffectiveSpan:
+    """effective_span = l0 + min(t1/2, 0.3h) + min(t2/2, 0.3h) (NBR 6118 §14.6.2.4)."""
+
+    def test_narrow_supports_equal_centroid_distance(self) -> None:
+        # t/2 = 5 < 0.3h = 15 on both sides -> l_ef == axis distance
+        result = effective_span(400, 10, 10, 50)
+        assert_approx(result, 400, "narrow supports should keep the centroid distance")
+
+    def test_wide_supports_capped_at_0_3h(self) -> None:
+        # l0 = 600 - 50 - 50 = 500; a = min(50, 12) = 12 on both sides
+        result = effective_span(600, 100, 100, 40)
+        assert_approx(result, 524, "wide supports should be capped at 0.3h")
+
+    def test_mixed_supports(self) -> None:
+        # l0 = 500 - 10 - 40 = 450; a1 = min(10, 9) = 9; a2 = min(40, 9) = 9
+        result = effective_span(500, 20, 80, 30)
+        assert_approx(result, 468, "each support should be capped independently")
+
+    def test_half_width_governs_when_smaller(self) -> None:
+        # l0 = 500 - 6 - 40 = 454; a1 = min(6, 9) = 6; a2 = min(40, 9) = 9
+        result = effective_span(500, 12, 80, 30)
+        assert_approx(result, 469, "t/2 should govern when below 0.3h")
+
+    def test_non_positive_height_raises(self) -> None:
+        with pytest.raises(ValueError, match="Height must be positive"):
+            effective_span(400, 20, 20, 0)
+
+    def test_overlapping_supports_raise(self) -> None:
+        with pytest.raises(ValueError, match="no clear span"):
+            effective_span(40, 40, 40, 30)

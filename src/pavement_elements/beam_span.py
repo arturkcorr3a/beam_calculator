@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
-from src.pavement_elements.geometry_utils import Axis
+from src.pavement_elements.geometry_utils import (
+    Axis,
+    effective_span,
+    get_pillar_parallel_extent,
+)
 from src.pavement_elements.pillar import Pillar
 
 if TYPE_CHECKING:
@@ -40,6 +44,28 @@ class Span:
             return abs(end_pillar.y - start_pillar.y)
         else:
             raise ValueError("Invalid axis for length calculation.")
+
+    def get_effective_length(
+        self, pillar_registry: dict[str, Pillar], height: float | None = None
+    ) -> float:
+        """Return the span's effective length (cm) for structural analysis
+
+        Args:
+            height: Beam height used for the 0.3 h cap (cm). Defaults to the
+                beam's current height.
+
+        References:
+            ABNT NBR 6118:2014 — Section 14.6.2.4
+        """
+        axis = cast(Axis, self.beam.axis)
+        start_pillar = pillar_registry[self.start_pillar_id]
+        end_pillar = pillar_registry[self.end_pillar_id]
+        return effective_span(
+            self.get_length(pillar_registry),
+            get_pillar_parallel_extent(start_pillar, axis),
+            get_pillar_parallel_extent(end_pillar, axis),
+            self.beam.height if height is None else height,
+        )
 
     def contains_pillar(self, pillar_id: str) -> bool:
         """Checks if the span contains a specific pillar ID."""

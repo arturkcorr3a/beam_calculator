@@ -17,7 +17,7 @@ from src.pavement_elements.slab import (
     Slab,
 )
 from src.pavement_elements.slab_edge import Edges
-from tests.helpers import assert_approx
+from tests.helpers import assert_approx, centroid_preserving_beam_width
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -28,12 +28,20 @@ def _make_slab_with_beams(
     lx_cm: float,
     ly_cm: float,
     local: str = "Bedrooms",
+    beam_width: float | None = None,
 ) -> Slab:
     """Build a Slab with beam-double centerlines set on all four edges.
 
     The slab is fully ready for dimensions / is_one_way / max_thickness reads.
+
+    Args:
+        beam_width: Width of every supporting beam double (cm). Defaults to the
+            centroid-preserving width for the slab's thickness, so the
+            effective spans equal the centerline distances.
     """
     s = Slab(corner_pillar_ids=("PA", "PB", "PC", "PD"), local=local)
+    if beam_width is None:
+        beam_width = centroid_preserving_beam_width(s.thickness)
     for edge, centerline in [
         (Edges.LEFT, 0.0),
         (Edges.RIGHT, lx_cm),
@@ -42,6 +50,7 @@ def _make_slab_with_beams(
     ]:
         mock_beam = Mock(spec=ContinuousBeam)
         mock_beam.centerline = centerline
+        mock_beam.width = beam_width
         s.edges[edge].resolve_beam(mock_beam)
     return s
 
@@ -156,6 +165,40 @@ class TestDimensions:
         lx, ly = s.dimensions
         assert_approx(lx, 300.0, "lx should be 300 cm")
         assert_approx(ly, 400.0, "ly should be 400 cm")
+
+
+# ---------------------------------------------------------------------------
+# TestEffectiveDimensions
+# ---------------------------------------------------------------------------
+
+
+class TestEffectiveDimensions:
+    """effective_dimensions applies the NBR 6118 §14.7.2.2 0.3h cap to beam supports."""
+
+    def test_narrow_beams_keep_centerline_distance(self) -> None:
+        s = _make_slab_with_beams(500.0, 400.0, beam_width=4.0)
+        s.thickness = 10
+        # t/2 = 2 < 0.3h = 3 -> l_ef == centerline distance
+        lx, ly = s.effective_dimensions
+        assert_approx(lx, 500.0, "lx should equal the centerline distance")
+        assert_approx(ly, 400.0, "ly should equal the centerline distance")
+
+    def test_wide_beams_capped_at_0_3h(self) -> None:
+        s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
+        s.thickness = 10
+        # l0 = 480 / 380; a = min(10, 3) = 3 on each side
+        lx, ly = s.effective_dimensions
+        assert_approx(lx, 486.0, "lx should be l0 + 2 * 0.3h")
+        assert_approx(ly, 386.0, "ly should be l0 + 2 * 0.3h")
+
+    def test_follows_thickness_changes(self) -> None:
+        s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
+        s.thickness = 10
+        _ = s.effective_dimensions
+        s.thickness = 20
+        # a = min(10, 6) = 6 -> 480 + 12
+        lx, _ly = s.effective_dimensions
+        assert_approx(lx, 492.0, "effective_dimensions should not be cached")
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +424,32 @@ class TestPreSize:
 
         with pytest.raises(ValueError, match="cannot be stabilized"):
             s.pre_size()
+
+    def test_checker_spans_follow_thickness(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        s = _make_slab_with_beams(300.0, 400.0, beam_width=20.0)
+        verified_spans: list[tuple[float, float, float]] = []
+
+        class _PassAtThird:
+            def __init__(self, *, lx: float, ly: float, **kw: object) -> None:
+                self.lx = lx
+                self.ly = ly
+                self.span = min(lx, ly)
+
+            def verify(self, h: int) -> bool:
+                verified_spans.append((self.lx, self.ly, self.span))
+                return len(verified_spans) == 3
+
+        monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _PassAtThird)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+
+        s.pre_size()
+        # h = 8, 9, 10 -> a = 0.3h = 2.4, 2.7, 3.0; l0 = 280 / 380
+        for (lx, ly, span), a in zip(verified_spans, (2.4, 2.7, 3.0)):
+            assert_approx(lx, 280 + 2 * a, f"checker lx should match h = {a / 0.3:.0f}")
+            assert_approx(ly, 380 + 2 * a, f"checker ly should match h = {a / 0.3:.0f}")
+            assert_approx(span, 280 + 2 * a, "checker span should be min(lx, ly)")
 
 
 # ---------------------------------------------------------------------------

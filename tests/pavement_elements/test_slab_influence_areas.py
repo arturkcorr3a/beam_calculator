@@ -1,9 +1,11 @@
-import pytest
 from unittest.mock import Mock
 
+import pytest
+
+from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.slab import Slab
 from src.pavement_elements.slab_edge import Edges, SupportCondition
-from src.pavement_elements.continuous_beam import ContinuousBeam
+from tests.helpers import assert_approx, centroid_preserving_beam_width
 
 AREA_TOLERANCE = 0.01  # m² — CSV values are rounded to 2 decimal places
 
@@ -25,6 +27,7 @@ def make_slab(
     ]:
         mock_beam = Mock(spec=ContinuousBeam)
         mock_beam.centerline = centerline
+        mock_beam.width = centroid_preserving_beam_width(slab.thickness)
         slab.edges[edge].resolve_beam(mock_beam)
     slab.edges[Edges.BOTTOM].support_condition = bottom
     slab.edges[Edges.LEFT].support_condition = left
@@ -40,10 +43,30 @@ def _assert_areas(
     exp_top: float,
     exp_right: float,
 ) -> None:
-    assert slab.edges[Edges.BOTTOM].influence_area == pytest.approx(exp_bottom, abs=AREA_TOLERANCE), "bottom area"  # type: ignore[reportUnknownMemberType]
-    assert slab.edges[Edges.LEFT].influence_area == pytest.approx(exp_left, abs=AREA_TOLERANCE), "left area"  # type: ignore[reportUnknownMemberType]
-    assert slab.edges[Edges.TOP].influence_area == pytest.approx(exp_top, abs=AREA_TOLERANCE), "top area"  # type: ignore[reportUnknownMemberType]
-    assert slab.edges[Edges.RIGHT].influence_area == pytest.approx(exp_right, abs=AREA_TOLERANCE), "right area"  # type: ignore[reportUnknownMemberType]
+    assert_approx(
+        slab.edges[Edges.BOTTOM].influence_area,
+        exp_bottom,
+        "bottom influence area (m²)",
+        abs_tol=AREA_TOLERANCE,
+    )
+    assert_approx(
+        slab.edges[Edges.LEFT].influence_area,
+        exp_left,
+        "left influence area (m²)",
+        abs_tol=AREA_TOLERANCE,
+    )
+    assert_approx(
+        slab.edges[Edges.TOP].influence_area,
+        exp_top,
+        "top influence area (m²)",
+        abs_tol=AREA_TOLERANCE,
+    )
+    assert_approx(
+        slab.edges[Edges.RIGHT].influence_area,
+        exp_right,
+        "right influence area (m²)",
+        abs_tol=AREA_TOLERANCE,
+    )
 
 
 # fmt: off

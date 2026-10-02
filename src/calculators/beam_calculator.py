@@ -102,7 +102,7 @@ class BeamCalculator:
         first_support = Support(support_position, pinned)
         supports = [first_support]
         for span in self._beam.spans:
-            support_position += span.get_length(self._pillar_registry)
+            support_position += span.get_effective_length(self._pillar_registry)
             next_support = Support(support_position, pinned)  # pyright: ignore[reportArgumentType]
             supports.append(next_support)
         return supports
@@ -112,7 +112,9 @@ class BeamCalculator:
         loads: list[UDLV] = []
         start_position = 0
         for i, span in enumerate(self._beam.spans):
-            end_position = start_position + span.get_length(self._pillar_registry)
+            end_position = start_position + span.get_effective_length(
+                self._pillar_registry
+            )
             total_load = (
                 span.permanent_load + span.variable_load
             )  # kN/m, permanent + variable as it is ELU
@@ -131,7 +133,8 @@ class BeamCalculator:
     ) -> RectangularBeam:
         """Builds a RectangularBeam instance for structural analysis and dimensioning."""
         length = sum(
-            span.get_length(self._pillar_registry) for span in self._beam.spans
+            span.get_effective_length(self._pillar_registry)
+            for span in self._beam.spans
         )
         concrete = Concrete[APP_CONFIG.pavement_concrete]
         steel = Steel[APP_CONFIG.pavement_steel]
@@ -180,7 +183,9 @@ class BeamCalculator:
         """Returns the span containing the given position along the beam (cm)."""
         start_position = 0.0
         for span in self._beam.spans:
-            end_position = start_position + span.get_length(self._pillar_registry)
+            end_position = start_position + span.get_effective_length(
+                self._pillar_registry
+            )
             if position <= end_position:
                 return span
             start_position = end_position
@@ -207,7 +212,7 @@ class BeamCalculator:
             compressed_reinforcement_area=rebar_calculator.compressed_reinforcement.area,
             effective_depth_compressed=rebar_calculator.d_compressed,
             effective_depth_discount=effective_depth_discount,
-            span=span.get_length(self._pillar_registry),
+            span=span.get_effective_length(self._pillar_registry),
             width=structural_beam.width,
             concrete=structural_beam.concrete,
             permanent_load=span.permanent_load,

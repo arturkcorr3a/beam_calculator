@@ -15,7 +15,11 @@ from src.logger import (
     logger_label,
 )
 from src.pavement_elements.continuous_beam import ContinuousBeam
-from src.pavement_elements.geometry_utils import Point, calculate_polygon_area
+from src.pavement_elements.geometry_utils import (
+    Point,
+    calculate_polygon_area,
+    effective_span,
+)
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab_edge import Edges, SlabEdge, SupportCondition
 from src.properties.concrete import Concrete
@@ -185,7 +189,7 @@ class Slab(metaclass=_SlabMeta):
             edge: self.edges[edge].support_condition for edge in Edges
         }
 
-        lx, ly = self.dimensions
+        lx, ly = self.effective_dimensions
         checker = SlabDeformationChecker(
             permanent_load=self.permanent_load,
             variable_load=self.variable_load,
@@ -203,6 +207,9 @@ class Slab(metaclass=_SlabMeta):
                 raise ValueError(
                     f"Slab '{self.id}' cannot be stabilized; required thickness exceeds {self.max_thickness} cm."
                 )
+            # The effective spans depend on the thickness (0.3 h cap)
+            checker.lx, checker.ly = self.effective_dimensions
+            checker.span = min(checker.lx, checker.ly)
 
         thickness_changed = self.thickness != original_thickness
         if thickness_changed:
@@ -214,7 +221,7 @@ class Slab(metaclass=_SlabMeta):
 
     @cached_property
     def dimensions(self) -> tuple[float, float]:
-        """x and y dimensions of the slab (cm), in that order."""
+        """x and y distances (cm) between the supporting beams' centerlines, in that order."""
         x_dimension = cast(float, self.edges[Edges.RIGHT].beam.centerline) - cast(
             float, self.edges[Edges.LEFT].beam.centerline
         )
@@ -223,13 +230,39 @@ class Slab(metaclass=_SlabMeta):
         )
         return (x_dimension, y_dimension)
 
-    @cached_property
+    @property
+    def effective_dimensions(self) -> tuple[float, float]:
+        """Return the slab's effective spans along x and y (cm), in that order
+
+        Each span is reduced from the centroid distance between the supporting
+        beams using the beam widths and the slab thickness (0.3 h cap). Not
+        cached, since the thickness changes during pre-sizing.
+
+        References:
+            ABNT NBR 6118:2014 — Section 14.7.2.2
+        """
+        x_dimension, y_dimension = self.dimensions
+        effective_x = effective_span(
+            x_dimension,
+            self.edges[Edges.LEFT].beam.width,
+            self.edges[Edges.RIGHT].beam.width,
+            self.thickness,
+        )
+        effective_y = effective_span(
+            y_dimension,
+            self.edges[Edges.BOTTOM].beam.width,
+            self.edges[Edges.TOP].beam.width,
+            self.thickness,
+        )
+        return (effective_x, effective_y)
+
+    @property
     def is_one_way(self) -> bool:
-        """Returns True if the slab is a one-way slab, based on the ratio of its dimensions.
+        """Returns True if the slab is a one-way slab, based on the ratio of its effective spans.
 
         Based on 'Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado', item 7.3."""
-        biggest = max(self.dimensions)
-        smallest = min(self.dimensions)
+        biggest = max(self.effective_dimensions)
+        smallest = min(self.effective_dimensions)
         return (biggest / smallest) > ONE_WAY_SLAB_THRESHOLD_RATIO
 
     def add_permanent_load(self, load: float) -> None:
@@ -248,7 +281,7 @@ class Slab(metaclass=_SlabMeta):
         self._add_slab_to_spans()
         self._resolve_permanent_load_without_own_weight()
         self._resolve_variable_load()
-        lx, ly = self.dimensions
+        lx, ly = self.effective_dimensions
         log_element(
             f"{'One-way' if self.is_one_way else 'Two-way'}; {lx / 100.0:.2f} x {ly / 100.0:.2f} m; Variable load: {self.variable_load:.1f} kN/m2"
         )
@@ -267,7 +300,7 @@ class Slab(metaclass=_SlabMeta):
         Two-way slabs use the Yield Line Theory, based on ABNT NBR 6118 - Section 14.7.6.1.
         One-way slabs load only the two long edges (see _resolve_one_way_influence_areas).
         """
-        lx_cm, ly_cm = self.dimensions
+        lx_cm, ly_cm = self.effective_dimensions
         lx, ly = lx_cm / 100, ly_cm / 100
 
         if self.is_one_way:
@@ -402,7 +435,7 @@ class Slab(metaclass=_SlabMeta):
         """
         It is the max thickness to be considered a surface, Based on ABNT NBR 6118 - Section 14.4.2.1
         """
-        return math.ceil(min(self.dimensions) / 3)  # cm
+        return math.ceil(min(self.effective_dimensions) / 3)  # cm
 
     # ------------------------------------------------------------------
     # Validation helpers

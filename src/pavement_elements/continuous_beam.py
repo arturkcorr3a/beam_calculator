@@ -27,6 +27,8 @@ BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
 
 _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
 
+_MAX_PRE_SIZE_ITERATIONS = 10  # guard for the height ↔ effective span fixed point
+
 
 @dataclass
 class WallDefinition:
@@ -113,14 +115,31 @@ class ContinuousBeam:
 
     # PAPER find reference for this method
     def pre_size(self, pillar_registry: dict[str, Pillar]) -> float:
-        """Pre-dimensioning height calculation."""
-        max_height = 0
-        for span in self.spans:
-            length = span.get_length(pillar_registry)
-            proposed_height = length / BEAM_HEIGHT_ESTIMATION_FACTOR
-            max_height = max(max_height, proposed_height)
+        """Pre-dimension the beam height from its longest effective span
 
-        self.height = round_up_to_multiple_of_5(max_height)
+        The effective span depends on the height itself (0.3 h cap), so the
+        height is iterated from the current value until it no longer changes.
+
+        Returns:
+            The chosen height (cm).
+
+        References:
+            ABNT NBR 6118:2014 — Section 14.6.2.4
+        """
+        height = self.height
+        for _ in range(_MAX_PRE_SIZE_ITERATIONS):
+            max_length = max(
+                span.get_effective_length(pillar_registry, height)
+                for span in self.spans
+            )
+            new_height = round_up_to_multiple_of_5(
+                max_length / BEAM_HEIGHT_ESTIMATION_FACTOR
+            )
+            if new_height == height:
+                break
+            height = new_height
+
+        self.height = height
         log_element(f"Chosen height = {self.height} cm")
         return self.height
 
