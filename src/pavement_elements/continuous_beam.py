@@ -23,7 +23,7 @@ from src.pavement_elements.pillar import Pillar
 from src.reinforcement.reinforcement import Reinforcement
 
 # PAPER find reference for this value, I think they are not in NBR 6118, but should be in the classical literature - I know it's between 12 and 15
-BEAM_HEIGHT_ESTIMATION_FACTOR = 15  # for pre-dimensioning
+BEAM_HEIGHT_ESTIMATION_FACTOR = 12  # for pre-dimensioning
 
 _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
 

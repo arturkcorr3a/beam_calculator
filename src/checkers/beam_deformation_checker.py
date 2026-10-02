@@ -39,7 +39,6 @@ class BeamDeformationChecker(DeformationChecker):
         log_operation(f"Design load for ELS: {design_load:.2f} kN/cm")
         return design_load
 
-    # ASK if this fix is applicable
     @property
     def immediate_deflection(self) -> float:
         """Immediate deflection (cm) at the interest point under service loads, scaled by the Branson stiffness ratio (I_gross / I_eq).

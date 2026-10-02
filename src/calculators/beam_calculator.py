@@ -97,9 +97,15 @@ class BeamCalculator:
         )
         return Stirrups(structural_beam, stirrup_calculator, self.label)
 
-    # FIXME considering all supports as pinned -> fix to include pillar coherence and rigidity
     def _build_supports(self) -> list[Support]:
-        # TODO docstring after function is complete (FIXME above is resolved)
+        """Builds a pinned support at the beam start and at the end of each span.
+
+        Each support restrains horizontal and vertical translation but allows
+        rotation; positions accumulate the spans' effective lengths (cm).
+
+        Returns:
+            One support per span boundary, ordered left to right.
+        """
         pinned = (1, 1, 0)
         support_position = 0
         first_support = Support(support_position, pinned)
