@@ -43,7 +43,7 @@ def _make_slab_double(
 
     Args:
         slab_id: The slab's id string.
-        pre_size_returns: Sequence of values returned by successive pre_size() calls.
+        pre_size_returns: Sequence of values returned by successive pre_size(registry) calls.
             Defaults to [True] (stable on first call).
     """
     if pre_size_returns is None:
@@ -59,7 +59,8 @@ def _make_slab_double(
     slab.resolve_and_validate = (
         lambda pillars, beams: calls.append(f"resolve_and_validate:{slab_id}")  # pyright: ignore[reportUnknownLambdaType]
     )
-    slab.pre_size = lambda: next(returns_iter)
+    slab.pre_size = lambda registry: next(returns_iter)  # pyright: ignore[reportUnknownLambdaType]
+    slab.validate_lowered = lambda: calls.append(f"validate_lowered:{slab_id}")
     slab.unload_on_supporting_spans = lambda registry: calls.append(  # pyright: ignore[reportUnknownLambdaType]
         f"unload_on_supporting_spans:{slab_id}"
     )
@@ -239,7 +240,7 @@ class TestPreSizeSlabs:
         p = Pavement()
         call_count: list[int] = [0]
 
-        def _counting_pre_size() -> bool:
+        def _counting_pre_size(registry: dict[str, Pillar]) -> bool:
             call_count[0] += 1
             return True  # stable on first call
 
@@ -258,7 +259,7 @@ class TestPreSizeSlabs:
         call_count: list[int] = [0]
         results = [False, True]
 
-        def _scripted_pre_size() -> bool:
+        def _scripted_pre_size(registry: dict[str, Pillar]) -> bool:
             call_count[0] += 1
             return results.pop(0)
 
@@ -281,11 +282,11 @@ class TestPreSizeSlabs:
         results_a = [False, True]  # unstable pass 1, stable pass 2
         results_b = [False, True]  # unstable pass 1, stable pass 2
 
-        def _pre_size_a() -> bool:
+        def _pre_size_a(registry: dict[str, Pillar]) -> bool:
             calls_a[0] += 1
             return results_a.pop(0)
 
-        def _pre_size_b() -> bool:
+        def _pre_size_b(registry: dict[str, Pillar]) -> bool:
             calls_b[0] += 1
             return results_b.pop(0)
 
@@ -300,6 +301,34 @@ class TestPreSizeSlabs:
 
         assert calls_a[0] == 2, "slab A should be pre_sized twice"
         assert calls_b[0] == 2, "slab B should be pre_sized twice"
+
+    def test_validates_lowered_after_sizing(self) -> None:
+        """validate_lowered runs once per slab, after the last pre_size pass."""
+        p = Pavement()
+        log: list[str] = []
+        slab = _make_slab_double("L1")
+        slab.pre_size = lambda registry: log.append("pre_size") or True  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownLambdaType]
+        slab.validate_lowered = lambda: log.append("validate_lowered")  # type: ignore[attr-defined]
+        p.add_slab(slab)
+
+        p.pre_size_slabs()
+
+        assert log == ["pre_size", "validate_lowered"], (
+            "validate_lowered should run once, after pre-sizing"
+        )
+
+    def test_validate_lowered_error_propagates(self) -> None:
+        p = Pavement()
+        slab = _make_slab_double("L1")
+
+        def _raise() -> None:
+            raise ValueError("lowered too much")
+
+        slab.validate_lowered = _raise  # type: ignore[attr-defined]
+        p.add_slab(slab)
+
+        with pytest.raises(ValueError, match="lowered too much"):
+            p.pre_size_slabs()
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +402,7 @@ class TestResolve:
         slab.calls = slab_log  # type: ignore[attr-defined]
         slab.clear_resolved = lambda: slab_log.append("clear_resolved")  # type: ignore[attr-defined]
         slab.resolve_and_validate = lambda *a: slab_log.append("resolve_and_validate")  # type: ignore[attr-defined]
-        slab.pre_size = lambda: True  # type: ignore[attr-defined]
+        slab.pre_size = lambda r: True  # type: ignore[attr-defined]
         slab.unload_on_supporting_spans = lambda r: slab_log.append("unload")  # type: ignore[attr-defined]
 
         p.add_beam(beam)

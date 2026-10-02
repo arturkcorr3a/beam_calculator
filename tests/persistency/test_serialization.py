@@ -173,6 +173,12 @@ class TestPavementToDict:
         assert isinstance(perm, float), "permanent_load should be a float"
         assert perm > 0, "permanent_load should be positive"
 
+    def test_slab_lowered_defaults_to_zero(self) -> None:
+        result = pavement_to_dict(_build_pavement())
+        assert result["slabs"][0].get("lowered") == 0, (
+            "a non-lowered slab should serialize lowered = 0"
+        )
+
     def test_slab_omits_resolved_keys(self) -> None:
         result = pavement_to_dict(_build_pavement())
         slab = result["slabs"][0]

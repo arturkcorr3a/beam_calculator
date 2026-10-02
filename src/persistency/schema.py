@@ -32,6 +32,7 @@ class SlabDict(TypedDict):
     corner_pillar_ids: list[str]
     local: str
     permanent_load: float
+    lowered: int  # cm;
 
 
 class ConfigDict(TypedDict):

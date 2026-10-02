@@ -154,6 +154,7 @@ def _normalize(document: PavementDict) -> PavementDict:
                 corner_pillar_ids=[id_map[pid] for pid in s["corner_pillar_ids"]],
                 local=s["local"],
                 permanent_load=s["permanent_load"],
+                lowered=s.get("lowered", 0),
             )
             for s in document["slabs"]
         ],
@@ -309,7 +310,7 @@ class TestLoadPavement:
         save_pavement(build_pavement(), path)
 
         # Reset to a different value so we can observe the mutation.
-        APP_CONFIG.exposure_class = 2
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", 2)
         load_pavement(path)
 
         assert APP_CONFIG.exposure_class == 4, (

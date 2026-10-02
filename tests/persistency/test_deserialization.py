@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
 from src.config import APP_CONFIG, AppConfig
@@ -118,6 +120,7 @@ def _normalize(document: PavementDict) -> PavementDict:
                 corner_pillar_ids=[id_map[pid] for pid in s["corner_pillar_ids"]],
                 local=s["local"],
                 permanent_load=s["permanent_load"],
+                lowered=s.get("lowered", 0),
             )
             for s in document["slabs"]
         ],
@@ -156,6 +159,7 @@ def _minimal_slab(corners: list[str] | None = None) -> SlabDict:
         corner_pillar_ids=corners if corners is not None else ["P1", "P2", "P3", "P4"],
         local="Room",
         permanent_load=3.5,
+        lowered=0,
     )
 
 
@@ -290,6 +294,39 @@ class TestPavementFromDict:
 
         assert loaded_load == pytest.approx(original_load, abs=1e-5), (  # type: ignore[reportUnknownMemberType]
             "slab permanent_load should be identical right after deserialization"
+        )
+
+    def test_slab_lowered_preserved(self) -> None:
+        original = _build_pavement()
+        next(iter(original.slabs.values())).lowered = 5
+
+        loaded = pavement_from_dict(pavement_to_dict(original))
+
+        assert next(iter(loaded.slabs.values())).lowered == 5, (
+            "slab lowered should survive a dict round-trip"
+        )
+
+    def test_slab_without_lowered_defaults_to_zero(self) -> None:
+        """Files saved before lowered slabs existed load as non-lowered."""
+        document = PavementDict(
+            pillars=[_minimal_pillar(pid) for pid in ("P1", "P2", "P3", "P4")],
+            beams=[],
+            slabs=[
+                cast(
+                    SlabDict,
+                    {
+                        "corner_pillar_ids": ["P1", "P2", "P3", "P4"],
+                        "local": "Room",
+                        "permanent_load": 3.5,
+                    },
+                )
+            ],
+        )
+
+        loaded = pavement_from_dict(document)
+
+        assert next(iter(loaded.slabs.values())).lowered == 0, (
+            "a slab dict without 'lowered' should load with lowered = 0"
         )
 
     def test_pillar_ids_are_freshly_generated(self) -> None:

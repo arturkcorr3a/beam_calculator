@@ -146,7 +146,8 @@ def _slab_from_dict(data: SlabDict, remap: Callable[[str], str]) -> Slab:
         remap: Translates a saved pillar id to its reconstructed id.
 
     Returns:
-        The reconstructed slab, with its permanent load restored.
+        The reconstructed slab, with its permanent load restored. A missing
+        lowered key (older files) defaults to 0 cm.
 
     Raises:
         ValueError: If a required key is missing or a pillar reference is unknown.
@@ -160,6 +161,7 @@ def _slab_from_dict(data: SlabDict, remap: Callable[[str], str]) -> Slab:
     slab = Slab(
         corner_pillar_ids=cast(tuple[str, str, str, str], corners),
         local=_require(data, "local", SLAB_CONTEXT, str),
+        lowered=data.get("lowered", 0),
     )
     slab.add_permanent_load(_require(data, "permanent_load", SLAB_CONTEXT, float))
     return slab
