@@ -61,6 +61,56 @@ def get_pillar_perpendicular_range(pillar: Pillar, axis: Axis) -> tuple[float, f
         return pillar.get_x_range()
 
 
+def get_pillar_parallel_extent(pillar: Pillar, axis: Axis) -> float:
+    """Return the pillar's cross-section extent (cm) along a given axis
+
+    For an X-beam this is the pillar width (x extent); for a Y-beam, its depth (y extent).
+    """
+    if axis == Axis.X:
+        return pillar.width
+    else:
+        return pillar.depth
+
+
+def effective_span(
+    axis_distance: float,
+    support_width_1: float,
+    support_width_2: float,
+    height: float,
+) -> float:
+    """Compute the effective span of a beam or slab between two supports
+
+    The effective span is l_ef = l0 + a1 + a2, where l0 is the clear span between the support faces and a_i = min(t_i / 2, 0.3 h). The 0.3 h cap keeps the theoretical support from drifting too far into wide supports.
+
+    Args:
+        axis_distance: Distance between the support centroids (cm).
+        support_width_1: Width t1 of the first support along the span direction (cm).
+        support_width_2: Width t2 of the second support along the span direction (cm).
+        height: Structural height h of the element — beam height or slab
+            thickness (cm). Must be positive.
+
+    Returns:
+        Effective span l_ef (cm).
+
+    Raises:
+        ValueError: If height is not positive or the supports leave no clear span.
+
+    References:
+        ABNT NBR 6118:2014 — Section 14.6.2.4 (beams), Section 14.7.2.2 (slabs), Figure 14.5
+    """
+    if height <= 0:
+        raise ValueError(f"Height must be positive. Got {height} cm.")
+    clear_span = axis_distance - support_width_1 / 2 - support_width_2 / 2
+    if clear_span <= 0:
+        raise ValueError(
+            f"Supports leave no clear span: axis distance {axis_distance} cm, "
+            f"support widths {support_width_1} cm and {support_width_2} cm."
+        )
+    a1 = min(support_width_1 / 2, 0.3 * height)
+    a2 = min(support_width_2 / 2, 0.3 * height)
+    return clear_span + a1 + a2
+
+
 def round_up_to_multiple_of_5(value: float) -> int:
     """Rounds value up to the nearest multiple of 5."""
     return math.ceil(value / 5) * 5

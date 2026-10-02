@@ -86,12 +86,13 @@ def _slab_to_dict(slab: Slab) -> SlabDict:
         slab: The slab to serialize.
 
     Returns:
-        A dict with the slab's corner pillar ids, usage local and permanent load (kN/m²).
+        A dict with the slab's corner pillar ids, usage local, permanent load (kN/m²) and lowering (cm).
     """
     return {
         "corner_pillar_ids": list(slab.corner_pillar_ids),
         "local": slab.local,
         "permanent_load": slab.permanent_load,
+        "lowered": slab.lowered,
     }
 
 

@@ -29,13 +29,14 @@ def _make_span_stub(
     variable_load: float = 5.0,
     length_cm: float = _SPAN_LENGTH_CM,
 ) -> types.SimpleNamespace:
-    """Return a minimal Span stub whose get_length() ignores the registry."""
+    """Return a minimal Span stub whose length getters ignore the registry."""
     return types.SimpleNamespace(
         permanent_load=permanent_load,
         variable_load=variable_load,
         start_pillar_id="P1",
         end_pillar_id="P2",
         get_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]
+        get_effective_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]
     )
 
 
@@ -342,10 +343,12 @@ class TestVerifyDeformation:
 
         span = _make_span_stub()
         bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
+        structural_beam = self._make_structural_beam_stub()
+        rebar_calculator = self._make_rebar_calculator_stub()
         with pytest.raises(ValueError, match="Deformation exceeds"):
             bc._verify_deformation(  # type: ignore[arg-type]
-                self._make_structural_beam_stub(),  # type: ignore[arg-type]
-                self._make_rebar_calculator_stub(),  # type: ignore[arg-type]
+                structural_beam,  # type: ignore[arg-type]
+                rebar_calculator,  # type: ignore[arg-type]
                 250.0,
             )
 

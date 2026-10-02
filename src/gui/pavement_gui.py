@@ -353,6 +353,12 @@ class PavementWindow(QMainWindow):
             self._s_usage.addItem(loc)
         form.addRow("Usage:", self._s_usage)
 
+        self._s_lowered = QSpinBox()
+        self._s_lowered.setRange(0, 100)
+        self._s_lowered.setValue(0)
+        self._s_lowered.setSuffix(" cm")
+        form.addRow("Lowered:", self._s_lowered)
+
         add_btn = QPushButton("Add Slab")
         add_btn.clicked.connect(self._add_slab)
         form.addRow(add_btn)
@@ -476,13 +482,17 @@ class PavementWindow(QMainWindow):
             return
 
         local = self._s_usage.currentText()
-        slab = Slab(corner_pillar_ids=corners, local=local)
+        slab = Slab(
+            corner_pillar_ids=corners, local=local, lowered=self._s_lowered.value()
+        )
         self._pavement.add_slab(slab)
         self._slab_list.addItem(
             f"{slab.id}  corners: [{', '.join(corners)}]  usage: {local}"
+            f"  lowered: {slab.lowered} cm"
         )
         for le in self._s_corners:
             le.clear()
+        self._s_lowered.setValue(0)
         self._reset_validation_state()
         self._redraw_canvas()
 
@@ -616,7 +626,7 @@ class PavementWindow(QMainWindow):
         for slab in self._pavement.slabs.values():
             self._slab_list.addItem(
                 f"{slab.id}  corners: [{', '.join(slab.corner_pillar_ids)}]"
-                f"  usage: {slab.local}"
+                f"  usage: {slab.local}  lowered: {slab.lowered} cm"
             )
         self._update_pillar_hints()
         self._reset_validation_state()

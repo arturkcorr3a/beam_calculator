@@ -17,7 +17,7 @@ from src.pavement_elements.slab import (
     Slab,
 )
 from src.pavement_elements.slab_edge import Edges
-from tests.helpers import assert_approx
+from tests.helpers import assert_approx, centroid_preserving_beam_width
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -28,12 +28,20 @@ def _make_slab_with_beams(
     lx_cm: float,
     ly_cm: float,
     local: str = "Bedrooms",
+    beam_width: float | None = None,
 ) -> Slab:
     """Build a Slab with beam-double centerlines set on all four edges.
 
     The slab is fully ready for dimensions / is_one_way / max_thickness reads.
+
+    Args:
+        beam_width: Width of every supporting beam double (cm). Defaults to the
+            centroid-preserving width for the slab's thickness, so the
+            effective spans equal the centerline distances.
     """
     s = Slab(corner_pillar_ids=("PA", "PB", "PC", "PD"), local=local)
+    if beam_width is None:
+        beam_width = centroid_preserving_beam_width(s.thickness)
     for edge, centerline in [
         (Edges.LEFT, 0.0),
         (Edges.RIGHT, lx_cm),
@@ -42,8 +50,14 @@ def _make_slab_with_beams(
     ]:
         mock_beam = Mock(spec=ContinuousBeam)
         mock_beam.centerline = centerline
+        mock_beam.width = beam_width
         s.edges[edge].resolve_beam(mock_beam)
     return s
+
+
+def _skip_support_resolution(monkeypatch: pytest.MonkeyPatch, slab: Slab) -> None:
+    """Make resolve_support_conditions a no-op (the beam doubles carry no spans)."""
+    monkeypatch.setattr(slab, "resolve_support_conditions", lambda registry: None)  # pyright: ignore
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +170,40 @@ class TestDimensions:
         lx, ly = s.dimensions
         assert_approx(lx, 300.0, "lx should be 300 cm")
         assert_approx(ly, 400.0, "ly should be 400 cm")
+
+
+# ---------------------------------------------------------------------------
+# TestEffectiveDimensions
+# ---------------------------------------------------------------------------
+
+
+class TestEffectiveDimensions:
+    """effective_dimensions applies the NBR 6118 §14.7.2.2 0.3h cap to beam supports."""
+
+    def test_narrow_beams_keep_centerline_distance(self) -> None:
+        s = _make_slab_with_beams(500.0, 400.0, beam_width=4.0)
+        s.thickness = 10
+        # t/2 = 2 < 0.3h = 3 -> l_ef == centerline distance
+        lx, ly = s.effective_dimensions
+        assert_approx(lx, 500.0, "lx should equal the centerline distance")
+        assert_approx(ly, 400.0, "ly should equal the centerline distance")
+
+    def test_wide_beams_capped_at_0_3h(self) -> None:
+        s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
+        s.thickness = 10
+        # l0 = 480 / 380; a = min(10, 3) = 3 on each side
+        lx, ly = s.effective_dimensions
+        assert_approx(lx, 486.0, "lx should be l0 + 2 * 0.3h")
+        assert_approx(ly, 386.0, "ly should be l0 + 2 * 0.3h")
+
+    def test_follows_thickness_changes(self) -> None:
+        s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
+        s.thickness = 10
+        _ = s.effective_dimensions
+        s.thickness = 20
+        # a = min(10, 6) = 6 -> 480 + 12
+        lx, _ly = s.effective_dimensions
+        assert_approx(lx, 492.0, "effective_dimensions should not be cached")
 
 
 # ---------------------------------------------------------------------------
@@ -334,8 +382,9 @@ class TestPreSize:
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _AlwaysPass)
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        _skip_support_resolution(monkeypatch, s)
 
-        result = s.pre_size()
+        result = s.pre_size({})
         assert result, "pre_size should return True when thickness unchanged"
         assert s.thickness == SLAB_MIN_THICKNESS, (
             "thickness should stay at minimum when it passes on first try"
@@ -357,8 +406,9 @@ class TestPreSize:
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _FailOnce)
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        _skip_support_resolution(monkeypatch, s)
 
-        result = s.pre_size()
+        result = s.pre_size({})
         assert not result, "pre_size should return False when thickness changed"
         assert s.thickness == SLAB_MIN_THICKNESS + 1, (
             "thickness should increment by 1 when first check fails"
@@ -378,9 +428,130 @@ class TestPreSize:
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _AlwaysFail)
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        _skip_support_resolution(monkeypatch, s)
 
         with pytest.raises(ValueError, match="cannot be stabilized"):
-            s.pre_size()
+            s.pre_size({})
+
+    def test_checker_spans_follow_thickness(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        s = _make_slab_with_beams(300.0, 400.0, beam_width=20.0)
+        verified_spans: list[tuple[float, float, float]] = []
+
+        class _PassAtThird:
+            def __init__(self, *, lx: float, ly: float, **kw: object) -> None:
+                self.lx = lx
+                self.ly = ly
+                self.span = min(lx, ly)
+
+            def verify(self, h: int) -> bool:
+                verified_spans.append((self.lx, self.ly, self.span))
+                return len(verified_spans) == 3
+
+        monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _PassAtThird)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        _skip_support_resolution(monkeypatch, s)
+
+        s.pre_size({})
+        # h = 8, 9, 10 -> a = 0.3h = 2.4, 2.7, 3.0; l0 = 280 / 380
+        for (lx, ly, span), a in zip(verified_spans, (2.4, 2.7, 3.0)):
+            assert_approx(lx, 280 + 2 * a, f"checker lx should match h = {a / 0.3:.0f}")
+            assert_approx(ly, 380 + 2 * a, f"checker ly should match h = {a / 0.3:.0f}")
+            assert_approx(span, 280 + 2 * a, "checker span should be min(lx, ly)")
+
+    def test_support_conditions_re_resolved_at_each_thickness(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The checker sees the support conditions resolved for the current thickness."""
+        s = _make_slab_with_beams(300.0, 300.0)
+        seen: list[tuple[int, str]] = []
+
+        def _fix_bottom_from_9_cm(registry: dict[str, Pillar]) -> None:
+            s.edges[Edges.BOTTOM].support_condition = (
+                "fixed" if s.thickness >= 9 else "pinned"
+            )
+
+        class _RecordConditions:
+            def __init__(
+                self, *, support_conditions: dict[Edges, str], **kw: object
+            ) -> None:
+                self.support_conditions = support_conditions
+
+            def verify(self, h: int) -> bool:
+                seen.append((h, self.support_conditions[Edges.BOTTOM]))
+                return h >= 10
+
+        monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _RecordConditions)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        monkeypatch.setattr(s, "resolve_support_conditions", _fix_bottom_from_9_cm)
+
+        s.pre_size({})
+
+        assert seen == [(8, "pinned"), (9, "fixed"), (10, "fixed")], (
+            "checker conditions should follow the thickness being tried"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestLowered
+# ---------------------------------------------------------------------------
+
+
+def _set_beam_heights(slab: Slab, heights: dict[Edges, float]) -> None:
+    """Give each edge's beam double an id and a height (cm)."""
+    for edge, height in heights.items():
+        beam = slab.edges[edge].beam
+        beam.id = f"V_{edge.value}"
+        beam.height = height
+
+
+class TestLowered:
+    """lowered (cm) validation and the max_lowered limit."""
+
+    def test_defaults_to_zero(self) -> None:
+        s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
+        assert s.lowered == 0, "lowered should default to 0 cm"
+        assert not s.is_lowered, "a slab with lowered = 0 is not lowered"
+
+    def test_positive_is_lowered(self) -> None:
+        s = Slab(
+            corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms", lowered=5
+        )
+        assert s.is_lowered, "a slab with lowered > 0 is lowered"
+
+    def test_negative_raises(self) -> None:
+        with pytest.raises(ValueError, match="lowered must be >= 0"):
+            Slab(
+                corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms", lowered=-1
+            )
+
+    def test_max_lowered_uses_shortest_beam(self) -> None:
+        s = _make_slab_with_beams(300.0, 300.0)
+        _set_beam_heights(
+            s,
+            {Edges.LEFT: 40.0, Edges.RIGHT: 50.0, Edges.BOTTOM: 30.0, Edges.TOP: 45.0},
+        )
+        s.thickness = 10
+        assert_approx(s.max_lowered, 20.0, "max_lowered should be 30 - 10 cm")
+
+    def test_validate_at_limit_passes(self) -> None:
+        s = _make_slab_with_beams(300.0, 300.0)
+        _set_beam_heights(s, {edge: 30.0 for edge in Edges})
+        s.thickness = 10
+        s.lowered = 20
+        s.validate_lowered()  # should not raise
+
+    def test_validate_above_limit_raises(self) -> None:
+        s = _make_slab_with_beams(300.0, 300.0)
+        _set_beam_heights(
+            s,
+            {Edges.LEFT: 40.0, Edges.RIGHT: 40.0, Edges.BOTTOM: 30.0, Edges.TOP: 40.0},
+        )
+        s.thickness = 10
+        s.lowered = 21
+        with pytest.raises(ValueError, match="V_bottom"):
+            s.validate_lowered()
 
 
 # ---------------------------------------------------------------------------

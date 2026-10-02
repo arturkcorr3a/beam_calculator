@@ -15,7 +15,11 @@ from src.logger import (
     logger_label,
 )
 from src.pavement_elements.continuous_beam import ContinuousBeam
-from src.pavement_elements.geometry_utils import Point, calculate_polygon_area
+from src.pavement_elements.geometry_utils import (
+    Point,
+    calculate_polygon_area,
+    effective_span,
+)
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab_edge import Edges, SlabEdge, SupportCondition
 from src.properties.concrete import Concrete
@@ -75,6 +79,11 @@ class Slab(metaclass=_SlabMeta):
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 
     The slab is defined by the IDs of its four corner pillars (ordered arbitrarily). During resolution the slab maps those pillars to concrete corner positions (top/bottom, left/right) and finds the supporting edge beams.
+
+    Attributes:
+        lowered: How far the slab is lowered below the floor level (cm). A
+            lowered slab is always pinned on its edges, and its neighbours
+            treat it as if there were no slab. It must not exceed max_lowered.
     """
 
     corner_pillar_ids: tuple[str, str, str, str]
@@ -97,13 +106,62 @@ class Slab(metaclass=_SlabMeta):
     )
     ceiling_finish: str = field(default="")
     infill: PermanentLoadDefinition = field(default=PermanentLoadDefinition("", 0.0))
+    lowered: int = 0  # cm
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
         self.id = f"L{next(self._counter)}"  # Auto-generate ID if not provided
         self._validate_pillar_count()
+        self._validate_lowered_not_negative()
         self._setup_edges()
+
+    @property
+    def is_lowered(self) -> bool:
+        return self.lowered > 0
+
+    @property
+    def max_lowered(self) -> float:
+        """Return the maximum lowering (cm) allowed for the slab
+
+        The bottom face of every supporting beam must not sit above the slab's
+        bottom face, so the limit is the shortest supporting beam's height
+        minus the slab thickness.
+        """
+        return self._shortest_supporting_beam().height - self.thickness
+
+    def _shortest_supporting_beam(self) -> ContinuousBeam:
+        return min(
+            (edge.beam for edge in self.edges.values()), key=lambda beam: beam.height
+        )
+
+    def _validate_lowered_not_negative(self) -> None:
+        if self.lowered < 0:
+            raise ValueError(
+                f"Slab '{self.id}': lowered must be >= 0 cm, got {self.lowered}."
+            )
+
+    def validate_lowered(self) -> None:
+        """Check that the lowering fits within the shortest supporting beam
+
+        Raises:
+            ValueError: If lowered exceeds max_lowered.
+        """
+        if self.lowered > self.max_lowered:
+            beam = self._shortest_supporting_beam()
+            raise ValueError(
+                f"Slab '{self.id}' is lowered {self.lowered} cm, but the maximum is "
+                f"{self.max_lowered:.0f} cm (beam '{beam.id}' height {beam.height:.0f} cm "
+                f"minus slab thickness {self.thickness} cm)."
+            )
+
+    def resolve_support_conditions(self, pillar_registry: dict[str, Pillar]) -> None:
+        """Resolve the support condition of each of the slab's edges"""
+        for edge in self.edges.values():
+            edge.resolve_support_condition(pillar_registry)
+
+    def _current_support_conditions(self) -> dict[Edges, SupportCondition]:
+        return {edge: self.edges[edge].support_condition for edge in Edges}
 
     @staticmethod
     def _corner_yield_slope(
@@ -171,8 +229,15 @@ class Slab(metaclass=_SlabMeta):
         if len(self.corner_pillar_ids) != 4:
             raise ValueError(f"Slab '{self.id}' must have exactly 4 corner pillars.")
 
-    def pre_size(self) -> bool:
+    def pre_size(self, pillar_registry: dict[str, Pillar]) -> bool:
         """Set the slab's thickness to the minimum value that passes ELS-DEF verification.
+
+        The edge support conditions are re-resolved at every thickness tried,
+        since they depend on the thickness difference to the adjacent slabs.
+
+        Args:
+            pillar_registry: Mapping of pillar ID to Pillar, used to measure
+                span lengths when resolving support conditions.
 
         Returns:
             True if the slab is stable (thickness was unchanged, no re-validation needed).
@@ -181,11 +246,10 @@ class Slab(metaclass=_SlabMeta):
         self.thickness = SLAB_MIN_THICKNESS
         concrete = Concrete[APP_CONFIG.pavement_concrete]
 
-        support_conditions: dict[Edges, SupportCondition] = {
-            edge: self.edges[edge].support_condition for edge in Edges
-        }
+        self.resolve_support_conditions(pillar_registry)
+        support_conditions = self._current_support_conditions()
 
-        lx, ly = self.dimensions
+        lx, ly = self.effective_dimensions
         checker = SlabDeformationChecker(
             permanent_load=self.permanent_load,
             variable_load=self.variable_load,
@@ -203,6 +267,11 @@ class Slab(metaclass=_SlabMeta):
                 raise ValueError(
                     f"Slab '{self.id}' cannot be stabilized; required thickness exceeds {self.max_thickness} cm."
                 )
+            # The effective spans depend on the thickness (0.3 h cap)
+            checker.lx, checker.ly = self.effective_dimensions
+            checker.span = min(checker.lx, checker.ly)
+            self.resolve_support_conditions(pillar_registry)
+            checker.support_conditions = self._current_support_conditions()
 
         thickness_changed = self.thickness != original_thickness
         if thickness_changed:
@@ -214,7 +283,7 @@ class Slab(metaclass=_SlabMeta):
 
     @cached_property
     def dimensions(self) -> tuple[float, float]:
-        """x and y dimensions of the slab (cm), in that order."""
+        """x and y distances (cm) between the supporting beams' centerlines, in that order."""
         x_dimension = cast(float, self.edges[Edges.RIGHT].beam.centerline) - cast(
             float, self.edges[Edges.LEFT].beam.centerline
         )
@@ -223,13 +292,39 @@ class Slab(metaclass=_SlabMeta):
         )
         return (x_dimension, y_dimension)
 
-    @cached_property
+    @property
+    def effective_dimensions(self) -> tuple[float, float]:
+        """Return the slab's effective spans along x and y (cm), in that order
+
+        Each span is reduced from the centroid distance between the supporting
+        beams using the beam widths and the slab thickness (0.3 h cap). Not
+        cached, since the thickness changes during pre-sizing.
+
+        References:
+            ABNT NBR 6118:2014 — Section 14.7.2.2
+        """
+        x_dimension, y_dimension = self.dimensions
+        effective_x = effective_span(
+            x_dimension,
+            self.edges[Edges.LEFT].beam.width,
+            self.edges[Edges.RIGHT].beam.width,
+            self.thickness,
+        )
+        effective_y = effective_span(
+            y_dimension,
+            self.edges[Edges.BOTTOM].beam.width,
+            self.edges[Edges.TOP].beam.width,
+            self.thickness,
+        )
+        return (effective_x, effective_y)
+
+    @property
     def is_one_way(self) -> bool:
-        """Returns True if the slab is a one-way slab, based on the ratio of its dimensions.
+        """Returns True if the slab is a one-way slab, based on the ratio of its effective spans.
 
         Based on 'Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado', item 7.3."""
-        biggest = max(self.dimensions)
-        smallest = min(self.dimensions)
+        biggest = max(self.effective_dimensions)
+        smallest = min(self.effective_dimensions)
         return (biggest / smallest) > ONE_WAY_SLAB_THRESHOLD_RATIO
 
     def add_permanent_load(self, load: float) -> None:
@@ -248,7 +343,7 @@ class Slab(metaclass=_SlabMeta):
         self._add_slab_to_spans()
         self._resolve_permanent_load_without_own_weight()
         self._resolve_variable_load()
-        lx, ly = self.dimensions
+        lx, ly = self.effective_dimensions
         log_element(
             f"{'One-way' if self.is_one_way else 'Two-way'}; {lx / 100.0:.2f} x {ly / 100.0:.2f} m; Variable load: {self.variable_load:.1f} kN/m2"
         )
@@ -267,7 +362,7 @@ class Slab(metaclass=_SlabMeta):
         Two-way slabs use the Yield Line Theory, based on ABNT NBR 6118 - Section 14.7.6.1.
         One-way slabs load only the two long edges (see _resolve_one_way_influence_areas).
         """
-        lx_cm, ly_cm = self.dimensions
+        lx_cm, ly_cm = self.effective_dimensions
         lx, ly = lx_cm / 100, ly_cm / 100
 
         if self.is_one_way:
@@ -402,7 +497,7 @@ class Slab(metaclass=_SlabMeta):
         """
         It is the max thickness to be considered a surface, Based on ABNT NBR 6118 - Section 14.4.2.1
         """
-        return math.ceil(min(self.dimensions) / 3)  # cm
+        return math.ceil(min(self.effective_dimensions) / 3)  # cm
 
     # ------------------------------------------------------------------
     # Validation helpers

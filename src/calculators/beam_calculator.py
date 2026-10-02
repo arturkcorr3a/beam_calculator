@@ -41,17 +41,8 @@ class BeamCalculator:
         loads = self._build_loads()
         structural_beam = self._build_structural_beam(supports, loads)
 
-        # FIXME split the stirrups instantiation into a dedicated private function, so it does not clutter this one
         interest_points = self._interest_points(structural_beam)
-        max_shear_force = cast(
-            float,
-            structural_beam.get_shear_force(return_max=True),  # pyright: ignore[reportUnknownMemberType]
-        )  # kN
-        design_shear_force = design_effort_elu(max_shear_force)  # kN
-        stirrup_calculator = StirrupCalculator(
-            structural_beam, design_shear_force, self.label
-        )
-        stirrups = Stirrups(structural_beam, stirrup_calculator, self.label)
+        stirrups = self._build_stirrups(structural_beam)
 
         self._beam.reinforcement = []
         for position, moment in interest_points:
@@ -94,6 +85,18 @@ class BeamCalculator:
             structural_beam.length,
         )
 
+    def _build_stirrups(self, structural_beam: RectangularBeam) -> Stirrups:
+        """Builds the beam's stirrups, dimensioned for the ELU design value of the maximum shear force."""
+        max_shear_force = cast(
+            float,
+            structural_beam.get_shear_force(return_max=True),  # pyright: ignore[reportUnknownMemberType]
+        )  # kN
+        design_shear_force = design_effort_elu(max_shear_force)  # kN
+        stirrup_calculator = StirrupCalculator(
+            structural_beam, design_shear_force, self.label
+        )
+        return Stirrups(structural_beam, stirrup_calculator, self.label)
+
     # FIXME considering all supports as pinned -> fix to include pillar coherence and rigidity
     def _build_supports(self) -> list[Support]:
         # TODO docstring after function is complete (FIXME above is resolved)
@@ -102,7 +105,7 @@ class BeamCalculator:
         first_support = Support(support_position, pinned)
         supports = [first_support]
         for span in self._beam.spans:
-            support_position += span.get_length(self._pillar_registry)
+            support_position += span.get_effective_length(self._pillar_registry)
             next_support = Support(support_position, pinned)  # pyright: ignore[reportArgumentType]
             supports.append(next_support)
         return supports
@@ -112,7 +115,9 @@ class BeamCalculator:
         loads: list[UDLV] = []
         start_position = 0
         for i, span in enumerate(self._beam.spans):
-            end_position = start_position + span.get_length(self._pillar_registry)
+            end_position = start_position + span.get_effective_length(
+                self._pillar_registry
+            )
             total_load = (
                 span.permanent_load + span.variable_load
             )  # kN/m, permanent + variable as it is ELU
@@ -131,7 +136,8 @@ class BeamCalculator:
     ) -> RectangularBeam:
         """Builds a RectangularBeam instance for structural analysis and dimensioning."""
         length = sum(
-            span.get_length(self._pillar_registry) for span in self._beam.spans
+            span.get_effective_length(self._pillar_registry)
+            for span in self._beam.spans
         )
         concrete = Concrete[APP_CONFIG.pavement_concrete]
         steel = Steel[APP_CONFIG.pavement_steel]
@@ -180,7 +186,9 @@ class BeamCalculator:
         """Returns the span containing the given position along the beam (cm)."""
         start_position = 0.0
         for span in self._beam.spans:
-            end_position = start_position + span.get_length(self._pillar_registry)
+            end_position = start_position + span.get_effective_length(
+                self._pillar_registry
+            )
             if position <= end_position:
                 return span
             start_position = end_position
@@ -207,7 +215,7 @@ class BeamCalculator:
             compressed_reinforcement_area=rebar_calculator.compressed_reinforcement.area,
             effective_depth_compressed=rebar_calculator.d_compressed,
             effective_depth_discount=effective_depth_discount,
-            span=span.get_length(self._pillar_registry),
+            span=span.get_effective_length(self._pillar_registry),
             width=structural_beam.width,
             concrete=structural_beam.concrete,
             permanent_load=span.permanent_load,

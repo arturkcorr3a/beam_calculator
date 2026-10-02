@@ -64,12 +64,24 @@ class SlabEdge:
 
     # PAPER get reference for this method of resolving support
     def resolve_support_condition(self, pillar_registry: dict[str, Pillar]) -> None:
-        """Resolves the support condition for this edge, based on the thickness difference between adjacent slabs."""
+        """Resolve the support condition for this edge from the adjacent slabs
+
+        The edge is fixed when more than 80% of its length borders a slab that is thicker, or whose thickness differs by at most 2 cm. A lowered slab is always pinned, and a lowered neighbor counts as no slab at all.
+
+        Args:
+            pillar_registry: Mapping of pillar ID to Pillar, used to measure
+                span lengths.
+        """
+        self.support_condition = "pinned"
+        if self.slab.is_lowered:
+            log_property(f"{self.edge.value}: pinned (slab lowered)")
+            return
+
         supported_length = 0
         fixed_length = 0
         for span in self.spans:
             other_slab = span.get_other_supported_slab(self.slab)
-            if other_slab is None:
+            if other_slab is None or other_slab.is_lowered:
                 supported_length += span.get_length(pillar_registry)
             elif (
                 other_slab.thickness > self.slab.thickness
@@ -83,7 +95,9 @@ class SlabEdge:
         total_length = supported_length + fixed_length
         if fixed_length / total_length > 0.8:
             self.support_condition = "fixed"
-        log_property(f"{self.edge.value}: {self.support_condition} ({fixed_length:.0f} / {total_length:.0f} cm fixed)")
+        log_property(
+            f"{self.edge.value}: {self.support_condition} ({fixed_length:.0f} / {total_length:.0f} cm fixed)"
+        )
 
     def unload_on_spans(self, pillar_registry: dict[str, Pillar]) -> None:
         """Distributes the slab's tributary load along this edge's supporting spans (kN/m)."""
@@ -96,7 +110,10 @@ class SlabEdge:
         variable_linear_load = (
             self.slab.variable_load * self.influence_area / edge_length_m
         )  # kN/m
-        log_interaction(f"Unloading on {len(self.spans)} spans: permanent {permanent_linear_load:.2f} kN/m, variable {variable_linear_load:.2f} kN/m", f"{self.label} → {self.beam.id}")
+        log_interaction(
+            f"Unloading on {len(self.spans)} spans: permanent {permanent_linear_load:.2f} kN/m, variable {variable_linear_load:.2f} kN/m",
+            f"{self.label} → {self.beam.id}",
+        )
         for span in self.spans:
             span.add_load(permanent_linear_load, permanent=True)
             span.add_load(variable_linear_load, permanent=False)

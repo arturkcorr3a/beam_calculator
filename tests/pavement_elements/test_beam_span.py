@@ -110,6 +110,68 @@ class TestGetLength:
 
 
 # ---------------------------------------------------------------------------
+# TestGetEffectiveLength
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def wide_registry() -> dict[str, Pillar]:
+    """Registry with two wide pillars: (0,0) and (600,0), 100×20 cm each."""
+    p1 = Pillar(x=0, y=0, width=100, depth=20)
+    p2 = Pillar(x=600, y=0, width=100, depth=20)
+    return {p1.id: p1, p2.id: p2}
+
+
+class TestGetEffectiveLength:
+    """get_effective_length applies the NBR 6118 §14.6.2.4 0.3h cap to pillar supports."""
+
+    def test_narrow_pillars_keep_centroid_distance(
+        self, pillars: tuple[Pillar, Pillar, Pillar], registry: dict[str, Pillar]
+    ) -> None:
+        p1, p2, _ = pillars
+        beam = types.SimpleNamespace(axis=Axis.X, height=40)
+        span = Span(cast(ContinuousBeam, beam), p1.id, p2.id)
+        # t/2 = 10 < 0.3h = 12 -> l_ef == 400
+        assert_approx(
+            span.get_effective_length(registry), 400, "narrow pillars should keep 400"
+        )
+
+    def test_wide_pillars_use_beam_height(
+        self, wide_registry: dict[str, Pillar]
+    ) -> None:
+        start_id, end_id = wide_registry
+        beam = types.SimpleNamespace(axis=Axis.X, height=40)
+        span = Span(cast(ContinuousBeam, beam), start_id, end_id)
+        # l0 = 500; a = min(50, 12) = 12 -> 524
+        assert_approx(
+            span.get_effective_length(wide_registry), 524, "should cap at 0.3h"
+        )
+
+    def test_explicit_height_overrides_beam_height(
+        self, wide_registry: dict[str, Pillar]
+    ) -> None:
+        start_id, end_id = wide_registry
+        beam = types.SimpleNamespace(axis=Axis.X, height=40)
+        span = Span(cast(ContinuousBeam, beam), start_id, end_id)
+        # l0 = 500; a = min(50, 6) = 6 -> 512
+        assert_approx(
+            span.get_effective_length(wide_registry, 20),
+            512,
+            "explicit height should be used for the cap",
+        )
+
+    def test_y_axis_uses_pillar_depth(self) -> None:
+        p1 = Pillar(x=0, y=0, width=20, depth=100)
+        p2 = Pillar(x=0, y=600, width=20, depth=100)
+        registry = {p1.id: p1, p2.id: p2}
+        beam = types.SimpleNamespace(axis=Axis.Y, height=40)
+        span = Span(cast(ContinuousBeam, beam), p1.id, p2.id)
+        assert_approx(
+            span.get_effective_length(registry), 524, "Y span should use pillar depth"
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestContainsPillar
 # ---------------------------------------------------------------------------
 

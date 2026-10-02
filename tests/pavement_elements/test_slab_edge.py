@@ -27,7 +27,11 @@ def slab_double() -> Slab:
     return cast(
         Slab,
         types.SimpleNamespace(
-            id="L_edge_test", thickness=10, permanent_load=4.0, variable_load=2.0
+            id="L_edge_test",
+            thickness=10,
+            permanent_load=4.0,
+            variable_load=2.0,
+            is_lowered=False,
         ),
     )
 
@@ -169,7 +173,9 @@ class TestResolveSupportCondition:
         p1, p2 = pillars
         edge = SlabEdge(Edges.BOTTOM, slab_double)
         # other_slab has same thickness as slab_double (10 cm) → |diff|=0 ≤ 2 → fixed
-        other = cast(Slab, types.SimpleNamespace(id="L_adj", thickness=10))
+        other = cast(
+            Slab, types.SimpleNamespace(id="L_adj", thickness=10, is_lowered=False)
+        )
 
         span = _make_span(p1, p2)
         span.add_supported_slab(slab_double)
@@ -191,7 +197,9 @@ class TestResolveSupportCondition:
         p1, p2 = pillars
         edge = SlabEdge(Edges.BOTTOM, slab_double)
         # other.thickness = 5 cm < slab_double.thickness=10; diff=5 > 2 → supported_length
-        other = cast(Slab, types.SimpleNamespace(id="L_thin", thickness=5))
+        other = cast(
+            Slab, types.SimpleNamespace(id="L_thin", thickness=5, is_lowered=False)
+        )
 
         span = _make_span(p1, p2)
         span.add_supported_slab(slab_double)
@@ -201,6 +209,75 @@ class TestResolveSupportCondition:
         edge.resolve_support_condition(pillar_registry)
         assert edge.support_condition == "pinned", (
             "much-thinner adjacent slab should stay pinned"
+        )
+
+    def test_lowered_slab_stays_pinned(
+        self, pillar_registry: dict[str, Pillar], pillars: tuple[Pillar, Pillar]
+    ) -> None:
+        """A lowered slab is never fixed, even next to an equal-thickness slab."""
+        p1, p2 = pillars
+        lowered = cast(
+            Slab, types.SimpleNamespace(id="L_low", thickness=10, is_lowered=True)
+        )
+        other = cast(
+            Slab, types.SimpleNamespace(id="L_adj", thickness=10, is_lowered=False)
+        )
+        edge = SlabEdge(Edges.BOTTOM, lowered)
+
+        span = _make_span(p1, p2)
+        span.add_supported_slab(lowered)
+        span.add_supported_slab(other)
+        edge.spans = [span]
+
+        edge.resolve_support_condition(pillar_registry)
+        assert edge.support_condition == "pinned", "lowered slab should stay pinned"
+
+    def test_adjacent_lowered_slab_counts_as_no_slab(
+        self,
+        slab_double: Slab,
+        pillar_registry: dict[str, Pillar],
+        pillars: tuple[Pillar, Pillar],
+    ) -> None:
+        """A lowered neighbour of equal thickness does not fix the edge."""
+        p1, p2 = pillars
+        edge = SlabEdge(Edges.BOTTOM, slab_double)
+        other = cast(
+            Slab, types.SimpleNamespace(id="L_low", thickness=10, is_lowered=True)
+        )
+
+        span = _make_span(p1, p2)
+        span.add_supported_slab(slab_double)
+        span.add_supported_slab(other)
+        edge.spans = [span]
+
+        edge.resolve_support_condition(pillar_registry)
+        assert edge.support_condition == "pinned", (
+            "edge next to a lowered slab should stay pinned"
+        )
+
+    def test_re_resolving_resets_previous_fixed(
+        self,
+        slab_double: Slab,
+        pillar_registry: dict[str, Pillar],
+        pillars: tuple[Pillar, Pillar],
+    ) -> None:
+        """A second call recomputes from scratch instead of keeping 'fixed'."""
+        p1, p2 = pillars
+        edge = SlabEdge(Edges.BOTTOM, slab_double)
+        other = types.SimpleNamespace(id="L_adj", thickness=10, is_lowered=False)
+
+        span = _make_span(p1, p2)
+        span.add_supported_slab(slab_double)
+        span.add_supported_slab(cast(Slab, other))
+        edge.spans = [span]
+
+        edge.resolve_support_condition(pillar_registry)
+        assert edge.support_condition == "fixed", "first call should fix the edge"
+
+        other.thickness = 5
+        edge.resolve_support_condition(pillar_registry)
+        assert edge.support_condition == "pinned", (
+            "second call should reset to pinned once the neighbour got much thinner"
         )
 
 

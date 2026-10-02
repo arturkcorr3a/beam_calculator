@@ -161,7 +161,7 @@ def main() -> None:
     print(
         f"\n--- Pre-sizing L4 (neighbors: L3={l3.thickness} cm, L5={l5.thickness} cm, L9={l9.thickness} cm) ---"
     )
-    l4.pre_size()
+    l4.pre_size(pavement.pillars)
     print(f"\nResult: L4 thickness = {l4.thickness} cm")
 
 
