@@ -2,11 +2,11 @@
 
 # cSpell:disable
 
-from indeterminatebeam import UDLV, Support
-
+from src.analysis.model import BeamSupport, DistributedLoad
+from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
-from src.loading.forces import bending_moment_extremes_per_segment, design_effort_elu
+from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups
@@ -27,36 +27,34 @@ concrete = Concrete.C40
 steel = Steel.CA50
 
 # Contínua (sem considerações de rigidez)
-fixed = (1, 1, 0)
-p1 = Support(0, fixed)
-p2 = Support(span1, fixed)
-p3 = Support(span1 + span2, fixed)
-p4 = Support(length, fixed)
+p1 = BeamSupport(0)
+p2 = BeamSupport(span1)
+p3 = BeamSupport(span1 + span2)
+p4 = BeamSupport(length)
 
-# Carregamento (sinal negativo pq é para baixo)
-load1 = -15.710  # kN/m -20.3 #
-load2 = -14.479  # kN/m -20.3 #
-load3 = -31.672  # kN/m -20.3 #
+# Carregamento (sinal positivo pq é para baixo)
+load1 = 15.710  # kN/m 20.3 #
+load2 = 14.479  # kN/m 20.3 #
+load3 = 31.672  # kN/m 20.3 #
 
-load_span1 = UDLV(load1, (0, span1))
-load_span2 = UDLV(load2, (span1, span1 + span2))
-load_span3 = UDLV(load3, (span1 + span2, length))
+load_span1 = DistributedLoad(0, span1, load1)
+load_span2 = DistributedLoad(span1, span1 + span2, load2)
+load_span3 = DistributedLoad(span1 + span2, length, load3)
 
 supports = [p1, p2, p3, p4]
 loads = [load_span1, load_span2, load_span3]
 
-beam = RectangularBeam(length, width, height, concrete, steel, supports, loads)
+beam = RectangularBeam(length, width, height, concrete, steel)
+analysis = analyse_beam(beam, supports, loads)
 
 # ==============================================================================
 # 2. STRUCTURAL ANALYSIS / ESFORÇOS SOLICITANTES
 # ==============================================================================
-interest_points = bending_moment_extremes_per_segment(
-    beam.bending_moment_expression, beam.shear_force_expression, 0.0, length
-)
+interest_points = analysis.moment_extremes_per_segment()
 position, max_bending_moment = max(
     interest_points, key=lambda point: abs(point[1])
 )  # kN.m
-max_shear_force = beam.get_shear_force(return_max=True)  # kN
+max_shear_force = analysis.max_shear_force()  # kN
 
 design_bending_moment = design_effort_elu(max_bending_moment)  # kN.m
 design_shear_force = design_effort_elu(max_shear_force)  # kN

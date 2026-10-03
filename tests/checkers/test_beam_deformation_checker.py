@@ -1,9 +1,9 @@
 """Unit tests for BeamDeformationChecker.
 
-All indeterminatebeam-backed calls are intercepted with a ``Mock(spec=RectangularBeam)``
-so these tests remain fast and do not depend on structural-solver internals. Both
-``get_bending_moment`` and ``get_deflection`` are queried at a specific position
-(the interest point), not with ``return_absmax``.
+All solver-backed calls are intercepted with a ``Mock(spec=BeamAnalysis)`` so these
+tests remain fast and do not depend on structural-solver internals. Both
+``bending_moment`` and ``deflection`` are queried at a specific position (the
+interest point).
 """
 
 from typing import cast
@@ -11,12 +11,12 @@ from unittest.mock import Mock
 
 import pytest
 
+from src.analysis.beam_analysis import BeamAnalysis
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
-from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -27,28 +27,28 @@ _POSITION_CM = 250.0
 
 
 @pytest.fixture
-def beam_mock() -> RectangularBeam:
-    """Return a Mock(spec=RectangularBeam) with canned bending-moment and deflection.
+def beam_mock() -> BeamAnalysis:
+    """Return a Mock(spec=BeamAnalysis) with canned bending-moment and deflection.
 
     Canned values:
-        get_bending_moment(position) → 42.0 kN.m
-        get_deflection(position)     → 0.85 cm
+        bending_moment(position) → 42.0 kN.m
+        deflection(position)     → 0.85 cm
     """
-    mock = Mock(spec=RectangularBeam)
-    mock.get_bending_moment.return_value = 42.0
-    mock.get_deflection.return_value = 0.85
-    return cast(RectangularBeam, mock)
+    mock = Mock(spec=BeamAnalysis)
+    mock.bending_moment.return_value = 42.0
+    mock.deflection.return_value = 0.85
+    return cast(BeamAnalysis, mock)
 
 
 def _make_checker(
-    beam_mock: RectangularBeam,
+    beam_mock: BeamAnalysis,
     *,
     permanent_load: float = 10.0,
     variable_load: float = 5.0,
     tensioned_reinforcement_area: float = 5.0,
     position: float = _POSITION_CM,
 ) -> BeamDeformationChecker:
-    """Build a BeamDeformationChecker backed by a mocked RectangularBeam."""
+    """Build a BeamDeformationChecker backed by a mocked BeamAnalysis."""
     return BeamDeformationChecker(
         permanent_load=permanent_load,
         variable_load=variable_load,
@@ -59,14 +59,14 @@ def _make_checker(
         compressed_reinforcement_area=0.0,
         effective_depth_compressed=0.0,
         tensioned_reinforcement_area=tensioned_reinforcement_area,
-        structural_beam=beam_mock,
+        analysis=beam_mock,
         position=position,
     )
 
 
 @pytest.fixture
-def beam_checker(beam_mock: RectangularBeam) -> BeamDeformationChecker:
-    """Return a BeamDeformationChecker backed by a mocked RectangularBeam."""
+def beam_checker(beam_mock: BeamAnalysis) -> BeamDeformationChecker:
+    """Return a BeamDeformationChecker backed by a mocked BeamAnalysis."""
     return _make_checker(beam_mock)
 
 
@@ -85,24 +85,24 @@ class TestServiceMoment:
         assert_approx(
             beam_checker.service_moment,
             4200.0,
-            "service_moment should be abs(get_bending_moment(position)) * 100 (kN.cm)",
+            "service_moment should be abs(bending_moment(position)) * 100 (kN.cm)",
         )
 
     def test_queries_moment_at_position(
         self,
         beam_checker: BeamDeformationChecker,
-        beam_mock: RectangularBeam,
+        beam_mock: BeamAnalysis,
     ) -> None:
-        """service_moment calls get_bending_moment at the interest-point position."""
+        """service_moment calls bending_moment at the interest-point position."""
         _ = beam_checker.service_moment
         mock = cast(Mock, beam_mock)
-        mock.get_bending_moment.assert_called_once_with(_POSITION_CM)
+        mock.bending_moment.assert_called_once_with(_POSITION_CM)
 
     def test_negative_moment_uses_absolute_value(
-        self, beam_mock: RectangularBeam
+        self, beam_mock: BeamAnalysis
     ) -> None:
         """A hogging (negative) local moment yields a positive service moment (kN.cm)."""
-        cast(Mock, beam_mock).get_bending_moment.return_value = -30.0
+        cast(Mock, beam_mock).bending_moment.return_value = -30.0
         checker = _make_checker(beam_mock)
         assert_approx(
             checker.service_moment,
@@ -115,12 +115,12 @@ class TestImmediateDeflection:
     """Tests for BeamDeformationChecker.immediate_deflection (Branson-scaled)."""
 
     def test_uncracked_returns_gross_deflection(
-        self, beam_mock: RectangularBeam
+        self, beam_mock: BeamAnalysis
     ) -> None:
         """When the service moment is below cracking, deflection equals the elastic value."""
         # Tiny moment → not cracked → I_eq == I_gross → no scaling
-        cast(Mock, beam_mock).get_bending_moment.return_value = 0.5
-        cast(Mock, beam_mock).get_deflection.return_value = 0.85
+        cast(Mock, beam_mock).bending_moment.return_value = 0.5
+        cast(Mock, beam_mock).deflection.return_value = 0.85
         checker = _make_checker(beam_mock)
         checker.height = 60.0
         checker.effective_depth = 56.0
@@ -134,21 +134,21 @@ class TestImmediateDeflection:
     def test_queries_deflection_at_position(
         self,
         beam_checker: BeamDeformationChecker,
-        beam_mock: RectangularBeam,
+        beam_mock: BeamAnalysis,
     ) -> None:
-        """immediate_deflection queries get_deflection at the interest-point position."""
+        """immediate_deflection queries deflection at the interest-point position."""
         beam_checker.height = 60.0
         beam_checker.effective_depth = 56.0
         _ = beam_checker.immediate_deflection
-        cast(Mock, beam_mock).get_deflection.assert_called_once_with(_POSITION_CM)
+        cast(Mock, beam_mock).deflection.assert_called_once_with(_POSITION_CM)
 
     def test_cracked_scales_deflection_by_branson_ratio(
-        self, beam_mock: RectangularBeam
+        self, beam_mock: BeamAnalysis
     ) -> None:
         """When cracked, deflection is scaled by I_gross / I_eq (> 1), amplifying it."""
         # Large moment → cracked → I_eq < I_gross → deflection amplified
-        cast(Mock, beam_mock).get_bending_moment.return_value = 200.0
-        cast(Mock, beam_mock).get_deflection.return_value = 0.85
+        cast(Mock, beam_mock).bending_moment.return_value = 200.0
+        cast(Mock, beam_mock).deflection.return_value = 0.85
         checker = _make_checker(beam_mock, tensioned_reinforcement_area=10.0)
         checker.height = 60.0
         checker.effective_depth = 56.0
@@ -191,7 +191,7 @@ class TestDesignLoad:
     )
     def test_parametrized_combinations(
         self,
-        beam_mock: RectangularBeam,
+        beam_mock: BeamAnalysis,
         perm: float,
         var: float,
         expected: float,
@@ -206,16 +206,16 @@ class TestDesignLoad:
 
 
 class TestBeamVerifyIntegration:
-    """Integration tests for BeamDeformationChecker.verify using mocked beam."""
+    """Integration tests for BeamDeformationChecker.verify using a mocked analysis."""
 
     def test_verify_pass_with_small_deflection(
         self,
-        beam_mock: RectangularBeam,
+        beam_mock: BeamAnalysis,
     ) -> None:
         """verify returns True when the deflection at the point is well within the limit."""
         mock = cast(Mock, beam_mock)
-        mock.get_deflection.return_value = 0.001  # far below span/250 = 2.0 cm
-        mock.get_bending_moment.return_value = 1.0  # small moment → not cracked
+        mock.deflection.return_value = 0.001  # far below span/250 = 2.0 cm
+        mock.bending_moment.return_value = 1.0  # small moment → not cracked
         checker = _make_checker(beam_mock)
         assert checker.verify(60.0), (
             "verify should return True when deflection << acceptable_deflection"
@@ -223,12 +223,12 @@ class TestBeamVerifyIntegration:
 
     def test_verify_fail_with_large_deflection(
         self,
-        beam_mock: RectangularBeam,
+        beam_mock: BeamAnalysis,
     ) -> None:
         """verify returns False when the deflection at the point exceeds the limit."""
         mock = cast(Mock, beam_mock)
-        mock.get_deflection.return_value = 100.0  # far above span/250 = 2.0 cm
-        mock.get_bending_moment.return_value = 1.0
+        mock.deflection.return_value = 100.0  # far above span/250 = 2.0 cm
+        mock.bending_moment.return_value = 1.0
         checker = _make_checker(beam_mock)
         assert not checker.verify(60.0), (
             "verify should return False when deflection >> acceptable_deflection"

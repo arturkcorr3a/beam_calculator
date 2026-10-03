@@ -184,12 +184,13 @@ class SlabDeformationChecker(DeformationChecker):
     @property
     @override
     def _tensioned_reinforcement_area(self):
-        dummy_beam = RectangularBeam.__new__(RectangularBeam)
-        dummy_beam.length = self.span
-        dummy_beam.width = self.width
-        dummy_beam.height = self.height
-        dummy_beam.concrete = self.concrete
-        dummy_beam.steel = Steel[APP_CONFIG.pavement_steel]
+        dummy_beam = RectangularBeam(
+            self.span,
+            self.width,
+            self.height,
+            self.concrete,
+            Steel[APP_CONFIG.pavement_steel],
+        )
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 
         dummy_stirrup_calculator = StirrupCalculator(

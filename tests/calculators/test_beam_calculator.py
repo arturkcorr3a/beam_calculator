@@ -100,11 +100,19 @@ class TestBuildSupports:
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
         supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
-        # Support at 0, 300, 500 — _position is the indeterminatebeam internal attribute
-        positions = [s._position for s in supports]  # pyright: ignore[reportPrivateUsage]
+        positions = [s.position for s in supports]
         assert positions[0] == 0, "First support should be at position 0 (cm)"
         assert positions[1] == 300.0, "Second support should be at 300 cm (cm)"
         assert positions[2] == 500.0, "Third support should be at 500 cm (cm)"
+
+    def test_supports_are_pinned(self) -> None:
+        """Every support has zero rotational stiffness, i.e. is pinned (kN.m/rad)."""
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+        supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
+        assert all(s.rotational_stiffness == 0.0 for s in supports), (
+            "All supports should be pinned (zero rotational stiffness)"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +121,7 @@ class TestBuildSupports:
 
 
 class TestBuildLoads:
-    """Tests for _build_loads() — UDLV objects for each span."""
+    """Tests for _build_loads() — one DistributedLoad per span."""
 
     def test_one_load_per_span(self) -> None:
         """_build_loads() returns one load object per span (dimensionless)."""
@@ -122,29 +130,24 @@ class TestBuildLoads:
         loads = bc._build_loads()  # pyright: ignore[reportPrivateUsage]
         assert len(loads) == 2, "Should produce one load per span"
 
-    def test_load_magnitude_is_negative(self) -> None:
-        """Load magnitude is negative (downward convention) (kN/m)."""
-        span = _make_span_stub(permanent_load=10.0, variable_load=5.0)
-        bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
-        loads = bc._build_loads()  # pyright: ignore[reportPrivateUsage]
-        # UDLV stores force along y; magnitude should be -(perm+var)=-15
-        # Access internals via .force or check the direction indirectly
-        # The simplest invariant: there is exactly one load and it is a UDLV
-        assert len(loads) == 1, "Should produce one load for one span"
-
-    def test_load_magnitude_combines_permanent_and_variable(self) -> None:
-        """Load magnitude = -(permanent + variable) kN/m (kN/m)."""
+    def test_load_intensity_combines_permanent_and_variable(self) -> None:
+        """Load intensity = permanent + variable, positive downward (kN/m)."""
         span = _make_span_stub(permanent_load=8.0, variable_load=4.0)
         bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
         loads = bc._build_loads()  # pyright: ignore[reportPrivateUsage]
-        # UDLV stores force (y-direction); negative = downward
-        # indeterminatebeam UDLV: loads[0].force gives the magnitude
-        load_obj = loads[0]
-        # The internal attribute is .force (y component) — access via duck-typing
-        if hasattr(load_obj, "force"):
-            assert_approx(
-                load_obj.force, -12.0, "UDLV magnitude should be -(perm+var) (kN/m)"
-            )
+        assert_approx(
+            loads[0].intensity, 12.0, "Load intensity should be perm + var (kN/m)"
+        )
+
+    def test_loads_cover_consecutive_spans(self) -> None:
+        """Each load spans its own span's cumulative range (cm)."""
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+        loads = bc._build_loads()  # pyright: ignore[reportPrivateUsage]
+        ranges = [(load.start, load.end) for load in loads]
+        assert ranges == [(0.0, 300.0), (300.0, 500.0)], (
+            "Loads should cover [0, 300] and [300, 500] cm"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -162,9 +165,7 @@ class TestBuildStructuralBeam:
 
         span = _make_span_stub(length_cm=500.0)
         bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
-        supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
-        loads = bc._build_loads()  # pyright: ignore[reportPrivateUsage]
-        beam = bc._build_structural_beam(supports, loads)  # pyright: ignore[reportPrivateUsage]
+        beam = bc._build_structural_beam()  # pyright: ignore[reportPrivateUsage]
 
         from src.structural_elements.rectangular_beam import RectangularBeam
 
@@ -186,7 +187,7 @@ class TestBuildStructuralBeam:
         span = _make_span_stub()
         bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
         with pytest.raises(KeyError):
-            bc._build_structural_beam([], [])  # pyright: ignore[reportPrivateUsage]
+            bc._build_structural_beam()  # pyright: ignore[reportPrivateUsage]
 
     def test_invalid_steel_raises_key_error(
         self, monkeypatch: pytest.MonkeyPatch
@@ -198,7 +199,7 @@ class TestBuildStructuralBeam:
         span = _make_span_stub()
         bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
         with pytest.raises(KeyError):
-            bc._build_structural_beam([], [])  # pyright: ignore[reportPrivateUsage]
+            bc._build_structural_beam()  # pyright: ignore[reportPrivateUsage]
 
 
 # ---------------------------------------------------------------------------
@@ -207,44 +208,19 @@ class TestBuildStructuralBeam:
 
 
 class TestInterestPoints:
-    """Tests for _interest_points() — delegates to bending_moment_extremes_per_segment."""
+    """Tests for _interest_points() — delegates to the analysis."""
 
-    def test_returns_extreme_per_segment(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """_interest_points() forwards the beam's symbolic expressions and domain (cm, kN.m)."""
-        import src.calculators.beam_calculator as beam_calculator_module
-
-        captured: dict[str, object] = {}
-
-        def fake_extremes(
-            bending: object, shear: object, lower: float, upper: float
-        ) -> list[tuple[float, float]]:
-            captured["bending"] = bending
-            captured["shear"] = shear
-            captured["lower"] = lower
-            captured["upper"] = upper
-            return [(250.0, 42.0), (500.0, -30.0)]
-
-        monkeypatch.setattr(
-            beam_calculator_module,
-            "bending_moment_extremes_per_segment",
-            fake_extremes,
-        )
-
-        structural_beam = types.SimpleNamespace(
-            bending_moment_expression="M(x)",
-            shear_force_expression="V(x)",
-            length=800.0,
+    def test_returns_extreme_per_segment(self) -> None:
+        """_interest_points() returns the analysis' per-segment extremes (cm, kN.m)."""
+        analysis = types.SimpleNamespace(
+            moment_extremes_per_segment=lambda: [(250.0, 42.0), (500.0, -30.0)],
         )
         bc = BeamCalculator(_make_beam_stub(), {})  # type: ignore[arg-type]
-        points = bc._interest_points(structural_beam)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+        points = bc._interest_points(analysis)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
 
         assert points == [(250.0, 42.0), (500.0, -30.0)], (
             "_interest_points should return the per-segment extremes"
         )
-        assert captured["bending"] == "M(x)", "should forward bending_moment_expression"
-        assert captured["shear"] == "V(x)", "should forward shear_force_expression"
-        assert captured["lower"] == 0.0, "lower bound should be 0 cm"
-        assert captured["upper"] == 800.0, "upper bound should be beam length (cm)"
 
 
 # ---------------------------------------------------------------------------
@@ -283,13 +259,14 @@ class TestVerifyDeformation:
     """Tests for _verify_deformation() — calls BeamDeformationChecker."""
 
     def _make_structural_beam_stub(self) -> types.SimpleNamespace:
-        """Build a structural beam stub compatible with _verify_deformation."""
+        """Build a structural beam (section) stub compatible with _verify_deformation."""
+        return types.SimpleNamespace(width=20.0, height=60.0, concrete=Concrete.C25)
+
+    def _make_analysis_stub(self) -> types.SimpleNamespace:
+        """Build a BeamAnalysis stub with canned moment (kN.m) and deflection (cm)."""
         return types.SimpleNamespace(
-            width=20.0,
-            height=60.0,
-            concrete=Concrete.C25,
-            get_bending_moment=lambda position: 150.0,  # pyright: ignore[reportUnknownLambdaType]
-            get_deflection=lambda position: 0.1,  # pyright: ignore[reportUnknownLambdaType]
+            bending_moment=lambda position: 150.0,  # pyright: ignore[reportUnknownLambdaType]
+            deflection=lambda position: 0.1,  # pyright: ignore[reportUnknownLambdaType]
         )
 
     def _make_rebar_calculator_stub(self) -> types.SimpleNamespace:
@@ -314,6 +291,7 @@ class TestVerifyDeformation:
 
         result = bc._verify_deformation(  # type: ignore[arg-type]
             self._make_structural_beam_stub(),  # type: ignore[arg-type]
+            self._make_analysis_stub(),  # type: ignore[arg-type]
             self._make_rebar_calculator_stub(),  # type: ignore[arg-type]
             250.0,
         )
@@ -348,6 +326,7 @@ class TestVerifyDeformation:
         with pytest.raises(ValueError, match="Deformation exceeds"):
             bc._verify_deformation(  # type: ignore[arg-type]
                 structural_beam,  # type: ignore[arg-type]
+                self._make_analysis_stub(),  # type: ignore[arg-type]
                 rebar_calculator,  # type: ignore[arg-type]
                 250.0,
             )

@@ -1,8 +1,6 @@
 """Unit tests for the RectangularBeam structural element."""
 
 import pytest
-from indeterminatebeam import Support  # type: ignore
-from indeterminatebeam.loading import UDLV  # type: ignore
 
 from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
@@ -12,11 +10,9 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 
 @pytest.fixture
 def simply_supported_beam() -> RectangularBeam:
-    """Build a real C25/CA50 beam, 20x60 cm, 500 cm long, pinned both ends.
+    """Build a real C25/CA50 beam section, 20x60 cm, 500 cm long.
 
-    A uniform vertical load of -1 kN/cm spans the full length. Construction runs
-    the full indeterminatebeam analysis, so this fixture exercises ``__init__``,
-    ``update_units_local``, ``_validate_width`` (valid path), and ``area``.
+    Exercises ``__init__``, ``_validate_width`` (valid path), and ``area``.
     """
     return RectangularBeam(
         length=500.0,
@@ -24,8 +20,6 @@ def simply_supported_beam() -> RectangularBeam:
         height=60.0,
         concrete=Concrete.C25,
         steel=Steel.CA50,
-        supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))],  # pyright: ignore[reportArgumentType]
-        loads=[UDLV(-1.0, (0.0, 500.0))],  # pyright: ignore[reportArgumentType]
         label="B1",
     )
 
@@ -64,8 +58,6 @@ class TestValidateWidth:
                 height=60.0,
                 concrete=Concrete.C25,
                 steel=Steel.CA50,
-                supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))],  # pyright: ignore[reportArgumentType]
-                loads=[UDLV(-1.0, (0.0, 500.0))],  # pyright: ignore[reportArgumentType]
             )
 
     def test_at_minimum_constructs(self) -> None:
@@ -75,8 +67,6 @@ class TestValidateWidth:
             height=60.0,
             concrete=Concrete.C25,
             steel=Steel.CA50,
-            supports=[Support(0.0, (1, 1, 0)), Support(500.0, (1, 1, 0))],  # pyright: ignore[reportArgumentType]
-            loads=[UDLV(-1.0, (0.0, 500.0))],  # pyright: ignore[reportArgumentType]
         )
         assert beam.width == 12.0, "A 12 cm width sits exactly at the minimum"
 

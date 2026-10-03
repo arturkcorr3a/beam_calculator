@@ -1,11 +1,9 @@
-from typing import cast
-
-from indeterminatebeam import UDLV, Support  # type: ignore
-
+from src.analysis.model import BeamSupport, DistributedLoad
+from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
-from src.loading.forces import bending_moment_extremes_per_segment, design_effort_elu
+from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups  # type: ignore
@@ -21,14 +19,13 @@ def main():
 
     APP_CONFIG.exposure_class = 1
 
-    default_fixed = (1, 1, 0)
-    v2 = Support(0, default_fixed)
-    v3 = Support(length, default_fixed)
+    v2 = BeamSupport(0)
+    v3 = BeamSupport(length)
     supports = [v2, v3]
 
-    default_span = (0, length)
-    p = UDLV(50, default_span)
-    q = UDLV(10, default_span)
+    # Upward loads (negative intensity), as in the original example
+    p = DistributedLoad(0, length, -50)
+    q = DistributedLoad(0, length, -10)
     loads = [p, q]
 
     beam = RectangularBeam(
@@ -37,17 +34,14 @@ def main():
         width=width,
         height=height,
         length=length,
-        loads=loads,
-        supports=supports,
     )
+    analysis = analyse_beam(beam, supports, loads)
 
-    interest_points = bending_moment_extremes_per_segment(
-        beam.bending_moment_expression, beam.shear_force_expression, 0.0, length
-    )
+    interest_points = analysis.moment_extremes_per_segment()
     position, max_bending_moment = max(
         interest_points, key=lambda point: abs(point[1])
     )  # kN.m
-    max_shear_force = cast(float, beam.get_shear_force(return_max=True))  # type: ignore # kN
+    max_shear_force = analysis.max_shear_force()  # kN
 
     design_shear_force = design_effort_elu(max_shear_force)  # kN
     stirrup_calculator = StirrupCalculator(beam, design_shear_force)

@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from indeterminatebeam import UDLV, Support  # type: ignore
-
+from src.analysis.beam_analysis import BeamAnalysis
+from src.analysis.model import BeamSupport, DistributedLoad
+from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
-from src.loading.forces import bending_moment_extremes_per_segment, design_effort_elu
+from src.loading.forces import design_effort_elu
 from src.logger import log_operation, logger_label
 from src.pavement_elements.beam_span import Span
 from src.properties.concrete import Concrete
@@ -39,10 +40,11 @@ class BeamCalculator:
         """Dimensions the beam: builds the structural model, computes forces, and calculates reinforcement at every interest point."""
         supports = self._build_supports()
         loads = self._build_loads()
-        structural_beam = self._build_structural_beam(supports, loads)
+        structural_beam = self._build_structural_beam()
+        analysis = analyse_beam(structural_beam, supports, loads)
 
-        interest_points = self._interest_points(structural_beam)
-        stirrups = self._build_stirrups(structural_beam)
+        interest_points = self._interest_points(analysis)
+        stirrups = self._build_stirrups(structural_beam, analysis)
 
         self._beam.reinforcement = []
         for position, moment in interest_points:
@@ -67,37 +69,29 @@ class BeamCalculator:
                 )
                 continue
             self._store_reinforcement(calculator)
-            self._verify_deformation(structural_beam, calculator, position)
+            self._verify_deformation(structural_beam, analysis, calculator, position)
 
-    def _interest_points(
-        self, structural_beam: RectangularBeam
-    ) -> list[tuple[float, float]]:
+    def _interest_points(self, analysis: BeamAnalysis) -> list[tuple[float, float]]:
         """Finds the dominant bending-moment extreme per segment along the beam.
 
         Returns:
             One `(position, moment)` per segment between bending-moment zeros
             (position in cm, moment in kN.m), sorted left to right.
         """
-        return bending_moment_extremes_per_segment(
-            structural_beam.bending_moment_expression,
-            structural_beam.shear_force_expression,
-            0.0,
-            structural_beam.length,
-        )
+        return analysis.moment_extremes_per_segment()
 
-    def _build_stirrups(self, structural_beam: RectangularBeam) -> Stirrups:
+    def _build_stirrups(
+        self, structural_beam: RectangularBeam, analysis: BeamAnalysis
+    ) -> Stirrups:
         """Builds the beam's stirrups, dimensioned for the ELU design value of the maximum shear force."""
-        max_shear_force = cast(
-            float,
-            structural_beam.get_shear_force(return_max=True),  # pyright: ignore[reportUnknownMemberType]
-        )  # kN
+        max_shear_force = analysis.max_shear_force()  # kN
         design_shear_force = design_effort_elu(max_shear_force)  # kN
         stirrup_calculator = StirrupCalculator(
             structural_beam, design_shear_force, self.label
         )
         return Stirrups(structural_beam, stirrup_calculator, self.label)
 
-    def _build_supports(self) -> list[Support]:
+    def _build_supports(self) -> list[BeamSupport]:
         """Builds a pinned support at the beam start and at the end of each span.
 
         Each support restrains horizontal and vertical translation but allows
@@ -106,20 +100,17 @@ class BeamCalculator:
         Returns:
             One support per span boundary, ordered left to right.
         """
-        pinned = (1, 1, 0)
-        support_position = 0
-        first_support = Support(support_position, pinned)
-        supports = [first_support]
+        support_position = 0.0
+        supports = [BeamSupport(support_position)]
         for span in self._beam.spans:
             support_position += span.get_effective_length(self._pillar_registry)
-            next_support = Support(support_position, pinned)  # pyright: ignore[reportArgumentType]
-            supports.append(next_support)
+            supports.append(BeamSupport(support_position))
         return supports
 
-    def _build_loads(self) -> list[UDLV]:
+    def _build_loads(self) -> list[DistributedLoad]:
         """Builds a list of distributed vertical loads for each span, combining permanent and variable loads."""
-        loads: list[UDLV] = []
-        start_position = 0
+        loads: list[DistributedLoad] = []
+        start_position = 0.0
         for i, span in enumerate(self._beam.spans):
             end_position = start_position + span.get_effective_length(
                 self._pillar_registry
@@ -127,7 +118,7 @@ class BeamCalculator:
             total_load = (
                 span.permanent_load + span.variable_load
             )  # kN/m, permanent + variable as it is ELU
-            load = UDLV(-total_load, (start_position, end_position))  # pyright: ignore[reportArgumentType] # negative for downward load
+            load = DistributedLoad(start_position, end_position, total_load)
             log_operation(
                 f"Span {i}: permanent {span.permanent_load:.2f} kN/m, variable {span.variable_load:.2f} kN/m, total {total_load:.2f} kN/m"
             )
@@ -135,12 +126,8 @@ class BeamCalculator:
             start_position = end_position
         return loads
 
-    def _build_structural_beam(
-        self,
-        supports: list[Support],
-        loads: list[UDLV],
-    ) -> RectangularBeam:
-        """Builds a RectangularBeam instance for structural analysis and dimensioning."""
+    def _build_structural_beam(self) -> RectangularBeam:
+        """Builds the RectangularBeam section used for dimensioning."""
         length = sum(
             span.get_effective_length(self._pillar_registry)
             for span in self._beam.spans
@@ -153,8 +140,6 @@ class BeamCalculator:
             self._beam.height,
             concrete,
             steel,
-            supports,
-            loads,  # pyright: ignore[reportArgumentType]
             self.label,
         )
 
@@ -203,6 +188,7 @@ class BeamCalculator:
     def _verify_deformation(
         self,
         structural_beam: RectangularBeam,
+        analysis: BeamAnalysis,
         rebar_calculator: RebarCalculator,
         position: float,
     ) -> None:
@@ -215,7 +201,7 @@ class BeamCalculator:
 
         effective_depth_discount = structural_beam.height - rebar_calculator.d
         checker = BeamDeformationChecker(
-            structural_beam=structural_beam,
+            analysis=analysis,
             position=position,
             tensioned_reinforcement_area=rebar_calculator.tensioned_reinforcement.area,
             compressed_reinforcement_area=rebar_calculator.compressed_reinforcement.area,
