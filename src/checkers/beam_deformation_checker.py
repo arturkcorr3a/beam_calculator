@@ -1,18 +1,17 @@
 from dataclasses import dataclass
-from typing import cast
 
+from src.analysis.beam_analysis import BeamAnalysis
 from src.checkers.deformation_checker import DeformationChecker
 from src.loading.forces import almost_permanent_combination_els
 from src.logger import log_operation
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
-from src.structural_elements.rectangular_beam import RectangularBeam
 
 
 @dataclass(kw_only=True)
 class BeamDeformationChecker(DeformationChecker):
-    structural_beam: RectangularBeam
+    analysis: BeamAnalysis
     position: float  # cm — position along the beam length of the interest point
 
     @property
@@ -22,10 +21,7 @@ class BeamDeformationChecker(DeformationChecker):
         References:
             ABNT NBR 6118:2014 — Section 17.3.1
         """
-        moment_kn_m = cast(
-            float,
-            self.structural_beam.get_bending_moment(self.position),  # type: ignore
-        )  # kN.m
+        moment_kn_m = self.analysis.bending_moment(self.position)  # kN.m
         service_moment = abs(moment_kn_m) * 100.0  # kN.m -> kN.cm
         log_operation(f"Service bending moment: {service_moment:.2f} kN.cm")
         return service_moment
@@ -46,9 +42,7 @@ class BeamDeformationChecker(DeformationChecker):
         References:
             ABNT NBR 6118:2014 — Section 17.3.2.1.1
         """
-        elastic_deflection = abs(
-            cast(float, self.structural_beam.get_deflection(self.position))  # type: ignore , cm
-        )
+        elastic_deflection = abs(self.analysis.deflection(self.position))  # cm
         gross_moment_of_inertia = section.moment_of_inertia(self.width, self.height)
         immediate_deflection = elastic_deflection * (
             gross_moment_of_inertia / self.equivalent_moment_of_inertia

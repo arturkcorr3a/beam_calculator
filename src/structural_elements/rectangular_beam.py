@@ -1,25 +1,8 @@
-from indeterminatebeam import Beam, Support  # type: ignore
-from indeterminatebeam.loading import UDLV  # type: ignore
-from sympy import Expr  # type: ignore
-
 from src.config import APP_CONFIG
 from src.logger import log_element, logger_label
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.properties.steel import Steel
-
-UNITS = {
-    "length": "cm",
-    "force": "kN",
-    "moment": "kN.m",
-    "distributed": "kN/m",
-    "stiffness": "kN/m",
-    "A": "cm2",
-    "G": "MPa",
-    "E": "MPa",
-    "I": "cm4",
-    "deflection": "m",
-}
 
 _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
 
@@ -53,9 +36,10 @@ class _BeamMeta(type):
 
 
 @logger_label("Structural {label}")
-class RectangularBeam(Beam, metaclass=_BeamMeta):
-    """
-    Extends indeterminatebeam.Beam to a rectangular cross-section beam, with necessary properties and methods for dimensioning analysis.
+class RectangularBeam(metaclass=_BeamMeta):
+    """A rectangular cross-section beam: geometry and materials used for dimensioning.
+
+    Holds no structural analysis; see ``src.analysis.solver.analyse_beam``.
     """
 
     def __init__(
@@ -65,58 +49,28 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
         height: float,
         concrete: Concrete,
         steel: Steel,
-        supports: list[Support],
-        loads: list[UDLV],
         label: str = "",
     ):
-        """Initialize a rectangular beam, with the analysis done.
+        """Initialize a rectangular beam section.
 
         Args:
-            length: Beam length (m).
+            length: Beam length (cm).
             width: Cross-section width (cm).
             height: Cross-section height (cm).
             concrete: Concrete class (e.g. Concrete.C25).
             steel: Steel grade (e.g. Steel.CA50).
-            supports: List of indeterminatebeam.Support instances.
-            loads: List of indeterminatebeam.Load instances.
         """
         self.label = label
         self.width = width
         self.height = height
         self._validate_width()
-        calculated_moment_of_inertia = SectionPropertiesCalculator.moment_of_inertia(
-            width, height
-        )
-        area = SectionPropertiesCalculator.rectangular_cross_sectional_area(
-            width, height
-        )
-        shear_modulus = concrete.g_c
-        elastic_modulus = concrete.ecs
-
-        super().__init__(
-            length,
-            shear_modulus,
-            round(elastic_modulus),
-            calculated_moment_of_inertia,
-            area,
-        )
-        self.update_units_local()
-
         self.length = length
         self.concrete = concrete
         self.steel = steel
 
-        self.add_loads(*loads)  # type: ignore
-        self.add_supports(*supports)  # type: ignore
-        self.analyse()
-
         log_element(
             f"{self.width:.0f} x {self.height:.0f} cm; {self.length / 100.0:.2f} m long, {self.concrete.name}, {self.steel.name}"
         )
-
-    def update_units_local(self) -> None:
-        for key, unit in UNITS.items():
-            super().update_units(key, unit)
 
     def _validate_width(self) -> None:
         """Enforce ABNT NBR 6118 minimum beam width requirement.
@@ -138,14 +92,6 @@ class RectangularBeam(Beam, metaclass=_BeamMeta):
         """
         Returns the cross-sectional area (cm²) of the beam.
         """
-        return self._A
-
-    @property
-    def bending_moment_expression(self) -> Expr:
-        """Return the symbolic bending moment M(x) expression in x (kN.m; x in cm)."""
-        return self._bending_moments  # type: ignore[return-value]
-
-    @property
-    def shear_force_expression(self) -> Expr:
-        """Return the symbolic shear force V(x) expression in x (kN; x in cm)."""
-        return self._shear_forces  # type: ignore[return-value]
+        return SectionPropertiesCalculator.rectangular_cross_sectional_area(
+            self.width, self.height
+        )
