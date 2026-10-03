@@ -491,13 +491,30 @@ class TestPointQueries:
             abs_tol=0.01,
         )
 
-    def test_max_shear_force(self, simply_supported_beam: BeamAnalysis) -> None:
-        """Signed maximum shear equals the left reaction, qL/2 (kN)."""
+    def test_max_abs_shear(self, simply_supported_beam: BeamAnalysis) -> None:
+        """Maximum absolute shear equals the support reaction, qL/2 (kN)."""
         assert_approx(
-            simply_supported_beam.max_shear_force(),
+            simply_supported_beam.max_abs_shear(),
             25.0,
-            "Maximum shear should be qL/2 (kN)",
+            "Maximum absolute shear should be qL/2 (kN)",
             abs_tol=0.01,
+        )
+
+    def test_max_abs_shear_picks_negative_extreme(self) -> None:
+        """Pinned-left, fixed-right span: |V| peaks at the fixed end, 5qL/8 (kN).
+
+        The signed maximum would be V(0) = 3qL/8 = 22.5 kN; stirrup design needs
+        the absolute maximum |V(L)| = 5qL/8 = 37.5 kN. The tolerance absorbs the
+        ~0.1 % shift from indeterminatebeam's shear-deformation term.
+        """
+        analysis = _solve(
+            "pinned_fixed", [BeamSupport(0.0), BeamSupport(600.0, math.inf)]
+        )
+        assert_approx(
+            analysis.max_abs_shear(),
+            37.5,
+            "Maximum absolute shear should be 5qL/8 at the fixed end (kN)",
+            abs_tol=0.1,
         )
 
     def test_shear_force_is_zero_at_mid_span(
@@ -509,4 +526,26 @@ class TestPointQueries:
             0.0,
             "Mid-span shear should be zero (kN)",
             abs_tol=0.01,
+        )
+
+    def test_deflection_is_in_cm(self, simply_supported_beam: BeamAnalysis) -> None:
+        """Mid-span deflection matches 5qL⁴/(384EI) + qL²/(8GA), downward negative (cm).
+
+        indeterminatebeam includes the shear-deformation term qL²/(8GA).
+        """
+        q = 10.0 / 100  # kN/m → kN/cm
+        length = 500.0  # cm
+        e_modulus = round(Concrete.C25.ecs) / 10  # MPa → kN/cm²
+        g_modulus = Concrete.C25.g_c / 10  # MPa → kN/cm²
+        inertia = 20.0 * 60.0**3 / 12  # cm⁴
+        area = 20.0 * 60.0  # cm²
+        expected = -(
+            5 * q * length**4 / (384 * e_modulus * inertia)
+            + q * length**2 / (8 * g_modulus * area)
+        )
+        assert_approx(
+            simply_supported_beam.deflection(250.0),
+            expected,
+            "Mid-span deflection should be the bending + shear closed form (cm)",
+            abs_tol=1e-4,
         )

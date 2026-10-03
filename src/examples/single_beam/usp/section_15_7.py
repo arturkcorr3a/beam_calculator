@@ -41,7 +41,7 @@ def main():
     position, max_bending_moment = max(
         interest_points, key=lambda point: abs(point[1])
     )  # kN.m
-    max_shear_force = analysis.max_shear_force()  # kN
+    max_shear_force = analysis.max_abs_shear()  # kN
 
     design_shear_force = design_effort_elu(max_shear_force)  # kN
     stirrup_calculator = StirrupCalculator(beam, design_shear_force)

@@ -24,7 +24,7 @@ UNITS = {
     "G": "MPa",
     "E": "MPa",
     "I": "cm4",
-    "deflection": "m",
+    "deflection": "cm",
 }
 
 PINNED = (1, 1, 0)
@@ -79,17 +79,12 @@ class IndeterminateBeamAnalysis:
         return float(self._beam.get_shear_force(position))
 
     def deflection(self, position: float) -> float:
-        """Return the deflection at a position, downward negative."""
-        # FIXME UNITS sets "deflection" to "m", so this returns metres although
-        # BeamAnalysis promises cm. Kept as-is to preserve current results;
-        # convert to cm in a dedicated fix.
+        """Return the deflection at a position (cm, downward negative)."""
         return float(self._beam.get_deflection(position))
 
-    def max_shear_force(self) -> float:
-        """Return the largest signed shear force along the beam (kN)."""
-        # FIXME signed maximum, not the absolute maximum (return_absmax) that
-        # stirrup design needs. Kept as-is to preserve current results.
-        return float(self._beam.get_shear_force(return_max=True))
+    def max_abs_shear(self) -> float:
+        """Return the largest absolute shear force along the beam (kN)."""
+        return abs(float(self._beam.get_shear_force(return_absmax=True)))
 
     def reaction(self, position: float) -> float:
         """Return the vertical support reaction at a support position (kN)."""

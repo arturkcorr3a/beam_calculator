@@ -341,7 +341,7 @@ class TestRunIntegration:
     """Integration test: BeamCalculator.run() on a conservative real beam.
 
     Uses a SimpleNamespace beam stub wired to a pre-resolved single span
-    (500 cm, 20 kN/m permanent load, 10 kN/m variable load) so that the
+    (500 cm, 15 kN/m permanent load, 5 kN/m variable load) so that the
     indeterminatebeam solver, RebarCalculator convergence loop, and
     BeamDeformationChecker all execute against real objects — no mocking.
 
@@ -362,7 +362,7 @@ class TestRunIntegration:
         monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
 
         # Single 500 cm span with moderate loads (kN/m)
-        span = _make_span_stub(permanent_load=20.0, variable_load=10.0, length_cm=500.0)
+        span = _make_span_stub(permanent_load=15.0, variable_load=5.0, length_cm=500.0)
         beam_stub = _make_beam_stub(spans=[span], beam_id="V_integration")
 
         bc = BeamCalculator(beam_stub, {})  # type: ignore[arg-type]

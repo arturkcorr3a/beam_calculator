@@ -54,7 +54,7 @@ interest_points = analysis.moment_extremes_per_segment()
 position, max_bending_moment = max(
     interest_points, key=lambda point: abs(point[1])
 )  # kN.m
-max_shear_force = analysis.max_shear_force()  # kN
+max_shear_force = analysis.max_abs_shear()  # kN
 
 design_bending_moment = design_effort_elu(max_bending_moment)  # kN.m
 design_shear_force = design_effort_elu(max_shear_force)  # kN

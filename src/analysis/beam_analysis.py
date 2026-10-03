@@ -26,8 +26,8 @@ class BeamAnalysis(Protocol):
         ...
 
     # TODO I will need it by span
-    def max_shear_force(self) -> float:
-        """Return the largest signed shear force along the beam (kN)."""
+    def max_abs_shear(self) -> float:
+        """Return the largest absolute shear force along the beam (kN)."""
         ...
 
     def reaction(self, position: float) -> float:

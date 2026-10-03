@@ -84,7 +84,7 @@ class BeamCalculator:
         self, structural_beam: RectangularBeam, analysis: BeamAnalysis
     ) -> Stirrups:
         """Builds the beam's stirrups, dimensioned for the ELU design value of the maximum shear force."""
-        max_shear_force = analysis.max_shear_force()  # kN
+        max_shear_force = analysis.max_abs_shear()  # kN
         design_shear_force = design_effort_elu(max_shear_force)  # kN
         stirrup_calculator = StirrupCalculator(
             structural_beam, design_shear_force, self.label
