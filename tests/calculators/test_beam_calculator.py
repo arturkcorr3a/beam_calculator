@@ -12,6 +12,8 @@ import pytest
 from src.calculators.beam_calculator import BeamCalculator
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
+from src.pavement_elements.geometry_utils import Axis
+from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from tests.helpers import assert_approx
@@ -45,6 +47,7 @@ def _make_beam_stub(
     beam_id: str = "V1",
     width: float = 20.0,
     height: float = 60.0,
+    axis: Axis = Axis.X,
 ) -> types.SimpleNamespace:
     """Return a minimal ContinuousBeam stub with one default span."""
     if spans is None:
@@ -54,9 +57,18 @@ def _make_beam_stub(
         width=width,
         height=height,
         spans=spans,
+        axis=axis,
         reinforcement=[],
         get_most_loaded_span_for_els=lambda: spans[0],
     )
+
+
+def _make_registry() -> dict[str, Pillar]:
+    """Return 20x30 cm pillars keyed by the span stubs' pillar ids."""
+    return {
+        "P1": Pillar(x=0.0, y=0.0, width=20.0, depth=30.0),
+        "P2": Pillar(x=500.0, y=0.0, width=20.0, depth=30.0),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -84,35 +96,44 @@ class TestBuildSupports:
     def test_single_span_two_supports(self) -> None:
         """Single-span beam creates exactly 2 supports (dimensionless)."""
         span = _make_span_stub(length_cm=400.0)
-        bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
+        bc = BeamCalculator(_make_beam_stub(spans=[span]), _make_registry())  # type: ignore[arg-type]
         supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
         assert len(supports) == 2, "Single span should produce exactly 2 supports"
 
     def test_two_spans_three_supports(self) -> None:
         """Two-span beam creates 3 supports (dimensionless)."""
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=400.0)]
-        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
         supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
         assert len(supports) == 3, "Two spans should produce exactly 3 supports"
 
     def test_cumulative_positions(self) -> None:
         """Supports are placed at cumulative span-length positions (cm)."""
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
-        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
         supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
         positions = [s.position for s in supports]
         assert positions[0] == 0, "First support should be at position 0 (cm)"
         assert positions[1] == 300.0, "Second support should be at 300 cm (cm)"
         assert positions[2] == 500.0, "Third support should be at 500 cm (cm)"
 
-    def test_supports_are_pinned(self) -> None:
-        """Every support has zero rotational stiffness, i.e. is pinned (kN.m/rad)."""
-        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
-        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+    def test_supports_use_pillar_stiffness(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each support takes its pillar's rotational stiffness (kN.m/rad)."""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
+        registry = _make_registry()
+        bc = BeamCalculator(_make_beam_stub(), registry)  # type: ignore[arg-type]
         supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
-        assert all(s.rotational_stiffness == 0.0 for s in supports), (
-            "All supports should be pinned (zero rotational stiffness)"
-        )
+        for support, pillar_id in zip(supports, ["P1", "P2"], strict=True):
+            expected = registry[pillar_id].calculate_stiffness_for_beam_supporting(
+                Axis.X, Concrete.C25
+            )
+            assert_approx(
+                support.rotational_stiffness,
+                expected,
+                f"Support on {pillar_id} should use the pillar stiffness (kN.m/rad)",
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -365,7 +386,7 @@ class TestRunIntegration:
         span = _make_span_stub(permanent_load=15.0, variable_load=5.0, length_cm=500.0)
         beam_stub = _make_beam_stub(spans=[span], beam_id="V_integration")
 
-        bc = BeamCalculator(beam_stub, {})  # type: ignore[arg-type]
+        bc = BeamCalculator(beam_stub, _make_registry())  # type: ignore[arg-type]
         # Must complete without raising any exception
         bc.run()
 

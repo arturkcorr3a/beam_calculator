@@ -3,8 +3,10 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from src.pavement_elements.pillar import Pillar
+if TYPE_CHECKING:
+    from src.pavement_elements.pillar import Pillar
 
 TOLERANCE = 0.001  # cm
 
@@ -61,15 +63,13 @@ def get_pillar_perpendicular_range(pillar: Pillar, axis: Axis) -> tuple[float, f
         return pillar.get_x_range()
 
 
+# TODO remove this function and use Pillar.get_parallel_extent instead, which is more general and already implemented
 def get_pillar_parallel_extent(pillar: Pillar, axis: Axis) -> float:
     """Return the pillar's cross-section extent (cm) along a given axis
 
     For an X-beam this is the pillar width (x extent); for a Y-beam, its depth (y extent).
     """
-    if axis == Axis.X:
-        return pillar.width
-    else:
-        return pillar.depth
+    return pillar.get_parallel_extent(axis)
 
 
 def effective_span(
