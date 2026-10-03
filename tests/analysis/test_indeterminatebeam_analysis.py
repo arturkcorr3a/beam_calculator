@@ -1,7 +1,8 @@
 """Tests for ``src/analysis/indeterminatebeam_analysis.py``.
 
 All fixtures solve real ``RectangularBeam`` sections with C25/CA50 material
-properties through ``analyse_beam`` so that the reference values account for
+properties with ``IndeterminateBeamAnalysis`` directly (not through
+``analyse_beam``, which now uses anaStruct) so that the reference values account for
 the actual stiffness distribution rather than the idealized unit-beam values
 used in the design notes.
 
@@ -17,10 +18,10 @@ from sympy.sets.sets import Interval as SympyInterval
 
 from src.analysis.beam_analysis import BeamAnalysis
 from src.analysis.indeterminatebeam_analysis import (
+    IndeterminateBeamAnalysis,
     _extract_finite_zeros,  # pyright: ignore[reportPrivateUsage]
 )
 from src.analysis.model import BeamSupport, DistributedLoad
-from src.analysis.solver import analyse_beam
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -46,7 +47,9 @@ def _solve(
         steel=Steel.CA50,
         label=label,
     )
-    return analyse_beam(section, supports, [DistributedLoad(0.0, length, intensity)])
+    return IndeterminateBeamAnalysis(
+        section, supports, [DistributedLoad(0.0, length, intensity)]
+    )
 
 
 @pytest.fixture
