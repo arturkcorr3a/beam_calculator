@@ -45,14 +45,15 @@ class BeamCalculator:
         analysis = analyse_beam(structural_beam, supports, loads)
 
         interest_points = self._interest_points(analysis)
-        stirrups = self._build_stirrups(structural_beam, analysis)
+        self._build_stirrups(structural_beam, analysis)
 
         self._beam.reinforcement = []
         for position, moment in interest_points:
             log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
+            span = self._span_at(position)
             calculator = self._calculate(
                 structural_beam=structural_beam,
-                stirrups=stirrups,
+                stirrups=span.stirrups,
                 bending_moment=moment,
                 bending_moment_position=position,
             )
@@ -70,14 +71,25 @@ class BeamCalculator:
 
     def _build_stirrups(
         self, structural_beam: RectangularBeam, analysis: BeamAnalysis
-    ) -> Stirrups:
-        """Builds the beam's stirrups, dimensioned for the ELU design value of the maximum shear force."""
-        max_shear_force = analysis.max_abs_shear()  # kN
-        design_shear_force = design_effort_elu(max_shear_force)  # kN
-        stirrup_calculator = StirrupCalculator(
-            structural_beam, design_shear_force, self.label
-        )
-        return Stirrups(structural_beam, stirrup_calculator, self.label)
+    ) -> None:
+        """Builds the beam's stirrups, one per span (and sets it), dimensioned for the ELU design value of the maximum shear force on that span."""
+        position = 0.0
+        for span in self._beam.spans:
+            shear_force_start = analysis.shear_force(
+                position + 0.1
+            )  # kN, 1 mm inside the span to avoid support discontinuity
+            position += span.get_effective_length(self._pillar_registry)
+            shear_force_end = analysis.shear_force(
+                position - 0.1
+            )  # kN, 1 mm inside the span to avoid support discontinuity
+
+            max_shear_force = max(abs(shear_force_start), abs(shear_force_end))  # kN
+            design_shear_force = design_effort_elu(max_shear_force)  # kN
+            stirrup_calculator = StirrupCalculator(
+                structural_beam, design_shear_force, self.label
+            )
+            
+            span.set_stirrups(Stirrups(structural_beam, stirrup_calculator, self.label))
 
     def _build_supports(self) -> list[BeamSupport]:
         """Builds an elastic-fixed support on each pillar along the beam.
