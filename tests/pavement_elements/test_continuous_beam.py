@@ -474,16 +474,16 @@ class TestPreSize:
         horizontal_beam: ContinuousBeam,
         registry_horizontal: dict[str, Pillar],
     ) -> None:
-        # spans are 200 cm; 200/15 ≈ 13.3 → round_up → 15
+        # spans are 200 cm; 200/12 ≈ 16.7 → round_up → 20
         horizontal_beam.resolve_and_validate(registry_horizontal)
         horizontal_beam.pre_size(registry_horizontal)
-        assert horizontal_beam.height == 15, "200 cm span should pre-size to 15 cm"
+        assert horizontal_beam.height == 20, "200 cm span should pre-size to 20 cm"
 
     def test_pre_size_uses_effective_span_on_wide_pillars(
         self, wall: WallDefinition
     ) -> None:
-        # Centroid distance 600 -> 600/15 = 40, but l_ef converges to
-        # 500 + 2 * 0.3 * 35 = 521 -> 521/15 ≈ 34.7 -> 35
+        # Centroid distance 600 -> 600/12 = 50, but l_ef converges to
+        # 500 + 2 * 0.3 * 45 = 527 -> 527/12 ≈ 43.9 -> 45
         p1 = Pillar(x=0, y=0, width=100, depth=20)
         p2 = Pillar(x=600, y=0, width=100, depth=20)
         registry = {p1.id: p1, p2.id: p2}
@@ -496,7 +496,7 @@ class TestPreSize:
         )
         beam.resolve_and_validate(registry)
         beam.pre_size(registry)
-        assert beam.height == 35, "wide pillars should pre-size from l_ef, not 600 cm"
+        assert beam.height == 45, "wide pillars should pre-size from l_ef, not 600 cm"
 
 
 # ---------------------------------------------------------------------------
