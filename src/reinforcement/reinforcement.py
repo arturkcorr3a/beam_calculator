@@ -16,6 +16,9 @@ from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
+END_SUPPORT_TOLERANCE = (
+    1e-3  # cm — centers this close to a beam end sit on its end support
+)
 
 
 @logger_label("Longitudinal Reinforcement - {id}")
@@ -94,9 +97,22 @@ class Reinforcement:
             f"Bars chosen for required area {self.required_area:.2f} cm2: {bar_desc}"
         )
 
+    @property
+    def _is_at_beam_start(self) -> bool:
+        """Whether the reinforcement is centered on the beam's start support (x = 0)."""
+        return self.center_position <= END_SUPPORT_TOLERANCE
+
+    @property
+    def _is_at_beam_end(self) -> bool:
+        """Whether the reinforcement is centered on the beam's end support (x = L)."""
+        return self.center_position >= self.beam.length - END_SUPPORT_TOLERANCE
+
     def _run_anchorage_calculation(self) -> None:
         """
         Runs the anchorage calculation for each layer of the chosen reinforcement, setting the necessary lengths for each bar.
+
+        Bars centered on an end support are anchored only towards the beam interior: at the beam start (x = 0) the left length stays zero, and at the beam end (x = L) the right length stays zero.
+
         Raises a ValueError if there isn't enough space for anchorage, even after adding hooks.
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
@@ -112,15 +128,23 @@ class Reinforcement:
                 id=f"{self.id} | Layer {layer_index}",
             )
 
-            left_available_space = (
-                self.center_position - RectangularBeam.nominal_covering
-            )  # cm
-            anchorage_calculator.run(left_available_space, left=True)
+            if self._is_at_beam_start:
+                # TODO calculate the bar hook (bar_hooks) length anchoring the bar into the end support
+                layer.set_anchorage_length(0.0, left=True)
+            else:
+                left_available_space = (
+                    self.center_position - RectangularBeam.nominal_covering
+                )  # cm
+                anchorage_calculator.run(left_available_space, left=True)
 
-            right_available_space = (
-                self.beam.length - RectangularBeam.nominal_covering
-            ) - self.center_position  # cm
-            anchorage_calculator.run(right_available_space, left=False)
+            if self._is_at_beam_end:
+                # TODO calculate the bar hook (bar_hooks) length anchoring the bar into the end support
+                layer.set_anchorage_length(0.0, left=False)
+            else:
+                right_available_space = (
+                    self.beam.length - RectangularBeam.nominal_covering
+                ) - self.center_position  # cm
+                anchorage_calculator.run(right_available_space, left=False)
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from src.analysis.beam_analysis import BeamAnalysis
 from src.analysis.model import BeamSupport, DistributedLoad
@@ -12,6 +12,7 @@ from src.config import APP_CONFIG
 from src.loading.forces import design_effort_elu
 from src.logger import log_operation, logger_label
 from src.pavement_elements.beam_span import Span
+from src.pavement_elements.geometry_utils import Axis
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups
@@ -49,25 +50,12 @@ class BeamCalculator:
         self._beam.reinforcement = []
         for position, moment in interest_points:
             log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
-            # TODO the Reinforcement anchorage model assumes a full-length bar
-            # centered at the point and anchored at both beam ends, which does not
-            # hold for hogging bars over a support (center_position at/near a
-            # support -> negative available anchorage space -> ValueError). Guard
-            # and skip such points for now; the correct fix is to anchor hogging
-            # bars into the adjacent spans. See _run_anchorage_calculation.
-            try:
-                calculator = self._calculate(
-                    structural_beam=structural_beam,
-                    stirrups=stirrups,
-                    bending_moment=moment,
-                    bending_moment_position=position,
-                )
-            except ValueError as error:
-                log_operation(
-                    f"Skipping interest point at {position:.2f} cm — reinforcement "
-                    f"could not be dimensioned: {error}"
-                )
-                continue
+            calculator = self._calculate(
+                structural_beam=structural_beam,
+                stirrups=stirrups,
+                bending_moment=moment,
+                bending_moment_position=position,
+            )
             self._store_reinforcement(calculator)
             self._verify_deformation(structural_beam, analysis, calculator, position)
 
@@ -92,20 +80,36 @@ class BeamCalculator:
         return Stirrups(structural_beam, stirrup_calculator, self.label)
 
     def _build_supports(self) -> list[BeamSupport]:
-        """Builds a pinned support at the beam start and at the end of each span.
+        """Builds an elastic-fixed support on each pillar along the beam.
 
-        Each support restrains horizontal and vertical translation but allows
-        rotation; positions accumulate the spans' effective lengths (cm).
+        Each support restrains horizontal and vertical translation, and its rotation is restrained by the pillar's rotational stiffness (see ``Pillar.calculate_stiffness``). Positions accumulate the spans' effective lengths (cm).
 
         Returns:
             One support per span boundary, ordered left to right.
         """
-        support_position = 0.0
-        supports = [BeamSupport(support_position)]
+        axis = cast(Axis, self._beam.axis)
+        concrete = Concrete[APP_CONFIG.pavement_concrete]
+        positions = [0.0]
         for span in self._beam.spans:
-            support_position += span.get_effective_length(self._pillar_registry)
-            supports.append(BeamSupport(support_position))
-        return supports
+            positions.append(
+                positions[-1] + span.get_effective_length(self._pillar_registry)
+            )
+        return [
+            BeamSupport(
+                position,
+                self._pillar_registry[
+                    pillar_id
+                ].calculate_stiffness_for_beam_supporting(axis, concrete),
+            )
+            for position, pillar_id in zip(
+                positions, self._support_pillar_ids(), strict=True
+            )
+        ]
+
+    def _support_pillar_ids(self) -> list[str]:
+        """Returns the id of the pillar under each support, ordered left to right."""
+        spans = self._beam.spans
+        return [spans[0].start_pillar_id] + [span.end_pillar_id for span in spans]
 
     def _build_loads(self) -> list[DistributedLoad]:
         """Builds a list of distributed vertical loads for each span, combining permanent and variable loads."""
