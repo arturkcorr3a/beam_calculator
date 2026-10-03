@@ -50,25 +50,12 @@ class BeamCalculator:
         self._beam.reinforcement = []
         for position, moment in interest_points:
             log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
-            # TODO the Reinforcement anchorage model assumes a full-length bar
-            # centered at the point and anchored at both beam ends, which does not
-            # hold for hogging bars over a support (center_position at/near a
-            # support -> negative available anchorage space -> ValueError). Guard
-            # and skip such points for now; the correct fix is to anchor hogging
-            # bars into the adjacent spans. See _run_anchorage_calculation.
-            try:
-                calculator = self._calculate(
-                    structural_beam=structural_beam,
-                    stirrups=stirrups,
-                    bending_moment=moment,
-                    bending_moment_position=position,
-                )
-            except ValueError as error:
-                log_operation(
-                    f"Skipping interest point at {position:.2f} cm — reinforcement "
-                    f"could not be dimensioned: {error}"
-                )
-                continue
+            calculator = self._calculate(
+                structural_beam=structural_beam,
+                stirrups=stirrups,
+                bending_moment=moment,
+                bending_moment_position=position,
+            )
             self._store_reinforcement(calculator)
             self._verify_deformation(structural_beam, analysis, calculator, position)
 

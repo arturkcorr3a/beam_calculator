@@ -354,6 +354,30 @@ class TestVerifyDeformation:
 
 
 # ---------------------------------------------------------------------------
+# TestRunPropagatesErrors
+# ---------------------------------------------------------------------------
+
+
+class TestRunPropagatesErrors:
+    """run() never skips an interest point that cannot be dimensioned."""
+
+    def test_dimensioning_error_is_raised(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A ValueError from dimensioning propagates out of run()."""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+
+        def failing_calculate(*args: object, **kwargs: object) -> None:
+            raise ValueError("boom")
+
+        monkeypatch.setattr(BeamCalculator, "_calculate", failing_calculate)
+        bc = BeamCalculator(_make_beam_stub(), _make_registry())  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="boom"):
+            bc.run()
+
+
+# ---------------------------------------------------------------------------
 # TestRunIntegration — one conservative real end-to-end run
 # ---------------------------------------------------------------------------
 

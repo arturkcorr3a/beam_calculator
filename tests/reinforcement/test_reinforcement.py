@@ -41,9 +41,7 @@ def reinforcement(beam_double: RectangularBeam) -> Reinforcement:
     A real ``StirrupCalculator`` is wired in because ``choose`` runs the full
     anchorage calculation, which reaches back through the stirrup calculator.
     """
-    stirrup_calculator = StirrupCalculator(
-        beam_double, design_shear_force=50.0, id="S"
-    )
+    stirrup_calculator = StirrupCalculator(beam_double, design_shear_force=50.0, id="S")
     return Reinforcement(
         beam_double,
         is_bottom_reinforcement=True,
@@ -135,10 +133,8 @@ class TestValidateLayerIndex:
 
     def test_out_of_range_raises(self, reinforcement: Reinforcement) -> None:
         reinforcement.set_required_area(4.0)
-        with pytest.raises(
-            ValueError, match="Layer index must be between 0 and"
-        ):
-            reinforcement._validate_layer_index(99) # pyright: ignore[reportPrivateUsage]
+        with pytest.raises(ValueError, match="Layer index must be between 0 and"):
+            reinforcement._validate_layer_index(99)  # pyright: ignore[reportPrivateUsage]
 
 
 class TestDistributeBars:
@@ -168,3 +164,62 @@ class TestClearChosenBars:
         assert reinforcement.is_chosen is True, (
             "clear_chosen_bars only rebuilds the layers; it leaves is_chosen set"
         )
+
+
+def _make_reinforcement(beam: RectangularBeam, center_position: float) -> Reinforcement:
+    """Build a bottom Reinforcement over the beam double at a given center (cm)."""
+    stirrup_calculator = StirrupCalculator(beam, design_shear_force=50.0, id="S")
+    return Reinforcement(
+        beam,
+        is_bottom_reinforcement=True,
+        center_position=center_position,
+        stirrup_calculator=stirrup_calculator,
+        id="R",
+    )
+
+
+def _bars(reinforcement: Reinforcement) -> list[Rebar]:
+    """Return every chosen bar across all layers."""
+    return [bar for layer in reinforcement.chosen_bars for bar in layer.bars]
+
+
+class TestEndSupportAnchorage:
+    """Bars at an end support are anchored only towards the beam interior."""
+
+    def test_beam_start_anchors_right_only(self, beam_double: RectangularBeam) -> None:
+        """At x = 0 the left length stays zero and the right one is calculated (cm)."""
+        reinforcement = _make_reinforcement(beam_double, center_position=0.0)
+        reinforcement.set_required_area(4.0)
+        for bar in _bars(reinforcement):
+            assert bar.left_length == 0, "No left anchorage at the beam start"
+            assert bar.right_length > 0, "Right anchorage should be calculated"
+
+    def test_beam_end_anchors_left_only(self, beam_double: RectangularBeam) -> None:
+        """At x = L the right length stays zero and the left one is calculated (cm)."""
+        reinforcement = _make_reinforcement(beam_double, center_position=500.0)
+        reinforcement.set_required_area(4.0)
+        for bar in _bars(reinforcement):
+            assert bar.right_length == 0, "No right anchorage at the beam end"
+            assert bar.left_length > 0, "Left anchorage should be calculated"
+
+    def test_end_support_right_length_matches_midspan(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        """The anchorage length does not depend on position; only the skipped side does (cm)."""
+        at_start = _make_reinforcement(beam_double, center_position=0.0)
+        at_start.set_required_area(4.0)
+        at_midspan = _make_reinforcement(beam_double, center_position=250.0)
+        at_midspan.set_required_area(4.0)
+        assert_approx(
+            _bars(at_start)[0].right_length,
+            _bars(at_midspan)[0].right_length,
+            "Right anchorage at x = 0 should equal the mid-span one (cm)",
+        )
+
+    def test_midspan_anchors_both_sides(self, beam_double: RectangularBeam) -> None:
+        """Away from the ends both anchorage lengths are calculated (cm)."""
+        reinforcement = _make_reinforcement(beam_double, center_position=250.0)
+        reinforcement.set_required_area(4.0)
+        for bar in _bars(reinforcement):
+            assert bar.left_length > 0, "Left anchorage should be calculated"
+            assert bar.right_length > 0, "Right anchorage should be calculated"
