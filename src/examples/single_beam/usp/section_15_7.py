@@ -50,10 +50,13 @@ def main():
     calculator = RebarCalculator(
         beam=beam,
         bending_moment=max_bending_moment,
-        stirrups=stirrups,
         bending_moment_position=position,
     )
-    calculator.calculate()
+    _, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
+    calculator.calculate_for(
+        stirrup_diameter,
+        stirrup_calculator.calculate_moment_shift(),
+    )
 
 
 if __name__ == "__main__":

@@ -68,10 +68,13 @@ stirrups = Stirrups(beam, stirrup_calculator)
 calculator = RebarCalculator(
     beam=beam,
     bending_moment=design_bending_moment,
-    stirrups=stirrups,
     bending_moment_position=position,
 )
-calculator.calculate()
+_, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
+calculator.calculate_for(
+    stirrup_diameter,
+    stirrup_calculator.calculate_moment_shift(),
+)
 
 compressed = calculator.compressed_reinforcement
 tensioned = calculator.tensioned_reinforcement

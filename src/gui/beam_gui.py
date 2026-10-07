@@ -196,7 +196,11 @@ class SectionDialog(QDialog):
     """Shows the designed cross-section with reinforcements."""
 
     def __init__(
-        self, beam: RectangularBeam, calculator, parent: QWidget = None
+        self,
+        beam: RectangularBeam,
+        calculator,
+        stirrups: Stirrups,
+        parent: QWidget = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Designed cross-section")
@@ -211,10 +215,12 @@ class SectionDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn)
 
-        self._draw(fig, beam, calculator)
+        self._draw(fig, beam, calculator, stirrups)
         canvas.draw()
 
-    def _draw(self, fig: Figure, beam: RectangularBeam, calculator) -> None:  # NOSONAR
+    def _draw(
+        self, fig: Figure, beam: RectangularBeam, calculator, stirrups: Stirrups
+    ) -> None:  # NOSONAR
         style_figure(fig, DARK_BG_MAIN)
         w = beam.width
         h = beam.height
@@ -237,7 +243,7 @@ class SectionDialog(QDialog):
             )
         )
 
-        stirrup_d_cm = calculator.stirrups.diameter
+        stirrup_d_cm = stirrups.diameter
         sx0, sy0 = cov, cov
         sw, sh = w - 2 * cov, h - 2 * cov
         ax.add_patch(
@@ -253,7 +259,7 @@ class SectionDialog(QDialog):
             )
         )
 
-        stirrup_spacing = calculator.stirrups.spacing
+        stirrup_spacing = stirrups.spacing
         stirrup_diam_mm = int(stirrup_d_cm * 10)
         ax.text(
             w / 2,
@@ -429,6 +435,7 @@ class BeamCalculatorWindow(QMainWindow):
         self._last_results_text: str = ""
         self._last_beam: RectangularBeam | None = None
         self._last_calculator = None
+        self._last_stirrups: Stirrups | None = None
         self._pavement_window = None
 
         self._build_ui()
@@ -595,7 +602,9 @@ class BeamCalculatorWindow(QMainWindow):
         ResultsDialog(self._last_results_text, self).exec()
 
     def _open_section(self) -> None:
-        SectionDialog(self._last_beam, self._last_calculator, self).exec()
+        SectionDialog(
+            self._last_beam, self._last_calculator, self._last_stirrups, self
+        ).exec()
 
     def _open_diagrams(self) -> None:
         DiagramsDialog(self._last_beam, self).exec()
@@ -730,10 +739,12 @@ class BeamCalculatorWindow(QMainWindow):
             calculator = RebarCalculator(
                 beam=beam,
                 bending_moment=max_bending_moment,
-                stirrups=stirrups,
                 bending_moment_position=position,
             )
-            calculator.calculate()
+            _, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
+            calculator.calculate_for(
+                stirrup_diameter, stirrup_calculator.calculate_moment_shift()
+            )
         except ValueError as exc:
             QMessageBox.warning(
                 self,
@@ -752,15 +763,16 @@ class BeamCalculatorWindow(QMainWindow):
 
         self._last_beam = beam
         self._last_calculator = calculator
+        self._last_stirrups = stirrups
         self._last_results_text = self._build_results_text(
-            beam, max_bending_moment, design_shear_force, calculator
+            beam, max_bending_moment, design_shear_force, calculator, stirrups
         )
 
         for btn in (self.results_button, self.section_button, self.diagrams_button):
             btn.setEnabled(True)
 
     def _build_results_text(
-        self, beam, max_bending_moment, design_shear_force, calculator
+        self, beam, max_bending_moment, design_shear_force, calculator, stirrups
     ) -> str:
         length_cm = beam.length
         reaction_a = beam.get_reaction(0, "y")
@@ -786,7 +798,7 @@ class BeamCalculatorWindow(QMainWindow):
         blocks.append(
             format_reinforcement(calculator.tensioned_reinforcement, "Tensioned")
         )
-        blocks.append(format_stirrups(calculator.stirrups))
+        blocks.append(format_stirrups(stirrups))
         if calculator.compressed_reinforcement.is_chosen:
             blocks.append(
                 format_reinforcement(calculator.compressed_reinforcement, "Compressed")

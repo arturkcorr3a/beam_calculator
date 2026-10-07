@@ -960,6 +960,7 @@ class BeamReportWindow(QDialog):
         self._pillar_registry = pillar_registry
         self._rect_beam = None
         self._calculator = None
+        self._stirrups = None
         self._results_text = ""
         self._build_ui()
         self._run()
@@ -1019,7 +1020,9 @@ class BeamReportWindow(QDialog):
         self._ResultsDialog(self._results_text, self).exec()
 
     def _open_section(self) -> None:
-        self._SectionDialog(self._rect_beam, self._calculator, self).exec()
+        self._SectionDialog(
+            self._rect_beam, self._calculator, self._stirrups, self
+        ).exec()
 
     def _open_diagrams(self) -> None:
         self._DiagramsDialog(self._rect_beam, self).exec()
@@ -1051,11 +1054,13 @@ class BeamReportWindow(QDialog):
             calculator = RebarCalculator(
                 beam=rect_beam,
                 bending_moment=max_bm,
-                stirrups=stirrups,
                 bending_moment_position=position,
                 id=beam.id,
             )
-            calculator.calculate()
+            _, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
+            calculator.calculate_for(
+                stirrup_diameter, stirrup_calc.calculate_moment_shift()
+            )
         except Exception as exc:  # noqa: BLE001
             self._status_label.setText(f"Error: {exc}")
             self._status_label.setStyleSheet(f"color: {DARK_DANGER};")
@@ -1063,8 +1068,9 @@ class BeamReportWindow(QDialog):
 
         self._rect_beam = rect_beam
         self._calculator = calculator
+        self._stirrups = stirrups
         self._results_text = self._build_results_text(
-            rect_beam, max_bm, max_sf, design_sf, calculator
+            rect_beam, max_bm, max_sf, design_sf, calculator, stirrups
         )
         self._status_label.setText("Analysis complete.")
         self._status_label.setStyleSheet(f"color: {DARK_SUCCESS}; font-weight: bold;")
@@ -1072,7 +1078,7 @@ class BeamReportWindow(QDialog):
             btn.setEnabled(True)
 
     def _build_results_text(
-        self, rect_beam, max_bm, max_sf, design_sf, calculator
+        self, rect_beam, max_bm, max_sf, design_sf, calculator, stirrups
     ) -> str:
         from src.gui.beam_gui import format_reinforcement, format_stirrups
 
@@ -1106,7 +1112,7 @@ class BeamReportWindow(QDialog):
         blocks.append(
             format_reinforcement(calculator.tensioned_reinforcement, "Tensioned")
         )
-        blocks.append(format_stirrups(calculator.stirrups))
+        blocks.append(format_stirrups(stirrups))
         if calculator.compressed_reinforcement.is_chosen:
             blocks.append(
                 format_reinforcement(calculator.compressed_reinforcement, "Compressed")

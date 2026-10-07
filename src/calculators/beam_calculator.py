@@ -176,11 +176,14 @@ class BeamCalculator:
         calculator = RebarCalculator(
             beam=structural_beam,
             bending_moment=bending_moment,
-            stirrups=stirrups,
             bending_moment_position=bending_moment_position,
             id=self.label,
         )
-        calculator.calculate()
+        _, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
+        calculator.calculate_for(
+            stirrup_diameter,
+            stirrups.calculator.calculate_moment_shift(),
+        )
         return calculator
 
     def _store_reinforcement(self, calculator: RebarCalculator) -> None:

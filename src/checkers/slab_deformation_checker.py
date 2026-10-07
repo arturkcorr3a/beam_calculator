@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from typing import override
 
 from src.calculators.rebar_calculator import RebarCalculator
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.checkers.deformation_checker import DeformationChecker
 from src.config import APP_CONFIG
 from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
@@ -20,7 +19,6 @@ from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
 from src.properties.steel import Steel
-from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 
@@ -193,19 +191,12 @@ class SlabDeformationChecker(DeformationChecker):
         )
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 
-        dummy_stirrup_calculator = StirrupCalculator(
-            dummy_beam, 0, id="Dummy for min tension rebar area calculation"
-        )
-        dummy_stirrups = Stirrups(
-            dummy_beam,
-            dummy_stirrup_calculator,
-            id="Dummy for min tension rebar area calculation",
-        )
         calculator = RebarCalculator(
             beam=dummy_beam,
             bending_moment=self.service_moment,
-            stirrups=dummy_stirrups,
             bending_moment_position=0,
+            d=self.effective_depth,
+            d_compressed=self.effective_depth_compressed,
             id="Dummy for min tension rebar area calculation",
         )
 

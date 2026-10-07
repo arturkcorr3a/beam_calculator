@@ -1,7 +1,6 @@
 from functools import cached_property
 from math import sqrt
 
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -16,12 +15,13 @@ from src.logger import (
 )
 from src.properties.steel import Steel
 from src.reinforcement.reinforcement import Reinforcement
-from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = (
     1.0  # cm, default diameter of stirrup bars if not chosen (10 mm)
 )
+
+EFFECTIVE_DEPTH_TOLERANCE = 0.01  # cm
 
 
 @logger_label("Rebar Calculator - {id}")
@@ -35,7 +35,6 @@ class RebarCalculator:
         *,  # This forces the use of keyword arguments for clarity
         beam: RectangularBeam,
         bending_moment: float,
-        stirrups: Stirrups,
         bending_moment_position: float,
         id: str = "",
         d: float | None = None,  # Optional effective depth parameter
@@ -46,7 +45,6 @@ class RebarCalculator:
         Args:
             beam: Rectangular beam section.
             bending_moment: Characteristic bending moment (kN.m).
-            stirrups: Stirrups instance for the beam.
             bending_moment_position: Position along the beam's length where the bending moment is applied (cm).
         """
         self.preset_d = d
@@ -64,17 +62,15 @@ class RebarCalculator:
             self.beam,
             is_bottom_reinforcement=is_bottom_tensioned,
             center_position=bending_moment_position,
-            stirrup_calculator=stirrups.calculator,
             id=self.id,
         )
         self.compressed_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_top_tensioned,
             center_position=bending_moment_position,
-            stirrup_calculator=stirrups.calculator,
             id=self.id,
         )
-        self.stirrups = stirrups
+        self.stirrup_diameter: float | None = None  # cm, set by calculate_for
 
     def cleanup(self) -> None:
         """
@@ -95,10 +91,23 @@ class RebarCalculator:
                 delattr(self, prop)
                 log_property(f"Cleared cached property: {prop}")
 
-    def calculate(self) -> None:
+    def calculate_for(self, stirrup_diameter: float, moment_shift: float) -> None:
+        """Dimension the longitudinal reinforcement for the given stirrups
+
+        Iterates until the effective depth (d) converges.
+
+        Args:
+            stirrup_diameter: Diameter of the chosen stirrup bars (cm).
+            moment_shift: Moment shift length a_l of the stirrups (cm), used
+                for the bars' anchorage.
+        """
+        self.stirrup_diameter = stirrup_diameter
+        self.tensioned_reinforcement.moment_shift = moment_shift
+        self.compressed_reinforcement.moment_shift = moment_shift
+
         current_d = 0.0
         iteration_count = 1
-        while abs(current_d - self.d) > 0.01:
+        while abs(current_d - self.d) > EFFECTIVE_DEPTH_TOLERANCE:
             log_iteration(f"Iteration {iteration_count} starting...")
             current_d = self.d
             self.cleanup()
@@ -108,7 +117,6 @@ class RebarCalculator:
                 self.compressed_reinforcement.set_required_area(
                     self.compressed_rebar_area
                 )
-            self.stirrups.calculate_and_choose(self.d)
             as2 = 0.0 if self.is_singly_reinforced else self.compressed_rebar_area
             log_iteration(
                 f"Iteration {iteration_count} summary: d={self.d:.2f} cm | As1={self.tensioned_rebar_area:.3f} cm2 | As2={as2:.3f} cm2 | delta d={abs(current_d - self.d):.3f} cm"
@@ -139,18 +147,9 @@ class RebarCalculator:
         """
         md_min = min_design_bending_moment(self.beam)  # kN.cm
 
-        stirrup_calculator = StirrupCalculator(
-            self.beam, 0, "Dummy for min tension rebar area calculation"
-        )
-        stirrups = Stirrups(
-            self.beam,
-            stirrup_calculator,
-            "Dummy for min tension rebar area calculation",
-        )
         calculator = RebarCalculator(
             beam=self.beam,
             bending_moment=0,
-            stirrups=stirrups,
             bending_moment_position=0,
             id="Dummy for min tension rebar area calculation",
             d=self.d,
@@ -158,7 +157,6 @@ class RebarCalculator:
         )
 
         calculator.design_bending_moment = md_min
-        calculator.d = self.d  # cm
         calculated_min = calculator.as1  # cm^2
         absolute_min = 0.15 / 100 * self.beam.width * self.beam.height
         min_tension_rebar_area = max(calculated_min, absolute_min)
@@ -308,8 +306,8 @@ class RebarCalculator:
                 label,
             )
 
-        if self.stirrups.diameter is not None:
-            stirrup_diameter = self.stirrups.diameter
+        if self.stirrup_diameter is not None:
+            stirrup_diameter = self.stirrup_diameter
             log_property(
                 f"ACTUAL stirrup diameter (phi) = {stirrup_diameter:.2f} cm", label
             )
@@ -379,7 +377,9 @@ class RebarCalculator:
         Calculates the distance (cm) from the extreme compression fiber to the centroid of the compressed rebar (d'), considering the current rebar configuration.
         """
         if self.preset_d_compressed is not None:
-            log_operation(f"Using preset compressed effective depth (d') = {self.preset_d_compressed:.2f} cm")
+            log_operation(
+                f"Using preset compressed effective depth (d') = {self.preset_d_compressed:.2f} cm"
+            )
             return self.preset_d_compressed
 
         log_operation("Calculating compressed effective depth (d')...")
@@ -404,8 +404,8 @@ class RebarCalculator:
             )
 
         # REFACTOR this is a duplicate of the code in d() property, maybe make a specific private method to get the effective covering for a reinforcement
-        if self.stirrups.diameter is not None:
-            stirrup_diameter = self.stirrups.diameter
+        if self.stirrup_diameter is not None:
+            stirrup_diameter = self.stirrup_diameter
             log_property(
                 f"ACTUAL stirrup diameter (phi) = {stirrup_diameter:.2f} cm", label
             )

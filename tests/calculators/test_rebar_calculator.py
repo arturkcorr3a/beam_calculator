@@ -49,11 +49,9 @@ def calculator(beam_mock: Mock) -> RebarCalculator:
 
     The _BeamMeta patch is still active (inherited from beam_mock fixture scope).
     """
-    stirrups = Mock()
     calc = RebarCalculator(
         beam=beam_mock,
         bending_moment=272,
-        stirrups=stirrups,
         bending_moment_position=beam_mock.length / 2,
         id="Test Beam",
     )
@@ -65,11 +63,9 @@ def calculator(beam_mock: Mock) -> RebarCalculator:
 @pytest.fixture
 def calculator_preset(beam_mock: Mock) -> RebarCalculator:
     """RebarCalculator with d/d_compressed supplied as constructor args (preset path)."""
-    stirrups = Mock()
     return RebarCalculator(
         beam=beam_mock,
         bending_moment=272,
-        stirrups=stirrups,
         bending_moment_position=beam_mock.length / 2,
         id="Test Beam Preset",
         d=56,
@@ -80,11 +76,9 @@ def calculator_preset(beam_mock: Mock) -> RebarCalculator:
 @pytest.fixture
 def calculator_small_moment(beam_mock: Mock) -> RebarCalculator:
     """RebarCalculator for a singly-reinforced case (bending_moment=50 kN.m)."""
-    stirrups = Mock()
     calc = RebarCalculator(
         beam=beam_mock,
         bending_moment=50,
-        stirrups=stirrups,
         bending_moment_position=beam_mock.length / 2,
         id="Test Beam Small",
     )
@@ -129,11 +123,9 @@ class TestMaxY:
     def test_c60_ductility_branch(self, beam_mock: Mock) -> None:
         """max_y uses 0.35*lambda_c branch when fck > 50 (cm)."""
         beam_mock.concrete = Concrete.C60
-        stirrups = Mock()
         calc = RebarCalculator(
             beam=beam_mock,
             bending_moment=272,
-            stirrups=stirrups,
             bending_moment_position=beam_mock.length / 2,
             id="C60 test",
         )
@@ -379,11 +371,9 @@ class TestCalculateAndSetRequiredTensionedRebarArea:
         """ValueError when total area > max_rebar_area (cm²)."""
         # Shrink beam area so max_rebar_area = 0.04 * 400 = 16 < 23 cm²
         beam_mock.area = 400
-        stirrups = Mock()
         calc = RebarCalculator(
             beam=beam_mock,
             bending_moment=272,
-            stirrups=stirrups,
             bending_moment_position=beam_mock.length / 2,
             id="overload test",
         )
@@ -424,15 +414,9 @@ class TestEffectiveDepthErrors:
 
     def test_d_raises_when_first_layer_is_empty(self, beam_mock: Mock) -> None:
         """d raises ValueError when tensioned reinforcement is chosen but empty."""
-        # Build a stirrups stub with diameter=None so the default path is taken
-        stirrups_stub = types.SimpleNamespace(
-            diameter=None,
-            calculator=types.SimpleNamespace(calculate_moment_shift=lambda: 0),
-        )
         calc = RebarCalculator(
             beam=beam_mock,
             bending_moment=272,
-            stirrups=stirrups_stub,  # type: ignore[arg-type]
             bending_moment_position=250,
             id="err test",
         )
@@ -471,40 +455,34 @@ class TestCleanup:
 
 
 # ---------------------------------------------------------------------------
-# TestCalculate (isolated/mocked, per plan)
+# TestCalculateFor (isolated/mocked, per plan)
 # ---------------------------------------------------------------------------
 
 
-class TestCalculate:
-    """Tests for calculate() — the convergence loop (mocked, not full solve)."""
+class TestCalculateFor:
+    """Tests for calculate_for() — the convergence loop (mocked, not full solve)."""
 
     def test_loop_terminates_with_preset_d(
         self, calculator_preset: RebarCalculator
     ) -> None:
-        """calculate() exits the loop when d is stable (preset path), without error."""
-        # Stub stirrups.calculate_and_choose to be a no-op
-        calculator_preset.stirrups.calculate_and_choose = Mock(return_value=(30.0, 1.0))  # type: ignore[assignment]
+        """calculate_for() exits the loop when d is stable (preset path), without error."""
         # Stub set_required_area on both reinforcements to be no-ops
         calculator_preset.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
         calculator_preset.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
 
-        calculator_preset.calculate()  # must not raise or loop forever
+        calculator_preset.calculate_for(1.0, 28.0)  # must not raise or loop forever
 
-        # stirrups.calculate_and_choose should have been called at least once
-        assert calculator_preset.stirrups.calculate_and_choose.called, (
-            "stirrups.calculate_and_choose should be called during calculate()"
+        assert calculator_preset.tensioned_reinforcement.set_required_area.called, (  # type: ignore[attr-defined]
+            "tensioned reinforcement should be chosen during calculate_for()"
         )
 
     def test_singly_reinforced_does_not_call_compressed_set_required_area(
         self, beam_mock: Mock
     ) -> None:
-        """calculate() does not set compressed reinforcement area for singly-reinforced."""
-        stirrups = Mock()
-        stirrups.calculate_and_choose = Mock(return_value=(30.0, 1.0))
+        """calculate_for() does not set compressed reinforcement area for singly-reinforced."""
         calc = RebarCalculator(
             beam=beam_mock,
             bending_moment=50,  # small → singly reinforced
-            stirrups=stirrups,
             bending_moment_position=beam_mock.length / 2,
             id="single test",
             d=56,
@@ -513,6 +491,50 @@ class TestCalculate:
         calc.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
         calc.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
 
-        calc.calculate()
+        calc.calculate_for(1.0, 28.0)
 
         calc.compressed_reinforcement.set_required_area.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_propagates_moment_shift_to_reinforcements(
+        self, calculator_preset: RebarCalculator
+    ) -> None:
+        """calculate_for() hands the moment shift a_l (cm) to both reinforcements."""
+        calculator_preset.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
+        calculator_preset.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
+
+        calculator_preset.calculate_for(1.0, 28.0)
+
+        assert calculator_preset.tensioned_reinforcement.moment_shift == 28.0, (
+            "tensioned reinforcement should receive a_l (cm)"
+        )
+        assert calculator_preset.compressed_reinforcement.moment_shift == 28.0, (
+            "compressed reinforcement should receive a_l (cm)"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestStirrupDiameterInDepths
+# ---------------------------------------------------------------------------
+
+
+class TestStirrupDiameterInDepths:
+    """Tests for the stirrup diameter's effect on d and d' (cm)."""
+
+    def test_default_diameter_when_not_given(self, beam_mock: Mock) -> None:
+        """Without calculate_for(), d uses the 1.0 cm default stirrup (cm)."""
+        calc = RebarCalculator(
+            beam=beam_mock, bending_moment=272, bending_moment_position=250
+        )
+        # 60 - 3 (cover) - 1.0 (default bars) - 1.0 (default stirrup)
+        assert_approx(calc.d, 55.0, "d with default stirrup diameter (cm)")
+
+    def test_given_diameter_is_used(self, beam_mock: Mock) -> None:
+        """A set stirrup diameter replaces the default in d and d' (cm)."""
+        calc = RebarCalculator(
+            beam=beam_mock, bending_moment=272, bending_moment_position=250
+        )
+        calc.stirrup_diameter = 0.63
+        # 60 - 3 (cover) - 1.0 (default bars) - 0.63 (stirrup)
+        assert_approx(calc.d, 55.37, "d with 6.3 mm stirrups (cm)")
+        # 3 (cover) + 0.63 (stirrup) + 1.0 (default bars)
+        assert_approx(calc.d_compressed, 4.63, "d' with 6.3 mm stirrups (cm)")

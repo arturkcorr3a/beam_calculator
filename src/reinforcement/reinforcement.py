@@ -1,7 +1,7 @@
 from collections import Counter
+from typing import cast
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
 from src.logger import (
     log_element,
@@ -34,7 +34,6 @@ class Reinforcement:
         beam: RectangularBeam,
         is_bottom_reinforcement: bool,
         center_position: float,
-        stirrup_calculator: StirrupCalculator,
         id: str = "",
     ):
         self.beam = beam
@@ -44,7 +43,7 @@ class Reinforcement:
         self.rebar_choice_options = []
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
-        self.stirrup_calculator = stirrup_calculator
+        self.moment_shift: float | None = None  # cm, a_l
         self.id = id
 
     def _build_empty_layers(self) -> tuple[Layer, ...]:
@@ -63,7 +62,10 @@ class Reinforcement:
         )
         if self.required_area is None:
             raise ValueError("Required area must be set before choosing reinforcement.")
+        if self.moment_shift is None:
+            raise ValueError("Moment shift must be set before choosing reinforcement.")
 
+        self.clear_chosen_bars()  # drop bars left by a previous choice
         rebar_chooser = RebarChooser(self.steel, self.required_area)
         self.rebar_choice_options = rebar_chooser.solutions_per_diameter
         for optimal_reinforcement in self.rebar_choice_options.values():
@@ -116,12 +118,13 @@ class Reinforcement:
         Raises a ValueError if there isn't enough space for anchorage, even after adding hooks.
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
+        moment_shift = cast(float, self.moment_shift)
         for layer_index, layer in enumerate(self.chosen_bars):
             if len(layer.bars) == 0:
                 continue
             anchorage_calculator = AnchorageCalculator(
                 reinforcement=self,
-                stirrup_calculator=self.stirrup_calculator,
+                moment_shift=moment_shift,
                 steel=self.steel,
                 concrete=self.beam.concrete,
                 layer_index=layer_index,

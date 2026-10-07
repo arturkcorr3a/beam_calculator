@@ -16,6 +16,7 @@ from src.pavement_elements.geometry_utils import Axis
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.stirrups import Stirrups
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -31,8 +32,11 @@ def _make_span_stub(
     variable_load: float = 5.0,
     length_cm: float = _SPAN_LENGTH_CM,
 ) -> types.SimpleNamespace:
-    """Return a minimal Span stub whose length getters ignore the registry."""
-    return types.SimpleNamespace(
+    """Return a minimal Span stub whose length getters ignore the registry.
+
+    ``set_stirrups`` stores the stirrups on the stub, like ``Span.set_stirrups``.
+    """
+    span = types.SimpleNamespace(
         permanent_load=permanent_load,
         variable_load=variable_load,
         start_pillar_id="P1",
@@ -40,6 +44,12 @@ def _make_span_stub(
         get_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]
         get_effective_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]
     )
+
+    def set_stirrups(stirrups: Stirrups) -> None:
+        span.stirrups = stirrups
+
+    span.set_stirrups = set_stirrups
+    return span
 
 
 def _make_beam_stub(

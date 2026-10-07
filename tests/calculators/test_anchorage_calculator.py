@@ -63,7 +63,7 @@ def _make_ac(
     """Construct AnchorageCalculator with minimal stubs."""
     reinforcement = _make_reinforcement(layer, required_area, area, beam_height)
     return AnchorageCalculator(
-        stirrup_calculator=types.SimpleNamespace(),  # pyright: ignore[reportArgumentType]
+        moment_shift=28.0,
         steel=steel,
         concrete=concrete,
         layer_index=0,
@@ -227,7 +227,7 @@ class TestBasicAnchorageLength:
         layer.y_centroid_position = 5.0
         reinforcement = _make_reinforcement(layer, required_area=2.0, area=2.0)
         ac_fake = AnchorageCalculator(
-            stirrup_calculator=types.SimpleNamespace(),  # pyright: ignore[reportArgumentType]
+            moment_shift=28.0,
             steel=fake_steel,
             concrete=Concrete.C25,
             layer_index=0,
