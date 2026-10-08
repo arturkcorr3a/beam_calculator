@@ -1033,6 +1033,7 @@ class BeamReportWindow(QDialog):
         from src.calculators.beam_calculator import BeamCalculator
         from src.calculators.rebar_calculator import RebarCalculator
         from src.calculators.stirrup_calculator import StirrupCalculator
+        from src.calculators.stirrup_rebar_coordinator import coordinate_span
         from src.loading.forces import (
             design_effort_elu,
         )
@@ -1057,10 +1058,7 @@ class BeamReportWindow(QDialog):
                 bending_moment_position=position,
                 id=beam.id,
             )
-            _, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
-            calculator.calculate_for(
-                stirrup_diameter, stirrup_calc.calculate_moment_shift()
-            )
+            coordinate_span([calculator], stirrups)
         except Exception as exc:  # noqa: BLE001
             self._status_label.setText(f"Error: {exc}")
             self._status_label.setStyleSheet(f"color: {DARK_DANGER};")

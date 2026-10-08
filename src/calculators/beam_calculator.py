@@ -7,6 +7,7 @@ from src.analysis.model import BeamSupport, DistributedLoad
 from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
+from src.calculators.stirrup_rebar_coordinator import coordinate_span
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
 from src.loading.forces import design_effort_elu
@@ -15,12 +16,17 @@ from src.pavement_elements.beam_span import Span
 from src.pavement_elements.geometry_utils import Axis
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE
 from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam
     from src.pavement_elements.pillar import Pillar
+
+SUPPORT_SPLIT_OFFSET = (
+    0.01  # cm, shift of an interior-support point into each adjacent span
+)
 
 
 @logger_label("{label}")
@@ -37,8 +43,9 @@ class BeamCalculator:
     def label(self) -> str:
         return self._beam.id
 
+    # FIXME correct the reinforcement at the inner supports (will be doubled)
     def run(self) -> None:
-        """Dimensions the beam: builds the structural model, computes forces, and calculates reinforcement at every interest point."""
+        """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points."""
         supports = self._build_supports()
         loads = self._build_loads()
         structural_beam = self._build_structural_beam()
@@ -48,26 +55,74 @@ class BeamCalculator:
         self._build_stirrups(structural_beam, analysis)
 
         self._beam.reinforcement = []
-        for position, moment in interest_points:
-            log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
-            span = self._span_at(position)
-            calculator = self._calculate(
-                structural_beam=structural_beam,
-                stirrups=span.stirrups,
-                bending_moment=moment,
-                bending_moment_position=position,
-            )
-            self._store_reinforcement(calculator)
-            self._verify_deformation(structural_beam, analysis, calculator, position)
+        for span, start, end in self._span_ranges():
+            points = [
+                (position, moment)
+                for position, moment in interest_points
+                if start <= position <= end
+            ]
+            if not points:
+                # TODO dimension the minimum reinforcement (stirrups and longitudinal) for spans without interest points
+                log_operation(
+                    f"No interest point in span {start:.2f}-{end:.2f} cm; stirrups not dimensioned"
+                )
+                continue
+
+            for position, moment in points:
+                log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
+            calculators = [
+                self._build_rebar_calculator(structural_beam, moment, position)
+                for position, moment in points
+            ]
+            coordinate_span(calculators, span.stirrups)
+            for (position, _), calculator in zip(points, calculators, strict=True):
+                self._store_reinforcement(calculator)
+                self._verify_deformation(
+                    structural_beam, analysis, calculator, position
+                )
 
     def _interest_points(self, analysis: BeamAnalysis) -> list[tuple[float, float]]:
         """Finds the dominant bending-moment extreme per segment along the beam.
 
+        Extremes on an interior support are split into one point on each side of it (see ``_split_support_points``), so both adjacent spans dimension them.
+
         Returns:
-            One `(position, moment)` per segment between bending-moment zeros
-            (position in cm, moment in kN.m), sorted left to right.
+            `(position, moment)` pairs (position in cm, moment in kN.m), sorted left to right.
         """
-        return analysis.moment_extremes_per_segment()
+        return self._split_support_points(analysis.moment_extremes_per_segment())
+
+    def _split_support_points(
+        self, points: list[tuple[float, float]]
+    ) -> list[tuple[float, float]]:
+        """Splits every point on an interior support into two, SUPPORT_SPLIT_OFFSET to its left and right.
+
+        Both keep the support's moment. Points at the beam ends and elsewhere are kept as they are.
+
+        Args:
+            points: `(position, moment)` pairs (position in cm, moment in kN.m).
+        """
+        interior_supports = [end for _, _, end in self._span_ranges()[:-1]]  # cm
+        split_points: list[tuple[float, float]] = []
+        for position, moment in points:
+            if any(
+                abs(position - support) <= END_SUPPORT_TOLERANCE
+                for support in interior_supports
+            ):
+                split_points.append((position - SUPPORT_SPLIT_OFFSET, moment))
+                split_points.append((position + SUPPORT_SPLIT_OFFSET, moment))
+            else:
+                split_points.append((position, moment))
+        return split_points
+
+    def _span_ranges(self) -> list[tuple[Span, float, float]]:
+        """Returns each span with its start and end positions along the beam (cm), left to right."""
+        ranges: list[tuple[Span, float, float]] = []
+        start = 0.0
+        for span in self._beam.spans:
+            end = start + span.get_effective_length(self._pillar_registry)
+            ranges.append((span, start, end))
+            start = end
+        return ranges
 
     def _build_stirrups(
         self, structural_beam: RectangularBeam, analysis: BeamAnalysis
@@ -88,7 +143,7 @@ class BeamCalculator:
             stirrup_calculator = StirrupCalculator(
                 structural_beam, design_shear_force, self.label
             )
-            
+
             span.set_stirrups(Stirrups(structural_beam, stirrup_calculator, self.label))
 
     def _build_supports(self) -> list[BeamSupport]:
@@ -159,32 +214,25 @@ class BeamCalculator:
             self.label,
         )
 
-    def _calculate(
+    def _build_rebar_calculator(
         self,
         structural_beam: RectangularBeam,
-        stirrups: Stirrups,
         bending_moment: float,
         bending_moment_position: float,
     ) -> RebarCalculator:
-        """Dimensions the longitudinal reinforcement for a single interest point.
+        """Builds the longitudinal reinforcement calculator for a single interest point (dimensioned later by ``coordinate_span``).
 
         Args:
             bending_moment: Characteristic bending moment at the point (kN.m); its
                 sign selects the tensioned face.
             bending_moment_position: Position of the point along the beam (cm).
         """
-        calculator = RebarCalculator(
+        return RebarCalculator(
             beam=structural_beam,
             bending_moment=bending_moment,
             bending_moment_position=bending_moment_position,
             id=self.label,
         )
-        _, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
-        calculator.calculate_for(
-            stirrup_diameter,
-            stirrups.calculator.calculate_moment_shift(),
-        )
-        return calculator
 
     def _store_reinforcement(self, calculator: RebarCalculator) -> None:
         """Appends the point's tensioned reinforcement (and compressed, if doubly reinforced) to the beam."""

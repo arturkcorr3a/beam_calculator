@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (
 
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
+from src.calculators.stirrup_rebar_coordinator import coordinate_span
 from src.config import APP_CONFIG
 from src.gui.theme import (
     DARK_ACCENT,
@@ -741,10 +742,7 @@ class BeamCalculatorWindow(QMainWindow):
                 bending_moment=max_bending_moment,
                 bending_moment_position=position,
             )
-            _, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
-            calculator.calculate_for(
-                stirrup_diameter, stirrup_calculator.calculate_moment_shift()
-            )
+            coordinate_span([calculator], stirrups)
         except ValueError as exc:
             QMessageBox.warning(
                 self,

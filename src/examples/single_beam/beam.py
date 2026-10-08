@@ -6,6 +6,7 @@ from src.analysis.model import BeamSupport, DistributedLoad
 from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
+from src.calculators.stirrup_rebar_coordinator import coordinate_span
 from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -70,11 +71,7 @@ calculator = RebarCalculator(
     bending_moment=design_bending_moment,
     bending_moment_position=position,
 )
-_, stirrup_diameter = stirrups.calculate_and_choose(calculator.d)
-calculator.calculate_for(
-    stirrup_diameter,
-    stirrup_calculator.calculate_moment_shift(),
-)
+coordinate_span([calculator], stirrups)
 
 compressed = calculator.compressed_reinforcement
 tensioned = calculator.tensioned_reinforcement
