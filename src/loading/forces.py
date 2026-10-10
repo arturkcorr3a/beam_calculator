@@ -77,7 +77,6 @@ def almost_permanent_combination_els(
     return permanent_load + psi_2 * variable_load
 
 
-# TODO change the way of ELU and design values: combine the actions previously to the structural analysis; use the following function when performing the structural analysis, and then take the output to calculate
 def normal_elu_combination(permanent_load: float, variable_load: float) -> float:
     """Calculate the normal ELU load combination applying load factor γ_f = 1.4.
 
