@@ -25,7 +25,6 @@ class BeamAnalysis(Protocol):
         """Return the deflection at a position (cm, downward negative)."""
         ...
 
-    # TODO I will need it by span
     def max_abs_shear(self) -> float:
         """Return the largest absolute shear force along the beam (kN)."""
         ...
