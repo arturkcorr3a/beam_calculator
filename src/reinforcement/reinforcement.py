@@ -132,8 +132,9 @@ class Reinforcement:
             )
 
             if self._is_at_beam_start:
-                # TODO calculate the bar hook (bar_hooks) length anchoring the bar into the end support
-                layer.set_anchorage_length(0.0, left=True)
+                is_left = True
+                layer.set_hooks(is_left, True)
+                layer.set_anchorage_length(0.0, is_left)
             else:
                 left_available_space = (
                     self.center_position - RectangularBeam.nominal_covering
@@ -141,8 +142,9 @@ class Reinforcement:
                 anchorage_calculator.run(left_available_space, left=True)
 
             if self._is_at_beam_end:
-                # TODO calculate the bar hook (bar_hooks) length anchoring the bar into the end support
-                layer.set_anchorage_length(0.0, left=False)
+                is_left = False
+                layer.set_hooks(is_left, True)
+                layer.set_anchorage_length(0.0, is_left)
             else:
                 right_available_space = (
                     self.beam.length - RectangularBeam.nominal_covering

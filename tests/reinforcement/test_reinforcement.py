@@ -201,23 +201,35 @@ def _bars(reinforcement: Reinforcement) -> list[Rebar]:
 
 
 class TestEndSupportAnchorage:
-    """Bars at an end support are anchored only towards the beam interior."""
+    """Bars at an end support are hooked into it and anchored towards the interior."""
 
     def test_beam_start_anchors_right_only(self, beam_double: RectangularBeam) -> None:
-        """At x = 0 the left length stays zero and the right one is calculated (cm)."""
+        """At x = 0 the left side is hooked with zero length; the right one is calculated (cm)."""
         reinforcement = _make_reinforcement(beam_double, center_position=0.0)
         reinforcement.set_required_area(4.0)
         for bar in _bars(reinforcement):
             assert bar.left_length == 0, "No left anchorage at the beam start"
             assert bar.right_length > 0, "Right anchorage should be calculated"
+            assert bar.left_hook_enabled is True, (
+                "Left hook should anchor the bar into the start support"
+            )
+            assert bar.right_hook_enabled is False, (
+                "Interior side needs no hook with 250+ cm available"
+            )
 
     def test_beam_end_anchors_left_only(self, beam_double: RectangularBeam) -> None:
-        """At x = L the right length stays zero and the left one is calculated (cm)."""
+        """At x = L the right side is hooked with zero length; the left one is calculated (cm)."""
         reinforcement = _make_reinforcement(beam_double, center_position=500.0)
         reinforcement.set_required_area(4.0)
         for bar in _bars(reinforcement):
             assert bar.right_length == 0, "No right anchorage at the beam end"
             assert bar.left_length > 0, "Left anchorage should be calculated"
+            assert bar.right_hook_enabled is True, (
+                "Right hook should anchor the bar into the end support"
+            )
+            assert bar.left_hook_enabled is False, (
+                "Interior side needs no hook with 250+ cm available"
+            )
 
     def test_end_support_right_length_matches_midspan(
         self, beam_double: RectangularBeam
@@ -240,3 +252,5 @@ class TestEndSupportAnchorage:
         for bar in _bars(reinforcement):
             assert bar.left_length > 0, "Left anchorage should be calculated"
             assert bar.right_length > 0, "Right anchorage should be calculated"
+            assert bar.left_hook_enabled is False, "No left hook away from the ends"
+            assert bar.right_hook_enabled is False, "No right hook away from the ends"
