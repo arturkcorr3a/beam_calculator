@@ -348,10 +348,33 @@ class Reinforcement:
             )
 
     def arrange_bars_in_layer(self, layer: Layer) -> None:
+        """Reorder the layer's bars in place so the row is easy to build
+
+        Rules, in priority order: the row is symmetric (a palindrome by diameter), and the largest diameters sit on the outside. Bars of each diameter are paired, largest first, and mirrored from the edges inwards; an odd bar is placed in the center. When more than one diameter has an odd count, perfect symmetry is impossible and the unpaired bars fill the middle, largest alternating outer-left and outer-right.
         """
-        Arranges the bars within a specific layer to maintain symmetry and proper spacing.
-        """
-        # IMPLEMENT arrange bars to make it easier to build - this can be done afterwards, when it is time to create the drawings.
+        if len(layer.bars) <= 1:
+            return
+
+        bars_by_diameter: dict[float, list[Rebar]] = {}
+        for bar in layer.bars:
+            bars_by_diameter.setdefault(bar.diameter_mm, []).append(bar)
+
+        left: list[Rebar] = []
+        right: list[Rebar] = []
+        leftovers: list[Rebar] = []
+        for diameter in sorted(bars_by_diameter, reverse=True):
+            bars = bars_by_diameter[diameter]
+            pairs_count = len(bars) // 2
+            left.extend(bars[:pairs_count])
+            right.extend(bars[pairs_count : 2 * pairs_count])
+            if len(bars) % 2 == 1:
+                leftovers.append(bars[-1])
+
+        middle_left = leftovers[0::2]
+        middle_right = leftovers[1::2]
+        layer.bars = (
+            left + middle_left + list(reversed(middle_right)) + list(reversed(right))
+        )
 
     def clear_chosen_bars(self) -> None:
         """
