@@ -6,6 +6,8 @@ from typing import cast
 import pytest
 
 import src.pavement_elements.continuous_beam as _cb_module
+from src.analysis.beam_analysis import BeamAnalysis
+from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.loading.linear_loads import LinearLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
@@ -597,6 +599,44 @@ class TestDimension:
         horizontal_beam.dimension(registry_horizontal)
 
         assert calls == ["run"], "dimension() should call BeamCalculator.run() once"
+
+    def test_dimension_error_names_the_beam(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class _FailingCalc:
+            def __init__(
+                self, beam: ContinuousBeam, registry: dict[str, Pillar]
+            ) -> None:
+                pass
+
+            def run(self) -> None:
+                raise ValueError("No valid reinforcement combination found.")
+
+        monkeypatch.setattr(_cb_module, "BeamCalculator", _FailingCalc)
+        expected = rf"^Beam '{horizontal_beam.id}': No valid reinforcement combination found\.$"
+        with pytest.raises(ValueError, match=expected) as raised:
+            horizontal_beam.dimension(registry_horizontal)
+        assert isinstance(raised.value.__cause__, ValueError), (
+            "the calculator's error should be chained as the cause"
+        )
+
+
+class TestClearResolved:
+    """clear_resolved forgets the results of the last resolution and dimensioning."""
+
+    def test_resets_analysis_and_calculators(
+        self, horizontal_beam: ContinuousBeam
+    ) -> None:
+        horizontal_beam.analysis = cast(BeamAnalysis, SimpleNamespace())
+        horizontal_beam.rebar_calculators = [cast(RebarCalculator, SimpleNamespace())]
+        horizontal_beam.clear_resolved()
+        assert horizontal_beam.analysis is None, "analysis should be cleared"
+        assert horizontal_beam.rebar_calculators == [], (
+            "rebar_calculators should be cleared"
+        )
 
 
 # ---------------------------------------------------------------------------

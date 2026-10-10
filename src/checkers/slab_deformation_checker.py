@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import override
 
 from src.calculators.rebar_calculator import RebarCalculator
+from src.checkers.deformation_check_result import DeformationCheckResult
 from src.checkers.deformation_checker import DeformationChecker
 from src.config import APP_CONFIG
 from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
@@ -57,6 +58,19 @@ class SlabDeformationChecker(DeformationChecker):
     def verify(self, height: float) -> bool:
         with self.own_weight_for_current_height(height):
             return super().verify(height)
+
+    @override
+    def result(self) -> DeformationCheckResult:
+        """Snapshot the verification at the last verified height, with the slab's own weight
+
+        Returns:
+            The verification's values; ``permanent_load`` includes the own weight.
+
+        Raises:
+            ValueError: If ``verify`` has not been called yet.
+        """
+        with self.own_weight_for_current_height(self.height):
+            return super().result()
 
     @contextmanager
     def own_weight_for_current_height(self, height: float):

@@ -5,7 +5,9 @@ from dataclasses import dataclass, field
 from itertools import count
 from typing import cast
 
+from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.beam_calculator import BeamCalculator
+from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
@@ -73,6 +75,12 @@ class ContinuousBeam:
     reinforcement: list[Reinforcement] = field(
         default_factory=list[Reinforcement], init=False
     )
+    analysis: BeamAnalysis | None = field(
+        default=None, init=False
+    )  # structural analysis of the last dimensioning
+    rebar_calculators: list[RebarCalculator] = field(
+        default_factory=list[RebarCalculator], init=False
+    )  # governing calculator of each interest point, left to right
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -116,6 +124,8 @@ class ContinuousBeam:
         self.axis = None
         self.centerline = None
         self.spans = []
+        self.analysis = None
+        self.rebar_calculators = []
 
     # PAPER find reference for this method
     def pre_size(self, pillar_registry: dict[str, Pillar]) -> float:
@@ -148,9 +158,17 @@ class ContinuousBeam:
         return self.height
 
     def dimension(self, pillar_registry: dict[str, Pillar]) -> None:
-        """Runs structural dimensioning: builds the model, calculates reinforcement, and exports the report."""
+        """Runs structural dimensioning: builds the model, calculates reinforcement, and exports the report.
+
+        Raises:
+            ValueError: If the dimensioning fails; the message is prefixed with
+                the beam id, since the calculators' messages do not name it.
+        """
         log_general("Start calculation process...")
-        BeamCalculator(self, pillar_registry).run()
+        try:
+            BeamCalculator(self, pillar_registry).run()
+        except ValueError as error:
+            raise ValueError(f"Beam '{self.id}': {error}") from error
         log_element(f"dimensioned {self.width:.0f} x {self.height:.0f} cm")
 
     def report(self, pillar_registry: dict[str, Pillar]) -> str:

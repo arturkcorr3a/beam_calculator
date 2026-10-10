@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum, IntEnum
 from pathlib import Path
@@ -70,6 +71,20 @@ class BeamLogger:
         self._output = output
         if output in (LogOutput.FILE, LogOutput.BOTH):
             self._open_log_file()
+
+    @contextmanager
+    def suppressed(self) -> Generator[None]:
+        """Silence every message inside the context, without reopening the log file
+
+        Used for engine work that is not part of a calculation (e.g. a GUI
+        checking or drawing elements), so it stays out of the memorial.
+        """
+        previous_level = self._level
+        self._level = LogLevel.DISABLED
+        try:
+            yield
+        finally:
+            self._level = previous_level
 
     def __del__(self) -> None:
         if self._log_file is not None:
@@ -175,4 +190,5 @@ log_element = _logger.log_element
 log_interaction = _logger.log_interaction
 log_general = _logger.log_general
 configure_logger = _logger.configure
+suppress_logging = _logger.suppressed
 # loggerlabel is a plain function — already importable at module level

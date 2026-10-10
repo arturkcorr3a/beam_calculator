@@ -95,6 +95,10 @@ class TestBeamProperty:
         with pytest.raises(ValueError, match="has no resolved supporting beam"):
             _ = bottom_edge.beam
 
+    def test_unresolved_message_uses_edge_value(self, bottom_edge: SlabEdge) -> None:
+        with pytest.raises(ValueError, match=r"^Slab edge 'bottom' has no"):
+            _ = bottom_edge.beam
+
     def test_resolved_returns_beam(
         self, bottom_edge: SlabEdge, beam_double: ContinuousBeam
     ) -> None:

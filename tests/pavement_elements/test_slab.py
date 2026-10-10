@@ -57,6 +57,19 @@ def _make_slab_with_beams(
     return s
 
 
+_CHECK_RESULT_SENTINEL = object()  # stands in for a DeformationCheckResult
+_SUPPORT_CASE_DOUBLE = 4  # Carvalho Quadro 7.2 case reported by the checker doubles
+
+
+class _CheckerDouble:
+    """Base for SlabDeformationChecker doubles: the members pre_size reads after its loop."""
+
+    supporting_case = _SUPPORT_CASE_DOUBLE
+
+    def result(self) -> object:
+        return _CHECK_RESULT_SENTINEL
+
+
 def _skip_support_resolution(monkeypatch: pytest.MonkeyPatch, slab: Slab) -> None:
     """Make resolve_support_conditions a no-op (the beam doubles carry no spans)."""
     monkeypatch.setattr(slab, "resolve_support_conditions", lambda registry: None)  # pyright: ignore
@@ -286,11 +299,7 @@ class TestMapPillarsToCorners:
 
 
 class TestValidatePillarsExist:
-    """_validate_pillars_exist raises when a corner pillar is absent from the registry.
-
-    NOTE: The production error message says "Beam '...' :" instead of "Slab '...' :".
-    This is a copy-paste bug in the source; the test matches the actual verbatim text.
-    """
+    """_validate_pillars_exist raises when a corner pillar is absent from the registry."""
 
     def test_missing_pillar_raises(self) -> None:
         s = Slab(
@@ -300,6 +309,30 @@ class TestValidatePillarsExist:
         registry = {"PA": Mock(), "PB": Mock(), "PC": Mock()}  # PD is absent
         with pytest.raises(ValueError, match="does not exist in the registry"):
             s._validate_pillars_exist(registry)  # type: ignore[arg-type]  # pyright: ignore[reportPrivateUsage]
+
+    def test_message_names_the_slab(self) -> None:
+        s = Slab(
+            corner_pillar_ids=("PA", "PB", "PC", "PD"),
+            local="Bedrooms",
+        )
+        registry = {"PA": Mock(), "PB": Mock(), "PC": Mock()}  # PD is absent
+        with pytest.raises(ValueError, match=rf"^Slab '{s.id}': pillar 'PD'"):
+            s._validate_pillars_exist(registry)  # type: ignore[arg-type]  # pyright: ignore[reportPrivateUsage]
+
+
+class TestResolveEdgeMessage:
+    """_resolve_edge names the edge by its plain value when no beam supports it."""
+
+    def test_missing_beam_message_uses_edge_value(self) -> None:
+        s = Slab(corner_pillar_ids=("PA", "PB", "PC", "PD"), local="Bedrooms")
+        s.corners_pillar_dict = {
+            "bottom_left": Pillar(0.0, 0.0, 20.0, 30.0),
+            "bottom_right": Pillar(500.0, 0.0, 20.0, 30.0),
+            "top_left": Pillar(0.0, 400.0, 20.0, 30.0),
+            "top_right": Pillar(500.0, 400.0, 20.0, 30.0),
+        }
+        with pytest.raises(ValueError, match=r"No valid beam found for top edge\.$"):
+            s._resolve_edge(Edges.TOP, {})  # pyright: ignore[reportPrivateUsage]
 
 
 # ---------------------------------------------------------------------------
@@ -367,7 +400,7 @@ class TestPreSize:
     ) -> None:
         s = _make_slab_with_beams(300.0, 300.0)
 
-        class _AlwaysPass:
+        class _AlwaysPass(_CheckerDouble):
             def __init__(self, **kw: object) -> None:
                 pass
 
@@ -390,7 +423,7 @@ class TestPreSize:
         s = _make_slab_with_beams(300.0, 300.0)
         call_count: list[int] = [0]
 
-        class _FailOnce:
+        class _FailOnce(_CheckerDouble):
             def __init__(self, **kw: object) -> None:
                 pass
 
@@ -413,7 +446,7 @@ class TestPreSize:
     ) -> None:
         s = _make_slab_with_beams(300.0, 300.0)
 
-        class _AlwaysFail:
+        class _AlwaysFail(_CheckerDouble):
             def __init__(self, **kw: object) -> None:
                 pass
 
@@ -433,7 +466,7 @@ class TestPreSize:
         s = _make_slab_with_beams(300.0, 400.0, beam_width=20.0)
         verified_spans: list[tuple[float, float, float]] = []
 
-        class _PassAtThird:
+        class _PassAtThird(_CheckerDouble):
             def __init__(self, *, lx: float, ly: float, **kw: object) -> None:
                 self.lx = lx
                 self.ly = ly
@@ -466,7 +499,7 @@ class TestPreSize:
                 "fixed" if s.thickness >= 9 else "pinned"
             )
 
-        class _RecordConditions:
+        class _RecordConditions(_CheckerDouble):
             def __init__(
                 self, *, support_conditions: dict[Edges, str], **kw: object
             ) -> None:
@@ -484,6 +517,60 @@ class TestPreSize:
 
         assert seen == [(8, "pinned"), (9, "fixed"), (10, "fixed")], (
             "checker conditions should follow the thickness being tried"
+        )
+
+    def test_stores_the_passing_check(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        s = _make_slab_with_beams(300.0, 300.0)
+
+        class _PassAtNine(_CheckerDouble):
+            def __init__(self, **kw: object) -> None:
+                pass
+
+            def verify(self, h: int) -> bool:
+                return h >= 9
+
+        monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _PassAtNine)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+        _skip_support_resolution(monkeypatch, s)
+
+        s.pre_size({})
+        assert s.deflection_check is _CHECK_RESULT_SENTINEL, (
+            "pre_size should keep the checker's result after the loop"
+        )
+        assert s.deflection_support_case == _SUPPORT_CASE_DOUBLE, (
+            "pre_size should keep the checker's support case"
+        )
+
+    def test_failure_keeps_no_check(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        s = _make_slab_with_beams(300.0, 300.0)
+
+        class _AlwaysFail(_CheckerDouble):
+            def __init__(self, **kw: object) -> None:
+                pass
+
+            def verify(self, h: int) -> bool:
+                return False
+
+        monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _AlwaysFail)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+        _skip_support_resolution(monkeypatch, s)
+
+        with pytest.raises(ValueError, match="cannot be stabilized"):
+            s.pre_size({})
+        assert s.deflection_check is None, "a failed pre_size should store no check"
+
+
+class TestClearResolvedDeflection:
+    """clear_resolved forgets the stored deflection check."""
+
+    def test_resets_check_and_support_case(self) -> None:
+        s = Slab(corner_pillar_ids=("PA", "PB", "PC", "PD"), local="Bedrooms")
+        s.deflection_check = _CHECK_RESULT_SENTINEL  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
+        s.deflection_support_case = _SUPPORT_CASE_DOUBLE
+        s.clear_resolved()
+        assert s.deflection_check is None, "deflection_check should be cleared"
+        assert s.deflection_support_case is None, (
+            "deflection_support_case should be cleared"
         )
 
 

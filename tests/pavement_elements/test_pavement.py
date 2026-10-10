@@ -7,7 +7,8 @@ import pytest
 
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
-from src.pavement_elements.continuous_beam import ContinuousBeam
+from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
@@ -475,4 +476,77 @@ class TestResolve:
         )
         assert "unload" in slab_log, (
             "unload_slabs_on_beams should call slab.unload_on_supporting_spans"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestResolveKeepsResults — one real end-to-end resolve
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def resolved_single_panel() -> Pavement:
+    """Resolve a real 5 × 4 m single-slab pavement: 4 pillars, 4 perimeter beams, 1 slab.
+
+    Module-scoped: the resolve is slow and the tests only read its results.
+    """
+    corners = [
+        Pillar(x=0, y=0, width=20, depth=25),
+        Pillar(x=500, y=0, width=30, depth=25),
+        Pillar(x=0, y=400, width=20, depth=35),
+        Pillar(x=500, y=400, width=30, depth=35),
+    ]
+    bottom_left, bottom_right, top_left, top_right = corners
+    pavement = Pavement()
+    for pillar in corners:
+        pavement.add_pillar(pillar)
+    wall = WallDefinition(False, "hollow concrete block", 14, 1)
+    for ids, alignment in [
+        ([bottom_left.id, bottom_right.id], Alignment.BOTTOM),
+        ([top_left.id, top_right.id], Alignment.TOP),
+        ([bottom_left.id, top_left.id], Alignment.LEFT),
+        ([bottom_right.id, top_right.id], Alignment.RIGHT),
+    ]:
+        pavement.add_beam(ContinuousBeam(ids, ids[0], 16, alignment, wall))
+    pavement.add_slab(
+        Slab(corner_pillar_ids=tuple(p.id for p in corners), local="Bedrooms")  # type: ignore[arg-type]
+    )
+    pavement.resolve()
+    return pavement
+
+
+class TestResolveKeepsResults:
+    """resolve() leaves the results the GUI reads on the elements."""
+
+    def test_beams_keep_analysis_and_calculators(
+        self, resolved_single_panel: Pavement
+    ) -> None:
+        for beam in resolved_single_panel.beams.values():
+            assert beam.analysis is not None, f"{beam.id} should keep its analysis"
+            assert beam.rebar_calculators, f"{beam.id} should keep its calculators"
+            positions = [c.bending_moment_position for c in beam.rebar_calculators]
+            assert positions == sorted(positions), (
+                f"{beam.id} calculators should be ordered left to right"
+            )
+
+    def test_spans_keep_characteristic_shear(
+        self, resolved_single_panel: Pavement
+    ) -> None:
+        for beam in resolved_single_panel.beams.values():
+            for span in beam.spans:
+                assert span.characteristic_shear_force > 0, (
+                    f"{beam.id} spans should keep a positive Vk (kN)"
+                )
+
+    def test_slab_keeps_passing_deflection_check(
+        self, resolved_single_panel: Pavement
+    ) -> None:
+        slab = next(iter(resolved_single_panel.slabs.values()))
+        assert slab.deflection_check is not None, "slab should keep its check"
+        assert slab.deflection_check.passes, "the kept check should pass"
+        assert slab.deflection_check.height == slab.thickness, (
+            "the check should be at the final thickness (cm)"
+        )
+        assert slab.deflection_support_case in range(1, 10), (
+            "support case should be one of Carvalho's cases 1-9"
         )

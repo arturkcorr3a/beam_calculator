@@ -29,6 +29,9 @@ class Span:
     )
     permanent_load: float = field(default=0.0, init=False)  # kN/m
     variable_load: float = field(default=0.0, init=False)  # kN/m
+    characteristic_shear_force: float = field(
+        default=0.0, init=False
+    )  # kN, greatest |V| inside the span, set when stirrups are dimensioned
     stirrups: Stirrups = field(init=False)
 
     def get_length(self, pillar_registry: dict[str, Pillar]) -> float:

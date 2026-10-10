@@ -79,9 +79,12 @@ class BeamCalculator:
                 for (position, _), calculator in zip(points, calculators, strict=True)
             )
 
+        self._beam.analysis = analysis
         self._beam.reinforcement = []
+        self._beam.rebar_calculators = []
         for position, calculator in self._keep_governing_support_results(results):
             self._store_reinforcement(calculator)
+            self._beam.rebar_calculators.append(calculator)
             self._verify_deformation(structural_beam, analysis, calculator, position)
 
     def _interest_points(self, analysis: BeamAnalysis) -> list[tuple[float, float]]:
@@ -202,6 +205,7 @@ class BeamCalculator:
             )  # kN, 1 mm inside the span to avoid support discontinuity
 
             max_shear_force = max(abs(shear_force_start), abs(shear_force_end))  # kN
+            span.characteristic_shear_force = max_shear_force
             design_shear_force = design_effort_elu(max_shear_force)  # kN
             stirrup_calculator = StirrupCalculator(
                 structural_beam, design_shear_force, self.label
