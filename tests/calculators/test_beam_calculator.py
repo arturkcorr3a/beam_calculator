@@ -668,7 +668,7 @@ class TestRunIntegration:
 
     Uses a SimpleNamespace beam stub wired to a pre-resolved single span
     (500 cm, 15 kN/m permanent load, 5 kN/m variable load) so that the
-    indeterminatebeam solver, RebarCalculator convergence loop, and
+    anaStruct solver, RebarCalculator convergence loop, and
     BeamDeformationChecker all execute against real objects — no mocking.
 
     The beam is 20×60 cm, C25/CA50, deliberately under-loaded so that both

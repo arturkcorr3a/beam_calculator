@@ -20,7 +20,7 @@ def beam_double() -> RectangularBeam:
 
     The reinforcement orchestration only reads material grades and geometry off
     the beam, so a ``SimpleNamespace`` cast to ``RectangularBeam`` avoids running
-    the heavy ``indeterminatebeam`` analysis while still driving the real
+    the structural analysis while still driving the real
     ``RebarChooser`` and ``AnchorageCalculator``.
     """
     beam = types.SimpleNamespace(

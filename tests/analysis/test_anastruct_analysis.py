@@ -2,7 +2,7 @@
 
 anaStruct is an Euler–Bernoulli solver, so every reference value is the
 closed-form result of classical beam theory for a C25/CA50 20x60 cm section
-(no shear-deformation term, unlike ``indeterminatebeam``).
+(no shear-deformation term).
 
 anaStruct restrains rotations at fixed supports and springs only to about
 1e-7 relative precision, so statically indeterminate results use
