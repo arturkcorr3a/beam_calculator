@@ -9,6 +9,7 @@ from src.pavement_elements.geometry_utils import (
     get_pillar_parallel_extent,
 )
 from src.pavement_elements.pillar import Pillar
+from src.reinforcement.stirrups import Stirrups
 
 if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam
@@ -32,6 +33,7 @@ class Span:
     )
     permanent_load: float = field(default=0.0, init=False)  # kN/m
     variable_load: float = field(default=0.0, init=False)  # kN/m
+    stirrups: Stirrups = field(init=False)
 
     def get_length(self, pillar_registry: dict[str, Pillar]) -> float:
         """Returns the span's length (cm) from the supporting pillars."""
@@ -97,3 +99,7 @@ class Span:
             self.permanent_load += load
         else:
             self.variable_load += load
+
+    def set_stirrups(self, stirrups: Stirrups) -> None:
+        """Sets the stirrups for this span."""
+        self.stirrups = stirrups

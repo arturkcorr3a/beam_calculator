@@ -5,7 +5,6 @@ from typing import cast
 
 import pytest
 
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -38,17 +37,17 @@ def beam_double() -> RectangularBeam:
 def reinforcement(beam_double: RectangularBeam) -> Reinforcement:
     """Build a bottom Reinforcement centered at midspan over the beam double.
 
-    A real ``StirrupCalculator`` is wired in because ``choose`` runs the full
-    anchorage calculation, which reaches back through the stirrup calculator.
+    The moment shift a_l (cm) is set because ``choose`` runs the full
+    anchorage calculation, which requires it.
     """
-    stirrup_calculator = StirrupCalculator(beam_double, design_shear_force=50.0, id="S")
-    return Reinforcement(
+    reinforcement = Reinforcement(
         beam_double,
         is_bottom_reinforcement=True,
         center_position=250.0,
-        stirrup_calculator=stirrup_calculator,
         id="R",
     )
+    reinforcement.moment_shift = 28.0
+    return reinforcement
 
 
 class TestPureHelpers:
@@ -127,6 +126,24 @@ class TestChoose:
             "The single-layer centroid sits 0.8 cm from the bottom edge",
         )
 
+    def test_rechoosing_discards_previous_bars(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """A second choice does not keep the multi-layer bars of the first (cm²)."""
+        reinforcement.set_required_area(14.0)
+        first_area = reinforcement.area
+        assert len(reinforcement.chosen_bars[1].bars) > 0, (
+            "14 cm² in a 20 cm wide beam should need a second layer"
+        )
+
+        reinforcement.set_required_area(14.0)
+
+        assert_approx(
+            reinforcement.area,
+            first_area,
+            "Re-choosing the same area should give the same bars, not pile them up",
+        )
+
 
 class TestValidateLayerIndex:
     """Tests for the layer-index bounds check."""
@@ -168,14 +185,14 @@ class TestClearChosenBars:
 
 def _make_reinforcement(beam: RectangularBeam, center_position: float) -> Reinforcement:
     """Build a bottom Reinforcement over the beam double at a given center (cm)."""
-    stirrup_calculator = StirrupCalculator(beam, design_shear_force=50.0, id="S")
-    return Reinforcement(
+    reinforcement = Reinforcement(
         beam,
         is_bottom_reinforcement=True,
         center_position=center_position,
-        stirrup_calculator=stirrup_calculator,
         id="R",
     )
+    reinforcement.moment_shift = 28.0  # cm
+    return reinforcement
 
 
 def _bars(reinforcement: Reinforcement) -> list[Rebar]:

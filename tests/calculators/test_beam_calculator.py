@@ -9,6 +9,7 @@ import types
 
 import pytest
 
+from src.calculators import beam_calculator
 from src.calculators.beam_calculator import BeamCalculator
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
@@ -16,6 +17,7 @@ from src.pavement_elements.geometry_utils import Axis
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.stirrups import Stirrups
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -31,8 +33,11 @@ def _make_span_stub(
     variable_load: float = 5.0,
     length_cm: float = _SPAN_LENGTH_CM,
 ) -> types.SimpleNamespace:
-    """Return a minimal Span stub whose length getters ignore the registry."""
-    return types.SimpleNamespace(
+    """Return a minimal Span stub whose length getters ignore the registry.
+
+    ``set_stirrups`` stores the stirrups on the stub, like ``Span.set_stirrups``.
+    """
+    span = types.SimpleNamespace(
         permanent_load=permanent_load,
         variable_load=variable_load,
         start_pillar_id="P1",
@@ -40,6 +45,12 @@ def _make_span_stub(
         get_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]
         get_effective_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]
     )
+
+    def set_stirrups(stirrups: Stirrups) -> None:
+        span.stirrups = stirrups
+
+    span.set_stirrups = set_stirrups
+    return span
 
 
 def _make_beam_stub(
@@ -60,6 +71,18 @@ def _make_beam_stub(
         axis=axis,
         reinforcement=[],
         get_most_loaded_span_for_els=lambda: spans[0],
+    )
+
+
+def _make_calculator_stub(
+    position: float, tensioned_area: float, compressed_area: float = 0.0
+) -> types.SimpleNamespace:
+    """Return a RebarCalculator stub with chosen tensioned/compressed areas (cm²)."""
+    return types.SimpleNamespace(
+        position=position,
+        tensioned_reinforcement=types.SimpleNamespace(area=tensioned_area),
+        compressed_reinforcement=types.SimpleNamespace(area=compressed_area),
+        total_area=tensioned_area + compressed_area,
     )
 
 
@@ -229,7 +252,7 @@ class TestBuildStructuralBeam:
 
 
 class TestInterestPoints:
-    """Tests for _interest_points() — delegates to the analysis."""
+    """Tests for _interest_points() — the analysis' extremes, split at interior supports."""
 
     def test_returns_extreme_per_segment(self) -> None:
         """_interest_points() returns the analysis' per-segment extremes (cm, kN.m)."""
@@ -241,6 +264,59 @@ class TestInterestPoints:
 
         assert points == [(250.0, 42.0), (500.0, -30.0)], (
             "_interest_points should return the per-segment extremes"
+        )
+
+    def test_splits_interior_support_point(self) -> None:
+        """A point on an interior support becomes one point 0.01 cm to each side (cm, kN.m)."""
+        analysis = types.SimpleNamespace(
+            moment_extremes_per_segment=lambda: [(300.0, -60.0)],
+        )
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+
+        points = bc._interest_points(analysis)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+
+        assert len(points) == 2, "the support point should be split in two"
+        assert_approx(
+            points[0][0], 299.99, "left point 0.01 cm before the support (cm)"
+        )
+        assert_approx(
+            points[1][0], 300.01, "right point 0.01 cm after the support (cm)"
+        )
+        assert points[0][1] == points[1][1] == -60.0, (
+            "both split points keep the support's moment (kN.m)"
+        )
+
+    def test_keeps_beam_end_and_midspan_points(self) -> None:
+        """Points at the beam ends or inside a span are not split (cm, kN.m)."""
+        extremes = [(0.0, -20.0), (150.0, 40.0), (420.0, 25.0), (500.0, -15.0)]
+        analysis = types.SimpleNamespace(moment_extremes_per_segment=lambda: extremes)
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+
+        points = bc._interest_points(analysis)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+
+        assert points == extremes, "end and midspan points should be kept as they are"
+
+
+# ---------------------------------------------------------------------------
+# TestSpanRanges
+# ---------------------------------------------------------------------------
+
+
+class TestSpanRanges:
+    """Tests for _span_ranges() — each span with its start and end positions (cm)."""
+
+    def test_cumulative_ranges(self) -> None:
+        """Spans follow each other along the beam (cm)."""
+        first = _make_span_stub(length_cm=300.0)
+        second = _make_span_stub(length_cm=200.0)
+        bc = BeamCalculator(_make_beam_stub(spans=[first, second]), {})  # type: ignore[arg-type]
+
+        ranges = bc._span_ranges()  # pyright: ignore[reportPrivateUsage]
+
+        assert ranges == [(first, 0.0, 300.0), (second, 300.0, 500.0)], (
+            "each span should start where the previous one ends (cm)"
         )
 
 
@@ -371,10 +447,170 @@ class TestRunPropagatesErrors:
         def failing_calculate(*args: object, **kwargs: object) -> None:
             raise ValueError("boom")
 
-        monkeypatch.setattr(BeamCalculator, "_calculate", failing_calculate)
+        monkeypatch.setattr(
+            BeamCalculator, "_build_rebar_calculator", failing_calculate
+        )
         bc = BeamCalculator(_make_beam_stub(), _make_registry())  # type: ignore[arg-type]
         with pytest.raises(ValueError, match="boom"):
             bc.run()
+
+
+# ---------------------------------------------------------------------------
+# TestGetInteriorSupports
+# ---------------------------------------------------------------------------
+
+
+class TestGetInteriorSupports:
+    """Tests for _get_interior_supports() — supports between spans (cm)."""
+
+    def test_two_spans_have_one_interior_support(self) -> None:
+        """The support between two spans sits at the first span's end (cm)."""
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+
+        assert bc._get_interior_supports() == [300.0], (  # pyright: ignore[reportPrivateUsage]
+            "the only interior support is at 300 cm"
+        )
+
+    def test_single_span_has_none(self) -> None:
+        """A single span has only end supports."""
+        bc = BeamCalculator(_make_beam_stub(), {})  # type: ignore[arg-type]
+
+        assert bc._get_interior_supports() == [], (  # pyright: ignore[reportPrivateUsage]
+            "a single span has no interior support"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestKeepGoverningSupportResults
+# ---------------------------------------------------------------------------
+
+
+class TestKeepGoverningSupportResults:
+    """Tests for _keep_governing_support_results() — one result per interior support."""
+
+    @staticmethod
+    def _make_calculator() -> BeamCalculator:
+        """Build a BeamCalculator over two spans (300 + 200 cm)."""
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        return BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
+
+    def test_keeps_greatest_total_area(self) -> None:
+        """The side with the greater tensioned + compressed area is kept (cm²)."""
+        left = _make_calculator_stub(299.99, tensioned_area=5.0)
+        right = _make_calculator_stub(300.01, tensioned_area=4.0, compressed_area=2.0)
+        results = [(299.99, left), (300.01, right)]
+
+        kept = self._make_calculator()._keep_governing_support_results(results)  # type: ignore[arg-type]  # pyright: ignore[reportPrivateUsage]
+
+        assert kept == [(300.01, right)], (
+            "4 + 2 cm² on the right beats 5 cm² on the left"
+        )
+
+    def test_tie_keeps_left_side(self) -> None:
+        """Equal total areas keep the left side (cm²)."""
+        left = _make_calculator_stub(299.99, tensioned_area=5.0)
+        right = _make_calculator_stub(300.01, tensioned_area=5.0)
+        results = [(299.99, left), (300.01, right)]
+
+        kept = self._make_calculator()._keep_governing_support_results(results)  # type: ignore[arg-type]  # pyright: ignore[reportPrivateUsage]
+
+        assert kept == [(299.99, left)], "a tie should keep the left side"
+
+    def test_other_results_pass_through(self) -> None:
+        """Beam-end and midspan results are kept as they are, in order."""
+        results = [
+            (0.0, _make_calculator_stub(0.0, tensioned_area=2.0)),
+            (150.0, _make_calculator_stub(150.0, tensioned_area=4.0)),
+            (420.0, _make_calculator_stub(420.0, tensioned_area=3.0)),
+            (500.0, _make_calculator_stub(500.0, tensioned_area=2.0)),
+        ]
+
+        kept = self._make_calculator()._keep_governing_support_results(results)  # type: ignore[arg-type]  # pyright: ignore[reportPrivateUsage]
+
+        assert kept == results, "results away from interior supports are unchanged"
+
+
+# ---------------------------------------------------------------------------
+# TestRunBySpan
+# ---------------------------------------------------------------------------
+
+
+class TestRunBySpan:
+    """run() coordinates each span's stirrups with the interest points inside it."""
+
+    def test_coordinates_each_span_with_its_points(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each span is coordinated once, and an interior-support point reaches both spans (cm)."""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        analysis = types.SimpleNamespace(
+            moment_extremes_per_segment=lambda: [
+                (150.0, 40.0),
+                (300.0, -60.0),
+                (420.0, 25.0),
+            ],
+            shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
+        )
+
+        def analyse_beam(*args: object) -> types.SimpleNamespace:
+            return analysis
+
+        def build_rebar_calculator(
+            self: BeamCalculator,
+            structural_beam: object,
+            moment: float,
+            position: float,
+        ) -> types.SimpleNamespace:
+            # the support's right side (300.01 cm) needs more steel than its left side
+            return _make_calculator_stub(
+                position, tensioned_area=5.0 if position > 300.0 else 4.0
+            )
+
+        stored: list[float] = []
+
+        def store_reinforcement(
+            self: BeamCalculator, calculator: types.SimpleNamespace
+        ) -> None:
+            stored.append(calculator.position)
+
+        def verify_deformation(*args: object) -> None:
+            return None
+
+        coordinated: list[list[float]] = []
+
+        def coordinate_span(
+            calculators: list[types.SimpleNamespace], stirrups: object
+        ) -> None:
+            coordinated.append([calculator.position for calculator in calculators])
+
+        monkeypatch.setattr(beam_calculator, "analyse_beam", analyse_beam)
+        monkeypatch.setattr(
+            BeamCalculator, "_build_rebar_calculator", build_rebar_calculator
+        )
+        monkeypatch.setattr(BeamCalculator, "_store_reinforcement", store_reinforcement)
+        monkeypatch.setattr(BeamCalculator, "_verify_deformation", verify_deformation)
+        monkeypatch.setattr(beam_calculator, "coordinate_span", coordinate_span)
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
+
+        bc.run()
+
+        assert len(coordinated) == 2, "each span should be coordinated once"
+        for actual, expected in zip(coordinated[0], [150.0, 299.99], strict=True):
+            assert_approx(
+                actual, expected, "first span: midspan point and support's left (cm)"
+            )
+        for actual, expected in zip(coordinated[1], [300.01, 420.0], strict=True):
+            assert_approx(
+                actual, expected, "second span: support's right and midspan point (cm)"
+            )
+        assert len(stored) == 3, "the support should be stored once"
+        for actual, expected in zip(stored, [150.0, 300.01, 420.0], strict=True):
+            assert_approx(
+                actual, expected, "support stored from its governing (right) side (cm)"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -400,8 +636,8 @@ class TestRunIntegration:
         """run() completes without raising for a modest single-span 20×60 C25/CA50 beam.
 
         Integration test — transitively covers _build_supports, _build_loads,
-        _build_structural_beam, _interest_points, _calculate (RebarCalculator
-        convergence), _store_reinforcement, and _verify_deformation (pass branch).
+        _build_structural_beam, _interest_points, _build_rebar_calculator,
+        coordinate_span (stirrup ↔ rebar convergence), _store_reinforcement, and _verify_deformation (pass branch).
         """
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
         monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")

@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, cast
 
-from src.calculators.stirrup_calculator import StirrupCalculator
 from src.logger import log_operation, log_property, logger_label
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -10,19 +9,20 @@ if TYPE_CHECKING:
     from src.reinforcement.reinforcement import Reinforcement  # noqa: TC004
 
 
+# FIXME moment_shift is not being used - calculations should use it. Fix.
 @logger_label("Anchorage Calculator - {logging_info}")
 class AnchorageCalculator:
     def __init__(
         self,
         *,  # This forces the use of keyword arguments for clarity
-        stirrup_calculator: StirrupCalculator,
+        moment_shift: float,
         steel: Steel,
         concrete: Concrete,
         layer_index: int,
         reinforcement: Reinforcement,
         id: str = "",
     ):
-        self.stirrup_calculator = stirrup_calculator
+        self.moment_shift = moment_shift  # cm, a_l
         self.steel = steel
         self.concrete = concrete
         self.layer = reinforcement.chosen_bars[layer_index]
@@ -69,8 +69,8 @@ class AnchorageCalculator:
         return False
 
     @property
-    def _moment_shift_length(self):
-        return self.stirrup_calculator.calculate_moment_shift()
+    def _moment_shift_length(self) -> float:
+        return self.moment_shift
 
     @property
     def design_bond_strength(self) -> float:
