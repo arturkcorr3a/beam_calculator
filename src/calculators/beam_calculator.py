@@ -43,9 +43,11 @@ class BeamCalculator:
     def label(self) -> str:
         return self._beam.id
 
-    # FIXME correct the reinforcement at the inner supports (will be doubled)
     def run(self) -> None:
-        """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points."""
+        """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points.
+
+        Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation.
+        """
         supports = self._build_supports()
         loads = self._build_loads()
         structural_beam = self._build_structural_beam()
@@ -54,7 +56,7 @@ class BeamCalculator:
         interest_points = self._interest_points(analysis)
         self._build_stirrups(structural_beam, analysis)
 
-        self._beam.reinforcement = []
+        results: list[tuple[float, RebarCalculator]] = []
         for span, start, end in self._span_ranges():
             points = [
                 (position, moment)
@@ -68,18 +70,22 @@ class BeamCalculator:
                 )
                 continue
 
+            calculators: list[RebarCalculator] = []
             for position, moment in points:
                 log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
-            calculators = [
-                self._build_rebar_calculator(structural_beam, moment, position)
-                for position, moment in points
-            ]
-            coordinate_span(calculators, span.stirrups)
-            for (position, _), calculator in zip(points, calculators, strict=True):
-                self._store_reinforcement(calculator)
-                self._verify_deformation(
-                    structural_beam, analysis, calculator, position
+                calculators.append(
+                    self._build_rebar_calculator(structural_beam, moment, position)
                 )
+            coordinate_span(calculators, span.stirrups)
+            results.extend(
+                (position, calculator)
+                for (position, _), calculator in zip(points, calculators, strict=True)
+            )
+
+        self._beam.reinforcement = []
+        for position, calculator in self._keep_governing_support_results(results):
+            self._store_reinforcement(calculator)
+            self._verify_deformation(structural_beam, analysis, calculator, position)
 
     def _interest_points(self, analysis: BeamAnalysis) -> list[tuple[float, float]]:
         """Finds the dominant bending-moment extreme per segment along the beam.
@@ -101,7 +107,7 @@ class BeamCalculator:
         Args:
             points: `(position, moment)` pairs (position in cm, moment in kN.m).
         """
-        interior_supports = [end for _, _, end in self._span_ranges()[:-1]]  # cm
+        interior_supports = self._get_interior_supports()  # cm
         split_points: list[tuple[float, float]] = []
         for position, moment in points:
             if any(
@@ -113,6 +119,48 @@ class BeamCalculator:
             else:
                 split_points.append((position, moment))
         return split_points
+
+    def _keep_governing_support_results(
+        self, results: list[tuple[float, RebarCalculator]]
+    ) -> list[tuple[float, RebarCalculator]]:
+        """Keeps, at each interior support, only the side with the greatest total chosen steel area (tensioned + compressed).
+
+        Each interior support is dimensioned twice, once per adjacent span (see ``_split_support_points``). On a tie, the left side is kept. Other results are kept as they are, in order.
+
+        Args:
+            results: `(position, calculator)` pairs of the coordinated interest points (position in cm).
+        """
+        discarded: set[int] = set()
+        for support in self._get_interior_supports():
+            sides = [
+                index
+                for index, (position, _) in enumerate(results)
+                if abs(position - support)
+                <= SUPPORT_SPLIT_OFFSET + END_SUPPORT_TOLERANCE
+            ]  # get the indices of the points on both sides of the support
+
+            if len(sides) < 2:
+                continue
+
+            areas = {index: results[index][1].total_area for index in sides}  # cm²
+            governing = max(sides, key=areas.__getitem__)  # first max → left on a tie
+            discarded.update(index for index in sides if index != governing)
+
+            areas_desc = " | ".join(
+                f"{results[index][0]:.2f} cm: {areas[index]:.3f} cm²" for index in sides
+            )
+            log_operation(
+                f"Support at {support:.2f} cm: kept {results[governing][0]:.2f} cm ({areas_desc})"
+            )
+
+        remaining = [
+            result for index, result in enumerate(results) if index not in discarded
+        ]
+        return remaining
+
+    def _get_interior_supports(self) -> list[float]:
+        """Returns the positions of the supports between spans along the beam (cm), left to right."""
+        return [end for _, _, end in self._span_ranges()[:-1]]
 
     def _span_ranges(self) -> list[tuple[Span, float, float]]:
         """Returns each span with its start and end positions along the beam (cm), left to right."""

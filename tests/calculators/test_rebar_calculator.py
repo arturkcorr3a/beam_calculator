@@ -338,6 +338,35 @@ class TestMaxRebarArea:
 
 
 # ---------------------------------------------------------------------------
+# TestTotalArea
+# ---------------------------------------------------------------------------
+
+
+class TestTotalArea:
+    """Tests for total_area — chosen tensioned + compressed steel (cm²)."""
+
+    def test_sums_both_reinforcements(
+        self, calculator: RebarCalculator, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """total_area adds the tensioned and compressed chosen areas (cm²)."""
+        monkeypatch.setattr(
+            calculator,
+            "tensioned_reinforcement",
+            types.SimpleNamespace(area=18.5),
+        )
+        monkeypatch.setattr(
+            calculator,
+            "compressed_reinforcement",
+            types.SimpleNamespace(area=4.6),
+        )
+        assert_approx(calculator.total_area, 23.1, "18.5 + 4.6 cm²")
+
+    def test_zero_before_choosing(self, calculator: RebarCalculator) -> None:
+        """No bars chosen yet gives a total area of zero (cm²)."""
+        assert_approx(calculator.total_area, 0.0, "no chosen bars (cm²)")
+
+
+# ---------------------------------------------------------------------------
 # TestCalculateDeltaBendingMoment
 # ---------------------------------------------------------------------------
 

@@ -163,6 +163,11 @@ class RebarCalculator:
         log_operation(f"Minimum Tension Rebar Area = {min_tension_rebar_area:.4f} cm²")
         return min_tension_rebar_area
 
+    @property
+    def total_area(self) -> float:
+        """Total chosen steel area, tensioned + compressed (cm²)."""
+        return self.tensioned_reinforcement.area + self.compressed_reinforcement.area
+
     @cached_property
     def max_rebar_area(self) -> float:
         """
