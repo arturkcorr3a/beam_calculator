@@ -1,19 +1,22 @@
 from src.config import APP_CONFIG
+from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import PermanentLoadDefinition, Slab
+from src.properties.concrete import Concrete
+from src.properties.steel import Steel
 
 
 # With dimension corrections (round to .5 precision)
 def build_pavement() -> Pavement:
-    APP_CONFIG.building_category = "Residential buildings"
+    APP_CONFIG.building_category = OccupancyCategory.RESIDENTIAL
     APP_CONFIG.ceiling_height = 2.72
-    APP_CONFIG.exposure_class = 2
-    APP_CONFIG.pavement_concrete = "C40"
-    APP_CONFIG.pavement_steel = "CA50"
-    APP_CONFIG.aggregate = "granite"
+    APP_CONFIG.exposure_class = ExposureClass.MODERATE
+    APP_CONFIG.pavement_concrete = Concrete.C40
+    APP_CONFIG.pavement_steel = Steel.CA50
+    APP_CONFIG.aggregate = Aggregate.GRANITE
 
     pavement = Pavement()
 

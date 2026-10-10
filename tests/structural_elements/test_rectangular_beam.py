@@ -3,6 +3,7 @@
 import pytest
 
 from src.config import APP_CONFIG
+from src.config_options import ExposureClass
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -77,21 +78,37 @@ class TestNominalCovering:
     @pytest.mark.parametrize(
         ("exposure_class", "pavement_concrete", "expected"),
         [
-            (1, "C20", 2.5),  # class 1, no discount (fck = 20)
-            (1, "C25", 2.0),  # class 1, discount (fck > 20)
-            (2, "C25", 3.0),  # class 2, no discount (fck = 25)
-            (2, "C30", 2.5),  # class 2, discount (fck > 25)
-            (3, "C30", 4.0),  # class 3, no discount (fck = 30)
-            (3, "C40", 3.5),  # class 3, discount (fck > 30)
-            (4, "C40", 5.0),  # class 4, no discount (fck = 40)
-            (4, "C50", 4.5),  # class 4, discount (fck > 40)
+            (ExposureClass.WEAK, Concrete.C20, 2.5),  # class 1, no discount (fck = 20)
+            (ExposureClass.WEAK, Concrete.C25, 2.0),  # class 1, discount (fck > 20)
+            (
+                ExposureClass.MODERATE,
+                Concrete.C25,
+                3.0,
+            ),  # class 2, no discount (fck = 25)
+            (ExposureClass.MODERATE, Concrete.C30, 2.5),  # class 2, discount (fck > 25)
+            (
+                ExposureClass.SEVERE,
+                Concrete.C30,
+                4.0,
+            ),  # class 3, no discount (fck = 30)
+            (ExposureClass.SEVERE, Concrete.C40, 3.5),  # class 3, discount (fck > 30)
+            (
+                ExposureClass.VERY_SEVERE,
+                Concrete.C40,
+                5.0,
+            ),  # class 4, no discount (fck = 40)
+            (
+                ExposureClass.VERY_SEVERE,
+                Concrete.C50,
+                4.5,
+            ),  # class 4, discount (fck > 40)
         ],
     )
     def test_covering_by_exposure_class(
         self,
         monkeypatch: pytest.MonkeyPatch,
-        exposure_class: int,
-        pavement_concrete: str,
+        exposure_class: ExposureClass,
+        pavement_concrete: Concrete,
         expected: float,
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "exposure_class", exposure_class)
@@ -100,11 +117,3 @@ class TestNominalCovering:
             f"Exposure class {exposure_class} with {pavement_concrete} "
             f"should give {expected} cm nominal covering"
         )
-
-    def test_invalid_exposure_class_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "exposure_class", 5)
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
-        with pytest.raises(ValueError, match="Invalid exposure class"):
-            _ = RectangularBeam.nominal_covering

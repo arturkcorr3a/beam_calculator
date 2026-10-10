@@ -2,9 +2,9 @@
 from enum import Enum
 from functools import cached_property
 from math import cbrt, log, sqrt
-from typing import cast
+from typing import assert_never, cast
 
-from src.config import APP_CONFIG
+from src.config_options import Aggregate
 from src.logger import log_property, logger_label
 
 GAMMA_C = 1.4  # ABNT NBR 6118 - Section 12.4.1
@@ -45,18 +45,21 @@ class Concrete(Enum):
     def alpha_e(self) -> float:
         """
         The alpha_e factor for concrete, based on ABNT NBR 6118 - Section 8.2.8. It depends on the type of aggregate used in the concrete mix."""
+        # late import — src.config imports this module (circular dep)
+        from src.config import APP_CONFIG
+
         project_aggregate = APP_CONFIG.aggregate
         match project_aggregate:
-            case "basalt" | "diabase":
+            case Aggregate.BASALT | Aggregate.DIABASE:
                 return 1.2
-            case "granite" | "gneiss":
+            case Aggregate.GRANITE | Aggregate.GNEISS:
                 return 1.0
-            case "limestone":
+            case Aggregate.LIMESTONE:
                 return 0.9
-            case "sandstone":
+            case Aggregate.SANDSTONE:
                 return 0.7
             case _:
-                raise ValueError(f"Unknown aggregate type: {project_aggregate}")
+                assert_never(project_aggregate)
 
     @cached_property
     def eci(self) -> float:

@@ -23,7 +23,6 @@ import matplotlib
 
 matplotlib.use("QtAgg")  # ensure the Qt backend before importing the canvas
 import matplotlib.patches as mpatches
-from indeterminatebeam import UDLV, Support
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PySide6.QtCore import Qt
@@ -47,6 +46,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.analysis.beam_analysis import BeamAnalysis
+from src.analysis.model import BeamSupport, DistributedLoad
+from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.calculators.stirrup_rebar_coordinator import coordinate_span
@@ -63,6 +65,7 @@ from src.gui.theme import (
     apply_dark_theme,
     style_figure,
 )
+from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups
@@ -70,8 +73,8 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 
 # Self-weight of reinforced concrete (ABNT NBR 6118). kN/m3.
 CONCRETE_UNIT_WEIGHT = 25.0
-# Design load factor, matching src/main.py and internal_forces.LOAD_FACTOR.
-SHEAR_DESIGN_FACTOR = 1.4
+# Number of positions sampled along the beam for the effort diagrams.
+DIAGRAM_SAMPLES = 200
 
 
 def _format_diameter(diameter: float) -> str:
@@ -87,8 +90,8 @@ def format_reinforcement(reinforcement, title: str) -> str:
     ]
 
     for index, layer in enumerate(reinforcement.chosen_bars):
-        if layer:
-            layer_count = Counter([d.diameter_mm for d in layer])
+        if layer.bars:
+            layer_count = Counter([d.diameter_mm for d in layer.bars])
             formatted = " + ".join(
                 f"{count} Φ {_format_diameter(diameter)}"
                 for diameter, count in sorted(
@@ -99,7 +102,7 @@ def format_reinforcement(reinforcement, title: str) -> str:
         else:
             lines.append(f"Layer {index + 1}: No bars")
 
-    actual_area = sum(d.area_cm2 for layer in reinforcement.chosen_bars for d in layer)
+    actual_area = sum(layer.area for layer in reinforcement.chosen_bars)
     lines.append(f"Actual reinforcement area: {actual_area:.3f} cm2")
     return "\n".join(lines)
 
@@ -137,7 +140,7 @@ class ConfigDialog(QDialog):
         self.steel_input = QComboBox()
         for steel in Steel:
             self.steel_input.addItem(steel.name, steel)
-        self.steel_input.setCurrentText(APP_CONFIG.pavement_steel)
+        self.steel_input.setCurrentText(APP_CONFIG.pavement_steel.name)
         form.addRow("Steel:", self.steel_input)
 
         self.max_aggregate_size_input = QDoubleSpinBox()
@@ -166,7 +169,7 @@ class ConfigDialog(QDialog):
         layout.addWidget(buttons)
 
     def _apply(self) -> None:
-        APP_CONFIG.pavement_steel = self.steel_input.currentText()
+        APP_CONFIG.pavement_steel = Steel[self.steel_input.currentText()]
         APP_CONFIG.max_aggregate_size = self.max_aggregate_size_input.value()
         APP_CONFIG.max_bar_types = self.max_bar_types_input.value()
         APP_CONFIG.max_layers = self.max_layers_input.value()
@@ -307,7 +310,9 @@ class SectionDialog(QDialog):
                 color=DARK_TEXT_PRIMARY,
             )
 
-        chosen = calculator.tensioned_reinforcement.chosen_bars
+        chosen = [
+            layer.bars for layer in calculator.tensioned_reinforcement.chosen_bars
+        ]
         for layer_idx, layer in enumerate(chosen):
             if not layer:
                 continue
@@ -330,7 +335,7 @@ class SectionDialog(QDialog):
 
         comp = calculator.compressed_reinforcement
         if comp.is_chosen:
-            for layer_idx, layer in enumerate(comp.chosen_bars):
+            for layer_idx, layer in enumerate(layer.bars for layer in comp.chosen_bars):
                 if not layer:
                     continue
                 max_bar_r = max(d.diameter_mm / 10 / 2 for d in layer)
@@ -376,7 +381,7 @@ class SectionDialog(QDialog):
 class DiagramsDialog(QDialog):
     """Shows bending-moment and shear-force diagrams."""
 
-    def __init__(self, beam: RectangularBeam, parent: QWidget = None) -> None:
+    def __init__(self, analysis: BeamAnalysis, parent: QWidget = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Effort diagrams")
         self.resize(720, 500)
@@ -390,14 +395,17 @@ class DiagramsDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn)
 
-        self._draw(fig, beam)
+        self._draw(fig, analysis)
         canvas.draw()
 
-    def _draw(self, fig: Figure, beam: RectangularBeam) -> None:
+    def _draw(self, fig: Figure, analysis: BeamAnalysis) -> None:
         style_figure(fig, DARK_BG_MAIN)
-        moments = beam.get_bending_moments()
-        shears = beam.get_shear_forces()
-        xs = [i / 100.0 for i in range(len(moments))]
+        positions = [
+            analysis.length * i / DIAGRAM_SAMPLES for i in range(DIAGRAM_SAMPLES + 1)
+        ]  # cm
+        moments = [analysis.bending_moment(x) for x in positions]
+        shears = [analysis.shear_force(x) for x in positions]
+        xs = [x / 100.0 for x in positions]  # m
 
         ax_m = fig.add_subplot(211)
         ax_v = fig.add_subplot(212)
@@ -435,6 +443,7 @@ class BeamCalculatorWindow(QMainWindow):
 
         self._last_results_text: str = ""
         self._last_beam: RectangularBeam | None = None
+        self._last_analysis: BeamAnalysis | None = None
         self._last_calculator = None
         self._last_stirrups: Stirrups | None = None
         self._pavement_window = None
@@ -512,7 +521,7 @@ class BeamCalculatorWindow(QMainWindow):
         self.concrete_input = QComboBox()
         for concrete in Concrete:
             self.concrete_input.addItem(concrete.name, concrete)
-        self.concrete_input.setCurrentText(APP_CONFIG.pavement_concrete)
+        self.concrete_input.setCurrentText(APP_CONFIG.pavement_concrete.name)
         form.addRow("Concrete:", self.concrete_input)
 
         self.self_weight_label = QLabel()
@@ -608,7 +617,7 @@ class BeamCalculatorWindow(QMainWindow):
         ).exec()
 
     def _open_diagrams(self) -> None:
-        DiagramsDialog(self._last_beam, self).exec()
+        DiagramsDialog(self._last_analysis, self).exec()
 
     def _draw_beam_schematic(self) -> None:
         length_m = self.length_input.value()
@@ -711,29 +720,20 @@ class BeamCalculatorWindow(QMainWindow):
     def run_analysis(self) -> None:
         length_cm, width, height = self._current_geometry()
         concrete: Concrete = self.concrete_input.currentData()
-        steel: Steel = Steel[APP_CONFIG.pavement_steel]
+        steel: Steel = APP_CONFIG.pavement_steel
 
         try:
-            support_a = Support(0, (1, 1, 0))
-            support_b = Support(length_cm, (1, 1, 0))
-
-            peso = self._self_weight()
-            self_weight_load = UDLV(-peso, (0, length_cm))
-
-            beam = RectangularBeam(
-                length_cm,
-                width,
-                height,
-                concrete,
-                steel,
-                [support_a, support_b],
-                [self_weight_load],
+            beam = RectangularBeam(length_cm, width, height, concrete, steel)
+            analysis = analyse_beam(
+                beam,
+                [BeamSupport(0.0), BeamSupport(length_cm)],
+                [DistributedLoad(0.0, length_cm, self._self_weight())],
             )
 
-            max_bending_moment, position = beam.get_max_bending_moment()
-            design_shear_force = (
-                beam.get_shear_force(return_max=True) * SHEAR_DESIGN_FACTOR
+            position, max_bending_moment = analysis.moment_extreme_in_range(
+                0.0, length_cm
             )
+            design_shear_force = design_effort_elu(analysis.max_abs_shear())
 
             stirrup_calculator = StirrupCalculator(beam, design_shear_force)
             stirrups = Stirrups(beam, stirrup_calculator)
@@ -760,22 +760,23 @@ class BeamCalculatorWindow(QMainWindow):
             return
 
         self._last_beam = beam
+        self._last_analysis = analysis
         self._last_calculator = calculator
         self._last_stirrups = stirrups
         self._last_results_text = self._build_results_text(
-            beam, max_bending_moment, design_shear_force, calculator, stirrups
+            analysis, max_bending_moment, design_shear_force, calculator, stirrups
         )
 
         for btn in (self.results_button, self.section_button, self.diagrams_button):
             btn.setEnabled(True)
 
     def _build_results_text(
-        self, beam, max_bending_moment, design_shear_force, calculator, stirrups
+        self, analysis, max_bending_moment, design_shear_force, calculator, stirrups
     ) -> str:
-        length_cm = beam.length
-        reaction_a = beam.get_reaction(0, "y")
-        reaction_b = beam.get_reaction(length_cm, "y")
-        max_shear = beam.get_shear_force(return_max=True)
+        length_cm = analysis.length
+        reaction_a = analysis.reaction(0.0)
+        reaction_b = analysis.reaction(length_cm)
+        max_shear = analysis.max_abs_shear()
 
         blocks: list[str] = []
         blocks.append(

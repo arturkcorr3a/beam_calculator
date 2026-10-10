@@ -17,7 +17,7 @@ _CASES_DESCRIPTION = {
     9: "Four borders fixed",
 }
 
-# TODO review the values one by one
+# REVIEW the values one by one
 _ENTRIES = (
     SlabMomentEntry(
         1.00,

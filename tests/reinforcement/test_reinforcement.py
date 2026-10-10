@@ -8,6 +8,7 @@ import pytest
 from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.layer import Layer
 from src.reinforcement.reinforcement import Reinforcement
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -20,7 +21,7 @@ def beam_double() -> RectangularBeam:
 
     The reinforcement orchestration only reads material grades and geometry off
     the beam, so a ``SimpleNamespace`` cast to ``RectangularBeam`` avoids running
-    the heavy ``indeterminatebeam`` analysis while still driving the real
+    the structural analysis while still driving the real
     ``RebarChooser`` and ``AnchorageCalculator``.
     """
     beam = types.SimpleNamespace(
@@ -169,6 +170,63 @@ class TestDistributeBars:
             reinforcement.distribute_bars_in_layers(bars)
 
 
+def _layer(*diameters_mm: float) -> Layer:
+    """Build a layer 0 holding CA50 bars of the given diameters (mm), in order."""
+    return Layer([Rebar(diameter_mm=d, steel=Steel.CA50) for d in diameters_mm], 0)
+
+
+def _diameters(layer: Layer) -> list[float]:
+    """Return the layer's bar diameters (mm), left to right."""
+    return [bar.diameter_mm for bar in layer.bars]
+
+
+class TestArrangeBarsInLayer:
+    """Tests for the symmetric, largest-outside bar arrangement within a layer."""
+
+    def test_empty_layer_stays_empty(self, reinforcement: Reinforcement) -> None:
+        layer = _layer()
+        reinforcement.arrange_bars_in_layer(layer)
+        assert layer.bars == [], "An empty layer should remain empty"
+
+    def test_single_diameter_unchanged(self, reinforcement: Reinforcement) -> None:
+        layer = _layer(16, 16, 16)
+        reinforcement.arrange_bars_in_layer(layer)
+        assert _diameters(layer) == [16, 16, 16], (
+            "A single-diameter layer should keep all its bars"
+        )
+
+    def test_even_counts_put_largest_outside(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        layer = _layer(10, 10, 16, 10, 10, 16)
+        reinforcement.arrange_bars_in_layer(layer)
+        assert _diameters(layer) == [16, 10, 10, 10, 10, 16], (
+            "Largest bars should sit at both ends of a symmetric row"
+        )
+
+    def test_odd_count_bar_goes_to_center(self, reinforcement: Reinforcement) -> None:
+        layer = _layer(12.5, 20, 12.5, 20, 20)
+        reinforcement.arrange_bars_in_layer(layer)
+        assert _diameters(layer) == [20, 12.5, 20, 12.5, 20], (
+            "The unpaired bar should sit in the center of the row"
+        )
+
+    def test_multiple_odd_counts_fill_middle(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        layer = _layer(12.5, 16, 12.5, 20)
+        reinforcement.arrange_bars_in_layer(layer)
+        assert _diameters(layer) == [12.5, 20, 16, 12.5], (
+            "Paired bars should stay outside, unpaired bars fill the middle"
+        )
+
+    def test_area_preserved(self, reinforcement: Reinforcement) -> None:
+        layer = _layer(10, 20, 16, 20, 10, 10)
+        area_before = layer.area
+        reinforcement.arrange_bars_in_layer(layer)
+        assert_approx(layer.area, area_before, "Arranging should not change the area")
+
+
 class TestClearChosenBars:
     """Tests for resetting the chosen-bar layers."""
 
@@ -201,23 +259,35 @@ def _bars(reinforcement: Reinforcement) -> list[Rebar]:
 
 
 class TestEndSupportAnchorage:
-    """Bars at an end support are anchored only towards the beam interior."""
+    """Bars at an end support are hooked into it and anchored towards the interior."""
 
     def test_beam_start_anchors_right_only(self, beam_double: RectangularBeam) -> None:
-        """At x = 0 the left length stays zero and the right one is calculated (cm)."""
+        """At x = 0 the left side is hooked with zero length; the right one is calculated (cm)."""
         reinforcement = _make_reinforcement(beam_double, center_position=0.0)
         reinforcement.set_required_area(4.0)
         for bar in _bars(reinforcement):
             assert bar.left_length == 0, "No left anchorage at the beam start"
             assert bar.right_length > 0, "Right anchorage should be calculated"
+            assert bar.left_hook_enabled is True, (
+                "Left hook should anchor the bar into the start support"
+            )
+            assert bar.right_hook_enabled is False, (
+                "Interior side needs no hook with 250+ cm available"
+            )
 
     def test_beam_end_anchors_left_only(self, beam_double: RectangularBeam) -> None:
-        """At x = L the right length stays zero and the left one is calculated (cm)."""
+        """At x = L the right side is hooked with zero length; the left one is calculated (cm)."""
         reinforcement = _make_reinforcement(beam_double, center_position=500.0)
         reinforcement.set_required_area(4.0)
         for bar in _bars(reinforcement):
             assert bar.right_length == 0, "No right anchorage at the beam end"
             assert bar.left_length > 0, "Left anchorage should be calculated"
+            assert bar.right_hook_enabled is True, (
+                "Right hook should anchor the bar into the end support"
+            )
+            assert bar.left_hook_enabled is False, (
+                "Interior side needs no hook with 250+ cm available"
+            )
 
     def test_end_support_right_length_matches_midspan(
         self, beam_double: RectangularBeam
@@ -240,3 +310,5 @@ class TestEndSupportAnchorage:
         for bar in _bars(reinforcement):
             assert bar.left_length > 0, "Left anchorage should be calculated"
             assert bar.right_length > 0, "Right anchorage should be calculated"
+            assert bar.left_hook_enabled is False, "No left hook away from the ends"
+            assert bar.right_hook_enabled is False, "No right hook away from the ends"

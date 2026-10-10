@@ -58,7 +58,6 @@ from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import SLAB_MAX_THICKNESS, SLAB_MIN_THICKNESS, Slab
-from src.properties.concrete import Concrete
 
 # Non-uniform panel spans (cm): narrow outer panels, wide middle panels
 # so the central slabs require more thickness iterations.
@@ -199,7 +198,7 @@ def pre_size_slab_with_log(slab: Slab, log: PreSizingLog) -> bool:
     from src.checkers.slab_deformation_checker import SlabDeformationChecker
     from src.pavement_elements.slab_edge import Edges
 
-    concrete = Concrete[APP_CONFIG.pavement_concrete]
+    concrete = APP_CONFIG.pavement_concrete
     original_thickness = slab.thickness
 
     support_conditions = {edge: slab.edges[edge].support_condition for edge in Edges}

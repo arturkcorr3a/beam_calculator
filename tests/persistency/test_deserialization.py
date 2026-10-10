@@ -7,6 +7,7 @@ from typing import cast
 import pytest
 
 from src.config import APP_CONFIG, AppConfig
+from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -23,6 +24,8 @@ from src.persistency.schema import (
     WallDict,
 )
 from src.persistency.serialization import config_to_dict, pavement_to_dict
+from src.properties.concrete import Concrete
+from src.properties.steel import Steel
 
 # ---------------------------------------------------------------------------
 # Module helpers
@@ -244,6 +247,40 @@ class TestConfigFromDict:
         data: dict[str, object] = dict(_minimal_config())
         del data[missing_key]
         with pytest.raises(ValueError, match=f"missing '{missing_key}' in Config"):
+            config_from_dict(data)  # type: ignore[arg-type]
+
+    def test_parses_choice_fields_into_enum_members(self) -> None:
+        loaded = config_from_dict(_minimal_config())
+        assert loaded.aggregate is Aggregate.GRANITE, (
+            "aggregate should load as an Aggregate member"
+        )
+        assert loaded.pavement_concrete is Concrete.C30, (
+            "pavement_concrete should load as a Concrete member (by name)"
+        )
+        assert loaded.pavement_steel is Steel.CA50, (
+            "pavement_steel should load as a Steel member (by name)"
+        )
+        assert loaded.building_category is OccupancyCategory.RESIDENTIAL, (
+            "building_category should load as an OccupancyCategory member"
+        )
+        assert loaded.exposure_class is ExposureClass.MODERATE, (
+            "exposure_class should load as an ExposureClass member"
+        )
+
+    @pytest.mark.parametrize(
+        ("key", "invalid_value"),
+        [
+            ("aggregate", "unobtainium"),
+            ("pavement_concrete", "C31"),
+            ("pavement_steel", "CA51"),
+            ("building_category", "Spaceports"),
+            ("exposure_class", 5),
+        ],
+    )
+    def test_invalid_choice_raises(self, key: str, invalid_value: object) -> None:
+        data: dict[str, object] = dict(_minimal_config())
+        data[key] = invalid_value
+        with pytest.raises(ValueError, match=f"invalid {key} '{invalid_value}'"):
             config_from_dict(data)  # type: ignore[arg-type]
 
 

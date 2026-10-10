@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from src.config import APP_CONFIG, AppConfig
+from src.config_options import Aggregate, ExposureClass
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -256,7 +257,11 @@ class TestConfigToDict:
 
     def test_non_default_values_roundtrip(self) -> None:
         """Non-default field values survive config_to_dict."""
-        cfg = AppConfig(aggregate="basalt", max_bar_types=2, exposure_class=4)
+        cfg = AppConfig(
+            aggregate=Aggregate.BASALT,
+            max_bar_types=2,
+            exposure_class=ExposureClass.VERY_SEVERE,
+        )
         result = config_to_dict(cfg)
         assert result["aggregate"] == "basalt", "aggregate should be 'basalt'"
         assert result["max_bar_types"] == 2, "max_bar_types should be 2"

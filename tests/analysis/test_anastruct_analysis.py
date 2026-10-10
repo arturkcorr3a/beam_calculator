@@ -2,7 +2,7 @@
 
 anaStruct is an Euler–Bernoulli solver, so every reference value is the
 closed-form result of classical beam theory for a C25/CA50 20x60 cm section
-(no shear-deformation term, unlike ``indeterminatebeam``).
+(no shear-deformation term).
 
 anaStruct restrains rotations at fixed supports and springs only to about
 1e-7 relative precision, so statically indeterminate results use
@@ -156,6 +156,39 @@ class TestMomentExtremesPerSegment:
         position, moment = propped_cantilever_beam.moment_extremes_per_segment()[0]
         assert_approx(position, 0.0, "Extreme at the fixed end (cm)")
         assert_approx(moment, -45.0, "Fixed-end moment -qL²/8 (kN.m)", abs_tol=0.01)
+
+
+# ---------------------------------------------------------------------------
+# TestMomentExtremeInRange
+# ---------------------------------------------------------------------------
+
+
+class TestMomentExtremeInRange:
+    """Tests for ``moment_extreme_in_range``."""
+
+    def test_range_with_vertex_returns_vertex(
+        self, two_span_beam: AnaStructBeamAnalysis
+    ) -> None:
+        """[0, 200] cm holds the first span's vertex: 9qL²/128 at 3L/8."""
+        position, moment = two_span_beam.moment_extreme_in_range(0.0, 200.0)
+        assert_approx(position, 112.5, "Vertex position (cm)", abs_tol=0.01)
+        assert_approx(moment, 6.328125, "Vertex moment (kN.m)", abs_tol=0.01)
+
+    def test_range_without_vertex_returns_greatest_end(
+        self, two_span_beam: AnaStructBeamAnalysis
+    ) -> None:
+        """[0, 100] cm stops before the vertex, so the dominant moment is at 100 cm."""
+        position, moment = two_span_beam.moment_extreme_in_range(0.0, 100.0)
+        assert_approx(position, 100.0, "Range end position (cm)")
+        assert_approx(moment, 6.25, "M = 11.25·1 - 5·1² (kN.m)", abs_tol=0.01)
+
+    def test_hogging_range_keeps_negative_sign(
+        self, two_span_beam: AnaStructBeamAnalysis
+    ) -> None:
+        """[250, 350] cm around the central support returns -qL²/8 at the support."""
+        position, moment = two_span_beam.moment_extreme_in_range(250.0, 350.0)
+        assert_approx(position, 300.0, "Central support position (cm)", abs_tol=0.01)
+        assert_approx(moment, -11.25, "Support moment (kN.m)", abs_tol=0.01)
 
 
 # ---------------------------------------------------------------------------

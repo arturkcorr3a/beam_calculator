@@ -27,7 +27,6 @@
         "Filho",
         "fywd",
         "fywk",
-        "indeterminatebeam",
         "Jasson",
         "kncm",
         "monkeypatching",
@@ -37,7 +36,6 @@
         "Rodrigues",
         "Rüsch",
         "SINAPI",
-        "solveset",
         "UDLV",
         "uncracked",
         "Usuais"
@@ -60,5 +58,5 @@
         "PAPER",
     ],
     "python.analysis.typeCheckingMode": "strict",
-    "workbench.colorTheme": "Dark Modern",
+    "workbench.colorTheme": "Light 2026",
 }

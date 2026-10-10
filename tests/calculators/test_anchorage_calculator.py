@@ -357,6 +357,24 @@ class TestNecessaryAnchorageLength:
 
 
 # ---------------------------------------------------------------------------
+# TestTotalAnchorageLength
+# ---------------------------------------------------------------------------
+
+
+class TestTotalAnchorageLength:
+    """Tests for total_anchorage_length (l_b_nec + a_l) in cm."""
+
+    def test_adds_moment_shift(self, ac: AnchorageCalculator) -> None:
+        """Total length is l_b_nec plus the moment shift a_l = 28 cm (cm)."""
+        ac.left = True
+        assert_approx(
+            ac.total_anchorage_length,
+            ac.necessary_anchorage_length + 28.0,
+            "total anchorage length should be l_b_nec + a_l (cm)",
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestGetAdjustedAvailableSpaceForHooks
 # ---------------------------------------------------------------------------
 
@@ -407,13 +425,18 @@ class TestRun:
             mock_cov.return_value = 3.0
             # Peek with left=True so anchorage_alpha_coefficient can be evaluated
             ac.left = True
-            l_b_nec = ac.necessary_anchorage_length  # peek at the value
+            total_length = ac.total_anchorage_length  # peek at the value
             # Provide more than enough space; no hooks should be enabled
-            ac.run(available_space=l_b_nec + 50.0, left=True)
+            ac.run(available_space=total_length + 50.0, left=True)
         # After a successful run, all bars should have no left hook
         for bar in layer_16mm_good.bars:
             assert not bar.left_hook_enabled, (
                 "Bars should NOT have hooks when space is sufficient (cm)"
+            )
+            assert_approx(
+                bar.left_length,
+                total_length,
+                "Bar left length should be l_b_nec + a_l (cm)",
             )
 
     def test_passes_with_hooks_on_retry(self, layer_16mm_good: Layer) -> None:
@@ -433,10 +456,15 @@ class TestRun:
             # set space so that it's between l_b_nec_with_hook and l_b_nec_no_hook
             # alpha with hook = 0.7 → l_b_nec_with_hook = 0.7 * l_b_nec_no_hook (approx)
             l_b_nec_with_hook = 0.7 * l_b_nec_no_hook
-            # Space is just above l_b_nec_with_hook (adjusted) but below l_b_nec_no_hook
+            # Both totals add the moment shift a_l on top of l_b_nec
+            moment_shift = ac_probe.moment_shift
+            # Space is just above the with-hook total (adjusted) but below the no-hook total
             # The adjusted space for hooks = space + 3 - max(3, 4.8) = space - 1.8
-            # So we need: (space - 1.8) >= l_b_nec_with_hook and space < l_b_nec_no_hook
-            space = l_b_nec_with_hook + 2.0  # space after adjustment still fits
+            # So we need: (space - 1.8) >= l_b_nec_with_hook + a_l
+            # and space < l_b_nec_no_hook + a_l
+            space = (
+                l_b_nec_with_hook + moment_shift + 2.0
+            )  # still fits after adjustment
             ac.run(available_space=space, left=True)
         # After run-with-hooks, left_hook_enabled should be True for all bars
         for bar in layer_16mm_good.bars:

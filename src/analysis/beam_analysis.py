@@ -25,7 +25,6 @@ class BeamAnalysis(Protocol):
         """Return the deflection at a position (cm, downward negative)."""
         ...
 
-    # TODO I will need it by span
     def max_abs_shear(self) -> float:
         """Return the largest absolute shear force along the beam (kN)."""
         ...
@@ -43,6 +42,18 @@ class BeamAnalysis(Protocol):
 
         Returns:
             One `(position, moment)` per segment, sorted left to right (position in cm, moment in kN.m).
+        """
+        ...
+
+    def moment_extreme_in_range(self, start: float, end: float) -> tuple[float, float]:
+        """Return the bending moment with the greatest absolute value within a range.
+
+        Args:
+            start: Left end of the range (cm).
+            end: Right end of the range (cm); must be >= start.
+
+        Returns:
+            `(position, moment)` of the dominant moment (position in cm, moment in kN.m).
         """
         ...
 

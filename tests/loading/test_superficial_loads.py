@@ -3,12 +3,12 @@
 import pytest
 
 from src.config import APP_CONFIG
+from src.config_options import OccupancyCategory
 from src.loading.superficial_loads import SuperficialLoads
 from tests.helpers import assert_approx
 
 RESIDENTIAL_FLOOR = (
-    "Floor coverings of residential and commercial buildings "
-    "(gamma_{ap-m} = 20 kN/m³)"
+    "Floor coverings of residential and commercial buildings (gamma_{ap-m} = 20 kN/m³)"
 )
 
 
@@ -139,21 +139,27 @@ class TestGetVariableUsageLoad:
     """
 
     def test_residential_bedrooms(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(APP_CONFIG, "building_category", "Residential buildings")
+        monkeypatch.setattr(
+            APP_CONFIG, "building_category", OccupancyCategory.RESIDENTIAL
+        )
         expected_load = 1.5  # kN/m²
-        assert (
-            SuperficialLoads.get_variable_usage_load("Bedrooms") == expected_load
-        ), "Residential bedrooms should have a 1.5 kN/m² variable load"
+        assert SuperficialLoads.get_variable_usage_load("Bedrooms") == expected_load, (
+            "Residential bedrooms should have a 1.5 kN/m² variable load"
+        )
 
     def test_residential_sports_courts(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(APP_CONFIG, "building_category", "Residential buildings")
+        monkeypatch.setattr(
+            APP_CONFIG, "building_category", OccupancyCategory.RESIDENTIAL
+        )
         expected_load = 5.0  # kN/m²
         assert (
             SuperficialLoads.get_variable_usage_load("Sports courts") == expected_load
         ), "Residential sports courts should have a 5.0 kN/m² variable load"
 
     def test_residential_service_area(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(APP_CONFIG, "building_category", "Residential buildings")
+        monkeypatch.setattr(
+            APP_CONFIG, "building_category", OccupancyCategory.RESIDENTIAL
+        )
         expected_load = 2.0  # kN/m²
         assert (
             SuperficialLoads.get_variable_usage_load(
@@ -166,12 +172,10 @@ class TestGetVariableUsageLoad:
         monkeypatch.setattr(
             APP_CONFIG,
             "building_category",
-            "Commercial, corporate, and office buildings",
+            OccupancyCategory.COMMERCIAL,
         )
         expected_load = 2.5  # kN/m²
         assert (
-            SuperficialLoads.get_variable_usage_load(
-                "General use rooms and bathrooms"
-            )
+            SuperficialLoads.get_variable_usage_load("General use rooms and bathrooms")
             == expected_load
         ), "Commercial general rooms should have a 2.5 kN/m² variable load"

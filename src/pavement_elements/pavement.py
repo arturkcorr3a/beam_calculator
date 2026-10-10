@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from src.config import APP_CONFIG
 from src.logger import log_element, log_general, log_iteration, logger_label
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -51,8 +52,10 @@ class Pavement:
 
     def validate(self) -> None:
         """
-        Performs validations and resolutions for its elements (pillars, beams, slabs). Raises ValueError on any validation failure.
+        Performs validations and resolutions for its elements (pillars, beams, slabs). Raises ValueError on any validation failure, including a pavement concrete below the minimum for the configured exposure class.
         """
+
+        APP_CONFIG.validate_concrete_class()
 
         # 1. Clear resolved state
         for beam in self.beams.values():
