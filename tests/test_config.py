@@ -1,22 +1,50 @@
 """Unit tests for the AppConfig dataclass and its defaults."""
 
+from dataclasses import fields
+
 import pytest
 
 import src.logger as logger_module
 from src.config import APP_CONFIG, AppConfig
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.logger import LogLevel, LogOutput
+from src.persistency.deserialization import config_from_dict
+from src.persistency.schema import ConfigDict
+from src.persistency.serialization import config_to_dict
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from tests.helpers import assert_approx
 
-# TODO add test checking if all the config entries are present in serialization
+# Debug-only AppConfig fields that are intentionally not persisted
+NON_PERSISTED_FIELDS = {"log_level", "log_output"}
 
 
 @pytest.fixture
 def config() -> AppConfig:
     """Fresh AppConfig with all default values."""
     return AppConfig()
+
+
+@pytest.fixture
+def persisted_field_names() -> set[str]:
+    """Names of every AppConfig field that must be persisted."""
+    return {f.name for f in fields(AppConfig)} - NON_PERSISTED_FIELDS
+
+
+@pytest.fixture
+def non_default_config() -> AppConfig:
+    """AppConfig with every persisted field set to a non-default value."""
+    return AppConfig(
+        aggregate=Aggregate.BASALT,
+        max_aggregate_size=1.9,
+        max_bar_types=2,
+        max_layers=4,
+        pavement_concrete=Concrete.C40,
+        pavement_steel=Steel.CA60,
+        building_category=OccupancyCategory.COMMERCIAL,
+        exposure_class=ExposureClass.SEVERE,
+        ceiling_height=2.8,
+    )
 
 
 class TestAppConfigDefaults:
@@ -92,6 +120,49 @@ class TestAppConfigSlots:
     def test_unknown_attribute_raises(self, config: AppConfig) -> None:
         with pytest.raises(AttributeError):
             setattr(config, "default_concrete", Concrete.C25)  # noqa: B010
+
+
+class TestAppConfigPersistencySync:
+    """Tests that every persisted AppConfig field is covered by the persistency layer."""
+
+    def test_schema_has_every_persisted_field(
+        self, persisted_field_names: set[str]
+    ) -> None:
+        schema_keys = ConfigDict.__required_keys__ | ConfigDict.__optional_keys__
+        assert set(schema_keys) == persisted_field_names, (
+            "ConfigDict keys should match the persisted AppConfig fields"
+        )
+
+    def test_serialization_emits_every_persisted_field(
+        self, config: AppConfig, persisted_field_names: set[str]
+    ) -> None:
+        assert set(config_to_dict(config).keys()) == persisted_field_names, (
+            "config_to_dict should emit exactly the persisted AppConfig fields"
+        )
+
+    def test_non_default_fixture_covers_every_persisted_field(
+        self,
+        config: AppConfig,
+        non_default_config: AppConfig,
+        persisted_field_names: set[str],
+    ) -> None:
+        defaulted = {
+            name
+            for name in persisted_field_names
+            if getattr(non_default_config, name) == getattr(config, name)
+        }
+        assert defaulted == set(), (
+            f"non_default_config should override every persisted field; "
+            f"still default: {sorted(defaulted)}"
+        )
+
+    def test_round_trip_preserves_every_persisted_field(
+        self, non_default_config: AppConfig
+    ) -> None:
+        loaded = config_from_dict(config_to_dict(non_default_config))
+        assert loaded == non_default_config, (
+            "config_from_dict(config_to_dict(cfg)) should reproduce cfg"
+        )
 
 
 class TestLoggerConfiguration:
