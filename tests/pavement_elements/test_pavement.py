@@ -35,6 +35,7 @@ def _make_beam_double(
     beam.pre_size = lambda registry: calls.append(f"pre_size:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
     beam.load_spans = lambda: calls.append(f"load_spans:{beam_id}")
     beam.dimension = lambda registry: calls.append(f"dimension:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
+    beam.report = lambda registry: f"report:{beam_id}"  # pyright: ignore[reportUnknownLambdaType]
     return cast(ContinuousBeam, beam)
 
 
@@ -386,6 +387,41 @@ class TestDimensionBeams:
 
         assert "dimension:VA" in beam1.calls, "dimension should be called on beam VA"  # type: ignore[attr-defined]
         assert "dimension:VB" in beam2.calls, "dimension should be called on beam VB"  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# TestPrintBeamReports
+# ---------------------------------------------------------------------------
+
+
+class TestPrintBeamReports:
+    """print_beam_reports prints every beam's report to stdout."""
+
+    def test_prints_report_of_every_beam(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        p = Pavement()
+        p.add_beam(_make_beam_double("VA"))
+        p.add_beam(_make_beam_double("VB"))
+
+        p.print_beam_reports()
+
+        output = capsys.readouterr().out
+        assert "report:VA" in output, "should print beam VA's report"
+        assert "report:VB" in output, "should print beam VB's report"
+        assert output.index("report:VA") < output.index("report:VB"), (
+            "reports should follow beam insertion order"
+        )
+
+    def test_prints_nothing_without_beams(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        p = Pavement()
+        capsys.readouterr()  # discard the logger's initialization line
+
+        p.print_beam_reports()
+
+        assert capsys.readouterr().out == "", "no beams should print nothing"
 
 
 # ---------------------------------------------------------------------------

@@ -141,3 +141,13 @@ class Pavement:
         log_general("Beams' calculation process starting")
         for beam in self.beams.values():
             beam.dimension(self.pillars)
+
+    def print_beam_reports(self) -> None:
+        """Print the final-state report of every beam to the console, separated by a blank line
+
+        Raises:
+            ValueError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
+        """
+        for beam in self.beams.values():
+            print(beam.report(self.pillars))
+            print()

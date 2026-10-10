@@ -1,5 +1,8 @@
 """Tests for src/pavement_elements/continuous_beam.py."""
 
+from types import SimpleNamespace
+from typing import cast
+
 import pytest
 
 import src.pavement_elements.continuous_beam as _cb_module
@@ -8,6 +11,12 @@ from src.loading.linear_loads import LinearLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment, Axis
 from src.pavement_elements.pillar import Pillar
+from src.properties.concrete import Concrete
+from src.properties.steel import Steel
+from src.reinforcement.layer import Layer
+from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.stirrups import Stirrups
+from src.structural_elements.rebar import Rebar
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -631,3 +640,154 @@ class TestGetMostLoadedSpanForEls:
 
         assert heaviest.start_pillar_id == p1.id, "heavier span should be span 0"
         assert heaviest.end_pillar_id == p2.id, "heavier span should end at p2"
+
+
+# ---------------------------------------------------------------------------
+# TestReport
+# ---------------------------------------------------------------------------
+
+
+def _set_stirrups(
+    beam: ContinuousBeam, diameter: float | None, spacing: float | None
+) -> None:
+    """Give every span a stirrups double with the given diameter (cm) and spacing (cm)."""
+    for span in beam.spans:
+        span.set_stirrups(
+            cast(
+                Stirrups,
+                SimpleNamespace(
+                    diameter=diameter,
+                    spacing=spacing,
+                    required_ratio=None if diameter is None else 0.0412,
+                ),
+            )
+        )
+
+
+def _bottom_reinforcement(center_position: float) -> Reinforcement:
+    """Build a bottom reinforcement double with one layer of 2φ12.5 + 1φ10, 50 cm to each side."""
+    bar_12 = Rebar(12.5, Steel.CA50)
+    bar_10 = Rebar(10.0, Steel.CA50)
+    for bar in (bar_12, bar_10):
+        bar.left_length = 50.0
+        bar.right_length = 50.0
+    bar_12.right_hook_enabled = True
+    layer = Layer([bar_12, bar_12, bar_10], 0)
+    layer.y_centroid_position = 4.3
+    empty_layer = Layer([], 1)
+    return cast(
+        Reinforcement,
+        SimpleNamespace(
+            is_bottom_reinforcement=True,
+            center_position=center_position,
+            required_area=3.2,
+            moment_shift=22.5,
+            area=layer.area,
+            chosen_bars=(layer, empty_layer),
+        ),
+    )
+
+
+@pytest.fixture
+def dimensioned_beam(
+    horizontal_beam: ContinuousBeam, registry_horizontal: dict[str, Pillar]
+) -> ContinuousBeam:
+    """Horizontal beam with loads, φ6.3 c/15 stirrups and one bottom reinforcement at x = 100 cm."""
+    horizontal_beam.resolve_and_validate(registry_horizontal)
+    horizontal_beam.pre_size(registry_horizontal)
+    for span in horizontal_beam.spans:
+        span.permanent_load = 12.3
+        span.variable_load = 3.0
+    _set_stirrups(horizontal_beam, 0.63, 15.0)
+    horizontal_beam.reinforcement = [_bottom_reinforcement(100.0)]
+    return horizontal_beam
+
+
+class TestReport:
+    """report() describes geometry, loads, stirrups and longitudinal bars."""
+
+    def test_raises_when_not_dimensioned(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+
+        with pytest.raises(ValueError, match="has not been dimensioned"):
+            horizontal_beam.report(registry_horizontal)
+
+    def test_reports_section_and_materials(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+
+        report = dimensioned_beam.report(registry_horizontal)
+
+        assert f"16 x {dimensioned_beam.height:g} cm" in report, "should state b_w x h"
+        assert "C30" in report, "should state the concrete class"
+        assert "CA50" in report, "should state the steel grade"
+
+    def test_reports_span_loads_and_effective_length(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        report = dimensioned_beam.report(registry_horizontal)
+        effective_length = dimensioned_beam.spans[0].get_effective_length(
+            registry_horizontal
+        )
+
+        assert f"0.0 – {effective_length:.1f}" in report, "should state the x range"
+        assert "12.30" in report, "should state the permanent load"
+        assert "15.30" in report, "should state the total load"
+
+    def test_reports_stirrups(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        report = dimensioned_beam.report(registry_horizontal)
+
+        assert "φ6.3 c/15.0" in report, "should state stirrup diameter and spacing"
+        assert "0.0412" in report, "should state the required A_sw/s"
+
+    def test_reports_undimensioned_stirrups(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        _set_stirrups(dimensioned_beam, None, None)
+
+        report = dimensioned_beam.report(registry_horizontal)
+
+        assert "φ" not in report.split("Longitudinal")[0], (
+            "spans without stirrups should not state a diameter"
+        )
+
+    def test_reports_bars_and_extent(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        report = dimensioned_beam.report(registry_horizontal)
+
+        assert "x = 100.00 cm · bottom" in report, "should state position and face"
+        assert "2φ12.5 + 1φ10" in report, "should group bars by diameter"
+        assert "50.0" in report and "150.0" in report, (
+            "bar extent should be center ∓ anchorage lengths"
+        )
+        assert "4.30" in report, "should state the layer height from the bottom"
+
+    def test_reports_no_reinforcement(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        report = dimensioned_beam.report(registry_horizontal)
+        second_span = report.split("Longitudinal reinforcement")[2]
+
+        assert "none" in second_span, "span without reinforcement should say none"

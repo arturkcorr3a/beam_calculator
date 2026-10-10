@@ -1,5 +1,8 @@
+import argparse
+
 from src.config import APP_CONFIG
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
+from src.logger import LogLevel, configure_logger
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
@@ -145,9 +148,27 @@ def build_pavement() -> Pavement:
     return pavement
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse the example's command-line options"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        choices=[level.name for level in LogLevel],
+        default=APP_CONFIG.log_level.name,
+        help="Minimum log level to show (default: %(default)s).",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+    APP_CONFIG.log_level = LogLevel[args.log_level]
+    configure_logger(APP_CONFIG.log_level, APP_CONFIG.log_output)
+
     pavement = build_pavement()
     pavement.resolve()
+    pavement.print_beam_reports()
 
 
 if __name__ == "__main__":

@@ -339,6 +339,7 @@ def main() -> None:
     # even if a particular beam cannot be solved.
     try:
         pavement.dimension_beams()
+        pavement.print_beam_reports()
     except Exception as exc:  # noqa: BLE001 — example-level guard
         print(
             "[DIMENSIONING SKIPPED] Beam reinforcement could not be computed:\n"
