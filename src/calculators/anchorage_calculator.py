@@ -169,6 +169,3 @@ class AnchorageCalculator:
         min_coverage_for_hooks = 3 * (self.max_diameter / 10)  # cm
         adjusted_coverage = max(beam_coverage, min_coverage_for_hooks)
         return regular_available_space + beam_coverage - adjusted_coverage
-
-    # TODO scale the layers -> by layer or more specifically by bar? -> use the area to divide
-    # TODO analisar armadura transversal na ancoragem (9.4.2.6)
