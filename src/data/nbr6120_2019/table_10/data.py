@@ -5,7 +5,7 @@ Hardcoded values matching the normative table.
 
 from src.data.nbr6120_2019.table_10.model import BuildingCategory, LocationLoad, Table10
 
-# TODO Confirm this values one by one
+# REVIEW Confirm this values one by one
 
 _CATEGORIES = (
     BuildingCategory(

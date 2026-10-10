@@ -5,7 +5,7 @@ Hardcoded values matching Quadro 7.2 (p. 332) of "Cálculo e Detalhamento de Est
 
 from src.data.carvalho.table_7_2.model import SlabDeflectionEntry, Table72
 
-# TODO confirm this values one by one
+# REVIEW confirm this values one by one
 _CASES_DESCRIPTION = {
     1: "Four simply supported borders",
     2: "Three borders simply supported, one short border fixed",
@@ -18,7 +18,7 @@ _CASES_DESCRIPTION = {
     9: "Four borders fixed",
 }
 
-# TODO confirm this values one by one
+# REVIEW confirm this values one by one
 _ENTRIES = (
     SlabDeflectionEntry(1.00, (4.67, 3.20, 3.20, 2.42, 2.21, 2.21, 1.81, 1.81, 1.46)),
     SlabDeflectionEntry(1.05, (5.17, 3.61, 3.42, 2.67, 2.55, 2.31, 2.04, 1.92, 1.60)),
