@@ -27,6 +27,7 @@
         "Filho",
         "fywd",
         "fywk",
+        "gridline",
         "Jasson",
         "kncm",
         "monkeypatching",
@@ -36,9 +37,20 @@
         "Rodrigues",
         "Rüsch",
         "SINAPI",
+        "subcontrol",
         "UDLV",
         "uncracked",
         "Usuais"
+    ],
+    "cSpell.overrides": [
+        {
+            "filename": "pavement_ui/**/*.py",
+            "language": "en,pt-BR"
+        },
+        {
+            "filename": "docs/**/*.md",
+            "language": "en,pt-BR"
+        },
     ],
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff",
@@ -58,5 +70,5 @@
         "PAPER",
     ],
     "python.analysis.typeCheckingMode": "strict",
-    "workbench.colorTheme": "Light 2026",
+    "workbench.colorTheme": "Dark Modern",
 }

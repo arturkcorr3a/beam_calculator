@@ -52,5 +52,4 @@ forbidden_modules = ["pavement_ui"]
 [[tool.importlinter.contracts]]
 name = "GUI layers"
 type = "layers"
-# app is optional until stage 2 creates it (docs/UI_SPEC.md §14)
-layers = ["(pavement_ui.app)", "pavement_ui.presentation", "pavement_ui.core"]
+layers = ["pavement_ui.app", "pavement_ui.presentation", "pavement_ui.core"]
