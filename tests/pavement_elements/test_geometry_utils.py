@@ -10,7 +10,6 @@ from src.pavement_elements.geometry_utils import (
     between,
     calculate_polygon_area,
     effective_span,
-    get_pillar_parallel_extent,
     get_pillar_perpendicular_range,
     round_up_to_multiple_of_5,
 )
@@ -209,25 +208,6 @@ class TestGetPillarPerpendicularRange:
     def test_y_axis_returns_x_range(self, pillar: Pillar) -> None:
         result = get_pillar_perpendicular_range(pillar, Axis.Y)
         assert result == (90.0, 110.0), "Y axis should return x_range of pillar"
-
-
-# ---------------------------------------------------------------------------
-# TestGetPillarParallelExtent
-# ---------------------------------------------------------------------------
-
-
-class TestGetPillarParallelExtent:
-    """get_pillar_parallel_extent returns the pillar size along the given axis."""
-
-    def test_x_axis_returns_width(self, pillar: Pillar) -> None:
-        assert get_pillar_parallel_extent(pillar, Axis.X) == 20, (
-            "X axis should return the pillar width"
-        )
-
-    def test_y_axis_returns_depth(self, pillar: Pillar) -> None:
-        assert get_pillar_parallel_extent(pillar, Axis.Y) == 30, (
-            "Y axis should return the pillar depth"
-        )
 
 
 # ---------------------------------------------------------------------------

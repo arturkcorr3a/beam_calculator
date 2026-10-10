@@ -3,11 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
-from src.pavement_elements.geometry_utils import (
-    Axis,
-    effective_span,
-    get_pillar_parallel_extent,
-)
+from src.pavement_elements.geometry_utils import Axis, effective_span
 from src.pavement_elements.pillar import Pillar
 from src.reinforcement.stirrups import Stirrups
 
@@ -64,8 +60,8 @@ class Span:
         end_pillar = pillar_registry[self.end_pillar_id]
         return effective_span(
             self.get_length(pillar_registry),
-            get_pillar_parallel_extent(start_pillar, axis),
-            get_pillar_parallel_extent(end_pillar, axis),
+            start_pillar.get_parallel_extent(axis),
+            end_pillar.get_parallel_extent(axis),
             self.beam.height if height is None else height,
         )
 

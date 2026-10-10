@@ -63,15 +63,6 @@ def get_pillar_perpendicular_range(pillar: Pillar, axis: Axis) -> tuple[float, f
         return pillar.get_x_range()
 
 
-# TODO remove this function and use Pillar.get_parallel_extent instead, which is more general and already implemented
-def get_pillar_parallel_extent(pillar: Pillar, axis: Axis) -> float:
-    """Return the pillar's cross-section extent (cm) along a given axis
-
-    For an X-beam this is the pillar width (x extent); for a Y-beam, its depth (y extent).
-    """
-    return pillar.get_parallel_extent(axis)
-
-
 def effective_span(
     axis_distance: float,
     support_width_1: float,
