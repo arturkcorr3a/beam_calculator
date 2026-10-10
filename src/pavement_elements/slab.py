@@ -2,10 +2,11 @@ import math
 from dataclasses import dataclass, field
 from functools import cached_property
 from itertools import count
-from typing import Literal, NamedTuple, cast
+from typing import Literal, NamedTuple, assert_never, cast
 
 from src.checkers.slab_deformation_checker import SlabDeformationChecker
 from src.config import APP_CONFIG
+from src.config_options import ExposureClass
 from src.loading.superficial_loads import SuperficialLoads
 from src.logger import (
     log_element,
@@ -22,7 +23,6 @@ from src.pavement_elements.geometry_utils import (
 )
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab_edge import Edges, SlabEdge, SupportCondition
-from src.properties.concrete import Concrete
 
 SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
 
@@ -53,24 +53,22 @@ class _SlabMeta(type):
         Returns the nominal covering (cm) for the slab with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
         """
         exposure_class = APP_CONFIG.exposure_class
-        fck = Concrete[APP_CONFIG.pavement_concrete].value
+        fck = APP_CONFIG.pavement_concrete.value
 
         discount_for_concrete_greater_than_minimum = (
             0.5 if APP_CONFIG.is_concrete_greater_than_minimum(fck) else 0.0
         )  # cm — ABNT NBR 6118 - Section 7.4.7.6
         match exposure_class:
-            case 1:
+            case ExposureClass.WEAK:
                 return 2.0 - discount_for_concrete_greater_than_minimum
-            case 2:
+            case ExposureClass.MODERATE:
                 return 2.5 - discount_for_concrete_greater_than_minimum
-            case 3:
+            case ExposureClass.SEVERE:
                 return 3.5 - discount_for_concrete_greater_than_minimum
-            case 4:
+            case ExposureClass.VERY_SEVERE:
                 return 4.5 - discount_for_concrete_greater_than_minimum
             case _:
-                raise ValueError(
-                    f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."
-                )
+                assert_never(exposure_class)
 
 
 @logger_label("{id}")
@@ -244,7 +242,7 @@ class Slab(metaclass=_SlabMeta):
         """
         original_thickness = self.thickness
         self.thickness = SLAB_MIN_THICKNESS
-        concrete = Concrete[APP_CONFIG.pavement_concrete]
+        concrete = APP_CONFIG.pavement_concrete
 
         self.resolve_support_conditions(pillar_registry)
         support_conditions = self._current_support_conditions()

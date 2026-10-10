@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from enum import Enum
 from typing import cast
 
 from src.config import AppConfig
+from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
@@ -19,6 +21,8 @@ from src.persistency.schema import (
     SlabDict,
     WallDict,
 )
+from src.properties.concrete import Concrete
+from src.properties.steel import Steel
 
 BEAM_CONTEXT = "Beam"
 CONFIG_CONTEXT = "Config"
@@ -50,6 +54,38 @@ def _require[T](
     if key not in data:
         raise ValueError(f"malformed pavement file: missing '{key}' in {context}")
     return cast(T, data[key])
+
+
+def _parse_enum[E: Enum](
+    data: Mapping[str, object],
+    key: str,
+    context: str,
+    enum_type: type[E],
+    *,
+    by_name: bool = False,
+) -> E:
+    """Fetches a required key and converts it to a member of enum_type.
+
+    Args:
+        data: The mapping to read from.
+        key: The key that must be present.
+        context: A short description of what is being parsed, used in the error message.
+        enum_type: The enum the stored value must belong to.
+        by_name: Look the member up by its name (e.g. "C30") instead of its value.
+
+    Returns:
+        The enum member matching the stored value.
+
+    Raises:
+        ValueError: If key is missing from data or its value matches no member.
+    """
+    raw = _require(data, key, context, object)
+    try:
+        return enum_type[str(raw)] if by_name else enum_type(raw)
+    except (KeyError, ValueError):
+        raise ValueError(
+            f"malformed pavement file: invalid {key} '{raw}' in {context}"
+        ) from None
 
 
 def _wall_from_dict(data: WallDict) -> WallDefinition:
@@ -234,16 +270,25 @@ def config_from_dict(data: ConfigDict) -> AppConfig:
         The reconstructed AppConfig.
 
     Raises:
-        ValueError: If a required key is missing.
+        ValueError: If a required key is missing or a choice field holds an
+            unknown option.
     """
     return AppConfig(
-        aggregate=_require(data, "aggregate", CONFIG_CONTEXT, str),
+        aggregate=_parse_enum(data, "aggregate", CONFIG_CONTEXT, Aggregate),
         max_aggregate_size=_require(data, "max_aggregate_size", CONFIG_CONTEXT, float),
         max_bar_types=_require(data, "max_bar_types", CONFIG_CONTEXT, int),
         max_layers=_require(data, "max_layers", CONFIG_CONTEXT, int),
-        pavement_concrete=_require(data, "pavement_concrete", CONFIG_CONTEXT, str),
-        pavement_steel=_require(data, "pavement_steel", CONFIG_CONTEXT, str),
-        building_category=_require(data, "building_category", CONFIG_CONTEXT, str),
-        exposure_class=_require(data, "exposure_class", CONFIG_CONTEXT, int),
+        pavement_concrete=_parse_enum(
+            data, "pavement_concrete", CONFIG_CONTEXT, Concrete, by_name=True
+        ),
+        pavement_steel=_parse_enum(
+            data, "pavement_steel", CONFIG_CONTEXT, Steel, by_name=True
+        ),
+        building_category=_parse_enum(
+            data, "building_category", CONFIG_CONTEXT, OccupancyCategory
+        ),
+        exposure_class=_parse_enum(
+            data, "exposure_class", CONFIG_CONTEXT, ExposureClass
+        ),
         ceiling_height=_require(data, "ceiling_height", CONFIG_CONTEXT, float),
     )

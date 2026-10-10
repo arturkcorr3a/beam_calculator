@@ -22,6 +22,7 @@ from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
+from src.properties.steel import Steel
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -408,7 +409,7 @@ class TestImmediateDeflection:
         equivalent moment of inertia equals the gross section I, and the ratio
         simplifies to 1.  This avoids triggering the full rebar-calculation chain.
         """
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
 
         slab = rectangular_slab
         h = 20.0  # cm — confirmed not-cracked at test-setup load levels
@@ -444,7 +445,7 @@ class TestTensionedReinforcementArea:
         The method returns ``max(calculator.as1, absolute_min)``; the geometric
         floor 0.0015 * b * h is always the lower bound regardless of the moment.
         """
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
 
         h = 7.0  # cm — thin slab
         slab = SlabDeformationChecker(
@@ -476,7 +477,7 @@ class TestTensionedReinforcementArea:
         deterministic and that it satisfies the max(…) contract: the returned
         value is at least ``absolute_min`` and at least as large as a fresh call.
         """
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
 
         h = 7.0
         slab = SlabDeformationChecker(

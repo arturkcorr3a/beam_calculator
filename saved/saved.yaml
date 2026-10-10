@@ -118,6 +118,7 @@ slabs:
   - P5
   local: General use rooms and bathrooms
   permanent_load: 0.0
+  lowered: 0
 - corner_pillar_ids:
   - P4
   - P5
@@ -125,6 +126,7 @@ slabs:
   - P7
   local: General use rooms and bathrooms
   permanent_load: 0.0
+  lowered: 0
 - corner_pillar_ids:
   - P2
   - P3
@@ -132,15 +134,14 @@ slabs:
   - P8
   local: General use rooms and bathrooms
   permanent_load: 0.0
+  lowered: 0
 config:
-  steel: CA50
-  default_concrete: C30
+  aggregate: granite
   max_aggregate_size: 2.5
   max_bar_types: 3
   max_layers: 3
   pavement_concrete: C30
   pavement_steel: CA50
   building_category: Commercial, corporate, and office buildings
-  ceiling_height: 2.5
   exposure_class: 2
-  aggregate: granite
+  ceiling_height: 2.5

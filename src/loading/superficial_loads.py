@@ -101,6 +101,6 @@ class SuperficialLoads:
         Returns:
             Variable usage load (kN/m²).
         """
-        building_category = APP_CONFIG.building_category
+        building_category = APP_CONFIG.building_category.value
 
         return TABLE_10.find_category(building_category).get_location_load(local)

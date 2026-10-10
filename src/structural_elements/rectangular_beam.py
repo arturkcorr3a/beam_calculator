@@ -1,4 +1,7 @@
+from typing import assert_never
+
 from src.config import APP_CONFIG
+from src.config_options import ExposureClass
 from src.logger import log_element, logger_label
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
@@ -14,25 +17,23 @@ class _BeamMeta(type):
         Returns the nominal covering (cm) for the beam with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
         """
         exposure_class = APP_CONFIG.exposure_class
-        fck = Concrete[APP_CONFIG.pavement_concrete].value
+        fck = APP_CONFIG.pavement_concrete.value
 
         discount_for_concrete_greater_than_minimum = (
             0.5 if APP_CONFIG.is_concrete_greater_than_minimum(fck) else 0.0
         )  # cm — ABNT NBR 6118 - Section 7.4.7.6
 
         match exposure_class:
-            case 1:
+            case ExposureClass.WEAK:
                 return 2.5 - discount_for_concrete_greater_than_minimum
-            case 2:
+            case ExposureClass.MODERATE:
                 return 3.0 - discount_for_concrete_greater_than_minimum
-            case 3:
+            case ExposureClass.SEVERE:
                 return 4.0 - discount_for_concrete_greater_than_minimum
-            case 4:
+            case ExposureClass.VERY_SEVERE:
                 return 5.0 - discount_for_concrete_greater_than_minimum
             case _:
-                raise ValueError(
-                    f"Invalid exposure class: {exposure_class}. Must be between 1 and 4."
-                )
+                assert_never(exposure_class)
 
 
 @logger_label("Structural {label}")

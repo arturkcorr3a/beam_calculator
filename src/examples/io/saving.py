@@ -3,6 +3,7 @@ Example from "Cálculo e Detalhamento de Estruturas de Concreto Armado'
 """
 
 from src.config import APP_CONFIG
+from src.config_options import OccupancyCategory
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
@@ -88,8 +89,6 @@ def build_pavement():
 
     # ADD BEAMS -------
 
-    default_beam_height = 50
-
     wall = WallDefinition(
         structural=False,
         masonry_type="hollow concrete block",
@@ -103,7 +102,6 @@ def build_pavement():
         width=default_beam_width,
         alignment=Alignment.CENTER,
         wall=wall,
-        height=default_beam_height,
     )
     pavement.add_beam(v1)
 
@@ -113,7 +111,6 @@ def build_pavement():
         width=default_beam_width,
         alignment=Alignment.CENTER,
         wall=wall,
-        height=default_beam_height,
     )
     pavement.add_beam(v2)
 
@@ -123,7 +120,6 @@ def build_pavement():
         width=default_beam_width,
         alignment=Alignment.CENTER,
         wall=wall,
-        height=default_beam_height,
     )
     pavement.add_beam(v3)
 
@@ -133,7 +129,6 @@ def build_pavement():
         width=default_beam_width,
         alignment=Alignment.LEFT,
         wall=wall,
-        height=default_beam_height,
     )
     pavement.add_beam(v4)
 
@@ -143,7 +138,6 @@ def build_pavement():
         width=default_beam_width,
         alignment=Alignment.CENTER,
         wall=wall,
-        height=default_beam_height,
     )
     pavement.add_beam(v5)
 
@@ -153,13 +147,12 @@ def build_pavement():
         width=default_beam_width,
         alignment=Alignment.RIGHT,
         wall=wall,
-        height=default_beam_height,
     )
     pavement.add_beam(v6)
 
     # ADD SLABS -------
 
-    APP_CONFIG.building_category = "Commercial, corporate, and office buildings"
+    APP_CONFIG.building_category = OccupancyCategory.COMMERCIAL
 
     l1 = Slab((p1.id, p2.id, p4.id, p5.id), "General use rooms and bathrooms")
     pavement.add_slab(l1)
@@ -181,6 +174,7 @@ def main():
         print(f"{slab.id}: {slab.thickness} cm")
 
     save_pavement(pavement, PATH)
+
 
 if __name__ == "__main__":
     main()

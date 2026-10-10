@@ -122,16 +122,17 @@ def config_to_dict(config: AppConfig) -> ConfigDict:
         config: The config to serialize.
 
     Returns:
-        A dict holding all AppConfig fields.
+        A dict holding all persisted AppConfig fields, with enum members
+        reduced to their plain names (concrete, steel) or values (others).
     """
     return {
-        "aggregate": config.aggregate,
+        "aggregate": config.aggregate.value,
         "max_aggregate_size": config.max_aggregate_size,
         "max_bar_types": config.max_bar_types,
         "max_layers": config.max_layers,
-        "pavement_concrete": config.pavement_concrete,
-        "pavement_steel": config.pavement_steel,
-        "building_category": config.building_category,
-        "exposure_class": config.exposure_class,
+        "pavement_concrete": config.pavement_concrete.name,
+        "pavement_steel": config.pavement_steel.name,
+        "building_category": config.building_category.value,
+        "exposure_class": config.exposure_class.value,
         "ceiling_height": config.ceiling_height,
     }

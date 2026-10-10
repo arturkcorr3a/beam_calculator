@@ -2,7 +2,12 @@
 
 import pytest
 
-from src.config import AppConfig
+import src.logger as logger_module
+from src.config import APP_CONFIG, AppConfig
+from src.config_options import Aggregate, ExposureClass, OccupancyCategory
+from src.logger import LogLevel, LogOutput
+from src.properties.concrete import Concrete
+from src.properties.steel import Steel
 from tests.helpers import assert_approx
 
 # TODO add test checking if all the config entries are present in serialization
@@ -18,8 +23,8 @@ class TestAppConfigDefaults:
     """Tests pinning the default field values that the persistency layer mirrors."""
 
     def test_aggregate(self, config: AppConfig) -> None:
-        assert config.aggregate == "granite", (
-            "The default aggregate should be 'granite'"
+        assert config.aggregate is Aggregate.GRANITE, (
+            "The default aggregate should be granite"
         )
 
     def test_max_aggregate_size(self, config: AppConfig) -> None:
@@ -43,23 +48,22 @@ class TestAppConfigDefaults:
         )
 
     def test_pavement_concrete(self, config: AppConfig) -> None:
-        assert config.pavement_concrete == "C30", (
-            "The default pavement concrete should be 'C30'"
+        assert config.pavement_concrete is Concrete.C30, (
+            "The default pavement concrete should be C30"
         )
 
     def test_pavement_steel(self, config: AppConfig) -> None:
-        assert config.pavement_steel == "CA50", (
-            "The default pavement steel should be 'CA50'"
+        assert config.pavement_steel is Steel.CA50, (
+            "The default pavement steel should be CA50"
         )
 
     def test_building_category(self, config: AppConfig) -> None:
-        assert config.building_category == "Residential buildings", (
-            "The default building category should be 'Residential buildings'"
+        assert config.building_category is OccupancyCategory.RESIDENTIAL, (
+            "The default building category should be residential"
         )
 
     def test_exposure_class(self, config: AppConfig) -> None:
-        expected_exposure_class = 2
-        assert config.exposure_class == expected_exposure_class, (
+        assert config.exposure_class is ExposureClass.MODERATE, (
             "The default exposure class should be 2 (moderate)"
         )
 
@@ -72,12 +76,36 @@ class TestAppConfigDefaults:
         )
 
     def test_log_level(self, config: AppConfig) -> None:
-        assert config.log_level == "PROPERTY", (
-            "The default log level should be 'PROPERTY'"
+        assert config.log_level is LogLevel.PROPERTY, (
+            "The default log level should be PROPERTY"
         )
 
     def test_log_output(self, config: AppConfig) -> None:
-        assert config.log_output == "both", "The default log output should be 'both'"
+        assert config.log_output is LogOutput.BOTH, (
+            "The default log output should be BOTH"
+        )
+
+
+class TestAppConfigSlots:
+    """Tests that AppConfig rejects attributes it does not declare."""
+
+    def test_unknown_attribute_raises(self, config: AppConfig) -> None:
+        with pytest.raises(AttributeError):
+            setattr(config, "default_concrete", Concrete.C25)  # noqa: B010
+
+
+class TestLoggerConfiguration:
+    """Tests that importing src.config applies APP_CONFIG to the module logger."""
+
+    def test_logger_level_matches_app_config(self) -> None:
+        assert logger_module._logger._level is APP_CONFIG.log_level, (  # pyright: ignore[reportPrivateUsage]
+            "The module logger level should match APP_CONFIG.log_level"
+        )
+
+    def test_logger_output_matches_app_config(self) -> None:
+        assert logger_module._logger._output is APP_CONFIG.log_output, (  # pyright: ignore[reportPrivateUsage]
+            "The module logger output should match APP_CONFIG.log_output"
+        )
 
 
 class TestIsConcreteGreaterThanMinimum:
@@ -87,27 +115,27 @@ class TestIsConcreteGreaterThanMinimum:
         ("exposure_class", "fck", "expected"),
         [
             # Class 1 — minimum 20 MPa
-            (1, 21, True),
-            (1, 20, False),
-            (1, 19, False),
+            (ExposureClass.WEAK, 21, True),
+            (ExposureClass.WEAK, 20, False),
+            (ExposureClass.WEAK, 19, False),
             # Class 2 — minimum 25 MPa
-            (2, 26, True),
-            (2, 25, False),
-            (2, 24, False),
+            (ExposureClass.MODERATE, 26, True),
+            (ExposureClass.MODERATE, 25, False),
+            (ExposureClass.MODERATE, 24, False),
             # Class 3 — minimum 30 MPa
-            (3, 31, True),
-            (3, 30, False),
-            (3, 29, False),
+            (ExposureClass.SEVERE, 31, True),
+            (ExposureClass.SEVERE, 30, False),
+            (ExposureClass.SEVERE, 29, False),
             # Class 4 — minimum 40 MPa
-            (4, 41, True),
-            (4, 40, False),
-            (4, 39, False),
+            (ExposureClass.VERY_SEVERE, 41, True),
+            (ExposureClass.VERY_SEVERE, 40, False),
+            (ExposureClass.VERY_SEVERE, 39, False),
         ],
     )
     def test_threshold_per_exposure_class(
         self,
         config: AppConfig,
-        exposure_class: int,
+        exposure_class: ExposureClass,
         fck: float,
         expected: bool,
     ) -> None:
@@ -116,8 +144,3 @@ class TestIsConcreteGreaterThanMinimum:
             f"For exposure class {exposure_class}, fck {fck} MPa should return {expected} "
             "(check is a strict greater-than against the class minimum)"
         )
-
-    def test_invalid_exposure_class_raises(self, config: AppConfig) -> None:
-        config.exposure_class = 5
-        with pytest.raises(ValueError, match="Invalid exposure class"):
-            _ = config.is_concrete_greater_than_minimum(30)

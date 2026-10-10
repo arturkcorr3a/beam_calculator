@@ -137,7 +137,7 @@ class ConfigDialog(QDialog):
         self.steel_input = QComboBox()
         for steel in Steel:
             self.steel_input.addItem(steel.name, steel)
-        self.steel_input.setCurrentText(APP_CONFIG.pavement_steel)
+        self.steel_input.setCurrentText(APP_CONFIG.pavement_steel.name)
         form.addRow("Steel:", self.steel_input)
 
         self.max_aggregate_size_input = QDoubleSpinBox()
@@ -166,7 +166,7 @@ class ConfigDialog(QDialog):
         layout.addWidget(buttons)
 
     def _apply(self) -> None:
-        APP_CONFIG.pavement_steel = self.steel_input.currentText()
+        APP_CONFIG.pavement_steel = Steel[self.steel_input.currentText()]
         APP_CONFIG.max_aggregate_size = self.max_aggregate_size_input.value()
         APP_CONFIG.max_bar_types = self.max_bar_types_input.value()
         APP_CONFIG.max_layers = self.max_layers_input.value()
@@ -512,7 +512,7 @@ class BeamCalculatorWindow(QMainWindow):
         self.concrete_input = QComboBox()
         for concrete in Concrete:
             self.concrete_input.addItem(concrete.name, concrete)
-        self.concrete_input.setCurrentText(APP_CONFIG.pavement_concrete)
+        self.concrete_input.setCurrentText(APP_CONFIG.pavement_concrete.name)
         form.addRow("Concrete:", self.concrete_input)
 
         self.self_weight_label = QLabel()
@@ -711,7 +711,7 @@ class BeamCalculatorWindow(QMainWindow):
     def run_analysis(self) -> None:
         length_cm, width, height = self._current_geometry()
         concrete: Concrete = self.concrete_input.currentData()
-        steel: Steel = Steel[APP_CONFIG.pavement_steel]
+        steel: Steel = APP_CONFIG.pavement_steel
 
         try:
             support_a = Support(0, (1, 1, 0))

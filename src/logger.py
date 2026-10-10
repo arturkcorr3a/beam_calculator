@@ -97,7 +97,11 @@ class BeamLogger:
                     if "." in qualname:
                         class_name = qualname.rsplit(".", 1)[0]
                         caller_cls = caller.f_globals.get(class_name)
-                        lbl = getattr(caller_cls, "_log_label", None) if caller_cls is not None else None
+                        lbl = (
+                            getattr(caller_cls, "_log_label", None)
+                            if caller_cls is not None
+                            else None
+                        )
                         tag_name = lbl if isinstance(lbl, str) else qualname
                     else:
                         tag_name = qualname
@@ -152,32 +156,17 @@ def logger_label(label: str) -> Callable[[_ClassT], _ClassT]:
 
             cls._log_label = property(_resolve)
         else:
-            cls._log_label = label  # plain string — accessible from static methods via class lookup
+            cls._log_label = (
+                label  # plain string — accessible from static methods via class lookup
+            )
         return cls
 
     return decorator
 
 
-def _init_logger() -> BeamLogger:
-    # late import — avoids circular dep at module load time
-    from src.config import (
-        APP_CONFIG,
-    )
-
-    try:
-        level = LogLevel[APP_CONFIG.log_level.upper()]
-    except KeyError:
-        level = LogLevel.GENERAL
-
-    try:
-        output = LogOutput(APP_CONFIG.log_output.lower())
-    except ValueError:
-        output = LogOutput.CONSOLE
-
-    return BeamLogger(level, output)
-
-
-_logger = _init_logger()
+# Console-only until src.config applies APP_CONFIG's level and output; the
+# logger must not import src.config, which depends on it (circular import).
+_logger = BeamLogger(LogLevel.PROPERTY, LogOutput.CONSOLE)
 
 log_property = _logger.log_property
 log_operation = _logger.log_operation

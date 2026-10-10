@@ -10,12 +10,10 @@ import pytest
 from rich.console import Console
 
 import src.logger as logger_module
-from src.config import APP_CONFIG
 from src.logger import (
     BeamLogger,
     LogLevel,
     LogOutput,
-    _init_logger,  # pyright: ignore[reportPrivateUsage]
     logger_label,
 )
 
@@ -348,7 +346,8 @@ class TestLogIndentAndFormat:
         lg.log_operation("hello", label="Tag")
         line = _emitted(buf)
         # GENERAL(6) - OPERATION(2) = 4, indent = "  " * 4 = 8 spaces
-        assert line.startswith(" " * 8) and not line.startswith(" " * 9), (
+        assert line.startswith(" " * 8)
+        assert not line.startswith(" " * 9), (
             "OPERATION (indent=4 * 2 = 8) should have exactly 8 leading spaces"
         )
 
@@ -721,75 +720,3 @@ class TestLoggerLabelDecorator:
         assert result is _C, (
             "logger_label decorator should return the original class object unchanged"
         )
-
-
-# ---------------------------------------------------------------------------
-# 9. _init_logger (APP_CONFIG integration)
-# ---------------------------------------------------------------------------
-
-
-class TestInitLogger:
-    """Tests for _init_logger reading APP_CONFIG and its fallback paths."""
-
-    def test_valid_level_and_output(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "log_level", "ELEMENT")
-        monkeypatch.setattr(APP_CONFIG, "log_output", "console")
-        monkeypatch.setattr(logger_module, "_LOGS_DIR", tmp_path)
-        lg = _init_logger()
-        assert lg._level == LogLevel.ELEMENT, (  # pyright: ignore[reportPrivateUsage]
-            "_init_logger should map APP_CONFIG.log_level 'ELEMENT' to LogLevel.ELEMENT"
-        )
-        assert lg._output == LogOutput.CONSOLE, (  # pyright: ignore[reportPrivateUsage]
-            "_init_logger should map APP_CONFIG.log_output 'console' to LogOutput.CONSOLE"
-        )
-
-    def test_invalid_log_level_falls_back_to_general(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "log_level", "NONEXISTENT")
-        monkeypatch.setattr(APP_CONFIG, "log_output", "console")
-        monkeypatch.setattr(logger_module, "_LOGS_DIR", tmp_path)
-        lg = _init_logger()
-        assert lg._level == LogLevel.GENERAL, (  # pyright: ignore[reportPrivateUsage]
-            "_init_logger should fall back to GENERAL when log_level is unrecognized"
-        )
-
-    def test_invalid_log_output_falls_back_to_console(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "log_level", "GENERAL")
-        monkeypatch.setattr(APP_CONFIG, "log_output", "invalid_output")
-        monkeypatch.setattr(logger_module, "_LOGS_DIR", tmp_path)
-        lg = _init_logger()
-        assert lg._output == LogOutput.CONSOLE, (  # pyright: ignore[reportPrivateUsage]
-            "_init_logger should fall back to CONSOLE when log_output is unrecognized"
-        )
-
-    def test_log_level_case_insensitive(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "log_level", "general")
-        monkeypatch.setattr(APP_CONFIG, "log_output", "console")
-        monkeypatch.setattr(logger_module, "_LOGS_DIR", tmp_path)
-        lg = _init_logger()
-        assert lg._level == LogLevel.GENERAL, (  # pyright: ignore[reportPrivateUsage]
-            "_init_logger should accept lowercase log_level values (upper cases before lookup)"
-        )
-
-    def test_file_output_creates_log_file(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "log_level", "GENERAL")
-        monkeypatch.setattr(APP_CONFIG, "log_output", "file")
-        monkeypatch.setattr(logger_module, "_LOGS_DIR", tmp_path)
-        lg = _init_logger()
-        assert lg._log_file is not None, (  # pyright: ignore[reportPrivateUsage]
-            "_init_logger with 'file' output should open a log file"
-        )
-        log_files = list(tmp_path.glob("beam_calculator_*.log"))
-        assert len(log_files) == 1, (
-            "_init_logger with 'file' output should create exactly one log file"
-        )
-        lg._log_file.close()  # pyright: ignore[reportPrivateUsage]

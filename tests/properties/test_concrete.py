@@ -5,6 +5,7 @@ from typing import Any, cast
 import pytest
 
 from src.config import APP_CONFIG
+from src.config_options import Aggregate
 from src.properties.concrete import GAMMA_C, Concrete
 from tests.helpers import assert_approx
 
@@ -62,6 +63,7 @@ class TestConcreteGroup:
         assert concrete_c60.concrete_group == expected_group, (
             "For concrete with fck 60 MPa, the concrete group should be 2"
         )
+
 
 class TestElasticModuli:
     """Tests for the elastic and shear moduli, assuming granite/gneiss aggregate."""
@@ -125,7 +127,7 @@ class TestAlphaEAggregate:
     def test_basalt(
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "aggregate", "basalt")
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.BASALT)
         _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.2
         assert concrete_c25.alpha_e == expected_alpha_e, (
@@ -135,7 +137,7 @@ class TestAlphaEAggregate:
     def test_diabase(
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "aggregate", "diabase")
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.DIABASE)
         _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.2
         assert concrete_c25.alpha_e == expected_alpha_e, (
@@ -145,7 +147,7 @@ class TestAlphaEAggregate:
     def test_granite(
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "aggregate", "granite")
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GRANITE)
         _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.0
         assert concrete_c25.alpha_e == expected_alpha_e, (
@@ -155,7 +157,7 @@ class TestAlphaEAggregate:
     def test_gneiss(
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "aggregate", "gneiss")
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GNEISS)
         _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.0
         assert concrete_c25.alpha_e == expected_alpha_e, (
@@ -165,7 +167,7 @@ class TestAlphaEAggregate:
     def test_limestone(
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "aggregate", "limestone")
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.LIMESTONE)
         _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 0.9
         assert concrete_c25.alpha_e == expected_alpha_e, (
@@ -175,20 +177,12 @@ class TestAlphaEAggregate:
     def test_sandstone(
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "aggregate", "sandstone")
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.SANDSTONE)
         _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 0.7
         assert concrete_c25.alpha_e == expected_alpha_e, (
             "For sandstone aggregate, alpha_e should be 0.7"
         )
-
-    def test_unknown_aggregate_raises(
-        self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "aggregate", "unobtainium")
-        _clear_cached_property(concrete_c25, "alpha_e")
-        with pytest.raises(ValueError, match="Unknown aggregate type"):
-            _ = concrete_c25.alpha_e
 
 
 class TestStressBlockFactors:

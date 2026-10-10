@@ -44,6 +44,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.config import APP_CONFIG
+from src.config_options import OccupancyCategory
 from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.gui.theme import (
     DARK_ACCENT,
@@ -86,9 +87,9 @@ _NON_BEARING_MASONRY_TYPES = [
 ]
 
 
-def _usage_locals_for_category(category_description: str) -> list[str]:
+def _usage_locals_for_category(category: OccupancyCategory) -> list[str]:
     try:
-        cat = TABLE_10.find_category(category_description)
+        cat = TABLE_10.find_category(category.value)
         return [loc.description for loc in cat.locations]
     except KeyError:
         return []
@@ -589,7 +590,8 @@ class PavementWindow(QMainWindow):
         except OSError as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
 
-    def _on_category_changed(self, category: str) -> None:
+    def _on_category_changed(self, category_description: str) -> None:
+        category = OccupancyCategory(category_description)
         APP_CONFIG.building_category = category
         locs = _usage_locals_for_category(category)
         current = self._s_usage.currentText()
@@ -1181,7 +1183,7 @@ class SlabReportWindow(QDialog):
         from src.pavement_elements.slab_edge import Edges
 
         slab = self._slab
-        concrete = Concrete[APP_CONFIG.pavement_concrete]
+        concrete = APP_CONFIG.pavement_concrete
 
         try:
             support_conditions = {
@@ -1292,41 +1294,16 @@ class ConfigDialog(QDialog):
         cfg_pav_concrete = QComboBox()
         for c in Concrete:
             cfg_pav_concrete.addItem(c.name, c)
-        cfg_pav_concrete.setCurrentText(APP_CONFIG.pavement_concrete)
-        cfg_pav_concrete.currentTextChanged.connect(
-            lambda v: setattr(APP_CONFIG, "pavement_concrete", v)
-        )
+        cfg_pav_concrete.setCurrentText(APP_CONFIG.pavement_concrete.name)
+        cfg_pav_concrete.currentTextChanged.connect(self._on_concrete_changed)
         form.addRow("Concrete:", cfg_pav_concrete)
 
         cfg_pav_steel = QComboBox()
         for s in Steel:
             cfg_pav_steel.addItem(s.name, s)
-        cfg_pav_steel.setCurrentText(APP_CONFIG.pavement_steel)
-        cfg_pav_steel.currentTextChanged.connect(
-            lambda v: setattr(APP_CONFIG, "pavement_steel", v)
-        )
+        cfg_pav_steel.setCurrentText(APP_CONFIG.pavement_steel.name)
+        cfg_pav_steel.currentTextChanged.connect(self._on_steel_changed)
         form.addRow("Steel:", cfg_pav_steel)
-
-        # ---- Beam defaults ----
-        form.addRow(_section("BEAM DEFAULTS"))
-
-        cfg_beam_concrete = QComboBox()
-        for c in Concrete:
-            cfg_beam_concrete.addItem(c.name, c)
-        cfg_beam_concrete.setCurrentText(APP_CONFIG.pavement_concrete)
-        cfg_beam_concrete.currentTextChanged.connect(
-            lambda v: setattr(APP_CONFIG, "default_concrete", v)
-        )
-        form.addRow("Concrete:", cfg_beam_concrete)
-
-        cfg_beam_steel = QComboBox()
-        for s in Steel:
-            cfg_beam_steel.addItem(s.name, s)
-        cfg_beam_steel.setCurrentText(APP_CONFIG.pavement_steel)
-        cfg_beam_steel.currentTextChanged.connect(
-            lambda v: setattr(APP_CONFIG, "steel", v)
-        )
-        form.addRow("Steel:", cfg_beam_steel)
 
         # ---- Reinforcement ----
         form.addRow(_section("REINFORCEMENT"))
@@ -1355,9 +1332,9 @@ class ConfigDialog(QDialog):
         form.addRow(_section("PROJECT"))
 
         cfg_category = QComboBox()
-        for cat in TABLE_10.categories:
-            cfg_category.addItem(cat.description)
-        cfg_category.setCurrentText(APP_CONFIG.building_category)
+        for category in OccupancyCategory:
+            cfg_category.addItem(category.value)
+        cfg_category.setCurrentText(APP_CONFIG.building_category.value)
         cfg_category.currentTextChanged.connect(
             self._parent_window._on_category_changed
         )
@@ -1374,3 +1351,9 @@ class ConfigDialog(QDialog):
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn)
+
+    def _on_concrete_changed(self, name: str) -> None:
+        APP_CONFIG.pavement_concrete = Concrete[name]
+
+    def _on_steel_changed(self, name: str) -> None:
+        APP_CONFIG.pavement_steel = Steel[name]

@@ -4,6 +4,7 @@ from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.calculators.stirrup_rebar_coordinator import coordinate_span
 from src.config import APP_CONFIG
+from src.config_options import ExposureClass
 from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -18,7 +19,7 @@ def main():
     steel = Steel.CA50
     length = 410  # cm
 
-    APP_CONFIG.exposure_class = 1
+    APP_CONFIG.exposure_class = ExposureClass.WEAK
 
     v2 = BeamSupport(0)
     v3 = BeamSupport(length)

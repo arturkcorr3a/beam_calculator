@@ -14,6 +14,7 @@ import pytest
 import yaml
 
 from src.config import APP_CONFIG, AppConfig
+from src.config_options import ExposureClass
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -305,15 +306,15 @@ class TestLoadPavement:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Config values written to the file overwrite APP_CONFIG on load."""
-        monkeypatch.setattr(APP_CONFIG, "exposure_class", 4)
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.VERY_SEVERE)
         path = tmp_path / "pavement.yaml"
         save_pavement(build_pavement(), path)
 
         # Reset to a different value so we can observe the mutation.
-        monkeypatch.setattr(APP_CONFIG, "exposure_class", 2)
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
         load_pavement(path)
 
-        assert APP_CONFIG.exposure_class == 4, (
+        assert APP_CONFIG.exposure_class is ExposureClass.VERY_SEVERE, (
             "load_pavement should apply the file's exposure_class to APP_CONFIG"
         )
 

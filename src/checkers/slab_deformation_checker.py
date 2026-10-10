@@ -18,7 +18,6 @@ from src.pavement_elements.slab_edge import Edges, SupportCondition
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
-from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 
@@ -187,7 +186,7 @@ class SlabDeformationChecker(DeformationChecker):
             self.width,
             self.height,
             self.concrete,
-            Steel[APP_CONFIG.pavement_steel],
+            APP_CONFIG.pavement_steel,
         )
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm
 

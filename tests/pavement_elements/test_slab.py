@@ -7,6 +7,7 @@ import pytest
 
 import src.pavement_elements.slab as _slab_module
 from src.config import APP_CONFIG
+from src.config_options import ExposureClass
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -17,6 +18,7 @@ from src.pavement_elements.slab import (
     Slab,
 )
 from src.pavement_elements.slab_edge import Edges
+from src.properties.concrete import Concrete
 from tests.helpers import assert_approx, centroid_preserving_beam_width
 
 # ---------------------------------------------------------------------------
@@ -312,19 +314,19 @@ class TestNominalCovering:
         "exposure_class,concrete,expected",
         [
             # exp1: minimum fck > 20.  C25 (25 > 20) → discount → 2.0 - 0.5 = 1.5
-            (1, "C25", 1.5),
+            (ExposureClass.WEAK, Concrete.C25, 1.5),
             # exp2: minimum fck > 25.  C25 (25 > 25? No) → no discount → 2.5
-            (2, "C25", 2.5),
+            (ExposureClass.MODERATE, Concrete.C25, 2.5),
             # exp2: minimum fck > 25.  C30 (30 > 25) → discount → 2.5 - 0.5 = 2.0
-            (2, "C30", 2.0),
+            (ExposureClass.MODERATE, Concrete.C30, 2.0),
             # exp3: minimum fck > 30.  C30 (30 > 30? No) → no discount → 3.5
-            (3, "C30", 3.5),
+            (ExposureClass.SEVERE, Concrete.C30, 3.5),
             # exp3: minimum fck > 30.  C35 (35 > 30) → discount → 3.5 - 0.5 = 3.0
-            (3, "C35", 3.0),
+            (ExposureClass.SEVERE, Concrete.C35, 3.0),
             # exp4: minimum fck > 40.  C40 (40 > 40? No) → no discount → 4.5
-            (4, "C40", 4.5),
+            (ExposureClass.VERY_SEVERE, Concrete.C40, 4.5),
             # exp4: minimum fck > 40.  C45 (45 > 40) → discount → 4.5 - 0.5 = 4.0
-            (4, "C45", 4.0),
+            (ExposureClass.VERY_SEVERE, Concrete.C45, 4.0),
         ],
         ids=[
             "exp1-C25",
@@ -338,8 +340,8 @@ class TestNominalCovering:
     )
     def test_nominal_covering(
         self,
-        exposure_class: int,
-        concrete: str,
+        exposure_class: ExposureClass,
+        concrete: Concrete,
         expected: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -350,14 +352,6 @@ class TestNominalCovering:
             expected,
             f"nominal_covering for exp{exposure_class}/{concrete}",
         )
-
-    def test_invalid_exposure_class_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setattr(APP_CONFIG, "exposure_class", 5)
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
-        with pytest.raises(ValueError, match="Invalid exposure class"):
-            _ = Slab.nominal_covering
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +375,7 @@ class TestPreSize:
                 return True  # always pass on first try
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _AlwaysPass)
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
         _skip_support_resolution(monkeypatch, s)
 
         result = s.pre_size({})
@@ -405,7 +399,7 @@ class TestPreSize:
                 return call_count[0] > 1  # fail first call, pass on second
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _FailOnce)
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
         _skip_support_resolution(monkeypatch, s)
 
         result = s.pre_size({})
@@ -427,7 +421,7 @@ class TestPreSize:
                 return False  # never passes
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _AlwaysFail)
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
         _skip_support_resolution(monkeypatch, s)
 
         with pytest.raises(ValueError, match="cannot be stabilized"):
@@ -450,7 +444,7 @@ class TestPreSize:
                 return len(verified_spans) == 3
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _PassAtThird)
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
         _skip_support_resolution(monkeypatch, s)
 
         s.pre_size({})
@@ -483,7 +477,7 @@ class TestPreSize:
                 return h >= 10
 
         monkeypatch.setattr(_slab_module, "SlabDeformationChecker", _RecordConditions)
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C30")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
         monkeypatch.setattr(s, "resolve_support_conditions", _fix_bottom_from_9_cm)
 
         s.pre_size({})

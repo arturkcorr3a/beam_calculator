@@ -14,8 +14,6 @@ from src.loading.forces import design_effort_elu
 from src.logger import log_operation, logger_label
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.geometry_utils import Axis
-from src.properties.concrete import Concrete
-from src.properties.steel import Steel
 from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE
 from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -203,7 +201,7 @@ class BeamCalculator:
             One support per span boundary, ordered left to right.
         """
         axis = cast(Axis, self._beam.axis)
-        concrete = Concrete[APP_CONFIG.pavement_concrete]
+        concrete = APP_CONFIG.pavement_concrete
         positions = [0.0]
         for span in self._beam.spans:
             positions.append(
@@ -251,8 +249,8 @@ class BeamCalculator:
             span.get_effective_length(self._pillar_registry)
             for span in self._beam.spans
         )
-        concrete = Concrete[APP_CONFIG.pavement_concrete]
-        steel = Steel[APP_CONFIG.pavement_steel]
+        concrete = APP_CONFIG.pavement_concrete
+        steel = APP_CONFIG.pavement_steel
         return RectangularBeam(
             length,
             self._beam.width,

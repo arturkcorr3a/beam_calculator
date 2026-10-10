@@ -144,7 +144,7 @@ class TestBuildSupports:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Each support takes its pillar's rotational stiffness (kN.m/rad)."""
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
         registry = _make_registry()
         bc = BeamCalculator(_make_beam_stub(), registry)  # type: ignore[arg-type]
         supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
@@ -204,8 +204,8 @@ class TestBuildStructuralBeam:
 
     def test_builds_with_valid_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """_build_structural_beam() returns a RectangularBeam with correct dimensions."""
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
 
         span = _make_span_stub(length_cm=500.0)
         bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
@@ -220,30 +220,6 @@ class TestBuildStructuralBeam:
         assert beam.height == 60.0, "beam height should be 60 cm (cm)"
         assert beam.concrete == Concrete.C25, "beam concrete should be C25"
         assert beam.steel == Steel.CA50, "beam steel should be CA50"
-
-    def test_invalid_concrete_raises_key_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """_build_structural_beam() raises KeyError for unknown pavement_concrete."""
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "INVALID")
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
-
-        span = _make_span_stub()
-        bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
-        with pytest.raises(KeyError):
-            bc._build_structural_beam()  # pyright: ignore[reportPrivateUsage]
-
-    def test_invalid_steel_raises_key_error(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """_build_structural_beam() raises KeyError for unknown pavement_steel."""
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "INVALID")
-
-        span = _make_span_stub()
-        bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
-        with pytest.raises(KeyError):
-            bc._build_structural_beam()  # pyright: ignore[reportPrivateUsage]
 
 
 # ---------------------------------------------------------------------------
@@ -441,8 +417,8 @@ class TestRunPropagatesErrors:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """A ValueError from dimensioning propagates out of run()."""
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
 
         def failing_calculate(*args: object, **kwargs: object) -> None:
             raise ValueError("boom")
@@ -543,8 +519,8 @@ class TestRunBySpan:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Each span is coordinated once, and an interior-support point reaches both spans (cm)."""
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
         analysis = types.SimpleNamespace(
             moment_extremes_per_segment=lambda: [
                 (150.0, 40.0),
@@ -639,8 +615,8 @@ class TestRunIntegration:
         _build_structural_beam, _interest_points, _build_rebar_calculator,
         coordinate_span (stirrup ↔ rebar convergence), _store_reinforcement, and _verify_deformation (pass branch).
         """
-        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", "C25")
-        monkeypatch.setattr(APP_CONFIG, "pavement_steel", "CA50")
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
 
         # Single 500 cm span with moderate loads (kN/m)
         span = _make_span_stub(permanent_load=15.0, variable_load=5.0, length_cm=500.0)
