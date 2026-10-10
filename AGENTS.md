@@ -69,6 +69,28 @@ Do not guess units or normative references — incorrect documentation is worse 
   - `src/persistency/schema.py` — add/remove/rename the field in `ConfigDict`
   - `src/persistency/serialization.py` — add/remove/rename the field in `config_to_dict`
   - `src/persistency/deserialization.py` — add/remove/rename the field in `config_from_dict`
+  - `pavement_ui/core/model/settings.py` — add/remove/rename the field in `ConfigValues` (or `LogValues` for log settings)
+  - `pavement_ui/core/engine/config_mapper.py` — map the field between `ConfigValues` and `AppConfig`
+  - `pavement_ui/presentation/dialogs/config/` — the form section that edits the field
+
+---
+
+## Interface (`pavement_ui`)
+
+The desktop GUI follows [docs/UI_SPEC.md](docs/UI_SPEC.md).
+
+- Business rules live in the engine (`src/`). **Never** reimplement calculation, inclusion rules or validation in the UI.
+- Only `pavement_ui/core/engine/` imports `src.*`. `src/` never imports `pavement_ui`.
+- `pavement_ui/core` never imports PySide6. `pavement_ui/presentation` never imports `src` nor `pavement_ui.core.engine`.
+- Every user-visible text lives in `pavement_ui/presentation/text/strings/` (pt-BR). Code identifiers stay in English.
+- One file = one responsibility (one public class or widget). Target ≤ 200 lines; hard cap 300.
+- Engine changes are limited to those listed in docs/UI_SPEC.md §5.3, unless explicitly requested.
+- No automated tests for `pavement_ui`; engine changes in `src/` get tests per the conventions below.
+- Checks before finishing a stage:
+  - `.venv/bin/ruff check pavement_ui && .venv/bin/ruff format --check pavement_ui`
+  - `.venv/bin/pyright` (strict, configured in `pyproject.toml`)
+  - `PYTHONPATH=. .venv/bin/lint-imports` (layering contracts in `pyproject.toml`)
+  - `.venv/bin/pytest` when `src/` changed
 
 ---
 

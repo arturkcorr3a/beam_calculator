@@ -4,11 +4,12 @@ Each bug is its own file under `critical/`, `high/`, `medium/`, `low/`. Findings
 from a line-by-line review of every `src/` module, then spot-verified against the source
 where severity was high (a few over-stated items were downgraded — see L1).
 
-**Totals:** 2 critical · 7 high · 15 medium · 18 low.
+**Totals:** 3 critical · 7 high · 15 medium · 18 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 - [C2](critical/C2-slab-edge-division-by-zero.md) — Slab-edge support resolution divides by zero (no spans)
 - [C3](critical/C3-psi2-factor-noop.md) — Quasi-permanent ELS factor ψ₂ is a no-op (always 0.30)
+- [C4](critical/C4-slab-own-weight-not-unloaded.md) — Slab self-weight is never transferred to the supporting beams
 
 ## HIGH — wrong result on a reachable path, or a latent 10× trap
 - [H1](high/H1-fctm-highstrength-ln-argument.md) — `fct_m` high-strength branch uses wrong `ln` argument
@@ -57,7 +58,7 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [L18](low/L18-inconsistent-table-citations.md) — Inconsistent NBR 6118 table citations
 
 ## Suggested fix order
-1. **C2, C3** — crash and unconservative loads on normal paths.
+1. **C2, C3, C4** — crash and unconservative loads on normal paths.
 2. **H4, H1, H5** — shear-design crash, high-strength formula error, table outlier.
 3. **H2, H3** — the 10× documentation trap and the dead/incorrect config combos.
 4. **H6, H7, M1, M2** — geometry/validation gaps and the effective-depth biases.
