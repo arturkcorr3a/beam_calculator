@@ -355,6 +355,35 @@ class TestBendingMomentExtremesPerSegment:
 
 
 # ---------------------------------------------------------------------------
+# TestMomentExtremeInRange
+# ---------------------------------------------------------------------------
+
+
+class TestMomentExtremeInRange:
+    """Tests for ``moment_extreme_in_range``."""
+
+    def test_range_with_shear_zero_returns_sagging_extreme(
+        self, simply_supported_two_span_beam: BeamAnalysis
+    ) -> None:
+        """[0, 200] cm holds the first span's shear zero at 113.38 cm."""
+        position, moment = simply_supported_two_span_beam.moment_extreme_in_range(
+            0.0, 200.0
+        )
+        assert_approx(position, 113.3789, "Sagging extreme (cm)", abs_tol=0.01)
+        assert_approx(moment, 6.4274, "Sagging moment (kN.m)", abs_tol=0.01)
+
+    def test_hogging_range_returns_support_breakpoint(
+        self, simply_supported_two_span_beam: BeamAnalysis
+    ) -> None:
+        """[250, 350] cm returns the hogging moment at the central support breakpoint."""
+        position, moment = simply_supported_two_span_beam.moment_extreme_in_range(
+            250.0, 350.0
+        )
+        assert_approx(position, 300.0, "Central support (cm)", abs_tol=0.01)
+        assert_approx(moment, -10.9863, "Hogging moment (kN.m)", abs_tol=0.01)
+
+
+# ---------------------------------------------------------------------------
 # TestPositionsForBendingMoment
 # ---------------------------------------------------------------------------
 

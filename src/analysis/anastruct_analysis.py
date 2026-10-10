@@ -234,22 +234,31 @@ class AnaStructBeamAnalysis:
             in cm, moment in kN.m).
         """
         boundaries = _deduplicate(sorted({0.0, self.length, *self.moment_zeros()}))
-        candidates = sorted(
-            {element.start for element in self._elements}
-            | {
-                vertex
-                for element in self._elements
-                if (vertex := element.vertex()) is not None
-            }
-        )
-        extremes: list[tuple[float, float]] = []
-        for segment_start, segment_end in itertools.pairwise(boundaries):
-            positions = [segment_start, segment_end] + [
-                c for c in candidates if segment_start < c < segment_end
-            ]
-            dominant = max(positions, key=lambda x: abs(self.bending_moment(x)))
-            extremes.append((dominant, self.bending_moment(dominant)))
-        return extremes
+        return [
+            self.moment_extreme_in_range(segment_start, segment_end)
+            for segment_start, segment_end in itertools.pairwise(boundaries)
+        ]
+
+    def moment_extreme_in_range(self, start: float, end: float) -> tuple[float, float]:
+        """Return the bending moment with the greatest absolute value within a range.
+
+        Each element's moment is a parabola, so the dominant value lies at a range end, an element start, or a parabola vertex.
+
+        Args:
+            start: Left end of the range (cm).
+            end: Right end of the range (cm); must be >= start.
+
+        Returns:
+            `(position, moment)` of the dominant moment (position in cm, moment in kN.m).
+        """
+        candidates = {element.start for element in self._elements} | {
+            vertex
+            for element in self._elements
+            if (vertex := element.vertex()) is not None
+        }
+        positions = [start, end] + sorted(c for c in candidates if start < c < end)
+        dominant = max(positions, key=lambda x: abs(self.bending_moment(x)))
+        return dominant, self.bending_moment(dominant)
 
     def positions_for_moment(self, target_moment: float) -> list[float]:
         """Return the sorted positions where the bending moment equals a target.

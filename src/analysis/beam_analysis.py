@@ -45,6 +45,18 @@ class BeamAnalysis(Protocol):
         """
         ...
 
+    def moment_extreme_in_range(self, start: float, end: float) -> tuple[float, float]:
+        """Return the bending moment with the greatest absolute value within a range.
+
+        Args:
+            start: Left end of the range (cm).
+            end: Right end of the range (cm); must be >= start.
+
+        Returns:
+            `(position, moment)` of the dominant moment (position in cm, moment in kN.m).
+        """
+        ...
+
     def positions_for_moment(self, target_moment: float) -> list[float]:
         """Return the sorted positions where the bending moment equals a target.
 

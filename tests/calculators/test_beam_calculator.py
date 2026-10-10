@@ -588,6 +588,75 @@ class TestRunBySpan:
                 actual, expected, "support stored from its governing (right) side (cm)"
             )
 
+    def test_span_without_points_uses_its_greatest_moment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A span without interest points is dimensioned at its greatest |M|, searched 0.01 cm inside its ends (cm, kN.m)."""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+        searched: list[tuple[float, float]] = []
+
+        def moment_extreme_in_range(start: float, end: float) -> tuple[float, float]:
+            searched.append((start, end))
+            return start, -25.0
+
+        analysis = types.SimpleNamespace(
+            moment_extremes_per_segment=lambda: [(150.0, 40.0)],
+            moment_extreme_in_range=moment_extreme_in_range,
+            shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
+        )
+
+        def analyse_beam(*args: object) -> types.SimpleNamespace:
+            return analysis
+
+        built: list[tuple[float, float]] = []
+
+        def build_rebar_calculator(
+            self: BeamCalculator,
+            structural_beam: object,
+            moment: float,
+            position: float,
+        ) -> types.SimpleNamespace:
+            built.append((position, moment))
+            return _make_calculator_stub(position, tensioned_area=4.0)
+
+        def store_reinforcement(
+            self: BeamCalculator, calculator: types.SimpleNamespace
+        ) -> None:
+            return None
+
+        def verify_deformation(*args: object) -> None:
+            return None
+
+        coordinated: list[list[float]] = []
+
+        def coordinate_span(
+            calculators: list[types.SimpleNamespace], stirrups: object
+        ) -> None:
+            coordinated.append([calculator.position for calculator in calculators])
+
+        monkeypatch.setattr(beam_calculator, "analyse_beam", analyse_beam)
+        monkeypatch.setattr(
+            BeamCalculator, "_build_rebar_calculator", build_rebar_calculator
+        )
+        monkeypatch.setattr(BeamCalculator, "_store_reinforcement", store_reinforcement)
+        monkeypatch.setattr(BeamCalculator, "_verify_deformation", verify_deformation)
+        monkeypatch.setattr(beam_calculator, "coordinate_span", coordinate_span)
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
+
+        bc.run()
+
+        assert len(coordinated) == 2, "the span without points should be coordinated"
+        assert len(searched) == 1, "only the span without points should be searched"
+        assert_approx(searched[0][0], 300.01, "search starts inside the span (cm)")
+        assert_approx(searched[0][1], 499.99, "search ends inside the span (cm)")
+        assert len(coordinated[1]) == 1, "the span gets a single interest point"
+        assert_approx(
+            coordinated[1][0], 300.01, "point at the span's greatest moment (cm)"
+        )
+        assert built[-1][1] == -25.0, "the point keeps the moment's sign (kN.m)"
+
 
 # ---------------------------------------------------------------------------
 # TestRunIntegration — one conservative real end-to-end run

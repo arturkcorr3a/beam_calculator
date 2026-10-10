@@ -110,6 +110,20 @@ class IndeterminateBeamAnalysis:
             self.length,
         )
 
+    def moment_extreme_in_range(self, start: float, end: float) -> tuple[float, float]:
+        """Return the bending moment with the greatest absolute value within a range.
+
+        Args:
+            start: Left end of the range (cm).
+            end: Right end of the range (cm); must be >= start.
+
+        Returns:
+            `(position, moment)` of the dominant moment (position in cm, moment in kN.m).
+        """
+        return bending_moment_extreme_in_range(
+            self._bending_moment_expression, self._shear_force_expression, start, end
+        )
+
     def positions_for_moment(self, target_moment: float) -> list[float]:
         """Return the sorted positions where the bending moment equals a target.
 
@@ -208,37 +222,83 @@ def bending_moment_extremes_per_segment(
         bending_moment_expression, lower_bound, upper_bound
     )
 
-    extremes: list[tuple[float, float]] = []
-    for segment_start, segment_end in itertools.pairwise(boundary_points):
-        shear_zeros_raw: object = solveset(
+    return [
+        _dominant_bending_moment(
+            bending_moment_expression,
             shear_force_expression,
-            symbol_x,
-            domain=Interval(
-                _to_sympy_bound(segment_start), _to_sympy_bound(segment_end)
-            ),
+            segment_start,
+            segment_end,
+            all_breakpoints,
         )
-        shear_zeros = _extract_finite_zeros(shear_zeros_raw, segment_start, segment_end)
+        for segment_start, segment_end in itertools.pairwise(boundary_points)
+    ]
 
-        interior_breakpoints = [
-            bp for bp in all_breakpoints if segment_start < bp < segment_end
-        ]
 
-        candidate_positions = sorted(
-            set(shear_zeros) | {segment_start, segment_end} | set(interior_breakpoints)
-        )
+def bending_moment_extreme_in_range(
+    bending_moment_expression: Expr,
+    shear_force_expression: Expr,
+    start: float,
+    end: float,
+) -> tuple[float, float]:
+    """Find the bending moment with the greatest absolute value within a range.
 
-        dominant_position = max(
-            candidate_positions,
-            key=lambda position: abs(
-                float(bending_moment_expression.subs(symbol_x, position))  # type: ignore[attr-defined]
-            ),
-        )
-        dominant_moment = float(
-            bending_moment_expression.subs(symbol_x, dominant_position)  # type: ignore[attr-defined]
-        )
-        extremes.append((dominant_position, dominant_moment))
+    Args:
+        bending_moment_expression: Symbolic M(x) in x (kN.m; x in cm).
+        shear_force_expression: Symbolic V(x) in x (kN; x in cm).
+        start: Left end of the range (cm).
+        end: Right end of the range (cm); must be >= start.
 
-    return extremes
+    Returns:
+        `(x, M)` of the dominant moment (x in cm, M in kN.m).
+    """
+    breakpoints = _piecewise_breakpoints(bending_moment_expression, start, end)
+    return _dominant_bending_moment(
+        bending_moment_expression, shear_force_expression, start, end, breakpoints
+    )
+
+
+def _dominant_bending_moment(
+    bending_moment_expression: Expr,
+    shear_force_expression: Expr,
+    start: float,
+    end: float,
+    breakpoints: list[float],
+) -> tuple[float, float]:
+    """Pick the greatest absolute bending moment among the range ends, shear zeros and interior breakpoints.
+
+    Args:
+        bending_moment_expression: Symbolic M(x) in x (kN.m; x in cm).
+        shear_force_expression: Symbolic V(x) in x (kN; x in cm).
+        start: Left end of the range (cm).
+        end: Right end of the range (cm).
+        breakpoints: Piecewise breakpoints of M(x) (cm); only those strictly inside the range are used.
+
+    Returns:
+        `(x, M)` of the dominant moment (x in cm, M in kN.m).
+    """
+    shear_zeros_raw: object = solveset(
+        shear_force_expression,
+        symbol_x,
+        domain=Interval(_to_sympy_bound(start), _to_sympy_bound(end)),
+    )
+    shear_zeros = _extract_finite_zeros(shear_zeros_raw, start, end)
+
+    interior_breakpoints = [bp for bp in breakpoints if start < bp < end]
+
+    candidate_positions = sorted(
+        set(shear_zeros) | {start, end} | set(interior_breakpoints)
+    )
+
+    dominant_position = max(
+        candidate_positions,
+        key=lambda position: abs(
+            float(bending_moment_expression.subs(symbol_x, position))  # type: ignore[attr-defined]
+        ),
+    )
+    dominant_moment = float(
+        bending_moment_expression.subs(symbol_x, dominant_position)  # type: ignore[attr-defined]
+    )
+    return dominant_position, dominant_moment
 
 
 def positions_for_bending_moment(
