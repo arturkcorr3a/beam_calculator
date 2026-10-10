@@ -1,5 +1,7 @@
 """Unit tests for the AppConfig option enums and their persisted values."""
 
+import pytest
+
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.data.nbr6120_2019.table_10.data import TABLE_10
 
@@ -32,6 +34,23 @@ class TestExposureClass:
         values = [exposure_class.value for exposure_class in ExposureClass]
         assert values == [1, 2, 3, 4], (
             "ExposureClass values should be 1-4 (NBR 6118 Table 6.1)"
+        )
+
+    @pytest.mark.parametrize(
+        ("exposure_class", "expected_fck"),
+        [
+            (ExposureClass.WEAK, 20),
+            (ExposureClass.MODERATE, 25),
+            (ExposureClass.SEVERE, 30),
+            (ExposureClass.VERY_SEVERE, 40),
+        ],
+    )
+    def test_minimum_fck(
+        self, exposure_class: ExposureClass, expected_fck: int
+    ) -> None:
+        assert exposure_class.minimum_fck == expected_fck, (
+            f"Exposure class {exposure_class.value} should require fck >= "
+            f"{expected_fck} MPa (NBR 6118 Table 7.1)"
         )
 
 

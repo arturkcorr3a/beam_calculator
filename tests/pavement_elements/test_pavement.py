@@ -5,10 +5,13 @@ from typing import cast
 
 import pytest
 
+from src.config import APP_CONFIG
+from src.config_options import ExposureClass
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pavement import Pavement
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
+from src.properties.concrete import Concrete
 
 # ---------------------------------------------------------------------------
 # Helpers / doubles
@@ -140,6 +143,14 @@ class TestAddSlab:
 
 class TestValidate:
     """validate clears resolved state then calls resolve_and_validate on every element."""
+
+    def test_concrete_below_exposure_minimum_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C20)
+        with pytest.raises(ValueError, match="below the minimum"):
+            Pavement().validate()
 
     def test_calls_clear_then_resolve_on_all_beams(self) -> None:
         p = Pavement()

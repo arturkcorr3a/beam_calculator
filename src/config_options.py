@@ -7,6 +7,7 @@ without creating circular dependencies.
 from __future__ import annotations
 
 from enum import IntEnum, StrEnum
+from typing import assert_never
 
 
 class Aggregate(StrEnum):
@@ -36,6 +37,28 @@ class ExposureClass(IntEnum):
     MODERATE = 2
     SEVERE = 3
     VERY_SEVERE = 4
+
+    @property
+    def minimum_fck(self) -> int:
+        """Get the minimum concrete characteristic strength for this class
+
+        Returns:
+            Minimum fck for reinforced concrete (MPa).
+
+        References:
+            ABNT NBR 6118:2014 — Section 7.4.2, Table 7.1
+        """
+        match self:
+            case ExposureClass.WEAK:
+                return 20
+            case ExposureClass.MODERATE:
+                return 25
+            case ExposureClass.SEVERE:
+                return 30
+            case ExposureClass.VERY_SEVERE:
+                return 40
+            case _:
+                assert_never(self)
 
 
 class OccupancyCategory(StrEnum):

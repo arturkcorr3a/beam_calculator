@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import assert_never
 
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.logger import LogLevel, LogOutput, configure_logger
@@ -36,21 +35,38 @@ class AppConfig:
     log_level: LogLevel = LogLevel.PROPERTY
     log_output: LogOutput = LogOutput.BOTH
 
-    # TODO should validate lower than the minimum concrete grade for the exposure class
     def is_concrete_greater_than_minimum(self, fck: float) -> bool:
-        """Get the minimum concrete grade for the configured exposure class, based on ABNT NBR 6118 - Section 7.4.2 - Table 7.1."""
-        exposure_class = self.exposure_class
-        match exposure_class:
-            case ExposureClass.WEAK:
-                return fck > 20
-            case ExposureClass.MODERATE:
-                return fck > 25
-            case ExposureClass.SEVERE:
-                return fck > 30
-            case ExposureClass.VERY_SEVERE:
-                return fck > 40
-            case _:
-                assert_never(exposure_class)
+        """Check whether fck strictly exceeds the minimum for the exposure class
+
+        Used to grant the nominal cover reduction allowed when the concrete is
+        stronger than the minimum required.
+
+        Args:
+            fck: Concrete characteristic compressive strength (MPa).
+
+        References:
+            ABNT NBR 6118:2014 — Section 7.4.2, Table 7.1
+            ABNT NBR 6118:2014 — Section 7.4.7.6
+        """
+        return fck > self.exposure_class.minimum_fck
+
+    def validate_concrete_class(self) -> None:
+        """Ensure the pavement concrete meets the minimum for the exposure class
+
+        Raises:
+            ValueError: If the pavement concrete fck is below the minimum
+                required for the configured exposure class.
+
+        References:
+            ABNT NBR 6118:2014 — Section 7.4.2, Table 7.1
+        """
+        minimum_fck = self.exposure_class.minimum_fck
+        if self.pavement_concrete.value < minimum_fck:
+            raise ValueError(
+                f"Concrete {self.pavement_concrete.name} is below the minimum "
+                f"C{minimum_fck} required for exposure class "
+                f"{self.exposure_class.value}."
+            )
 
 
 APP_CONFIG = AppConfig()

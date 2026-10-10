@@ -144,3 +144,57 @@ class TestIsConcreteGreaterThanMinimum:
             f"For exposure class {exposure_class}, fck {fck} MPa should return {expected} "
             "(check is a strict greater-than against the class minimum)"
         )
+
+
+class TestValidateConcreteClass:
+    """Tests for rejecting pavement concrete below the exposure-class minimum."""
+
+    @pytest.mark.parametrize(
+        ("exposure_class", "concrete"),
+        [
+            (ExposureClass.MODERATE, Concrete.C20),
+            (ExposureClass.SEVERE, Concrete.C25),
+            (ExposureClass.VERY_SEVERE, Concrete.C35),
+        ],
+    )
+    def test_below_minimum_raises(
+        self, config: AppConfig, exposure_class: ExposureClass, concrete: Concrete
+    ) -> None:
+        config.exposure_class = exposure_class
+        config.pavement_concrete = concrete
+        with pytest.raises(ValueError, match="below the minimum"):
+            config.validate_concrete_class()
+
+    @pytest.mark.parametrize(
+        ("exposure_class", "concrete"),
+        [
+            (ExposureClass.WEAK, Concrete.C20),
+            (ExposureClass.MODERATE, Concrete.C25),
+            (ExposureClass.SEVERE, Concrete.C30),
+            (ExposureClass.VERY_SEVERE, Concrete.C40),
+        ],
+    )
+    def test_equal_to_minimum_passes(
+        self, config: AppConfig, exposure_class: ExposureClass, concrete: Concrete
+    ) -> None:
+        config.exposure_class = exposure_class
+        config.pavement_concrete = concrete
+        config.validate_concrete_class()
+
+    def test_above_minimum_passes(self, config: AppConfig) -> None:
+        config.exposure_class = ExposureClass.MODERATE
+        config.pavement_concrete = Concrete.C50
+        config.validate_concrete_class()
+
+    def test_error_message_names_concrete_minimum_and_class(
+        self, config: AppConfig
+    ) -> None:
+        config.exposure_class = ExposureClass.MODERATE
+        config.pavement_concrete = Concrete.C20
+        with pytest.raises(ValueError) as exc_info:
+            config.validate_concrete_class()
+        assert str(exc_info.value) == (
+            "Concrete C20 is below the minimum C25 required for exposure class 2."
+        ), (
+            "The error should name the concrete, the minimum class and the exposure class"
+        )
