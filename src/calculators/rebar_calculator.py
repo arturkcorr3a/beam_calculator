@@ -295,33 +295,10 @@ class RebarCalculator:
 
         log_operation("Calculating effective depth (d)...")
         label = f"Effective depth (d) calculation for {self.id}"
-        covering = RectangularBeam.nominal_covering  # cm
-
-        if self.tensioned_reinforcement.is_chosen:
-            first_layer = self.tensioned_reinforcement.chosen_bars[0]
-            first_layer_bars = first_layer.bars
-            if first_layer_bars:
-                covering = max(b.effective_covering(covering) for b in first_layer_bars)
-            else:
-                raise ValueError(
-                    "Tensioned reinforcement is marked chosen, but no bars have been set in the first layer. Cannot calculate effective depth (d)."
-                )
-            log_property(
-                f"ACTUAL effective covering (c) = {covering:.2f} cm for first layer {first_layer.get_bar_diameters_for_print()}",
-                label,
-            )
-
-        if self.stirrup_diameter is not None:
-            stirrup_diameter = self.stirrup_diameter
-            log_property(
-                f"ACTUAL stirrup diameter (phi) = {stirrup_diameter:.2f} cm", label
-            )
-        else:
-            stirrup_diameter = DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
-            log_property(
-                f"Stirrup diameter not chosen, using default for d calculation = {stirrup_diameter:.2f} cm",
-                label,
-            )
+        covering = self._effective_covering(
+            self.tensioned_reinforcement, "Tensioned", "d", label
+        )
+        stirrup_diameter = self._stirrup_diameter_for_depth(label)
         d = (
             self.beam.height
             - covering
@@ -330,6 +307,70 @@ class RebarCalculator:
         )
         log_operation(f"Effective depth (d) = {d:.2f} cm")
         return d
+
+    def _effective_covering(
+        self, reinforcement: Reinforcement, kind: str, depth_name: str, label: str
+    ) -> float:
+        """Return the covering up to the first layer of a reinforcement
+
+        Uses the nominal covering when the reinforcement is not chosen yet;
+        otherwise the largest effective covering among the first layer's bars.
+
+        Args:
+            reinforcement: Tensioned or compressed reinforcement of the section.
+            kind: Reinforcement name for the error message ("Tensioned" or
+                "Compressed").
+            depth_name: Depth being calculated, for the error message ("d" or
+                "d'").
+            label: Logger label of the calling depth calculation.
+
+        Returns:
+            Effective covering (cm).
+
+        Raises:
+            ValueError: If the reinforcement is chosen but its first layer has
+                no bars.
+        """
+        covering = RectangularBeam.nominal_covering  # cm
+        if not reinforcement.is_chosen:
+            return covering
+
+        first_layer = reinforcement.chosen_bars[0]
+        first_layer_bars = first_layer.bars
+        if not first_layer_bars:
+            raise ValueError(
+                f"{kind} reinforcement is marked chosen, but no bars have been set in the first layer. Cannot calculate effective depth ({depth_name})."
+            )
+        covering = max(bar.effective_covering(covering) for bar in first_layer_bars)
+        log_property(
+            f"ACTUAL effective covering (c) = {covering:.2f} cm for first layer {first_layer.get_bar_diameters_for_print()}",
+            label,
+        )
+        return covering
+
+    def _stirrup_diameter_for_depth(self, label: str) -> float:
+        """Return the stirrup diameter used in the effective depth calculations
+
+        Falls back to DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION while the
+        stirrups are not chosen yet.
+
+        Args:
+            label: Logger label of the calling depth calculation.
+
+        Returns:
+            Stirrup diameter (cm).
+        """
+        if self.stirrup_diameter is not None:
+            log_property(
+                f"ACTUAL stirrup diameter (phi) = {self.stirrup_diameter:.2f} cm",
+                label,
+            )
+            return self.stirrup_diameter
+        log_property(
+            f"Stirrup diameter not chosen, using default for d calculation = {DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION:.2f} cm",
+            label,
+        )
+        return DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
 
     @property
     def max_bending_moment(self) -> float:
@@ -389,37 +430,10 @@ class RebarCalculator:
 
         log_operation("Calculating compressed effective depth (d')...")
         label = f"Compressed effective depth (d') calculation for {self.id}"
-        covering = RectangularBeam.nominal_covering  # cm
-
-        # REFACTOR this is almost a duplicate of the code in d() property, maybe make a specific private method to get the effective covering for a reinforcement
-        if self.compressed_reinforcement.is_chosen:
-            first_layer = self.compressed_reinforcement.chosen_bars[0]
-            first_layer_bars = first_layer.bars
-            if first_layer_bars:
-                covering = max(
-                    bar.effective_covering(covering) for bar in first_layer_bars
-                )
-            else:
-                raise ValueError(
-                    "Tensioned reinforcement is marked chosen, but no bars have been set in the first layer. Cannot calculate effective depth (d)."
-                )
-            log_property(
-                f"ACTUAL effective covering (c) = {covering:.2f} cm for first layer {first_layer.get_bar_diameters_for_print()}",
-                label,
-            )
-
-        # REFACTOR this is a duplicate of the code in d() property, maybe make a specific private method to get the effective covering for a reinforcement
-        if self.stirrup_diameter is not None:
-            stirrup_diameter = self.stirrup_diameter
-            log_property(
-                f"ACTUAL stirrup diameter (phi) = {stirrup_diameter:.2f} cm", label
-            )
-        else:
-            stirrup_diameter = DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
-            log_property(
-                f"Stirrup diameter not chosen, using default for d calculation = {stirrup_diameter:.2f} cm",
-                label,
-            )
+        covering = self._effective_covering(
+            self.compressed_reinforcement, "Compressed", "d'", label
+        )
+        stirrup_diameter = self._stirrup_diameter_for_depth(label)
 
         d_compressed = (
             covering
