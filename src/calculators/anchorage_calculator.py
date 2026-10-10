@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from src.reinforcement.reinforcement import Reinforcement  # noqa: TC004
 
 
-# FIXME moment_shift is not being used - calculations should use it. Fix.
 @logger_label("Anchorage Calculator - {logging_info}")
 class AnchorageCalculator:
     def __init__(
@@ -49,7 +48,7 @@ class AnchorageCalculator:
             with_hooks=True,
         )
         if not passed:
-            error_message = f"Not enough space for anchorage - even with hooks. Available: {available_space:.2f} cm, Required: {self.necessary_anchorage_length:.2f} cm. Consider reducing bar diameter."
+            error_message = f"Not enough space for anchorage - even with hooks. Available: {available_space:.2f} cm, Required: {self.total_anchorage_length:.2f} cm. Consider reducing bar diameter."
             log_operation(error_message)
             raise ValueError(error_message)
 
@@ -59,18 +58,28 @@ class AnchorageCalculator:
         Returns True if the available space is enough, False otherwise.
         """
         self.layer.set_hooks(self.left, with_hooks)
-        l_b_nec = self.necessary_anchorage_length
+        total_length = self.total_anchorage_length
 
         hooks_state = "with hooks" if with_hooks else "without hooks"
-        if available_space >= l_b_nec:
-            self.layer.set_anchorage_length(l_b_nec, self.left)
-            log_operation(f"Anchorage length of {l_b_nec:.2f} cm set {hooks_state}.")
+        if available_space >= total_length:
+            self.layer.set_anchorage_length(total_length, self.left)
+            log_operation(
+                f"Anchorage length of {total_length:.2f} cm set {hooks_state}."
+            )
             return True
         return False
 
     @property
-    def _moment_shift_length(self) -> float:
-        return self.moment_shift
+    def total_anchorage_length(self) -> float:
+        """Calculate the bar length past the section, l_b,nec plus the moment shift a_l
+
+        Returns:
+            Length in cm.
+        """
+        # PAPER get ref
+        total = self.necessary_anchorage_length + self.moment_shift
+        log_property(f"Total Anchorage Length (l_b,nec + a_l) = {total:.2f} cm")
+        return total
 
     @property
     def design_bond_strength(self) -> float:
