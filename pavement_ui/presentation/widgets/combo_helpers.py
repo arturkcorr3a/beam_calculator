@@ -40,3 +40,13 @@ def select_key(combo: QComboBox, key: str) -> bool:
         return False
     combo.setCurrentIndex(index)
     return True
+
+
+def key_combo(
+    object_name: str, keys: Sequence[str], label_of: Callable[[str], str]
+) -> QComboBox:
+    """A new combo named object_name, filled with keys shown by their labels"""
+    combo = QComboBox()
+    combo.setObjectName(object_name)
+    fill_combo(combo, keys, label_of)
+    return combo

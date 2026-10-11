@@ -69,3 +69,33 @@ ABOUT_TEXT: Final = (
     "Pré-dimensionamento e dimensionamento de pavimentos de concreto armado "
     "(NBR 6118, NBR 6120)."
 )
+
+# --- file dialogs -------------------------------------------------------------
+FILE_FILTER: Final = "Pavimento (*.yaml *.yml)"
+FILE_EXTENSION: Final = ".yaml"
+
+# --- configuration dialog (docs/UI_SPEC.md §9.1) ------------------------------
+CONFIG_TITLE: Final = "Configurações gerais do projeto"
+CONFIG_RESTORE: Final = "Restaurar padrões"
+CONFIG_OK: Final = "OK"
+CONFIG_MATERIALS: Final = "Materiais"
+CONFIG_CONCRETE: Final = "Classe do concreto"
+CONFIG_STEEL: Final = "Aço"
+CONFIG_AGGREGATE: Final = "Tipo de agregado"
+CONFIG_AGG_SIZE: Final = "Dimensão máx. do agregado"
+CONFIG_DETAILING: Final = "Detalhamento das armaduras"
+CONFIG_MAX_BAR_TYPES: Final = "Máx. de diâmetros diferentes"
+CONFIG_PER_REINFORCEMENT: Final = "por armadura"
+CONFIG_MAX_LAYERS: Final = "Máx. de camadas"
+CONFIG_LAYERS: Final = "camadas"
+CONFIG_BUILDING: Final = "Edificação"
+CONFIG_EXPOSURE: Final = "Classe de agressividade"
+CONFIG_CATEGORY: Final = "Categoria da edificação"
+CONFIG_CATEGORY_HINT: Final = (
+    "Define os usos disponíveis para as lajes (NBR 6120, Tabela 10)."
+)
+CONFIG_CEILING: Final = "Pé-direito"
+CONFIG_LOG: Final = "Memorial de cálculo (não é salvo no arquivo)"
+CONFIG_LOG_LEVEL: Final = "Nível de detalhe"
+CONFIG_LOG_OUTPUT: Final = "Saída"
+CONFIG_LOG_HINT: Final = "Arquivo: logs/beam_calculator_<data-hora>.log"

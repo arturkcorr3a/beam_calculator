@@ -10,6 +10,9 @@ from pavement_ui.presentation.execution.engine_executor import EngineExecutor
 from pavement_ui.presentation.main_window.action_rules import ActionContext
 from pavement_ui.presentation.main_window.action_rules import ActionId as A
 from pavement_ui.presentation.main_window.app_actions import AppActions
+from pavement_ui.presentation.main_window.controllers.config_controller import (
+    ConfigController,
+)
 from pavement_ui.presentation.main_window.controllers.file_controller import (
     FileController,
 )
@@ -68,7 +71,8 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self._status)
         forms = {kind: panel.form for kind, panel in self._panels.items()}
         self._pavement = PavementController(session, self._tabs, forms, self)
-        self._files = FileController(session, self)
+        self._files = FileController(session, self, self._plan.fit)
+        self._config = ConfigController(session, self)
         self._connect_actions()
         self._connect_state(bridge)
         self._refresh()
@@ -86,6 +90,10 @@ class MainWindow(QMainWindow):
     def _connect_actions(self) -> None:
         actions, pavement = self._actions, self._pavement
         actions[A.NEW].triggered.connect(self._files.new_project)
+        actions[A.OPEN].triggered.connect(self._files.open)
+        actions[A.SAVE].triggered.connect(self._files.save)
+        actions[A.SAVE_AS].triggered.connect(self._files.save_as)
+        actions[A.CONFIG].triggered.connect(self._config.edit)
         actions[A.QUIT].triggered.connect(self._files.quit)
         actions[A.FOCUS_PILLARS].triggered.connect(
             lambda: pavement.focus(ElementKind.PILLAR)
