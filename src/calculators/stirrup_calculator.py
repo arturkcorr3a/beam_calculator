@@ -123,19 +123,31 @@ class StirrupCalculator:
         return max_spacing
 
     def calculate_moment_shift(self) -> float:
-        """Calculate the moment shift length (a_l) in cm. NBR 6118 - Section 17.4.2.2."""
-        al = self.effective_depth * (
-            (
-                (
-                    self.design_shear_force
-                    / (2 * (self.design_shear_force - self.concrete_contribution))
-                )
+        """Calculate the moment shift length a_l of the tension force diagram (model I)
+
+        a_l = d [V_Sd / (2 (V_Sd - V_c)) (1 + cotg α) - cotg α], kept within
+        0.5 d <= a_l <= d. When |V_Sd| <= V_c the formula does not apply and
+        a_l = d.
+
+        Returns:
+            Moment shift length a_l (cm).
+
+        References:
+            ABNT NBR 6118:2014 — Section 17.4.2.2 c)
+        """
+        design_shear_force = abs(self.design_shear_force)  # kN
+        concrete_contribution = self.concrete_contribution  # kN
+        if design_shear_force <= concrete_contribution:
+            moment_shift = self.effective_depth
+        else:
+            moment_shift = self.effective_depth * (
+                design_shear_force
+                / (2 * (design_shear_force - concrete_contribution))
                 * (1 + cotan(STIRRUP_ANGLE))
+                - cotan(STIRRUP_ANGLE)
             )
-            - cotan(STIRRUP_ANGLE)
-        )
-        al = min(al, self.effective_depth)
-        al = max(al, 0.5 * self.effective_depth)
-        moment_shift = max(al, 0.5 * self.effective_depth)
+            moment_shift = min(
+                max(moment_shift, 0.5 * self.effective_depth), self.effective_depth
+            )
         log_operation(f"moment shift length a_l = {moment_shift:.2f} cm")
         return moment_shift

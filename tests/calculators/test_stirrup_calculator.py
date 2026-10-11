@@ -170,17 +170,37 @@ class TestCalculateMomentShift:
         al = sc_large.calculate_moment_shift()
         assert al >= 0.5 * sc_large.effective_depth, "al must be at least 0.5*d (cm)"
 
-    def test_zero_division_when_v_sd_equals_v_c(
-        self, beam: types.SimpleNamespace
-    ) -> None:
-        """ZeroDivisionError when design_shear_force == concrete_contribution."""
+    def test_equal_to_v_c_returns_d(self, beam: types.SimpleNamespace) -> None:
+        """a_l = d when V_Sd == V_c, instead of dividing by zero (cm)."""
         # V_c = 0.6 * fctd * 20 * 56; set V_Sd exactly equal
         fctd = Concrete.C25.fctd
         v_c = 0.6 * fctd * 20.0 * 56.0
         sc_eq = StirrupCalculator(beam, design_shear_force=v_c)  # pyright: ignore[reportArgumentType]
         sc_eq.effective_depth = 56.0
-        with pytest.raises(ZeroDivisionError):
-            sc_eq.calculate_moment_shift()
+        assert_approx(
+            sc_eq.calculate_moment_shift(), 56.0, "a_l should be d when V_Sd = V_c (cm)"
+        )
+
+    def test_below_v_c_returns_d(self, beam: types.SimpleNamespace) -> None:
+        """a_l = d when V_Sd < V_c (the formula would give a negative value) (cm)."""
+        sc_low = StirrupCalculator(beam, design_shear_force=10.0)  # pyright: ignore[reportArgumentType]
+        sc_low.effective_depth = 56.0
+        assert_approx(
+            sc_low.calculate_moment_shift(),
+            56.0,
+            "a_l should be d when V_Sd < V_c (cm)",
+        )
+
+    def test_negative_shear_uses_magnitude(self, beam: types.SimpleNamespace) -> None:
+        """A negative V_Sd gives the same a_l as its magnitude (cm)."""
+        sc_pos = StirrupCalculator(beam, design_shear_force=200.0)  # pyright: ignore[reportArgumentType]
+        sc_neg = StirrupCalculator(beam, design_shear_force=-200.0)  # pyright: ignore[reportArgumentType]
+        sc_pos.effective_depth = sc_neg.effective_depth = 56.0
+        assert_approx(
+            sc_neg.calculate_moment_shift(),
+            sc_pos.calculate_moment_shift(),
+            "a_l should depend on |V_Sd| only (cm)",
+        )
 
 
 class TestVerifyCompressedStrutResistance:

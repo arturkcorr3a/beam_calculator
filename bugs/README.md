@@ -13,10 +13,10 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [H1](high/H1-fctm-highstrength-ln-argument.md) — `fct_m` high-strength branch uses wrong `ln` argument
 - [H2](high/H2-steel-elastic-modulus-unit-trap.md) — Steel `elastic_modulus` labelled kN/cm² but is MPa
 - [H3](high/H3-config-dialog-nonexistent-fields.md) — ConfigDialog writes to non-existent AppConfig fields
-- [H4](high/H4-moment-shift-division-by-zero.md) — `calculate_moment_shift` divides by zero when V_Sd ≤ V_c
 - [H5](high/H5-carvalho-table7-muy-outlier.md) — Carvalho Quadro 7.1 `mu_y` data outlier (3.14)
 - [H6](high/H6-pillars-touching-beam-straddle.md) — `_pillars_touching_beam` misses a straddling pillar
 - [H7](high/H7-slab-equality-vs-identity.md) — `==` vs `is` on `Slab` dataclasses
+- [H8](high/H8-no-end-support-anchorage.md) — No end-support anchorage: bars near a beam end cannot be detailed
 
 ## MEDIUM — correctness risk under specific inputs, or unconservative simplification
 - [M1](medium/M1-slab-effective-depth-discount.md) — Slab effective-depth discount uses 1.5× bar diameter
@@ -56,7 +56,7 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [L18](low/L18-inconsistent-table-citations.md) — Inconsistent NBR 6118 table citations
 
 ## Suggested fix order
-1. **H4, H1, H5** — shear-design crash, high-strength formula error, table outlier.
+1. **H8, H1, H5** — end-support anchorage (blocks t_concreto2), high-strength formula error, table outlier.
 2. **H2, H3** — the 10× documentation trap and the dead/incorrect config combos.
 3. **H6, H7, M1, M2** — geometry/validation gaps and the effective-depth biases.
 4. Remaining **M** items (iteration cap, lookups, packing), then the **L** cleanups.
