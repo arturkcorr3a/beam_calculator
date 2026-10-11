@@ -88,7 +88,7 @@ class Slab(metaclass=_SlabMeta):
     corner_pillar_ids: tuple[str, str, str, str]
     local: str
 
-    id: str = field(default="", init=False)
+    id: str = field(default="", kw_only=True)  # empty: generated from the counter
     supporting_beam_ids: list[str] = field(default_factory=list[str], init=False)
     edges: dict[Edges, SlabEdge] = field(
         default_factory=dict[Edges, SlabEdge], init=False
@@ -116,7 +116,8 @@ class Slab(metaclass=_SlabMeta):
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
-        self.id = f"L{next(self._counter)}"  # Auto-generate ID if not provided
+        if not self.id:
+            self.id = f"L{next(self._counter)}"
         self._validate_pillar_count()
         self._validate_lowered_not_negative()
         self._setup_edges()

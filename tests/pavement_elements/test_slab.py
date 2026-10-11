@@ -135,6 +135,26 @@ class TestCornerEdgeDict:
 # ---------------------------------------------------------------------------
 
 
+class TestExplicitId:
+    """An explicit id replaces the counter-generated one."""
+
+    def test_explicit_id_is_kept(self) -> None:
+        slab = Slab(("PA", "PB", "PC", "PD"), "Bedrooms", id="L1")
+        assert slab.id == "L1", "an explicit id should be kept"
+
+    def test_explicit_id_does_not_advance_counter(self) -> None:
+        before = Slab(("PA", "PB", "PC", "PD"), "Bedrooms")
+        Slab(("PA", "PB", "PC", "PD"), "Bedrooms", id="L_x")
+        after = Slab(("PA", "PB", "PC", "PD"), "Bedrooms")
+        assert int(after.id[1:]) == int(before.id[1:]) + 1, (
+            "an explicit id should not consume a counter number"
+        )
+
+    def test_construction_error_names_explicit_id(self) -> None:
+        with pytest.raises(ValueError, match=r"^Slab 'L9' must have exactly 4"):
+            Slab(("PA", "PB", "PC"), "Bedrooms", id="L9")  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
+
+
 class TestValidatePillarCount:
     """Slab raises when constructed with fewer than 4 corner pillars."""
 

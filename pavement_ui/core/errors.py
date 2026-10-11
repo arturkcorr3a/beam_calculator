@@ -25,6 +25,7 @@ class PersistenceErrorKind(Enum):
     NOT_FOUND = auto()
     INVALID_YAML = auto()
     INVALID_CONTENT = auto()
+    WRITE_FAILED = auto()
 
 
 class PersistenceError(Exception):

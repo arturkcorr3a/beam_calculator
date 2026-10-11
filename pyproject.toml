@@ -40,8 +40,12 @@ name = "Only core.engine imports the engine"
 type = "forbidden"
 source_modules = ["pavement_ui.core"]
 forbidden_modules = ["src"]
-ignore_imports = ["pavement_ui.core.engine.** -> src.**"]
-unmatched_ignore_imports_alerting = "warn"
+# "-> src" covers src/data/, a namespace package (no __init__.py) that grimp
+# records as the bare src package
+ignore_imports = [
+    "pavement_ui.core.engine.** -> src.**",
+    "pavement_ui.core.engine.** -> src",
+]
 
 [[tool.importlinter.contracts]]
 name = "The engine does not know the GUI"

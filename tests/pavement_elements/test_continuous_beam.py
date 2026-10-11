@@ -105,6 +105,26 @@ class TestWallDefinition:
 # ---------------------------------------------------------------------------
 
 
+class TestExplicitId:
+    """An explicit id replaces the counter-generated one."""
+
+    def test_explicit_id_is_kept(self, wall: WallDefinition) -> None:
+        beam = ContinuousBeam(["P1", "P2"], "P1", 16, Alignment.CENTER, wall, id="V1")
+        assert beam.id == "V1", "an explicit id should be kept"
+
+    def test_explicit_id_does_not_advance_counter(self, wall: WallDefinition) -> None:
+        before = ContinuousBeam(["P1", "P2"], "P1", 16, Alignment.CENTER, wall)
+        ContinuousBeam(["P1", "P2"], "P1", 16, Alignment.CENTER, wall, id="V_x")
+        after = ContinuousBeam(["P1", "P2"], "P1", 16, Alignment.CENTER, wall)
+        assert int(after.id[1:]) == int(before.id[1:]) + 1, (
+            "an explicit id should not consume a counter number"
+        )
+
+    def test_construction_error_names_explicit_id(self, wall: WallDefinition) -> None:
+        with pytest.raises(ValueError, match=r"^Beam 'V7' must have at least 2"):
+            ContinuousBeam(["P1"], "P1", 16, Alignment.CENTER, wall, id="V7")
+
+
 class TestConstructionValidation:
     """ContinuousBeam raises ValueError for invalid construction args."""
 

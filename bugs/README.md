@@ -4,7 +4,7 @@ Each bug is its own file under `critical/`, `high/`, `medium/`, `low/`. Findings
 from a line-by-line review of every `src/` module, then spot-verified against the source
 where severity was high (a few over-stated items were downgraded — see L1).
 
-**Totals:** 3 critical · 7 high · 15 medium · 18 low.
+**Totals:** 3 critical · 7 high · 16 medium · 18 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 - [C2](critical/C2-slab-edge-division-by-zero.md) — Slab-edge support resolution divides by zero (no spans)
@@ -36,6 +36,7 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [M13](medium/M13-elu-combination-single-gamma.md) — `normal_elu_combination` single γ=1.4, ignores ψ₀
 - [M14](medium/M14-global-id-counters.md) — Process-global ID counters shared across pavements
 - [M15](medium/M15-hardcoded-fixed-ratio-threshold.md) — Hardcoded `0.8` instead of `FIXED_RATIO_THRESHOLD`
+- [M16](medium/M16-layer-centroid-excludes-cover.md) — `Layer.y_centroid_position` excludes cover and stirrup
 
 ## LOW — documentation / typing / dead code, no runtime effect
 - [L1](low/L1-fctm-mpa-comment.md) — Misleading `# MPa` comment on `fct_m` (math is correct)

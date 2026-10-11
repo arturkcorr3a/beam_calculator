@@ -67,7 +67,7 @@ class ContinuousBeam:
     alignment: Alignment
     wall: WallDefinition
 
-    id: str = field(default="", init=False)
+    id: str = field(default="", kw_only=True)  # empty: generated from the counter
     axis: Axis | None = field(default=None, init=False)
     centerline: float | None = field(default=None, init=False)
     spans: list[Span] = field(default_factory=list[Span], init=False)
@@ -85,7 +85,8 @@ class ContinuousBeam:
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
-        self.id = f"V{next(self._counter)}"
+        if not self.id:
+            self.id = f"V{next(self._counter)}"
         self.height = (
             self.width
         )  # Start with a square section, just so it is not zero until it is calculated
