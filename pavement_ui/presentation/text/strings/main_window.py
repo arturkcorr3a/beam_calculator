@@ -42,6 +42,11 @@ ABOUT: Final = "Sobre"
 # --- body ---------------------------------------------------------------------
 PLAN_TITLE: Final = "Planta do pavimento"
 PLAN_HINT: Final = "coordenadas em metros"
+PLAN_ZOOM_IN: Final = "Aproximar"
+PLAN_ZOOM_OUT: Final = "Afastar"
+PLAN_FIT: Final = "Ajustar à janela"
+AXIS_X: Final = "X"
+AXIS_Y: Final = "Y"
 
 # --- status bar ---------------------------------------------------------------
 STATUS_NOT_VALIDATED: Final = "Estrutura não validada"

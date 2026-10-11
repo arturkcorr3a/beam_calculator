@@ -24,12 +24,15 @@ class BeamShape:
         rect_m: (x0, y0, x1, y1) of the real band (bw and alignment), or None.
         fallback_line_m: Centers of the existing pillars, used when rect_m is None.
         axis_key: "X" or "Y" when resolved, otherwise None.
+        label_m: Where to label the beam: the middle of its longest span, so the
+            ID does not land on an interior pillar; None if nothing is drawn.
     """
 
     id: str
     rect_m: tuple[float, float, float, float] | None
     fallback_line_m: tuple[Point, ...]
     axis_key: str | None
+    label_m: Point | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -44,18 +44,43 @@ def _band(
     return (m_from_cm(x0), m_from_cm(y0), m_from_cm(x1), m_from_cm(y1))
 
 
+def _longest_segment_middle(points: list[Point]) -> Point | None:
+    """Middle of the longest segment of a polyline (m)."""
+    if len(points) < 2:
+        return None
+    a, b = max(
+        zip(points, points[1:], strict=False),
+        key=lambda seg: math.dist(seg[0], seg[1]),
+    )
+    return ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+
+
 def _beam_shape(beam: ContinuousBeam, pillars: dict[str, Pillar]) -> BeamShape:
     try:
         beam.resolve_and_validate(pillars)
     except ValueError:
-        line = tuple(
+        line = [
             (m_from_cm(pillars[pid].x), m_from_cm(pillars[pid].y))
             for pid in beam.pillar_ids
             if pid in pillars
+        ]
+        return BeamShape(
+            beam.id, None, tuple(line), None, _longest_segment_middle(line)
         )
-        return BeamShape(beam.id, None, line, None)
     axis = cast(Axis, beam.axis)
-    return BeamShape(beam.id, _band(beam, pillars), (), axis.value)
+    centerline = m_from_cm(cast(float, beam.centerline))
+    stops = [pillars[pid] for pid in beam.pillar_ids]  # sorted along the axis
+    if axis == Axis.X:
+        axis_points = [(m_from_cm(p.x), centerline) for p in stops]
+    else:
+        axis_points = [(centerline, m_from_cm(p.y)) for p in stops]
+    return BeamShape(
+        beam.id,
+        _band(beam, pillars),
+        (),
+        axis.value,
+        _longest_segment_middle(axis_points),
+    )
 
 
 def _counter_clockwise(points: list[Point]) -> tuple[Point, ...]:

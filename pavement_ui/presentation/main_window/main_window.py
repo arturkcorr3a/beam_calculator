@@ -1,7 +1,7 @@
 """Main window of the application (mockups A1–A3, docs/UI_SPEC.md §8.1)."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QMainWindow, QSplitter, QWidget
+from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget
 
 from pavement_ui.core.model.element_kind import ElementKind
 from pavement_ui.core.session import ProjectSession
@@ -22,10 +22,10 @@ from pavement_ui.presentation.panels.beams.beams_panel import beams_panel
 from pavement_ui.presentation.panels.element_tabs import ElementTabs
 from pavement_ui.presentation.panels.pillars.pillars_panel import pillars_panel
 from pavement_ui.presentation.panels.slabs.slabs_panel import slabs_panel
+from pavement_ui.presentation.plan.plan_panel import PlanPanel
 from pavement_ui.presentation.session_bridge import QtSessionBridge
 from pavement_ui.presentation.text.strings import main_window as s
 from pavement_ui.presentation.theme import tokens
-from pavement_ui.presentation.widgets.titled_panel import TitledPanel
 
 _INITIAL_SIZE_PX = (1280, 800)
 _MINIMUM_SIZE_PX = (1024, 640)
@@ -59,6 +59,7 @@ class MainWindow(QMainWindow):
         }
         self._tabs = ElementTabs(self._panels, session, bridge)
         self._tabs.setMinimumWidth(_SIDE_MIN_WIDTH_PX)
+        self._plan = PlanPanel()
         self.setCentralWidget(self._build_body())
         self._actions = AppActions(self)
         build_menus(self, self._actions)
@@ -73,11 +74,9 @@ class MainWindow(QMainWindow):
         self._refresh()
 
     def _build_body(self) -> QWidget:
-        # placeholder until the plan view (stage 7)
-        plan = TitledPanel(s.PLAN_TITLE, QLabel(), s.PLAN_HINT)
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._tabs)
-        splitter.addWidget(plan)
+        splitter.addWidget(self._plan)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([_SIDE_WIDTH_PX, _INITIAL_SIZE_PX[0] - _SIDE_WIDTH_PX])
         margin = tokens.MARGIN_PX
@@ -111,6 +110,20 @@ class MainWindow(QMainWindow):
         ):
             signal.connect(self._refresh)
         self._executor.busy_changed.connect(self._on_busy)
+        bridge.records_changed.connect(self._refresh_plan)
+        for panel in self._panels.values():
+            panel.selection_changed.connect(self._plan.highlight)
+        self._plan.item_clicked.connect(self._on_plan_click)
+        self._plan.cursor_moved.connect(self._status.set_cursor_m)
+        self._refresh_plan()
+
+    def _refresh_plan(self) -> None:
+        self._plan.refresh(self._session.plan_geometry())
+
+    def _on_plan_click(self, kind: ElementKind, element_id: str) -> None:
+        """Show the clicked element's tab and select its row"""
+        self._tabs.select(kind)
+        self._panels[kind].select_id(element_id)
 
     def _on_busy(self, busy: bool) -> None:
         for panel in self._panels.values():
