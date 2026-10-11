@@ -71,39 +71,54 @@ class SlabEdge:
         Args:
             pillar_registry: Mapping of pillar ID to Pillar, used to measure
                 span lengths.
+
+        Raises:
+            ValueError: If the edge has no supporting spans.
         """
         self.support_condition = "pinned"
         if self.slab.is_lowered:
             log_property(f"{self.edge.value}: pinned (slab lowered)")
             return
 
-        supported_length = 0
-        fixed_length = 0
+        total_length = self._length(pillar_registry)  # cm
+        fixed_length = 0.0  # cm
         for span in self.spans:
             other_slab = span.get_other_supported_slab(self.slab)
             if other_slab is None or other_slab.is_lowered:
-                supported_length += span.get_length(pillar_registry)
-            elif (
+                continue
+            if (
                 other_slab.thickness > self.slab.thickness
                 or abs(other_slab.thickness - self.slab.thickness)
                 <= THICKNESS_DIFFERENCE_FIXED_THRESHOLD
             ):
                 fixed_length += span.get_length(pillar_registry)
-            else:
-                supported_length += span.get_length(pillar_registry)
 
-        total_length = supported_length + fixed_length
         if fixed_length / total_length > 0.8:
             self.support_condition = "fixed"
         log_property(
             f"{self.edge.value}: {self.support_condition} ({fixed_length:.0f} / {total_length:.0f} cm fixed)"
         )
 
+    def _length(self, pillar_registry: dict[str, Pillar]) -> float:
+        """Total length (cm) of the spans along this edge
+
+        Raises:
+            ValueError: If the edge has no supporting spans.
+        """
+        length = sum(span.get_length(pillar_registry) for span in self.spans)
+        if length <= 0:
+            raise ValueError(
+                f"{self.label} {self.edge.value} edge has no supporting spans."
+            )
+        return length
+
     def unload_on_spans(self, pillar_registry: dict[str, Pillar]) -> None:
-        """Distributes the slab's tributary load along this edge's supporting spans (kN/m)."""
-        edge_length_m = (
-            sum(span.get_length(pillar_registry) for span in self.spans) / 100
-        )
+        """Distribute the slab's tributary load along this edge's supporting spans (kN/m)
+
+        Raises:
+            ValueError: If the edge has no supporting spans.
+        """
+        edge_length_m = self._length(pillar_registry) / 100
         permanent_linear_load = (
             self.slab.total_permanent_load * self.influence_area / edge_length_m
         )  # kN/m

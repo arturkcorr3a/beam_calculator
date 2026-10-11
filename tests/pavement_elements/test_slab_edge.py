@@ -143,11 +143,11 @@ class TestClearResolved:
 class TestResolveSupportCondition:
     """resolve_support_condition sets 'fixed' only when fixed_length/total > 0.8."""
 
-    def test_empty_spans_raises_zero_division(
+    def test_empty_spans_raises_value_error(
         self, bottom_edge: SlabEdge, pillar_registry: dict[str, Pillar]
     ) -> None:
-        # Latent ZeroDivisionError when spans is empty — documented behavior
-        with pytest.raises(ZeroDivisionError):
+        """An edge without spans fails with a clear message, not a ZeroDivisionError"""
+        with pytest.raises(ValueError, match=r"bottom edge has no supporting spans"):
             bottom_edge.resolve_support_condition(pillar_registry)
 
     def test_all_spans_no_other_slab_stays_pinned(
@@ -320,3 +320,11 @@ class TestUnloadOnSpans:
         )
         # variable = 2.0 * 6.25 / 5.0 = 2.5 kN/m
         assert_approx(span.variable_load, 2.5, "variable load should be 2.5 kN/m")
+
+    def test_empty_spans_raises_value_error(
+        self, bottom_edge: SlabEdge, pillar_registry: dict[str, Pillar]
+    ) -> None:
+        """An edge without spans fails with a clear message, not a ZeroDivisionError"""
+        bottom_edge.influence_area = 6.25  # m²
+        with pytest.raises(ValueError, match=r"bottom edge has no supporting spans"):
+            bottom_edge.unload_on_spans(pillar_registry)

@@ -562,7 +562,13 @@ class Slab(metaclass=_SlabMeta):
     def _resolve_edge(
         self, edge: Edges, beam_registry: dict[str, ContinuousBeam]
     ) -> ContinuousBeam:
-        "Finds the beam (and respective spans) that supports a given edge of the slab."
+        """Find the beam (and respective spans) that supports a given edge of the slab
+
+        Raises:
+            ValueError: If no beam contains both corner pillars of the edge, or
+                if the beam has no span between them (e.g. both corners are the
+                same pillar).
+        """
         corner_1, corner_2 = CORNER_EDGE_DICT[edge]
         corner_pillar_1 = self.corners_pillar_dict[corner_1]
         corner_pillar_2 = self.corners_pillar_dict[corner_2]
@@ -571,8 +577,12 @@ class Slab(metaclass=_SlabMeta):
             if beam.contains_pillar(corner_pillar_1.id) and beam.contains_pillar(
                 corner_pillar_2.id
             ):
-                self.edges[edge].resolve_beam(beam)
                 spans = beam.get_spans_between(corner_pillar_1.id, corner_pillar_2.id)
+                if not spans:
+                    raise ValueError(
+                        f"Slab '{self.id}': {edge.value} edge has no span between pillars '{corner_pillar_1.id}' and '{corner_pillar_2.id}' on beam '{beam.id}'."
+                    )
+                self.edges[edge].resolve_beam(beam)
                 self.edges[edge].resolve_spans(spans)
                 return beam
         raise ValueError(

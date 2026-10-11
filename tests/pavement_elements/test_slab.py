@@ -1,6 +1,8 @@
 """Tests for src/pavement_elements/slab.py."""
 
 import math
+import types
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -9,6 +11,7 @@ import src.pavement_elements.slab as _slab_module
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
 from src.loading.superficial_loads import SuperficialLoads
+from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import (
@@ -391,6 +394,35 @@ class TestResolveEdgeMessage:
         with pytest.raises(ValueError, match=r"No valid beam found for top edge\.$"):
             s._resolve_edge(Edges.TOP, {})  # pyright: ignore[reportPrivateUsage]
 
+    def test_no_span_between_corners_raises(self) -> None:
+        """A beam with both corner pillars but no span between them is rejected"""
+        s = Slab(corner_pillar_ids=("PA", "PB", "PC", "PD"), local="Bedrooms")
+        corner = Pillar(0.0, 400.0, 20.0, 30.0)
+        s.corners_pillar_dict = {
+            "bottom_left": Pillar(0.0, 0.0, 20.0, 30.0),
+            "bottom_right": Pillar(500.0, 0.0, 20.0, 30.0),
+            "top_left": corner,
+            "top_right": corner,  # same pillar on both top corners
+        }
+
+        def contains_pillar(pillar_id: str) -> bool:
+            return True
+
+        def get_spans_between(start_pillar_id: str, end_pillar_id: str) -> list[Span]:
+            return []
+
+        beam = cast(
+            ContinuousBeam,
+            types.SimpleNamespace(
+                id="V_top",
+                contains_pillar=contains_pillar,
+                get_spans_between=get_spans_between,
+            ),
+        )
+        with pytest.raises(ValueError, match=r"top edge has no span between pillars"):
+            s._resolve_edge(Edges.TOP, {"V_top": beam})  # pyright: ignore[reportPrivateUsage]
+        assert s.edges[Edges.TOP].spans == [], "the edge should stay unresolved"
+
 
 # ---------------------------------------------------------------------------
 # TestNominalCovering
@@ -539,7 +571,7 @@ class TestPreSize:
 
         s.pre_size({})
         # h = 8, 9, 10 -> a = 0.3h = 2.4, 2.7, 3.0; l0 = 280 / 380
-        for (lx, ly, span), a in zip(verified_spans, (2.4, 2.7, 3.0)):
+        for (lx, ly, span), a in zip(verified_spans, (2.4, 2.7, 3.0), strict=False):
             assert_approx(lx, 280 + 2 * a, f"checker lx should match h = {a / 0.3:.0f}")
             assert_approx(ly, 380 + 2 * a, f"checker ly should match h = {a / 0.3:.0f}")
             assert_approx(span, 280 + 2 * a, "checker span should be min(lx, ly)")
