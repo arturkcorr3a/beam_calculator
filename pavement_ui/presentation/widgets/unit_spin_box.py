@@ -11,6 +11,8 @@ def _style(box: QAbstractSpinBox) -> None:
     box.setFont(mono_font())
     box.setLocale(QLocale())
     box.setKeyboardTracking(False)
+    # arrow buttons lose their native drawing under the stylesheet; keys and wheel still step
+    box.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
 
 
 class UnitSpinBox(QDoubleSpinBox):

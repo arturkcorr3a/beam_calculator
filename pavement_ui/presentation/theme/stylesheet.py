@@ -45,12 +45,18 @@ QGroupBox::title {{
     padding: 0 4px;
     font-weight: 600;
 }}
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
+QLineEdit, QComboBox {{
     background: {t.SURFACE};
     border: 1px solid {t.BORDER_INPUT};
     border-radius: {t.RADIUS_PX}px;
     padding: 3px 6px;
     min-height: 20px;
+}}
+QSpinBox, QDoubleSpinBox {{
+    background: {t.SURFACE};
+    border: 1px solid {t.BORDER_INPUT};
+    border-radius: {t.RADIUS_PX}px;
+    min-height: 26px;
 }}
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{
     border-color: {t.ACCENT};
@@ -80,6 +86,24 @@ QPushButton:disabled, QPushButton[variant="primary"]:disabled {{
     background: {t.CHROME_BG};
     border-color: {t.BORDER};
     color: {t.TEXT_MUTED};
+}}
+QToolButton {{
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: {t.RADIUS_PX}px;
+}}
+QToolButton:hover {{
+    border-color: {t.BORDER_INPUT};
+    background: {t.SURFACE};
+}}
+QToolButton[variant="primary"] {{
+    background: {t.SELECTION_ROW};
+    border-color: {t.ACCENT};
+    color: {t.ACCENT};
+    font-weight: 600;
+}}
+QToolButton[variant="destructive"] {{
+    color: {t.ERROR};
 }}
 QLabel#hint {{
     color: {t.TEXT_MUTED};
