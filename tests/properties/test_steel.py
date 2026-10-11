@@ -59,7 +59,7 @@ class TestElasticModulus:
     def test_elastic_modulus(self) -> None:
         expected_elastic_modulus = 210_000
         assert Steel.elastic_modulus == expected_elastic_modulus, (
-            "The elastic modulus of steel (E_s) should be 210,000 kN/cm²"
+            "The elastic modulus of steel (E_s) should be 210,000 MPa"
         )
 
 

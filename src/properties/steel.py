@@ -10,7 +10,7 @@ class _SteelMeta(EnumMeta):
     @property
     def elastic_modulus(cls) -> int:
         """
-        Returns the elastic modulus of steel (E_s) in kN/cm², based on ABNT NBR 6118 - Section 8.3.5.
+        Returns the elastic modulus of steel (E_s) in MPa, based on ABNT NBR 6118 - Section 8.3.5.
         """
         return 210_000
 
