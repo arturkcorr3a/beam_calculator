@@ -2,7 +2,7 @@
 
 from pavement_ui.core.engine import element_factory
 from pavement_ui.core.engine.design_job import DesignJob
-from pavement_ui.core.engine.log_configurator import LogConfigurator
+from pavement_ui.core.engine.log_configurator import apply_log_settings
 from pavement_ui.core.engine.options_reader import read_options
 from pavement_ui.core.engine.pavement_builder import assemble, build_pavement
 from pavement_ui.core.engine.readers.plan_reader import read_plan
@@ -25,7 +25,7 @@ class PavementGateway:
     """
 
     def __init__(self) -> None:
-        self._log = LogConfigurator()
+        self._log = LogValues()  # passed on to design jobs (they run in the worker)
         self._options: EngineOptions | None = None
 
     def options(self) -> EngineOptions:
@@ -57,7 +57,8 @@ class PavementGateway:
     def make_design_job(
         self, records: PavementRecords, config: ConfigValues
     ) -> Job[DesignOutcome]:
-        return DesignJob(records, config)
+        return DesignJob(records, config, self._log)
 
     def apply_log_settings(self, log: LogValues) -> None:
-        self._log.apply(log)
+        self._log = log
+        apply_log_settings(log)

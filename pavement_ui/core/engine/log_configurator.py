@@ -29,3 +29,11 @@ class LogConfigurator:
         APP_CONFIG.log_output = output
         configure_logger(level, output)
         self._current = log
+
+
+_THIS_PROCESS = LogConfigurator()
+
+
+def apply_log_settings(log: LogValues) -> None:
+    """Configure this process's engine logger (the UI and the worker each have one)"""
+    _THIS_PROCESS.apply(log)

@@ -25,7 +25,8 @@ def fmt_dims_cm(lx_cm: float, ly_cm: float) -> str:
     return s.DIMS.format(lx=fmt_number(lx_cm, 0), ly=fmt_number(ly_cm, 0))
 
 
-def _count(n: int, singular: str, plural: str) -> str:
+def fmt_count(n: int, singular: str, plural: str) -> str:
+    """Format a count with the right noun, e.g. "1 viga", "5 vigas" """
     return f"{n} {singular if n == 1 else plural}"
 
 
@@ -33,8 +34,8 @@ def fmt_counts(counts: ElementCounts) -> str:
     """Summarize the elements, e.g. "6 pilares · 5 vigas · 2 lajes" """
     return s.COUNT_JOIN.join(
         (
-            _count(counts.pillars, s.PILLAR_SINGULAR, s.PILLAR_PLURAL),
-            _count(counts.beams, s.BEAM_SINGULAR, s.BEAM_PLURAL),
-            _count(counts.slabs, s.SLAB_SINGULAR, s.SLAB_PLURAL),
+            fmt_count(counts.pillars, s.PILLAR_SINGULAR, s.PILLAR_PLURAL),
+            fmt_count(counts.beams, s.BEAM_SINGULAR, s.BEAM_PLURAL),
+            fmt_count(counts.slabs, s.SLAB_SINGULAR, s.SLAB_PLURAL),
         )
     )

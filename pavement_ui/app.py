@@ -52,4 +52,5 @@ def main() -> int:
     _configure_application(app)
     window = build_main_window()
     window.show()
+    window.warm_up_engine()
     return app.exec()

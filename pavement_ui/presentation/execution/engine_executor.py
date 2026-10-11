@@ -1,62 +1,112 @@
-"""EngineExecutor: run engine jobs in the background, one at a time."""
+"""EngineExecutor: run engine jobs in a separate worker process, one at a time."""
 
+import multiprocessing
+import traceback
 from collections.abc import Callable
+from concurrent.futures import Future, ProcessPoolExecutor
 from itertools import count
 from typing import Any, cast
 
-from PySide6.QtCore import QObject, QThreadPool, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot
 
 from pavement_ui.core.ports import Job
-from pavement_ui.presentation.execution.job_runnable import JobRunnable, JobSignals
+from pavement_ui.presentation.execution.result_relay import ResultRelay
 
-type _Callback = Callable[[Any], None]
+type _Done = Callable[[Any], None]
+type ErrorCallback = Callable[[str, str], None]
+
+
+def _ready() -> bool:
+    """Trivial task that makes the pool start its worker process."""
+    return True
 
 
 class EngineExecutor(QObject):
-    """Serialize every engine job on a private single-thread pool
+    """Serialize engine jobs on a single long-lived worker process
 
-    The engine uses a global configuration and logger, so jobs must never run
-    concurrently (docs/UI_SPEC.md §3, decision 6). ``on_done`` is called on the
-    UI thread: the worker's signal is delivered, queued, to this object.
+    The engine is pure Python: on a thread it would hold the GIL that every Qt
+    callback into Python needs, freezing the window (docs/UI_SPEC.md §3,
+    decision 6). In its own process it also keeps its global configuration and
+    logger apart from the UI. Jobs must pickle (frozen dataclasses of records).
+
+    Results come back queued on the UI thread through ``ResultRelay``.
 
     Attributes:
-        busy_changed: Emitted with True when a job starts and False when the
-            last pending job finishes.
+        busy_changed: True when a job is submitted and nothing was running,
+            False when the last pending job is done.
     """
 
     busy_changed = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._pool = QThreadPool(self)
-        self._pool.setMaxThreadCount(1)
-        self._signals = JobSignals(self)
-        self._signals.finished.connect(self._on_finished)
+        self._pool: ProcessPoolExecutor | None = None
+        self._relay = ResultRelay(self)
+        self._relay.finished.connect(self._on_finished)
+        self._relay.failed.connect(self._on_failed)
         self._tickets = count(1)
-        self._pending: dict[int, _Callback] = {}
+        self._pending: dict[int, tuple[_Done, ErrorCallback]] = {}
 
     @property
     def busy(self) -> bool:
         return bool(self._pending)
 
-    def submit[T](self, job: Job[T], on_done: Callable[[T], None]) -> None:
-        """Queue job; on_done receives its outcome on the UI thread"""
+    def _get_pool(self) -> ProcessPoolExecutor:
+        if self._pool is None:
+            # spawn, not fork: forking a process that runs Qt is unsafe
+            context = multiprocessing.get_context("spawn")
+            self._pool = ProcessPoolExecutor(max_workers=1, mp_context=context)
+        return self._pool
+
+    def warm_up(self) -> None:
+        """Start the worker now, so the first job does not wait for the engine to load"""
+        self._get_pool().submit(_ready)
+
+    def submit[T](
+        self, job: Job[T], on_done: Callable[[T], None], on_error: ErrorCallback
+    ) -> None:
+        """Queue job in the worker; on_done(outcome) or on_error(message, details) on the UI thread"""
         ticket = next(self._tickets)
         was_busy = self.busy
-        self._pending[ticket] = cast(_Callback, on_done)
+        self._pending[ticket] = (cast(_Done, on_done), on_error)
         if not was_busy:
             self.busy_changed.emit(True)
-        self._pool.start(JobRunnable(cast(Job[object], job), ticket, self._signals))
+        future = self._get_pool().submit(job.run)
+        future.add_done_callback(lambda f: self._relay_result(ticket, f))
 
-    def wait_for_done(self) -> None:
-        """Block until every queued job ran (used when the application quits)"""
-        self._pool.waitForDone()
+    def _relay_result(self, ticket: int, future: Future[Any]) -> None:
+        """Runs on the pool's callback thread: only emit, never touch widgets."""
+        if future.cancelled():  # only when the pool is torn down without waiting
+            return
+        error = future.exception()
+        if error is None:
+            self._relay.finished.emit(ticket, future.result())
+            return
+        details = "".join(traceback.format_exception(error))
+        self._relay.failed.emit(ticket, str(error) or type(error).__name__, details)
+
+    def shutdown(self) -> None:
+        """Wait for the running job, then stop the worker (when the application quits)"""
+        if self._pool is not None:
+            self._pool.shutdown(wait=True)
+            self._pool = None
 
     @Slot(int, object)
     def _on_finished(self, ticket: int, outcome: object) -> None:
-        callback = self._pending.pop(ticket)
+        on_done, _ = self._pending.pop(ticket)
         try:
-            callback(outcome)
+            on_done(outcome)
         finally:
-            if not self.busy:
-                self.busy_changed.emit(False)
+            self._emit_idle()
+
+    @Slot(int, str, str)
+    def _on_failed(self, ticket: int, message: str, details: str) -> None:
+        _, on_error = self._pending.pop(ticket)
+        try:
+            on_error(message, details)
+        finally:
+            self._emit_idle()
+
+    def _emit_idle(self) -> None:
+        if not self.busy:
+            self.busy_changed.emit(False)

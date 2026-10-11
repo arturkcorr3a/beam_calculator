@@ -1,12 +1,15 @@
 """Main window of the application (mockups A1–A3, docs/UI_SPEC.md §8.1)."""
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget
 
 from pavement_ui.core.model.element_kind import ElementKind
+from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.dialogs import messages
 from pavement_ui.presentation.execution.engine_executor import EngineExecutor
+from pavement_ui.presentation.formatting.elements import fmt_count
 from pavement_ui.presentation.main_window.action_rules import ActionContext
 from pavement_ui.presentation.main_window.action_rules import ActionId as A
 from pavement_ui.presentation.main_window.app_actions import AppActions
@@ -19,6 +22,9 @@ from pavement_ui.presentation.main_window.controllers.file_controller import (
 from pavement_ui.presentation.main_window.controllers.pavement_controller import (
     PavementController,
 )
+from pavement_ui.presentation.main_window.controllers.structure_controller import (
+    StructureController,
+)
 from pavement_ui.presentation.main_window.menu_builder import build_menus, build_toolbar
 from pavement_ui.presentation.main_window.status_bar import MainStatusBar
 from pavement_ui.presentation.panels.beams.beams_panel import beams_panel
@@ -27,13 +33,16 @@ from pavement_ui.presentation.panels.pillars.pillars_panel import pillars_panel
 from pavement_ui.presentation.panels.slabs.slabs_panel import slabs_panel
 from pavement_ui.presentation.plan.plan_panel import PlanPanel
 from pavement_ui.presentation.session_bridge import QtSessionBridge
+from pavement_ui.presentation.text.strings import formatting as fs
 from pavement_ui.presentation.text.strings import main_window as s
 from pavement_ui.presentation.theme import tokens
+from pavement_ui.presentation.widgets.busy_overlay import BusyOverlay
 
 _INITIAL_SIZE_PX = (1280, 800)
 _MINIMUM_SIZE_PX = (1024, 640)
 _SIDE_WIDTH_PX = 440
 _SIDE_MIN_WIDTH_PX = 420
+_STATUS_MESSAGE_MS = 8000
 
 
 class MainWindow(QMainWindow):
@@ -73,6 +82,10 @@ class MainWindow(QMainWindow):
         self._pavement = PavementController(session, self._tabs, forms, self)
         self._files = FileController(session, self, self._plan.fit)
         self._config = ConfigController(session, self)
+        self._structure = StructureController(
+            session, executor, self, self._on_design_success
+        )
+        self._overlay = BusyOverlay(self)
         self._connect_actions()
         self._connect_state(bridge)
         self._refresh()
@@ -94,6 +107,8 @@ class MainWindow(QMainWindow):
         actions[A.SAVE].triggered.connect(self._files.save)
         actions[A.SAVE_AS].triggered.connect(self._files.save_as)
         actions[A.CONFIG].triggered.connect(self._config.edit)
+        actions[A.VALIDATE].triggered.connect(self._structure.validate)
+        actions[A.DESIGN].triggered.connect(self._structure.design)
         actions[A.QUIT].triggered.connect(self._files.quit)
         actions[A.FOCUS_PILLARS].triggered.connect(
             lambda: pavement.focus(ElementKind.PILLAR)
@@ -125,6 +140,23 @@ class MainWindow(QMainWindow):
         self._plan.cursor_moved.connect(self._status.set_cursor_m)
         self._refresh_plan()
 
+    def _on_design_success(self, success: DesignSuccess) -> None:
+        # until the results window (stage 10): a summary in the status bar
+        beams = fmt_count(len(success.beams), fs.BEAM_SINGULAR, fs.BEAM_PLURAL)
+        slabs = fmt_count(len(success.slabs), fs.SLAB_SINGULAR, fs.SLAB_PLURAL)
+        self._status.showMessage(
+            s.STATUS_DESIGN_DONE.format(beams=beams, slabs=slabs), _STATUS_MESSAGE_MS
+        )
+
+    def warm_up_engine(self) -> None:
+        """Start the engine's worker process now, so the first design does not wait"""
+        self._executor.warm_up()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Let a running design finish, then stop the engine's worker process"""
+        self._executor.shutdown()
+        super().closeEvent(event)
+
     def _refresh_plan(self) -> None:
         self._plan.refresh(self._session.plan_geometry())
 
@@ -137,6 +169,10 @@ class MainWindow(QMainWindow):
         for panel in self._panels.values():
             panel.setEnabled(not busy)
         self._status.set_busy(busy)
+        if busy:
+            self._overlay.show_busy(s.STATUS_DESIGNING)
+        else:
+            self._overlay.hide_busy()
         self._refresh()
 
     def _refresh(self) -> None:
