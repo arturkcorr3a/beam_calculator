@@ -480,6 +480,23 @@ class TestValidateNoSkippedPillars:
         with pytest.raises(ValueError, match="skips pillar"):
             b.resolve_and_validate(registry)
 
+    def test_skipped_straddling_pillar_raises(self, wall: WallDefinition) -> None:
+        """A pillar deeper than the beam is wide covers the whole beam band"""
+        p1 = Pillar(x=0, y=0, width=20, depth=20)
+        # y range [-50, 50] contains the 16 cm band [-8, 8]: no edge lies inside it
+        p_deep = Pillar(x=200, y=0, width=20, depth=100)
+        p3 = Pillar(x=400, y=0, width=20, depth=20)
+        registry = {p1.id: p1, p_deep.id: p_deep, p3.id: p3}
+        b = ContinuousBeam(
+            pillar_ids=[p1.id, p3.id],
+            reference_pillar_id=p1.id,
+            width=16,
+            alignment=Alignment.CENTER,
+            wall=wall,
+        )
+        with pytest.raises(ValueError, match=rf"skips pillar\(s\) '{p_deep.id}'"):
+            b.resolve_and_validate(registry)
+
 
 # ---------------------------------------------------------------------------
 # TestPreSize
@@ -858,9 +875,9 @@ class TestReport:
 
         assert "x = 100.00 cm · bottom" in report, "should state position and face"
         assert "2φ12.5 + 1φ10" in report, "should group bars by diameter"
-        assert "50.0" in report and "150.0" in report, (
-            "bar extent should be center ∓ anchorage lengths"
-        )
+
+        assert "50.0" in report, "bar extent should be center ∓ anchorage lengths"
+        assert "150.0" in report, "bar extent should be center ∓ anchorage lengths"
         assert "4.30" in report, "should state the layer height from the bottom"
 
     def test_reports_no_reinforcement(

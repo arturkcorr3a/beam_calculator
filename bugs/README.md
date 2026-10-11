@@ -4,17 +4,19 @@ Each bug is its own file under `critical/`, `high/`, `medium/`, `low/`. Findings
 from a line-by-line review of every `src/` module, then spot-verified against the source
 where severity was high (a few over-stated items were downgraded — see L1).
 
-**Totals:** 0 critical · 3 high · 15 medium · 18 low.
+**Totals:** 0 critical · 2 high · 15 medium · 18 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
+
 - None open.
 
 ## HIGH — wrong result on a reachable path, or a latent 10× trap
-- [H6](high/H6-pillars-touching-beam-straddle.md) — `_pillars_touching_beam` misses a straddling pillar
+
 - [H7](high/H7-slab-equality-vs-identity.md) — `==` vs `is` on `Slab` dataclasses
 - [H8](high/H8-no-end-support-anchorage.md) — No end-support anchorage: bars near a beam end cannot be detailed
 
 ## MEDIUM — correctness risk under specific inputs, or unconservative simplification
+
 - [M1](medium/M1-slab-effective-depth-discount.md) — Slab effective-depth discount uses 1.5× bar diameter
 - [M2](medium/M2-nominal-covering-global-concrete.md) — `nominal_covering` uses global concrete, not the beam's
 - [M3](medium/M3-table-lookup-float-equality.md) — Table lookups use exact float `==`
@@ -32,6 +34,7 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [M16](medium/M16-layer-centroid-excludes-cover.md) — `Layer.y_centroid_position` excludes cover and stirrup
 
 ## LOW — documentation / typing / dead code, no runtime effect
+
 - [L1](low/L1-fctm-mpa-comment.md) — Misleading `# MPa` comment on `fct_m` (math is correct)
 - [L2](low/L2-d-compressed-copypaste-message.md) — Copy-pasted error message in `d_compressed`
 - [L3](low/L3-slab-validate-beam-message.md) — Copy-pasted "Beam" in `Slab._validate_pillars_exist`
@@ -52,6 +55,7 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [L18](low/L18-inconsistent-table-citations.md) — Inconsistent NBR 6118 table citations
 
 ## Suggested fix order
+
 1. **H8** — end-support anchorage (blocks t_concreto2).
-2. **H6, H7, M1, M2** — geometry/validation gaps and the effective-depth biases.
+2. **H7, M1, M2** — geometry/validation gaps and the effective-depth biases.
 3. Remaining **M** items (iteration cap, lookups, packing), then the **L** cleanups.

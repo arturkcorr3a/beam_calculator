@@ -50,6 +50,13 @@ def between(value: float, low: float, high: float) -> bool:
     return low - TOLERANCE <= value <= high + TOLERANCE
 
 
+def ranges_overlap(range_1: tuple[float, float], range_2: tuple[float, float]) -> bool:
+    """Evaluate whether two closed (low, high) ranges overlap, inclusive, with a tolerance."""
+    low_1, high_1 = range_1
+    low_2, high_2 = range_2
+    return low_1 <= high_2 + TOLERANCE and high_1 >= low_2 - TOLERANCE
+
+
 def get_pillar_perpendicular_range(pillar: Pillar, axis: Axis) -> tuple[float, float]:
     """
     Returns (low, high) of the pillar's cross-section extent perpendicular to a given axis.

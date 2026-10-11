@@ -19,6 +19,7 @@ from src.pavement_elements.geometry_utils import (
     Axis,
     between,
     get_pillar_perpendicular_range,
+    ranges_overlap,
     round_up_to_multiple_of_5,
     x_coord,
     y_coord,
@@ -375,7 +376,10 @@ class ContinuousBeam:
         headers: list[str], rows: list[list[str]], indent: str
     ) -> list[str]:
         """Lay out rows under headers in left-aligned columns, each padded to its widest cell."""
-        widths = [max(len(cell) for cell in column) for column in zip(headers, *rows)]
+        widths = [
+            max(len(cell) for cell in column)
+            for column in zip(headers, *rows, strict=False)
+        ]
         return [
             indent
             + "  ".join(
@@ -625,16 +629,12 @@ class ContinuousBeam:
         """
         Finds every pillar whose position or cross-section footprint intersects the beam.
         """
-        beam_low, beam_high = self._get_range()
-
-        def touches_beam(pillar: Pillar) -> bool:
-            pillar_low, pillar_high = get_pillar_perpendicular_range(pillar, axis)
-            return bool(
-                between(pillar_low, beam_low, beam_high)
-                or between(pillar_high, beam_low, beam_high)
-            )
-
-        return [pillar for pillar in pillar_registry.values() if touches_beam(pillar)]
+        beam_range = self._get_range()
+        return [
+            pillar
+            for pillar in pillar_registry.values()
+            if ranges_overlap(get_pillar_perpendicular_range(pillar, axis), beam_range)
+        ]
 
     def _build_resolved_spans(self) -> None:
         """Builds resolved_spans from the sorted pillar_ids."""
