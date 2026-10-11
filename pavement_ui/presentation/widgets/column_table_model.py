@@ -10,6 +10,7 @@ from PySide6.QtCore import (
     QPersistentModelIndex,
     Qt,
 )
+from PySide6.QtGui import QColor
 
 from pavement_ui.presentation.theme.fonts import mono_font
 
@@ -26,12 +27,14 @@ class ColumnSpec[T]:
         text: Cell text of a row (already formatted).
         numeric: Right-aligned, monospaced cell.
         tooltip: Optional tooltip of a row's cell.
+        color: Optional text color of a row's cell (hex), e.g. a verdict.
     """
 
     header: str
     text: Callable[[T], str]
     numeric: bool = False
     tooltip: Callable[[T], str] | None = None
+    color: Callable[[T], str | None] | None = None
 
 
 class ColumnTableModel[T](QAbstractTableModel):
@@ -75,6 +78,9 @@ class ColumnTableModel[T](QAbstractTableModel):
                 return column.tooltip(row)
             case Qt.ItemDataRole.TextAlignmentRole if column.numeric:
                 return int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            case Qt.ItemDataRole.ForegroundRole if column.color is not None:
+                color = column.color(row)
+                return QColor(color) if color else None
             case Qt.ItemDataRole.FontRole if column.numeric:
                 return self._mono
             case _:

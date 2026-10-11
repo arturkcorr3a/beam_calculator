@@ -9,7 +9,6 @@ from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.dialogs import messages
 from pavement_ui.presentation.execution.engine_executor import EngineExecutor
-from pavement_ui.presentation.formatting.elements import fmt_count
 from pavement_ui.presentation.main_window.action_rules import ActionContext
 from pavement_ui.presentation.main_window.action_rules import ActionId as A
 from pavement_ui.presentation.main_window.app_actions import AppActions
@@ -32,8 +31,8 @@ from pavement_ui.presentation.panels.element_tabs import ElementTabs
 from pavement_ui.presentation.panels.pillars.pillars_panel import pillars_panel
 from pavement_ui.presentation.panels.slabs.slabs_panel import slabs_panel
 from pavement_ui.presentation.plan.plan_panel import PlanPanel
+from pavement_ui.presentation.results.window_registry import ResultWindows
 from pavement_ui.presentation.session_bridge import QtSessionBridge
-from pavement_ui.presentation.text.strings import formatting as fs
 from pavement_ui.presentation.text.strings import main_window as s
 from pavement_ui.presentation.theme import tokens
 from pavement_ui.presentation.widgets.busy_overlay import BusyOverlay
@@ -42,7 +41,6 @@ _INITIAL_SIZE_PX = (1280, 800)
 _MINIMUM_SIZE_PX = (1024, 640)
 _SIDE_WIDTH_PX = 440
 _SIDE_MIN_WIDTH_PX = 420
-_STATUS_MESSAGE_MS = 8000
 
 
 class MainWindow(QMainWindow):
@@ -86,6 +84,7 @@ class MainWindow(QMainWindow):
             session, executor, self, self._on_design_success
         )
         self._overlay = BusyOverlay(self)
+        self._results = ResultWindows(session, bridge, self)
         self._connect_actions()
         self._connect_state(bridge)
         self._refresh()
@@ -109,6 +108,7 @@ class MainWindow(QMainWindow):
         actions[A.CONFIG].triggered.connect(self._config.edit)
         actions[A.VALIDATE].triggered.connect(self._structure.validate)
         actions[A.DESIGN].triggered.connect(self._structure.design)
+        actions[A.RESULTS].triggered.connect(self._results.open_summary)
         actions[A.QUIT].triggered.connect(self._files.quit)
         actions[A.FOCUS_PILLARS].triggered.connect(
             lambda: pavement.focus(ElementKind.PILLAR)
@@ -141,12 +141,7 @@ class MainWindow(QMainWindow):
         self._refresh_plan()
 
     def _on_design_success(self, success: DesignSuccess) -> None:
-        # until the results window (stage 10): a summary in the status bar
-        beams = fmt_count(len(success.beams), fs.BEAM_SINGULAR, fs.BEAM_PLURAL)
-        slabs = fmt_count(len(success.slabs), fs.SLAB_SINGULAR, fs.SLAB_PLURAL)
-        self._status.showMessage(
-            s.STATUS_DESIGN_DONE.format(beams=beams, slabs=slabs), _STATUS_MESSAGE_MS
-        )
+        self._results.open_summary()
 
     def warm_up_engine(self) -> None:
         """Start the engine's worker process now, so the first design does not wait"""
