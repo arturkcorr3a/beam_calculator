@@ -344,6 +344,20 @@ class Slab(metaclass=_SlabMeta):
         """Adds a permanent load (kN/m²) to the slab's total permanent load."""
         self.permanent_load += load
 
+    @property
+    def total_permanent_load(self) -> float:
+        """Permanent load (kN/m²) including the slab's own weight at the current thickness
+
+        ``permanent_load`` holds the finishes only; the own weight is added here
+        so it reaches the supporting beams once the thickness is final.
+
+        References:
+            ABNT NBR 6120:2019 — Table 1
+        """
+        return self.permanent_load + SuperficialLoads.get_concrete_element_own_weight(
+            self.thickness / 100
+        )
+
     def resolve_and_validate(
         self,
         pillar_registry: dict[str, Pillar],

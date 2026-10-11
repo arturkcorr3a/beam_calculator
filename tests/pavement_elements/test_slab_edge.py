@@ -23,13 +23,14 @@ from tests.helpers import assert_approx
 
 @pytest.fixture
 def slab_double() -> Slab:
-    """Minimal slab double (permanent_load=4 kN/m², variable_load=2 kN/m²)."""
+    """Minimal slab double (finishes 4 + own weight 2.5 kN/m², variable_load=2 kN/m²)."""
     return cast(
         Slab,
         types.SimpleNamespace(
             id="L_edge_test",
             thickness=10,
             permanent_load=4.0,
+            total_permanent_load=6.5,
             variable_load=2.0,
             is_lowered=False,
         ),
@@ -300,7 +301,7 @@ class TestUnloadOnSpans:
         pillar_registry: dict[str, Pillar],
         pillars: tuple[Pillar, Pillar],
     ) -> None:
-        """slab perm=4 kN/m², var=2 kN/m²; area=6.25 m²; edge_len=500 cm=5 m → 5/2.5 kN/m."""
+        """slab perm=6.5 kN/m² (with own weight), var=2 kN/m²; area=6.25 m²; edge_len=5 m → 8.125/2.5 kN/m."""
         p1, p2 = pillars
         edge = SlabEdge(Edges.BOTTOM, slab_double)
         edge.resolve_beam(beam_double)
@@ -311,7 +312,11 @@ class TestUnloadOnSpans:
 
         edge.unload_on_spans(pillar_registry)
 
-        # permanent = 4.0 * 6.25 / 5.0 = 5.0 kN/m
-        assert_approx(span.permanent_load, 5.0, "permanent load should be 5.0 kN/m")
+        # permanent = (4.0 + 2.5 own weight) * 6.25 / 5.0 = 8.125 kN/m
+        assert_approx(
+            span.permanent_load,
+            8.125,
+            "permanent load should include the slab own weight (8.125 kN/m)",
+        )
         # variable = 2.0 * 6.25 / 5.0 = 2.5 kN/m
         assert_approx(span.variable_load, 2.5, "variable load should be 2.5 kN/m")

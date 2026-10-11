@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
 from src.logger import log_interaction, log_property, logger_label
@@ -18,7 +18,7 @@ THICKNESS_DIFFERENCE_FIXED_THRESHOLD = 2.0  # cm
 FIXED_RATIO_THRESHOLD = 0.8
 
 
-class Edges(str, Enum):
+class Edges(StrEnum):
     BOTTOM = "bottom"
     TOP = "top"
     LEFT = "left"
@@ -105,7 +105,7 @@ class SlabEdge:
             sum(span.get_length(pillar_registry) for span in self.spans) / 100
         )
         permanent_linear_load = (
-            self.slab.permanent_load * self.influence_area / edge_length_m
+            self.slab.total_permanent_load * self.influence_area / edge_length_m
         )  # kN/m
         variable_linear_load = (
             self.slab.variable_load * self.influence_area / edge_length_m

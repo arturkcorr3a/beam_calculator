@@ -187,6 +187,43 @@ class TestAddPermanentLoad:
 
 
 # ---------------------------------------------------------------------------
+# TestTotalPermanentLoad
+# ---------------------------------------------------------------------------
+
+
+class TestTotalPermanentLoad:
+    """total_permanent_load adds the own weight (25 kN/m³ × h) to the finishes."""
+
+    def test_adds_own_weight(self) -> None:
+        """Add 25 kN/m³ × 0.10 m = 2.5 kN/m² to 3.0 kN/m² of finishes"""
+        s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
+        s.add_permanent_load(3.0)
+        s.thickness = 10
+        assert_approx(
+            s.total_permanent_load, 5.5, "total_permanent_load should be 5.5 kN/m²"
+        )
+
+    def test_follows_thickness_changes(self) -> None:
+        """Recompute the own weight when the thickness changes"""
+        s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
+        s.add_permanent_load(3.0)
+        s.thickness = 10
+        _ = s.total_permanent_load
+        s.thickness = 12
+        assert_approx(
+            s.total_permanent_load, 6.0, "total_permanent_load should be 6.0 kN/m²"
+        )
+
+    def test_does_not_change_permanent_load(self) -> None:
+        """Keep permanent_load as finishes only"""
+        s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
+        s.add_permanent_load(3.0)
+        s.thickness = 10
+        _ = s.total_permanent_load
+        assert_approx(s.permanent_load, 3.0, "permanent_load should stay 3.0 kN/m²")
+
+
+# ---------------------------------------------------------------------------
 # TestDimensions
 # ---------------------------------------------------------------------------
 
