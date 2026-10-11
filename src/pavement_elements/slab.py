@@ -73,7 +73,7 @@ class _SlabMeta(type):
 
 
 @logger_label("{id}")
-@dataclass
+@dataclass(eq=False)
 class Slab(metaclass=_SlabMeta):
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 

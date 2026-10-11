@@ -171,6 +171,31 @@ class TestValidatePillarCount:
 
 
 # ---------------------------------------------------------------------------
+# TestIdentity
+# ---------------------------------------------------------------------------
+
+
+class TestIdentity:
+    """Slabs are entities: they compare and hash by identity, not by field values."""
+
+    def test_slabs_with_same_data_are_not_equal(self) -> None:
+        first = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        second = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        assert first != second, "distinct slabs with equal data should differ"
+
+    def test_slab_equals_itself(self) -> None:
+        slab = Slab(("P1", "P2", "P3", "P4"), "Bedrooms")
+        assert slab is slab, "a slab should equal itself"
+
+    def test_slab_is_hashable(self) -> None:
+        first = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        second = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        assert len({first, second, first}) == 2, (
+            "slabs should be usable in a set, one entry per object"
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestAddPermanentLoad
 # ---------------------------------------------------------------------------
 

@@ -88,9 +88,9 @@ class Span:
 
     def get_other_supported_slab(self, slab: Slab) -> Slab | None:
         """Returns the other supported slab, given one of them."""
-        if self.supported_slabs[0] == slab:
+        if self.supported_slabs[0] is slab:
             return self.supported_slabs[1]
-        elif self.supported_slabs[1] == slab:
+        elif self.supported_slabs[1] is slab:
             return self.supported_slabs[0]
         else:
             raise ValueError(f"Slab '{slab.id}' is not supported by this span.")

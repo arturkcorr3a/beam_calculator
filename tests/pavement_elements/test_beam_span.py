@@ -258,6 +258,16 @@ class TestGetOtherSupportedSlab:
         with pytest.raises(ValueError, match="is not supported by this span"):
             x_span.get_other_supported_slab(unknown)
 
+    def test_same_data_different_slab_raises(self, x_span: Span) -> None:
+        """A copy of a supported slab is a different slab, not the supported one"""
+        supported = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        neighbor = Slab(("P3", "P4", "P5", "P6"), "Bedrooms", id="L2")
+        copy = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        x_span.add_supported_slab(supported)
+        x_span.add_supported_slab(neighbor)
+        with pytest.raises(ValueError, match="is not supported by this span"):
+            x_span.get_other_supported_slab(copy)
+
 
 # ---------------------------------------------------------------------------
 # TestAddLoad

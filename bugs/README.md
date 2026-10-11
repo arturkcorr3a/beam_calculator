@@ -4,7 +4,7 @@ Each bug is its own file under `critical/`, `high/`, `medium/`, `low/`. Findings
 from a line-by-line review of every `src/` module, then spot-verified against the source
 where severity was high (a few over-stated items were downgraded — see L1).
 
-**Totals:** 0 critical · 2 high · 15 medium · 18 low.
+**Totals:** 0 critical · 1 high · 15 medium · 18 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 
@@ -12,7 +12,6 @@ where severity was high (a few over-stated items were downgraded — see L1).
 
 ## HIGH — wrong result on a reachable path, or a latent 10× trap
 
-- [H7](high/H7-slab-equality-vs-identity.md) — `==` vs `is` on `Slab` dataclasses
 - [H8](high/H8-no-end-support-anchorage.md) — No end-support anchorage: bars near a beam end cannot be detailed
 
 ## MEDIUM — correctness risk under specific inputs, or unconservative simplification
@@ -57,5 +56,5 @@ where severity was high (a few over-stated items were downgraded — see L1).
 ## Suggested fix order
 
 1. **H8** — end-support anchorage (blocks t_concreto2).
-2. **H7, M1, M2** — geometry/validation gaps and the effective-depth biases.
+2. **M1, M2** — the effective-depth biases.
 3. Remaining **M** items (iteration cap, lookups, packing), then the **L** cleanups.
