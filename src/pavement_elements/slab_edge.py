@@ -44,7 +44,7 @@ class SlabEdge:
         """Returns the supporting beam for this edge."""
         if self._beam is None:
             raise ValueError(
-                f"Slab edge '{self.edge}' has no resolved supporting beam."
+                f"Slab edge '{self.edge.value}' has no resolved supporting beam."
             )
         return self._beam
 

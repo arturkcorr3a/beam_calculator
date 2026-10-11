@@ -1,5 +1,21 @@
 # beam_calculator
 
+## Desktop interface
+
+The PySide6 interface (*Pavement Designer*) lives in `pavement_ui/` and follows
+[docs/UI_SPEC.md](docs/UI_SPEC.md). Run it from the repository root:
+```bash
+python -m pavement_ui
+```
+
+## Code checks
+
+```bash
+ruff check pavement_ui && ruff format --check pavement_ui
+pyright                      # strict, configured in pyproject.toml
+PYTHONPATH=. lint-imports    # GUI layering contracts in pyproject.toml
+```
+
 ## Testing
 
 Run the test suite with coverage:

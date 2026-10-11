@@ -28,6 +28,22 @@ class TestConstruction:
         assert p.id.startswith("P"), "auto-generated id must start with 'P'"
 
 
+class TestExplicitId:
+    """An explicit id replaces the counter-generated one."""
+
+    def test_explicit_id_is_kept(self) -> None:
+        p = Pillar(0, 0, 20, 30, id="P1")
+        assert p.id == "P1", "an explicit id should be kept"
+
+    def test_explicit_id_does_not_advance_counter(self) -> None:
+        before = Pillar(0, 0, 20, 30)
+        Pillar(0, 0, 20, 30, id="P_explicit")
+        after = Pillar(0, 0, 20, 30)
+        assert int(after.id[1:]) == int(before.id[1:]) + 1, (
+            "an explicit id should not consume a counter number"
+        )
+
+
 # ---------------------------------------------------------------------------
 # TestGetRange
 # ---------------------------------------------------------------------------

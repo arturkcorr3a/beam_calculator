@@ -1,0 +1,1 @@
+"""Generic, domain-agnostic widgets."""

@@ -1,42 +1,42 @@
 pillars:
 - id: P1
   x: 4.0
-  y: 1000
+  y: 1000.0
   width: 20
   depth: 18
 - id: P2
-  x: 600
-  y: 1000
+  x: 600.0
+  y: 1000.0
   width: 20
   depth: 18
 - id: P3
   x: 1096.0
-  y: 1000
+  y: 1000.0
   width: 20
   depth: 18
 - id: P4
   x: 4.0
-  y: 400
+  y: 400.0
   width: 20
   depth: 18
 - id: P5
   x: 596.0
-  y: 400
+  y: 400.0
   width: 20
   depth: 18
 - id: P6
   x: 4.0
-  y: 0
+  y: 0.0
   width: 20
   depth: 18
 - id: P7
-  x: 600
-  y: 0
+  x: 600.0
+  y: 0.0
   width: 20
   depth: 18
 - id: P8
   x: 1096.0
-  y: 0
+  y: 0.0
   width: 20
   depth: 18
 beams:
@@ -116,15 +116,7 @@ slabs:
   - P2
   - P4
   - P5
-  local: General use rooms and bathrooms
-  permanent_load: 0.0
-  lowered: 0
-- corner_pillar_ids:
-  - P4
-  - P5
-  - P6
-  - P7
-  local: General use rooms and bathrooms
+  local: Bedrooms
   permanent_load: 0.0
   lowered: 0
 - corner_pillar_ids:
@@ -132,16 +124,24 @@ slabs:
   - P3
   - P7
   - P8
-  local: General use rooms and bathrooms
+  local: Bedrooms
   permanent_load: 0.0
   lowered: 0
+- corner_pillar_ids:
+  - P4
+  - P5
+  - P6
+  - P7
+  local: Bedrooms
+  permanent_load: 0.0
+  lowered: 5
 config:
   aggregate: granite
   max_aggregate_size: 2.5
   max_bar_types: 3
   max_layers: 3
-  pavement_concrete: C30
+  pavement_concrete: C50
   pavement_steel: CA50
-  building_category: Commercial, corporate, and office buildings
-  exposure_class: 2
+  building_category: Residential buildings
+  exposure_class: 1
   ceiling_height: 2.5

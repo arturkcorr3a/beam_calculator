@@ -4,6 +4,7 @@ from functools import cached_property
 from itertools import count
 from typing import Literal, NamedTuple, assert_never, cast
 
+from src.checkers.deformation_check_result import DeformationCheckResult
 from src.checkers.slab_deformation_checker import SlabDeformationChecker
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
@@ -87,7 +88,7 @@ class Slab(metaclass=_SlabMeta):
     corner_pillar_ids: tuple[str, str, str, str]
     local: str
 
-    id: str = field(default="", init=False)
+    id: str = field(default="", kw_only=True)  # empty: generated from the counter
     supporting_beam_ids: list[str] = field(default_factory=list[str], init=False)
     edges: dict[Edges, SlabEdge] = field(
         default_factory=dict[Edges, SlabEdge], init=False
@@ -105,11 +106,18 @@ class Slab(metaclass=_SlabMeta):
     ceiling_finish: str = field(default="")
     infill: PermanentLoadDefinition = field(default=PermanentLoadDefinition("", 0.0))
     lowered: int = 0  # cm
+    deflection_check: DeformationCheckResult | None = field(
+        default=None, init=False
+    )  # ELS-DEF verification at the pre-sized thickness
+    deflection_support_case: int | None = field(
+        default=None, init=False
+    )  # Carvalho Quadro 7.2 case (1-9) of that verification
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
-        self.id = f"L{next(self._counter)}"  # Auto-generate ID if not provided
+        if not self.id:
+            self.id = f"L{next(self._counter)}"
         self._validate_pillar_count()
         self._validate_lowered_not_negative()
         self._setup_edges()
@@ -220,6 +228,8 @@ class Slab(metaclass=_SlabMeta):
     def clear_resolved(self) -> None:
         self.supporting_beam_ids = []
         self.corners_pillar_dict = {}
+        self.deflection_check = None
+        self.deflection_support_case = None
         for edge in self.edges.values():
             edge.clear_resolved()
 
@@ -232,6 +242,8 @@ class Slab(metaclass=_SlabMeta):
 
         The edge support conditions are re-resolved at every thickness tried,
         since they depend on the thickness difference to the adjacent slabs.
+        The passing verification is kept in ``deflection_check`` and
+        ``deflection_support_case``.
 
         Args:
             pillar_registry: Mapping of pillar ID to Pillar, used to measure
@@ -270,6 +282,9 @@ class Slab(metaclass=_SlabMeta):
             checker.span = min(checker.lx, checker.ly)
             self.resolve_support_conditions(pillar_registry)
             checker.support_conditions = self._current_support_conditions()
+
+        self.deflection_check = checker.result()
+        self.deflection_support_case = checker.supporting_case
 
         thickness_changed = self.thickness != original_thickness
         if thickness_changed:
@@ -506,7 +521,7 @@ class Slab(metaclass=_SlabMeta):
         for pillar_id in self.corner_pillar_ids:
             if pillar_id not in pillar_registry:
                 raise ValueError(
-                    f"Beam '{self.id}': pillar '{pillar_id}' does not exist in the registry."
+                    f"Slab '{self.id}': pillar '{pillar_id}' does not exist in the registry."
                 )
 
     def _map_pillars_to_corners(self, pillar_registry: dict[str, Pillar]) -> None:
@@ -546,7 +561,9 @@ class Slab(metaclass=_SlabMeta):
                 spans = beam.get_spans_between(corner_pillar_1.id, corner_pillar_2.id)
                 self.edges[edge].resolve_spans(spans)
                 return beam
-        raise ValueError(f"Slab '{self.id}': No valid beam found for {edge} edge.")
+        raise ValueError(
+            f"Slab '{self.id}': No valid beam found for {edge.value} edge."
+        )
 
     def _add_slab_to_spans(self) -> None:
         """Adds the slab to the span's supported_slabs."""

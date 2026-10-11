@@ -25,7 +25,7 @@ class Pillar:
     Represents a structural pillar, acting as a node in the pavement grid.
 
     Attributes:
-        id: Automatically generated unique identifier (e.g. "P1")
+        id: Unique identifier (e.g. "P1"); generated from a counter when not given
         x: Physical x-coordinate (cm)
         y: Physical y-coordinate (cm)
         width: Cross-section width (cm)
@@ -36,12 +36,13 @@ class Pillar:
     y: float
     width: float
     depth: float
-    id: str = field(default="", init=False)
+    id: str = field(default="", kw_only=True)  # empty: generated from the counter
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
     def __post_init__(self):
-        self.id = f"P{next(self._counter)}"  # Auto-generate ID if not provided
+        if not self.id:
+            self.id = f"P{next(self._counter)}"
         self._validate_dimensions()
 
     def get_x_range(self) -> tuple[float, float]:

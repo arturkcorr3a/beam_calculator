@@ -13,6 +13,7 @@ from src.calculators import beam_calculator
 from src.calculators.beam_calculator import BeamCalculator
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
+from src.loading.forces import LOAD_FACTOR
 from src.pavement_elements.geometry_utils import Axis
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
@@ -569,10 +570,17 @@ class TestRunBySpan:
         monkeypatch.setattr(BeamCalculator, "_verify_deformation", verify_deformation)
         monkeypatch.setattr(beam_calculator, "coordinate_span", coordinate_span)
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
-        bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
+        beam = _make_beam_stub(spans=spans)
+        bc = BeamCalculator(beam, _make_registry())  # type: ignore[arg-type]
 
         bc.run()
 
+        assert beam.analysis is analysis, "run() should keep the beam's analysis"
+        kept = [calculator.position for calculator in beam.rebar_calculators]
+        for actual, expected in zip(kept, [150.0, 300.01, 420.0], strict=True):
+            assert_approx(
+                actual, expected, "only governing calculators kept, left to right (cm)"
+            )
         assert len(coordinated) == 2, "each span should be coordinated once"
         for actual, expected in zip(coordinated[0], [150.0, 299.99], strict=True):
             assert_approx(
@@ -697,4 +705,34 @@ class TestRunIntegration:
 
         assert beam_stub.reinforcement, (
             "run() should populate the beam's reinforcement list"
+        )
+
+    def test_run_keeps_results_for_reading(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """run() keeps the analysis, the governing calculators and each span's Vk (kN)."""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+        span = _make_span_stub(permanent_load=15.0, variable_load=5.0, length_cm=500.0)
+        beam_stub = _make_beam_stub(spans=[span], beam_id="V_integration")
+
+        BeamCalculator(beam_stub, _make_registry()).run()  # type: ignore[arg-type]
+
+        assert beam_stub.analysis is not None, "run() should keep the analysis"
+        assert beam_stub.rebar_calculators, "run() should keep the calculators"
+        for calculator in beam_stub.rebar_calculators:
+            assert calculator.tensioned_reinforcement in beam_stub.reinforcement, (
+                "each kept calculator's reinforcement should be stored on the beam"
+            )
+        # uniform 20 kN/m on 500 cm: |V| at the ends ≈ qL/2 = 50 kN
+        assert_approx(
+            span.characteristic_shear_force,
+            50.0,
+            "span Vk should be the greatest |V| inside the span (kN)",
+            abs_tol=0.5,
+        )
+        assert_approx(
+            span.characteristic_shear_force * LOAD_FACTOR,
+            span.stirrups.calculator.design_shear_force,
+            "Vsd of the stirrups should be Vk times the load factor (kN)",
         )

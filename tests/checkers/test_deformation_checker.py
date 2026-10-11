@@ -285,3 +285,35 @@ class TestTensionedReinforcementAreaBase:
             base_checker._tensioned_reinforcement_area  # pyright: ignore[reportPrivateUsage]
             == 5.0
         ), "Base _tensioned_reinforcement_area should return the constructor-set value"
+
+
+class TestResult:
+    """result() snapshots the verification at the last verified height."""
+
+    def test_raises_before_verify(self, base_checker: _StubChecker) -> None:
+        with pytest.raises(ValueError, match="not been verified"):
+            base_checker.result()
+
+    def test_reflects_last_verify(self, base_checker: _StubChecker) -> None:
+        base_checker.verify(50.0)
+        base_checker.verify(40.0)
+        result = base_checker.result()
+        assert result.height == 40.0, "result should use the last verified height (cm)"
+        assert_approx(
+            result.effective_depth, 36.0, "d should be h minus the discount (cm)"
+        )
+        assert_approx(
+            result.long_term_deflection,
+            base_checker.long_term_deflection,
+            "result should copy the long-term deflection (cm)",
+        )
+        assert_approx(
+            result.acceptable_deflection, 2.0, "limit should be span / 250 (cm)"
+        )
+
+    def test_passes_matches_verify(self, base_checker: _StubChecker) -> None:
+        base_checker._immediate_deflection = 10.0  # pyright: ignore[reportPrivateUsage]
+        verdict = base_checker.verify(40.0)
+        assert base_checker.result().passes == verdict, (
+            "result.passes should agree with verify's verdict"
+        )

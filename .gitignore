@@ -207,7 +207,7 @@ marimo/_lsp/
 __marimo__/
 
 # Generated files
-results/
+/results/
 
 # MACOS
 .DS_Store

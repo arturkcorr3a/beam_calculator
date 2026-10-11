@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
+from src.checkers.deformation_check_result import DeformationCheckResult
 from src.loading.forces import (
     calculate_cracking_moment,
 )
@@ -51,6 +52,39 @@ class DeformationChecker(ABC):
             f"Result = {'PASS' if result else 'FAIL'}"
         )
         return result
+
+    def result(self) -> DeformationCheckResult:
+        """Snapshot the verification at the height of the last ``verify`` call
+
+        Returns:
+            The verification's inputs, intermediate values and verdict.
+
+        Raises:
+            ValueError: If ``verify`` has not been called yet.
+        """
+        if self.height <= 0:
+            raise ValueError(
+                "Deformation has not been verified yet. Call verify first."
+            )
+        long_term_deflection = self.long_term_deflection
+        acceptable_deflection = self.acceptable_deflection
+        return DeformationCheckResult(
+            height=self.height,
+            effective_depth=self.effective_depth,
+            span=self.span,
+            width=self.width,
+            permanent_load=self.permanent_load,
+            variable_load=self.variable_load,
+            design_load=self.design_load,
+            service_moment=self.service_moment,
+            cracking_moment=self.cracking_moment,
+            is_cracked=self.is_cracked,
+            equivalent_moment_of_inertia=self.equivalent_moment_of_inertia,
+            immediate_deflection=self.immediate_deflection,
+            long_term_deflection=long_term_deflection,
+            acceptable_deflection=acceptable_deflection,
+            passes=long_term_deflection <= acceptable_deflection,
+        )
 
     @property
     @abstractmethod

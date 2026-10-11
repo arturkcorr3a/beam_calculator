@@ -395,6 +395,36 @@ class TestVerifyAdjustsOwnWeight:
         )
 
 
+class TestResultIncludesOwnWeight:
+    """result() reads the verification with the slab's own weight included."""
+
+    def test_permanent_load_includes_own_weight(
+        self, rectangular_slab: SlabDeformationChecker
+    ) -> None:
+        slab = rectangular_slab
+        p0 = slab.permanent_load
+        slab.verify(20.0)
+        result = slab.result()
+        assert_approx(
+            result.permanent_load,
+            p0 + 25.0 * 0.20,
+            "result permanent load should add 25 kN/m³ × h (kN/m²)",
+        )
+        assert_approx(
+            slab.permanent_load,
+            p0,
+            "the checker's permanent load should be restored afterwards (kN/m²)",
+        )
+
+    def test_passes_matches_verify(
+        self, rectangular_slab: SlabDeformationChecker
+    ) -> None:
+        verdict = rectangular_slab.verify(20.0)
+        assert rectangular_slab.result().passes == verdict, (
+            "result.passes should agree with verify's verdict"
+        )
+
+
 class TestImmediateDeflection:
     """Tests for the slab immediate_deflection property (Carvalho Eq. 7.16)."""
 

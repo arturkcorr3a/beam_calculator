@@ -720,3 +720,47 @@ class TestLoggerLabelDecorator:
         assert result is _C, (
             "logger_label decorator should return the original class object unchanged"
         )
+
+
+# ---------------------------------------------------------------------------
+# Suppression
+# ---------------------------------------------------------------------------
+
+
+class TestSuppressed:
+    """suppressed() silences messages temporarily and restores the level."""
+
+    def test_nothing_is_emitted_inside(
+        self, captured_logger: tuple[BeamLogger, io.StringIO]
+    ) -> None:
+        lg, buf = captured_logger
+        with lg.suppressed():
+            lg.log_general("hidden", label="T")
+        assert _emitted(buf) == "", "no message should be emitted while suppressed"
+
+    def test_level_is_restored_on_exit(
+        self, captured_logger: tuple[BeamLogger, io.StringIO]
+    ) -> None:
+        lg, buf = captured_logger
+        with lg.suppressed():
+            pass
+        lg.log_property("visible", label="T")
+        assert "visible" in _emitted(buf), (
+            "messages should be emitted after the context"
+        )
+
+    def test_level_is_restored_after_exception(
+        self, captured_logger: tuple[BeamLogger, io.StringIO]
+    ) -> None:
+        lg, buf = captured_logger
+        with pytest.raises(RuntimeError), lg.suppressed():
+            raise RuntimeError("deliberate test error")
+        lg.log_property("visible", label="T")
+        assert "visible" in _emitted(buf), (
+            "the level should be restored even when the context raises"
+        )
+
+    def test_module_alias_targets_the_shared_logger(self) -> None:
+        assert logger_module.suppress_logging.__self__ is logger_module._logger, (  # pyright: ignore[reportPrivateUsage, reportFunctionMemberAccess]
+            "suppress_logging should suppress the module's shared logger"
+        )

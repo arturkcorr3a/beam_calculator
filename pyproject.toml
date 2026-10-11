@@ -1,0 +1,59 @@
+# Tool configuration only (the project is not packaged). pytest keeps its
+# settings in pytest.ini; coverage in .coveragerc.
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "pavement_ui", "tests"]
+
+[tool.pyright]
+include = ["pavement_ui"]
+typeCheckingMode = "strict"
+pythonVersion = "3.14"
+venvPath = "."
+venv = ".venv"
+
+# Layering of the GUI (docs/UI_SPEC.md §3). Run with: PYTHONPATH=. lint-imports
+[tool.importlinter]
+root_packages = ["pavement_ui", "src"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Presentation never talks to the engine or its adapters"
+type = "forbidden"
+source_modules = ["pavement_ui.presentation"]
+forbidden_modules = ["src", "pavement_ui.core.engine"]
+
+[[tool.importlinter.contracts]]
+name = "Core has no Qt"
+type = "forbidden"
+source_modules = ["pavement_ui.core"]
+forbidden_modules = ["PySide6"]
+
+[[tool.importlinter.contracts]]
+name = "Only core.engine imports the engine"
+type = "forbidden"
+source_modules = ["pavement_ui.core"]
+forbidden_modules = ["src"]
+# "-> src" covers src/data/, a namespace package (no __init__.py) that grimp
+# records as the bare src package
+ignore_imports = [
+    "pavement_ui.core.engine.** -> src.**",
+    "pavement_ui.core.engine.** -> src",
+]
+
+[[tool.importlinter.contracts]]
+name = "The engine does not know the GUI"
+type = "forbidden"
+source_modules = ["src"]
+forbidden_modules = ["pavement_ui"]
+
+[[tool.importlinter.contracts]]
+name = "GUI layers"
+type = "layers"
+layers = ["pavement_ui.app", "pavement_ui.presentation", "pavement_ui.core"]

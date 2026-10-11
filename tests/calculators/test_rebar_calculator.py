@@ -88,6 +88,35 @@ def calculator_small_moment(beam_mock: Mock) -> RebarCalculator:
 
 
 # ---------------------------------------------------------------------------
+# TestStoredMoment
+# ---------------------------------------------------------------------------
+
+
+class TestStoredMoment:
+    """The characteristic moment and its position are kept for reading."""
+
+    def test_keeps_characteristic_moment(self, calculator: RebarCalculator) -> None:
+        assert calculator.bending_moment == 272, (
+            "bending_moment should be the characteristic input (kN.m)"
+        )
+
+    def test_keeps_moment_position(
+        self, calculator: RebarCalculator, beam_mock: Mock
+    ) -> None:
+        assert calculator.bending_moment_position == beam_mock.length / 2, (
+            "bending_moment_position should be the input position (cm)"
+        )
+
+    def test_keeps_negative_sign(self, beam_mock: Mock) -> None:
+        hogging = RebarCalculator(
+            beam=beam_mock, bending_moment=-80, bending_moment_position=0.0
+        )
+        assert hogging.bending_moment == -80, (
+            "a hogging moment should keep its sign (kN.m)"
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestDesignBendingMoment
 # ---------------------------------------------------------------------------
 

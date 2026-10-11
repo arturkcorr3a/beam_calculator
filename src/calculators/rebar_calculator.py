@@ -51,6 +51,8 @@ class RebarCalculator:
         self.preset_d_compressed = d_compressed
 
         self.beam = beam
+        self.bending_moment = bending_moment  # kN.m, characteristic, signed
+        self.bending_moment_position = bending_moment_position  # cm
         bending_moment_in_kncm = bending_moment * 100
         self.design_bending_moment = abs(design_effort_elu(bending_moment_in_kncm))
 
