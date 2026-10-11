@@ -5,11 +5,12 @@ from dataclasses import dataclass, replace
 
 from pavement_ui.core.engine import config_mapper
 from pavement_ui.core.engine.keys import cm_from_m, from_key, m_from_cm
+from pavement_ui.core.engine.log_configurator import apply_log_settings
 from pavement_ui.core.engine.readers.design_point_reader import read_point
 from pavement_ui.core.engine.readers.diagram_sampler import sample
 from pavement_ui.core.engine.readers.reinforcement_reader import read_stirrup
 from pavement_ui.core.model.isolated_beam_input import IsolatedBeamInput
-from pavement_ui.core.model.settings import ConfigValues
+from pavement_ui.core.model.settings import ConfigValues, LogValues
 from pavement_ui.core.ports import Job
 from pavement_ui.core.results.beam_result import BeamResult, SpanResult, SupportMark
 from pavement_ui.core.results.outcomes import (
@@ -74,6 +75,7 @@ class IsolatedBeamJob:
 
     data: IsolatedBeamInput
     config: ConfigValues
+    log: LogValues = LogValues()
 
     def run(self) -> IsolatedBeamOutcome:
         """Apply the settings (with the window's concrete) and dimension the beam
@@ -83,6 +85,7 @@ class IsolatedBeamJob:
             IsolatedNotVerified if it cannot be dimensioned; UnexpectedFailure.
         """
         try:
+            apply_log_settings(self.log)  # this runs in the engine's worker process
             # the cover reads APP_CONFIG.pavement_concrete (bug M2)
             config_mapper.apply(
                 replace(self.config, concrete_key=self.data.concrete_key)
@@ -115,6 +118,6 @@ class IsolatedBeamCalculator:
         )
 
     def make_job(
-        self, data: IsolatedBeamInput, config: ConfigValues
+        self, data: IsolatedBeamInput, config: ConfigValues, log: LogValues
     ) -> Job[IsolatedBeamOutcome]:
-        return IsolatedBeamJob(data, config)
+        return IsolatedBeamJob(data, config, log)

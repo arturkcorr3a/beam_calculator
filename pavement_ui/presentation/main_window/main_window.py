@@ -5,10 +5,12 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget
 
 from pavement_ui.core.model.element_kind import ElementKind
+from pavement_ui.core.ports import IsolatedBeamEngine
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.dialogs import messages
 from pavement_ui.presentation.execution.engine_executor import EngineExecutor
+from pavement_ui.presentation.isolated.isolated_beam_window import IsolatedBeamWindow
 from pavement_ui.presentation.main_window.action_rules import ActionContext
 from pavement_ui.presentation.main_window.action_rules import ActionId as A
 from pavement_ui.presentation.main_window.app_actions import AppActions
@@ -55,13 +57,16 @@ class MainWindow(QMainWindow):
         session: ProjectSession,
         bridge: QtSessionBridge,
         executor: EngineExecutor,
+        isolated_engine: IsolatedBeamEngine,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("mainWindow")
         self.resize(*_INITIAL_SIZE_PX)
         self.setMinimumSize(*_MINIMUM_SIZE_PX)
-        self._session, self._executor = session, executor
+        self._session, self._bridge, self._executor = session, bridge, executor
+        self._isolated_engine = isolated_engine
+        self._isolated: IsolatedBeamWindow | None = None
         self._panels = {
             ElementKind.PILLAR: pillars_panel(session, bridge),
             ElementKind.BEAM: beams_panel(session, bridge),
@@ -109,6 +114,7 @@ class MainWindow(QMainWindow):
         actions[A.VALIDATE].triggered.connect(self._structure.validate)
         actions[A.DESIGN].triggered.connect(self._structure.design)
         actions[A.RESULTS].triggered.connect(self._results.open_summary)
+        actions[A.ISOLATED].triggered.connect(self._open_isolated)
         actions[A.QUIT].triggered.connect(self._files.quit)
         actions[A.FOCUS_PILLARS].triggered.connect(
             lambda: pavement.focus(ElementKind.PILLAR)
@@ -142,6 +148,16 @@ class MainWindow(QMainWindow):
 
     def _on_design_success(self, success: DesignSuccess) -> None:
         self._results.open_summary()
+
+    def _open_isolated(self) -> None:
+        """Show the isolated beam calculator, created on first use"""
+        if self._isolated is None:
+            self._isolated = IsolatedBeamWindow(
+                self._session, self._bridge, self._executor, self._isolated_engine, self
+            )
+        self._isolated.show()
+        self._isolated.raise_()
+        self._isolated.activateWindow()
 
     def warm_up_engine(self) -> None:
         """Start the engine's worker process now, so the first design does not wait"""

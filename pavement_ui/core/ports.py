@@ -80,5 +80,5 @@ class IsolatedBeamEngine(Protocol):
         ...
 
     def make_job(
-        self, data: IsolatedBeamInput, config: ConfigValues
+        self, data: IsolatedBeamInput, config: ConfigValues, log: LogValues
     ) -> Job[IsolatedBeamOutcome]: ...
