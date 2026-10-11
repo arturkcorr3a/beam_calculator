@@ -4,7 +4,7 @@ Each bug is its own file under `critical/`, `high/`, `medium/`, `low/`. Findings
 from a line-by-line review of every `src/` module, then spot-verified against the source
 where severity was high (a few over-stated items were downgraded — see L1).
 
-**Totals:** 2 critical · 7 high · 16 medium · 18 low.
+**Totals:** 2 critical · 7 high · 15 medium · 18 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 - [C2](critical/C2-slab-edge-division-by-zero.md) — Slab-edge support resolution divides by zero (no spans)
@@ -29,7 +29,6 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [M7](medium/M7-pick-best-option-empty-indexerror.md) — `_pick_best_option` bare `IndexError` when infeasible
 - [M8](medium/M8-max-thickness-ceil-wrong-direction.md) — `max_thickness` rounds the limit the wrong way
 - [M9](medium/M9-presize-loop-no-guard-stale-conditions.md) — Slab pre-sizing loop: no cap, stale conditions
-- [M10](medium/M10-rebar-convergence-no-cap.md) — Rebar convergence loop has no iteration cap
 - [M11](medium/M11-actual-y-negative-sqrt.md) — `actual_y` can hit `sqrt` of a negative number
 - [M12](medium/M12-influence-areas-yield-line-heuristic.md) — Yield-line pattern from a single-coordinate test
 - [M13](medium/M13-elu-combination-single-gamma.md) — `normal_elu_combination` single γ=1.4, ignores ψ₀
@@ -62,4 +61,4 @@ where severity was high (a few over-stated items were downgraded — see L1).
 2. **H4, H1, H5** — shear-design crash, high-strength formula error, table outlier.
 3. **H2, H3** — the 10× documentation trap and the dead/incorrect config combos.
 4. **H6, H7, M1, M2** — geometry/validation gaps and the effective-depth biases.
-5. Remaining **M** items (iteration caps, lookups, packing), then the **L** cleanups.
+5. Remaining **M** items (iteration cap, lookups, packing), then the **L** cleanups.

@@ -6,9 +6,9 @@
 ## Diagnosis
 `actual_y = d - sqrt(d**2 - 2*Md/(σ*bw))`. If `2·Md/(σ·bw) > d²` the radicand is
 negative → `ValueError: math domain error`. Guarded in theory by `is_singly_reinforced`
-bounding Md, but during the un-capped convergence loop
-([M10](M10-rebar-convergence-no-cap.md)) a stale `d` can be evaluated with an
-inconsistent moment.
+bounding Md, but during the effective-depth iteration of `calculate_for` a stale
+`d` can be evaluated with an inconsistent moment (the iteration is now capped and
+detects bar-layout cycles, so the window is limited to a single pass).
 
 ## Impact
 Possible math-domain crash during iteration.
