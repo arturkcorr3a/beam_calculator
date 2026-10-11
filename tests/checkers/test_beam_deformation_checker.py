@@ -45,6 +45,7 @@ def _make_checker(
     *,
     permanent_load: float = 10.0,
     variable_load: float = 5.0,
+    psi_2: float = 0.3,
     tensioned_reinforcement_area: float = 5.0,
     position: float = _POSITION_CM,
 ) -> BeamDeformationChecker:
@@ -52,6 +53,7 @@ def _make_checker(
     return BeamDeformationChecker(
         permanent_load=permanent_load,
         variable_load=variable_load,
+        psi_2=psi_2,
         concrete=Concrete.C30,
         span=500.0,
         width=20.0,
@@ -98,9 +100,7 @@ class TestServiceMoment:
         mock = cast(Mock, beam_mock)
         mock.bending_moment.assert_called_once_with(_POSITION_CM)
 
-    def test_negative_moment_uses_absolute_value(
-        self, beam_mock: BeamAnalysis
-    ) -> None:
+    def test_negative_moment_uses_absolute_value(self, beam_mock: BeamAnalysis) -> None:
         """A hogging (negative) local moment yields a positive service moment (kN.cm)."""
         cast(Mock, beam_mock).bending_moment.return_value = -30.0
         checker = _make_checker(beam_mock)
@@ -114,9 +114,7 @@ class TestServiceMoment:
 class TestImmediateDeflection:
     """Tests for BeamDeformationChecker.immediate_deflection (Branson-scaled)."""
 
-    def test_uncracked_returns_gross_deflection(
-        self, beam_mock: BeamAnalysis
-    ) -> None:
+    def test_uncracked_returns_gross_deflection(self, beam_mock: BeamAnalysis) -> None:
         """When the service moment is below cracking, deflection equals the elastic value."""
         # Tiny moment → not cracked → I_eq == I_gross → no scaling
         cast(Mock, beam_mock).bending_moment.return_value = 0.5
@@ -202,6 +200,15 @@ class TestDesignLoad:
             checker.design_load,
             expected,
             f"design_load for perm={perm}, var={var} should be {expected} kN/cm",
+        )
+
+    def test_uses_given_psi_2(self, beam_mock: BeamAnalysis) -> None:
+        """A storage-room span (psi_2 = 0.6): (10 + 0.6 * 10) / 100 = 0.16 kN/cm"""
+        checker = _make_checker(
+            beam_mock, permanent_load=10.0, variable_load=10.0, psi_2=0.6
+        )
+        assert_approx(
+            checker.design_load, 0.16, "design_load should use psi_2 = 0.6 (kN/cm)"
         )
 
 

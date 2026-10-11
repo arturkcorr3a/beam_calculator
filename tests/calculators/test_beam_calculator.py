@@ -41,6 +41,7 @@ def _make_span_stub(
     span = types.SimpleNamespace(
         permanent_load=permanent_load,
         variable_load=variable_load,
+        psi_2=0.3,
         start_pillar_id="P1",
         end_pillar_id="P2",
         get_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]

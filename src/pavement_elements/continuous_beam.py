@@ -456,11 +456,11 @@ class ContinuousBeam:
         most_loaded_span_for_els = max(
             self.spans,
             key=lambda span: almost_permanent_combination_els(
-                span.permanent_load, span.variable_load
+                span.permanent_load, span.variable_load, span.psi_2
             ),
         )
         log_operation(
-            f"Most loaded span for ELS: {most_loaded_span_for_els.start_pillar_id} to {most_loaded_span_for_els.end_pillar_id} with total load {almost_permanent_combination_els(most_loaded_span_for_els.permanent_load, most_loaded_span_for_els.variable_load):.2f} kN/m"
+            f"Most loaded span for ELS: {most_loaded_span_for_els.start_pillar_id} to {most_loaded_span_for_els.end_pillar_id} with total load {almost_permanent_combination_els(most_loaded_span_for_els.permanent_load, most_loaded_span_for_els.variable_load, most_loaded_span_for_els.psi_2):.2f} kN/m"
         )
         return most_loaded_span_for_els
 

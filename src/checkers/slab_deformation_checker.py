@@ -9,6 +9,7 @@ from src.config import APP_CONFIG
 from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
 from src.data.carvalho.table_7_2.data import TABLE_7_2
 from src.data.carvalho.table_7_2.model import Table72
+from src.loading.combination_factors import almost_permanent_reduction_factor
 from src.loading.forces import (
     almost_permanent_combination_els,
     min_design_bending_moment,
@@ -99,7 +100,9 @@ class SlabDeformationChecker(DeformationChecker):
     @property
     def design_load(self) -> float:
         load_kn_m2 = almost_permanent_combination_els(
-            self.permanent_load, self.variable_load, self.usage
+            self.permanent_load,
+            self.variable_load,
+            almost_permanent_reduction_factor(self.usage),
         )
         design_load = load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
         log_operation(f"Design load = {design_load:.4f} kN/cm²")

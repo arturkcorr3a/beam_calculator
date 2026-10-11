@@ -701,6 +701,27 @@ class TestGetMostLoadedSpanForEls:
         assert heaviest.start_pillar_id == p1.id, "heavier span should be span 0"
         assert heaviest.end_pillar_id == p2.id, "heavier span should end at p2"
 
+    def test_ranks_by_quasi_permanent_load(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        pillars_horizontal: tuple[Pillar, Pillar, Pillar],
+    ) -> None:
+        """Span 0: 10 + 0.3 * 10 = 13; span 1: 10 + 0.6 * 6 = 13.6 kN/m -> span 1"""
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+        _, p2, p3 = pillars_horizontal
+        horizontal_beam.spans[0].add_load(10.0, permanent=True)
+        horizontal_beam.spans[0].add_load(10.0, permanent=False, psi_2=0.3)
+        horizontal_beam.spans[1].add_load(10.0, permanent=True)
+        horizontal_beam.spans[1].add_load(6.0, permanent=False, psi_2=0.6)
+
+        heaviest = horizontal_beam.get_most_loaded_span_for_els()
+
+        assert heaviest.start_pillar_id == p2.id, (
+            "span 1 has the larger g + psi_2 * q despite its smaller q"
+        )
+        assert heaviest.end_pillar_id == p3.id, "heavier span should end at p3"
+
 
 # ---------------------------------------------------------------------------
 # TestReport

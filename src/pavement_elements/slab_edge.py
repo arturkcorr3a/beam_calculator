@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
+from src.loading.combination_factors import almost_permanent_reduction_factor
 from src.logger import log_interaction, log_property, logger_label
 
 if TYPE_CHECKING:
@@ -125,10 +126,11 @@ class SlabEdge:
         variable_linear_load = (
             self.slab.variable_load * self.influence_area / edge_length_m
         )  # kN/m
+        psi_2 = almost_permanent_reduction_factor(self.slab.local)
         log_interaction(
             f"Unloading on {len(self.spans)} spans: permanent {permanent_linear_load:.2f} kN/m, variable {variable_linear_load:.2f} kN/m",
             f"{self.label} → {self.beam.id}",
         )
         for span in self.spans:
             span.add_load(permanent_linear_load, permanent=True)
-            span.add_load(variable_linear_load, permanent=False)
+            span.add_load(variable_linear_load, permanent=False, psi_2=psi_2)

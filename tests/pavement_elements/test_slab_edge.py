@@ -5,6 +5,8 @@ from typing import cast
 
 import pytest
 
+from src.config import APP_CONFIG
+from src.config_options import OccupancyCategory
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.geometry_utils import Axis
@@ -32,6 +34,7 @@ def slab_double() -> Slab:
             permanent_load=4.0,
             total_permanent_load=6.5,
             variable_load=2.0,
+            local="Bedrooms",
             is_lowered=False,
         ),
     )
@@ -320,6 +323,29 @@ class TestUnloadOnSpans:
         )
         # variable = 2.0 * 6.25 / 5.0 = 2.5 kN/m
         assert_approx(span.variable_load, 2.5, "variable load should be 2.5 kN/m")
+
+    def test_sets_span_psi_2_from_slab_local(
+        self,
+        slab_double: Slab,
+        beam_double: ContinuousBeam,
+        pillar_registry: dict[str, Pillar],
+        pillars: tuple[Pillar, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A storage room in a residential building unloads with psi_2 = 0.6"""
+        monkeypatch.setattr(
+            APP_CONFIG, "building_category", OccupancyCategory.RESIDENTIAL
+        )
+        slab_double.local = "Storage rooms"
+        edge = SlabEdge(Edges.BOTTOM, slab_double)
+        edge.resolve_beam(beam_double)
+        edge.influence_area = 6.25  # m²
+        span = _make_span(*pillars)
+        edge.spans = [span]
+
+        edge.unload_on_spans(pillar_registry)
+
+        assert_approx(span.psi_2, 0.6, "span psi_2 should follow the storage room")
 
     def test_empty_spans_raises_value_error(
         self, bottom_edge: SlabEdge, pillar_registry: dict[str, Pillar]

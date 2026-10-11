@@ -346,6 +346,7 @@ class BeamCalculator:
             concrete=structural_beam.concrete,
             permanent_load=span.permanent_load,
             variable_load=span.variable_load,
+            psi_2=span.psi_2,
             id=self.label,
         )
         is_deformation_ok = checker.verify(structural_beam.height)

@@ -47,25 +47,15 @@ def min_design_bending_moment(beam: RectangularBeam) -> float:
     return 0.8 * w_0 * beam.concrete.fctk_sup  # kN.cm
 
 
-def get_almost_permanent_combination_reduction_factor(usage: str | None) -> float:
-    # IMPLEMENT from ABNT NBR 6118 - Section 11.8.2.4 (Table 11.3) -> redirects to ABNT NBR 8681 - see how can I get it for non-residential nor commercial structures
-    if usage is None:
-        return 0.3
-    return 0.30
-
-
 def almost_permanent_combination_els(
-    permanent_load: float, variable_load: float, usage: str | None = None
+    permanent_load: float, variable_load: float, psi_2: float
 ) -> float:
     """Calculate the almost permanent load combination for ELS (CQP).
-
-    Assumes a uniform usage category across the structure, yielding a single
-    reduction factor (psi_2) for all variable loads.
 
     Args:
         permanent_load: Permanent load (kN).
         variable_load: Variable load (kN).
-        usage: Usage category string used to look up psi_2.
+        psi_2: Quasi-permanent reduction factor of the variable load
 
     Returns:
         Almost permanent load combination (kN).
@@ -73,7 +63,6 @@ def almost_permanent_combination_els(
     References:
         ABNT NBR 6118 — Section 11.8.3.2, Table 11.4
     """
-    psi_2 = get_almost_permanent_combination_reduction_factor(usage)
     return permanent_load + psi_2 * variable_load
 
 
