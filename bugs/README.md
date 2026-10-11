@@ -4,13 +4,12 @@ Each bug is its own file under `critical/`, `high/`, `medium/`, `low/`. Findings
 from a line-by-line review of every `src/` module, then spot-verified against the source
 where severity was high (a few over-stated items were downgraded — see L1).
 
-**Totals:** 0 critical · 7 high · 15 medium · 18 low.
+**Totals:** 0 critical · 6 high · 15 medium · 18 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 - None open.
 
 ## HIGH — wrong result on a reachable path, or a latent 10× trap
-- [H1](high/H1-fctm-highstrength-ln-argument.md) — `fct_m` high-strength branch uses wrong `ln` argument
 - [H2](high/H2-steel-elastic-modulus-unit-trap.md) — Steel `elastic_modulus` labelled kN/cm² but is MPa
 - [H3](high/H3-config-dialog-nonexistent-fields.md) — ConfigDialog writes to non-existent AppConfig fields
 - [H5](high/H5-carvalho-table7-muy-outlier.md) — Carvalho Quadro 7.1 `mu_y` data outlier (3.14)
@@ -56,7 +55,7 @@ where severity was high (a few over-stated items were downgraded — see L1).
 - [L18](low/L18-inconsistent-table-citations.md) — Inconsistent NBR 6118 table citations
 
 ## Suggested fix order
-1. **H8, H1, H5** — end-support anchorage (blocks t_concreto2), high-strength formula error, table outlier.
+1. **H8, H5** — end-support anchorage (blocks t_concreto2), table outlier.
 2. **H2, H3** — the 10× documentation trap and the dead/incorrect config combos.
 3. **H6, H7, M1, M2** — geometry/validation gaps and the effective-depth biases.
 4. Remaining **M** items (iteration cap, lookups, packing), then the **L** cleanups.
