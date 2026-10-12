@@ -10,7 +10,7 @@ from src.config import APP_CONFIG
 from src.config_options import ExposureClass
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
-from src.pavement_elements.pavement import Pavement
+from src.pavement_elements.pavement import Pavement, reset_element_id_counters
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
 from src.properties.concrete import Concrete
@@ -240,6 +240,47 @@ class TestLoadBeamSpans:
 
         assert "load_spans:VA" in beam1.calls, "load_spans should be called on beam VA"  # type: ignore[attr-defined]
         assert "load_spans:VB" in beam2.calls, "load_spans should be called on beam VB"  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# TestElementIdCounters
+# ---------------------------------------------------------------------------
+
+
+def _auto_id_beam() -> ContinuousBeam:
+    """Build a minimal beam with a counter-generated id."""
+    wall = WallDefinition(
+        structural=False,
+        masonry_type="hollow concrete block",
+        nominal_thickness=14,
+        coating_thickness=1,
+    )
+    return ContinuousBeam(["P1", "P2"], "P1", 16, Alignment.CENTER, wall)
+
+
+class TestElementIdCounters:
+    """Each pavement restarts the auto-generated element ids."""
+
+    def test_new_pavement_restarts_element_ids(self) -> None:
+        Pillar(0, 0, 20, 30)
+        _auto_id_beam()
+        Slab(("PA", "PB", "PC", "PD"), "Bedrooms")  # advance every counter
+
+        Pavement()
+
+        assert Pillar(0, 0, 20, 30).id == "P1", "pillar ids should restart at P1"
+        assert _auto_id_beam().id == "V1", "beam ids should restart at V1"
+        assert Slab(("PA", "PB", "PC", "PD"), "Bedrooms").id == "L1", (
+            "slab ids should restart at L1"
+        )
+
+    def test_reset_element_id_counters_restarts_ids(self) -> None:
+        Pillar(0, 0, 20, 30)
+        Pillar(0, 0, 20, 30)
+        reset_element_id_counters()
+        assert Pillar(0, 0, 20, 30).id == "P1", (
+            "the next pillar after a reset should be P1"
+        )
 
 
 # ---------------------------------------------------------------------------

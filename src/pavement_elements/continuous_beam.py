@@ -85,6 +85,11 @@ class ContinuousBeam:
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
+    @classmethod
+    def reset_id_counter(cls) -> None:
+        """Restart auto-generated ids at 1 (V1)"""
+        cls._counter = count(1)
+
     def __post_init__(self):
         if not self.id:
             self.id = f"V{next(self._counter)}"
