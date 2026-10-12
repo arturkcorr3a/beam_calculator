@@ -5,6 +5,7 @@ from typing import cast
 
 import pytest
 
+import src.pavement_elements.slab_edge as slab_edge_module
 from src.config import APP_CONFIG
 from src.config_options import OccupancyCategory
 from src.pavement_elements.beam_span import Span
@@ -193,6 +194,31 @@ class TestResolveSupportCondition:
         edge.resolve_support_condition(pillar_registry)
         assert edge.support_condition == "fixed", (
             "similar-thickness adjacent slab should produce fixed condition"
+        )
+
+    def test_fixed_ratio_threshold_constant_is_used(
+        self,
+        slab_double: Slab,
+        pillar_registry: dict[str, Pillar],
+        pillars: tuple[Pillar, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Raising FIXED_RATIO_THRESHOLD to 1.0 keeps a fully fixed edge pinned."""
+        monkeypatch.setattr(slab_edge_module, "FIXED_RATIO_THRESHOLD", 1.0)
+        p1, p2 = pillars
+        edge = SlabEdge(Edges.BOTTOM, slab_double)
+        other = cast(
+            Slab, types.SimpleNamespace(id="L_adj", thickness=10, is_lowered=False)
+        )
+
+        span = _make_span(p1, p2)
+        span.add_supported_slab(slab_double)
+        span.add_supported_slab(other)
+        edge.spans = [span]
+
+        edge.resolve_support_condition(pillar_registry)
+        assert edge.support_condition == "pinned", (
+            "a 100% fixed edge is not strictly above a 1.0 threshold, so it stays pinned"
         )
 
     def test_adjacent_much_thinner_slab_stays_pinned(

@@ -94,7 +94,7 @@ class SlabEdge:
             ):
                 fixed_length += span.get_length(pillar_registry)
 
-        if fixed_length / total_length > 0.8:
+        if fixed_length / total_length > FIXED_RATIO_THRESHOLD:
             self.support_condition = "fixed"
         log_property(
             f"{self.edge.value}: {self.support_condition} ({fixed_length:.0f} / {total_length:.0f} cm fixed)"
