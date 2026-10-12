@@ -40,7 +40,7 @@ class Reinforcement:
         self.steel = beam.steel
         self.chosen_bars: tuple[Layer, ...] = self._build_empty_layers()
         self.is_chosen = False
-        self.rebar_choice_options = []
+        self.rebar_choice_options: dict[tuple[float, ...], tuple[Rebar, ...]] = {}
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
         self.moment_shift: float | None = None  # cm, a_l
@@ -181,8 +181,8 @@ class Reinforcement:
                 f"No reinforcement chosen, using default distance for d calculation: {DEFAULT_DISTANCE_FOR_D_CALCULATION} cm"
             )
             return DEFAULT_DISTANCE_FOR_D_CALCULATION
-        weighted_centroids = 0
-        weights = 0
+        weighted_centroids = 0.0
+        weights = 0.0
         for index, layer in enumerate(self.chosen_bars):
             if layer.bars:
                 layer_centroid, layer_weight = (
@@ -191,7 +191,7 @@ class Reinforcement:
                 weighted_centroids += layer_centroid * layer_weight
                 weights += layer_weight
         distance_for_d_calculation = (
-            (weighted_centroids / weights) if weights != 0 else 0
+            (weighted_centroids / weights) if weights != 0 else 0.0
         )
         log_property(
             f"Centroid for the reinforcement relative to itself: {distance_for_d_calculation} cm",
@@ -272,20 +272,20 @@ class Reinforcement:
         self, layer_index: int
     ) -> tuple[float, float]:
         """
-        Calculates the average of the vertical centroid (mm) for each bar of the layer, weighted by the area of each bar.
+        Calculates the average of the vertical centroid (cm) for each bar of the layer, weighted by the area of each bar.
         It does not take into account which layer is it, therefore, it is the distance from the edge of the layer to the centroid of the bars in that layer, not from the edge of the section.
         """
         self._validate_layer_index(layer_index)
 
         bars = self.chosen_bars[layer_index].bars
-        weighted_centroids = 0
-        weights = 0
+        weighted_centroids = 0.0
+        weights = 0.0
         for bar in bars:
             area = bar.area_cm2
             bar_diameter_cm = bar.diameter_mm / 10
             weighted_centroids += area * (bar_diameter_cm / 2)
             weights += area
-        return (weighted_centroids / weights, weights) if weights != 0 else (0, 0)
+        return (weighted_centroids / weights, weights) if weights != 0 else (0.0, 0.0)
 
     def distribute_bars_in_layers(self, optimal_reinforcement: list[Rebar]) -> None:
         """

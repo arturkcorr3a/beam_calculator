@@ -103,7 +103,7 @@ class StirrupCalculator:
     @property
     def minimum_ratio(self) -> float:
         """Minimum stirrup reinforcement ratio (A_sw_min/s) in cm²/cm. NBR 6118 - Section 17.4.1.1.1."""
-        fct_m = self.beam.concrete.fct_m  # MPa
+        fct_m = self.beam.concrete.fct_m  # kN/cm²
         fywk = self.beam.steel.fywk  # kN/cm²
         bw = self.beam.width  # cm
         minimum_ratio = 0.2 * fct_m / fywk * bw * sin(STIRRUP_ANGLE)  # cm²/cm

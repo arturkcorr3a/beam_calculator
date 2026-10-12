@@ -49,7 +49,7 @@ from __future__ import annotations
 import csv
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.config import APP_CONFIG
 from src.loading.superficial_loads import SuperficialLoads
@@ -139,7 +139,9 @@ class PreSizingLog:
         print("=" * 100)
 
     def export_csv(self, path: str) -> None:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(
@@ -427,7 +429,7 @@ def main() -> None:
     log.print_table()
     log.print_summary()
 
-    today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
+    today = datetime.now(tz=UTC).strftime("%b-%d").lower()
     csv_path = f"results/{today}/slab_pre_sizing_iterations.csv"
     log.export_csv(csv_path)
 

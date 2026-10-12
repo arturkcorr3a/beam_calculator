@@ -56,12 +56,14 @@ def almost_permanent_combination_els(
         permanent_load: Permanent load (kN).
         variable_load: Variable load (kN).
         psi_2: Quasi-permanent reduction factor of the variable load
+            (ABNT NBR 6118:2026 — Table 11.2).
 
     Returns:
         Almost permanent load combination (kN).
 
     References:
-        ABNT NBR 6118 — Section 11.8.3.2, Table 11.4
+        ABNT NBR 6118:2026 — Section 11.8.3.2, Table 11.4
+        ABNT NBR 6118:2026 — Section 11.7.1, Table 11.2 (ψ2)
     """
     return permanent_load + psi_2 * variable_load
 
@@ -77,7 +79,8 @@ def normal_elu_combination(permanent_load: float, variable_load: float) -> float
         Design load combination (kN).
 
     References:
-        ABNT NBR 6118 — Section 11.8.2.4, Table 11.3
+        ABNT NBR 6118:2026 — Section 11.8.2.4, Table 11.3
+        ABNT NBR 6118:2026 — Section 11.7.1, Table 11.1 (gamma_f)
     """
     return LOAD_FACTOR * (permanent_load + variable_load)
 

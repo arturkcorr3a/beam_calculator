@@ -40,7 +40,7 @@ vertical edge share a width. The four sections below still end up all-distinct:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import matplotlib
 
@@ -258,7 +258,9 @@ def plot_pavement(
 
     import os
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    directory = os.path.dirname(output_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
     fig.tight_layout()
     fig.savefig(output_path, dpi=130)
     plt.close(fig)
@@ -326,7 +328,7 @@ def main() -> None:
 
     # Show the resolved parameters and draw the layout.
     print_parameters(pavement)
-    today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
+    today = datetime.now(tz=UTC).strftime("%b-%d").lower()
     path = f"results/{today}/pavement_layout.png"
     figure_path = plot_pavement(pavement, path)
     print(f"[FIGURE SAVED] {figure_path}")

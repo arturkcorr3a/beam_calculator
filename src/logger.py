@@ -91,7 +91,7 @@ class BeamLogger:
             self._log_file.close()
 
     def _log(self, level: LogLevel, message: str, label: str | None) -> None:
-        if self._level > level:
+        if level >= LogLevel.DISABLED or self._level > level:
             return
 
         style = _LEVEL_STYLES[level]

@@ -83,12 +83,12 @@ class AnchorageCalculator:
 
     @property
     def design_bond_strength(self) -> float:
-        """Calculate the design bond strength (f_bd) in kN/cm. NBR 6118 - Section 9.3.2.1"""
+        """Calculate the design bond strength (f_bd) in kN/cm². NBR 6118 - Section 9.3.2.1"""
         eta_1 = self.steel.bond_coefficient
         eta_2 = self.adherence_coefficient
         eta_3 = self.diameter_coefficient
         f_bd = eta_1 * eta_2 * eta_3 * self.concrete.fctd
-        log_property(f"Design Bond Strength (f_bd) = {f_bd:.4f} kN/cm")
+        log_property(f"Design Bond Strength (f_bd) = {f_bd:.4f} kN/cm²")
         return f_bd
 
     @property

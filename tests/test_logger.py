@@ -309,6 +309,15 @@ class TestLogLevelGating:
             "DISABLED level should suppress all log messages"
         )
 
+    def test_disabled_message_level_emits_nothing(self) -> None:
+        buf = io.StringIO()
+        lg = BeamLogger(LogLevel.DISABLED, LogOutput.CONSOLE)
+        lg._console = Console(file=buf, no_color=True, highlight=False)  # pyright: ignore[reportPrivateUsage]
+        lg._log(LogLevel.DISABLED, "msg", "T")  # pyright: ignore[reportPrivateUsage]
+        assert _emitted(buf).strip() == "", (
+            "A message at DISABLED level should be dropped, not raise or emit"
+        )
+
 
 # ---------------------------------------------------------------------------
 # 5. Indent and format

@@ -64,7 +64,7 @@ class Concrete(Enum):
     @cached_property
     def eci(self) -> float:
         """
-        The initial elastic modulus of concrete (E_ci) in MPa, based on ABNT NBR 6118 - Section 8.2.8, for granite and gneiss aggregate.
+        The initial elastic modulus of concrete (E_ci) in MPa, based on ABNT NBR 6118 - Section 8.2.8, using alpha_E for the configured aggregate.
         """
         if self.concrete_group == 1:
             result = self.alpha_e * 5600 * sqrt(self.value)
@@ -77,7 +77,7 @@ class Concrete(Enum):
     @cached_property
     def ecs(self) -> float:
         """
-        The secant elastic modulus of concrete (E_cs) in MPa, based on ABNT NBR 6118 - Section 8.2.8, for granite and gneiss aggregate.
+        The secant elastic modulus of concrete (E_cs) in MPa, based on ABNT NBR 6118 - Section 8.2.8, using alpha_E for the configured aggregate.
         """
         alpha_i = 0.8 + 0.2 * (self.value / 80)
         alpha_i = min(alpha_i, 1.0)
@@ -88,7 +88,7 @@ class Concrete(Enum):
     @cached_property
     def g_c(self) -> float:
         """
-        The shear modulus of concrete (G_c) in MPa, based on ABNT NBR 6118 - Section 8.2.9, for granite and gneiss aggregate.
+        The shear modulus of concrete (G_c) in MPa, based on ABNT NBR 6118 - Section 8.2.9, using alpha_E for the configured aggregate.
         """
         ecs = self.ecs
         result = ecs / 2.4  # assuming poisson's ratio of 0.2
@@ -100,10 +100,7 @@ class Concrete(Enum):
         """
         The Rüsch effect factor (alpha_c) for concrete, based on ABNT NBR 6118 - Section 17.2.2.
         """
-        if self.value <= 50:
-            result = 0.85
-        else:
-            result = 0.85 * (1.0 - (self.value - 50) / 200)
+        result = 0.85 if self.value <= 50 else 0.85 * (1.0 - (self.value - 50) / 200)
         log_property(f"alpha_c = {result:.4f}")
         return result
 
@@ -112,10 +109,7 @@ class Concrete(Enum):
         """
         The brittleness factor (eta_c) for concrete, based on ABNT NBR 6118 - Section 8.2.10.1.
         """
-        if self.value <= 40:
-            result = 1.0
-        else:
-            result = cbrt(40.0 / self.value)
+        result = 1.0 if self.value <= 40 else cbrt(40.0 / self.value)
         log_property(f"eta_c = {result:.4f}")
         return result
 
@@ -149,10 +143,7 @@ class Concrete(Enum):
 
         This factor defines the ratio between the depth of the equivalent rectangular stress block (y) and the actual neutral axis depth (x).
         """
-        if self.value <= 50:
-            result = 0.8
-        else:
-            result = 0.8 - (self.value - 50) / 400
+        result = 0.8 if self.value <= 50 else 0.8 - (self.value - 50) / 400
         log_property(f"lambda_c = {result:.4f}")
         return result
 

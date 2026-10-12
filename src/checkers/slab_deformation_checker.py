@@ -43,7 +43,7 @@ class SlabDeformationChecker(DeformationChecker):
     span: float = field(init=False)  # cm
 
     compressed_reinforcement_area: float = field(default=0, init=False)  # cm²
-    effective_depth_compressed: float = field(default=0, init=False)  # cm²
+    effective_depth_compressed: float = field(default=0, init=False)  # cm
 
     effective_depth_discount: float = field(
         default_factory=_default_effective_depth_discount, init=False

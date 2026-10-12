@@ -30,7 +30,7 @@ class Stirrups:
     @cached_property
     def max_diameter(self) -> float:
         """
-        Calculate the maximum diameter of stirrup bars (phi_max) in cm, based on the required reinforcement ratio and minimum spacing.
+        Calculate the maximum diameter of stirrup bars (phi_max) in cm, based on ABNT NBR 6118 - Section 18.3.3.2.
         """
         max_diameter = self.beam.width / 10  # cm
         log_property(f"Maximum stirrup diameter phi_max = {max_diameter:.2f} cm")

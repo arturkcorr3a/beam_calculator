@@ -29,7 +29,7 @@ class DeformationChecker(ABC):
     width: float  # cm
     effective_depth_discount: float  # cm
     compressed_reinforcement_area: float  # cm²
-    effective_depth_compressed: float  # cm²
+    effective_depth_compressed: float  # cm
     tensioned_reinforcement_area: float  # cm²
     height: float = field(default=0, init=False)  # cm
     effective_depth: float = field(init=False)  # cm
