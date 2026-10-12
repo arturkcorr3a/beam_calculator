@@ -51,6 +51,10 @@ class Stirrups:
     def choose(self) -> tuple[float, float]:
         """
         Choose the diameter and spacing of stirrup bars based on the required reinforcement ratio, minimum spacing, and maximum diameter.
+
+        Raises:
+            ValueError: If no diameter and spacing combination meets the
+                required ratio (infeasible shear design).
         """
         options: list[tuple[float, float]] = []
 
@@ -61,6 +65,13 @@ class Stirrups:
             if diameter is not None:
                 options.append((spacing, diameter))
             spacing -= 1
+
+        if not options:
+            raise ValueError(
+                f"No stirrup meets A_sw/s = {cast(float, self.required_ratio):.4f} cm²/cm "
+                f"with diameters from {MIN_DIAMETER * 10:.1f} to {self.max_diameter * 10:.1f} mm "
+                f"and spacings above {MIN_SPACING:.1f} cm up to s_max = {self.calculator.max_spacing:.1f} cm."
+            )
 
         best_option = self._pick_best_option(options)
         self.spacing, self.diameter = best_option
