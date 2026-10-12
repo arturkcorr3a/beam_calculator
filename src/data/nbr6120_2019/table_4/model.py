@@ -1,8 +1,11 @@
 """Dataclass models for ABNT NBR 6120:2019 - Section 5.4 - Table 4 (Floor coverings and waterproofing)."""
 
+import math
 from dataclasses import dataclass
 
 from src.logger import log_property, logger_label
+
+THICKNESS_TOLERANCE_CM = 1e-9  # cm — absorbs float drift from unit conversions
 
 
 @dataclass(frozen=True)
@@ -11,6 +14,13 @@ class ThicknessWeight:
 
     thickness_cm: float | None
     weight: float
+
+
+def _thickness_matches(entry_cm: float | None, query_cm: float | None) -> bool:
+    """Compare thicknesses with a float tolerance; None only matches None"""
+    if entry_cm is None or query_cm is None:
+        return entry_cm is None and query_cm is None
+    return math.isclose(entry_cm, query_cm, abs_tol=THICKNESS_TOLERANCE_CM)
 
 
 @logger_label("ABNT NBR 6120:2019 - Table 4")
@@ -24,10 +34,14 @@ class CoveringMaterial:
     def get_weight(self, thickness_cm: float | None = None) -> float:
         """Return the weight for the given thickness in cm."""
         for tw in self.thicknesses:
-            if tw.thickness_cm == thickness_cm:
-                log_property(f"covering weight({thickness_cm} cm) = {tw.weight:.2f} kN/m²")
+            if _thickness_matches(tw.thickness_cm, thickness_cm):
+                log_property(
+                    f"covering weight({thickness_cm} cm) = {tw.weight:.2f} kN/m²"
+                )
                 return tw.weight
-        raise ValueError(f"Thickness {thickness_cm} cm not found for '{self.description}'")
+        raise ValueError(
+            f"Thickness {thickness_cm} cm not found for '{self.description}'"
+        )
 
 
 @logger_label("ABNT NBR 6120:2019 - Table 4")

@@ -1,8 +1,11 @@
 """Dataclass models for ABNT NBR 6120:2019 - Section 5.4 - Table 2 (Masonry)."""
 
+import math
 from dataclasses import dataclass
 
 from src.logger import log_property, logger_label
+
+THICKNESS_TOLERANCE_CM = 1e-9  # cm — absorbs float drift from unit conversions
 
 
 @logger_label("ABNT NBR 6120:2019 - Table 2")
@@ -17,16 +20,23 @@ class Thickness:
 
     def get_weight(self, coating_cm: int) -> float:
         """Return the weight for *coating_cm* (0, 1, or 2 cm per face)."""
-        mapping: dict[int, float | None] = {0: self.zero_cm, 1: self.one_cm, 2: self.two_cm}
+        mapping: dict[int, float | None] = {
+            0: self.zero_cm,
+            1: self.one_cm,
+            2: self.two_cm,
+        }
         if coating_cm not in mapping:
             raise ValueError(
                 f"Coating thickness must be 0, 1, or 2 cm. Got: {coating_cm}"
             )
         weight = mapping[coating_cm]
         if weight is None:
-            raise ValueError(f"Weight for coating thickness {coating_cm} cm is not defined for nominal thickness {self.nominal_cm} cm.")
+            raise ValueError(
+                f"Weight for coating thickness {coating_cm} cm is not defined for nominal thickness {self.nominal_cm} cm."
+            )
         log_property(f"masonry weight({coating_cm} cm coating) = {weight:.2f} kN/m²")
         return weight
+
 
 @logger_label("ABNT NBR 6120:2019 - Table 2")
 @dataclass(frozen=True)
@@ -39,10 +49,16 @@ class MasonryType:
     def get_thickness(self, nominal_cm: float) -> Thickness:
         """Look up a thickness entry by its nominal value (cm)."""
         for thickness in self.thicknesses:
-            if thickness.nominal_cm == nominal_cm:
-                log_property(f"'{self.type_description}' @ {nominal_cm} cm nominal → found")
+            if math.isclose(
+                thickness.nominal_cm, nominal_cm, abs_tol=THICKNESS_TOLERANCE_CM
+            ):
+                log_property(
+                    f"'{self.type_description}' @ {nominal_cm} cm nominal → found"
+                )
                 return thickness
-        raise ValueError(f"Nominal thickness {nominal_cm} cm not found for '{self.type_description}'")
+        raise ValueError(
+            f"Nominal thickness {nominal_cm} cm not found for '{self.type_description}'"
+        )
 
 
 @logger_label("ABNT NBR 6120:2019 - Table 2")
@@ -75,6 +91,8 @@ class Table2:
         query = description.lower()
         for masonry in masonries:
             if query in masonry.type_description.lower():
-                log_property(f"masonry: '{masonry.type_description}' ({'structural' if structural else 'non-bearing'})")
+                log_property(
+                    f"masonry: '{masonry.type_description}' ({'structural' if structural else 'non-bearing'})"
+                )
                 return masonry
         raise KeyError(f"No masonry type matching '{description}' was found.")

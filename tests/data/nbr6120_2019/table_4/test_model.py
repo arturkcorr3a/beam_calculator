@@ -53,6 +53,21 @@ class TestCoveringMaterialGetWeight:
             "polypropylene raised floor get_weight() should match None entry"
         )
 
+    def test_float_drifted_thickness_matches(self, table: Table4) -> None:
+        """A thickness_cm off by float drift (0.1 + 0.2) still matches the 0.3 cm entry."""
+        material = table.find_material("asphalt felt")
+        drifted = 0.1 + 0.2  # 0.30000000000000004
+        result = material.get_weight(drifted)
+        assert result == material.get_weight(0.3), (
+            "a float-drifted 0.3 cm query should return the 0.3 cm weight"
+        )
+
+    def test_thickness_query_does_not_match_none_entry(self, table: Table4) -> None:
+        """A numeric thickness never matches an entry without a thickness."""
+        material = table.find_material("steel plates")  # only a None-thickness entry
+        with pytest.raises(ValueError):
+            material.get_weight(0.3)
+
     def test_missing_thickness_raises_value_error(self, table: Table4) -> None:
         """A thickness_cm not in the entry raises ValueError."""
         material = table.find_material("asphalt felt")

@@ -116,6 +116,15 @@ class TestMasonryTypeGetThickness:
             "returned Thickness should have nominal_cm == 14.0"
         )
 
+    def test_float_drifted_nominal_thickness_matches(self, table: Table2) -> None:
+        """A nominal_cm off by float drift (0.14 m → cm) still matches the entry."""
+        masonry = table.find_masonry_type("Solid ceramic brick", structural=True)
+        drifted = 0.14 * 100  # 14.000000000000002
+        result = masonry.get_thickness(drifted)
+        assert result.nominal_cm == 14.0, (
+            "a float-drifted 14 cm query should return the 14 cm entry"
+        )
+
     def test_missing_nominal_thickness_raises_value_error(self, table: Table2) -> None:
         """A nominal_cm not in the entry raises ValueError."""
         masonry = table.find_masonry_type("Solid ceramic brick", structural=True)
