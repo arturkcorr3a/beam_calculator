@@ -15,10 +15,9 @@ from src.reinforcement.rebar_chooser import RebarChooser
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 
-DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm, default 1 layer with 20 mm bars, for calculating effective depth d when no reinforcement is chosen
-END_SUPPORT_TOLERANCE = (
-    1e-3  # cm — centers this close to a beam end sit on its end support
-)
+DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm
+DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = 1.0  # cm
+END_SUPPORT_TOLERANCE = 1e-3  # cm
 
 
 @logger_label("Longitudinal Reinforcement - {id}")
@@ -44,6 +43,7 @@ class Reinforcement:
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
         self.moment_shift: float | None = None  # cm, a_l
+        self.stirrup_diameter: float | None = None  # cm
         self.id = id
 
     def _build_empty_layers(self) -> tuple[Layer, ...]:
@@ -216,11 +216,32 @@ class Reinforcement:
         """
         return sum(layer.area for layer in self.chosen_bars)
 
+    def effective_covering(self) -> float:
+        """Return the covering up to the chosen bars.
+
+        Returns:
+            Effective covering (cm).
+        """
+        covering = RectangularBeam.nominal_covering  # cm
+        first_layer_bars = self.chosen_bars[0].bars
+        if not first_layer_bars:
+            return covering
+        return max(bar.effective_covering(covering) for bar in first_layer_bars)
+
+    def _face_offset(self) -> float:
+        """Return the distance (cm) from the section face to the stirrup's inner face."""
+        stirrup_diameter = (
+            self.stirrup_diameter
+            if self.stirrup_diameter is not None
+            else DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
+        )  # cm
+        return self.effective_covering() + stirrup_diameter
+
     def get_layer_absolute_centroid_with_weight(
         self, layer_index: int
     ) -> tuple[float, float]:
         """
-        Returns the absolute centroid for each layer, considering the spacing and previous layers.
+        Returns the centroid of a layer (cm) measured from the stirrup's inner face at the reinforced side, considering the spacing and previous layers.
         """
         self._validate_layer_index(layer_index)
 
@@ -235,22 +256,23 @@ class Reinforcement:
 
         layer_centroid_from_closest_edge = layer_centroid + offset
         log_property(
-            f"Absolute Centroid for Layer {layer_index}: {layer_centroid_from_closest_edge:.2f} cm from {'bottom' if self.is_bottom_reinforcement else 'top'} edge"
+            f"Absolute Centroid for Layer {layer_index}: {layer_centroid_from_closest_edge:.2f} cm from the {'bottom' if self.is_bottom_reinforcement else 'top'} stirrup's inner face"
         )
         return layer_centroid_from_closest_edge, layer_weight
 
     def _set_layer_y_centroid_position(self, layer_index: int) -> None:
         """
-        Sets the y_centroid_position for a specific layer based on the centroids of the bars in that layer and the spacing from previous layers.
+        Sets the y_centroid_position (cm from the bottom face of the section) for a specific layer, adding the cover and stirrup to the layer's centroid from the stirrup's inner face.
         """
-        layer_centroid_from_closest_edge, _ = (
-            self.get_layer_absolute_centroid_with_weight(layer_index)
+        layer_centroid_from_stirrup, _ = self.get_layer_absolute_centroid_with_weight(
+            layer_index
         )
+        layer_centroid_from_face = self._face_offset() + layer_centroid_from_stirrup
 
         position_from_bottom_edge = (
-            layer_centroid_from_closest_edge
+            layer_centroid_from_face
             if self.is_bottom_reinforcement
-            else self.beam.height - layer_centroid_from_closest_edge
+            else self.beam.height - layer_centroid_from_face
         )
 
         log_property(

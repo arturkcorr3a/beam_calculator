@@ -5,7 +5,7 @@ from a line-by-line review of every `src/` module, spot-verified against the sou
 Fixed, stale and not-a-bug reports are deleted (git history keeps the diagnosis), so
 numbering has gaps.
 
-**Totals:** 0 critical · 1 high · 2 medium · 0 low.
+**Totals:** 0 critical · 1 high · 1 medium · 0 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 
@@ -18,7 +18,6 @@ numbering has gaps.
 ## MEDIUM — correctness risk under specific inputs, or unconservative simplification
 
 - [M2](medium/M2-nominal-covering-global-concrete.md) — `nominal_covering` uses global concrete, not the element's *(latent)*
-- [M16](medium/M16-layer-centroid-excludes-cover.md) — `Layer.y_centroid_position` excludes cover and stirrup
 
 ## LOW — documentation / typing / dead code, no runtime effect
 
@@ -27,6 +26,4 @@ numbering has gaps.
 ## Suggested fix order
 
 1. **H8** — end-support anchorage (`src/examples/pavement/t_concreto2.py` still fails on V4).
-2. **M16** — wrong bond zone in anchorage (`has_good_adherence`); remove the GUI shift
-   in `reinforcement_reader.py` together with the fix.
-3. **M2** — latent item.
+2. **M2** — latent item.

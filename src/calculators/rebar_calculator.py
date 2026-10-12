@@ -21,12 +21,11 @@ from src.logger import (
     logger_label,
 )
 from src.properties.steel import Steel
-from src.reinforcement.reinforcement import Reinforcement
-from src.structural_elements.rectangular_beam import RectangularBeam
-
-DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = (
-    1.0  # cm, default diameter of stirrup bars if not chosen (10 mm)
+from src.reinforcement.reinforcement import (
+    DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION,
+    Reinforcement,
 )
+from src.structural_elements.rectangular_beam import RectangularBeam
 
 EFFECTIVE_DEPTH_TOLERANCE = 0.01  # cm
 MAX_EFFECTIVE_DEPTH_ITERATIONS = 100  # passes before keeping the best layout seen
@@ -123,8 +122,11 @@ class RebarCalculator:
                 for the bars' anchorage.
         """
         self.stirrup_diameter = stirrup_diameter
+
         self.tensioned_reinforcement.moment_shift = moment_shift
         self.compressed_reinforcement.moment_shift = moment_shift
+        self.tensioned_reinforcement.stirrup_diameter = stirrup_diameter
+        self.compressed_reinforcement.stirrup_diameter = stirrup_diameter
 
         passes: list[LayoutPass] = []
         last_seen: dict[LayoutSignature, int] = {}  # signature -> latest pass index
@@ -433,17 +435,15 @@ class RebarCalculator:
             ValueError: If the reinforcement is chosen but its first layer has
                 no bars.
         """
-        covering = RectangularBeam.nominal_covering  # cm
         if not reinforcement.is_chosen:
-            return covering
+            return RectangularBeam.nominal_covering  # cm
 
         first_layer = reinforcement.chosen_bars[0]
-        first_layer_bars = first_layer.bars
-        if not first_layer_bars:
+        if not first_layer.bars:
             raise ValueError(
                 f"{kind} reinforcement is marked chosen, but no bars have been set in the first layer. Cannot calculate effective depth ({depth_name})."
             )
-        covering = max(bar.effective_covering(covering) for bar in first_layer_bars)
+        covering = reinforcement.effective_covering()  # cm
         log_property(
             f"ACTUAL effective covering (c) = {covering:.2f} cm for first layer {first_layer.get_bar_diameters_for_print()}",
             label,

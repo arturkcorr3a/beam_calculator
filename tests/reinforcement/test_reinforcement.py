@@ -9,7 +9,10 @@ from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.layer import Layer
-from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.reinforcement import (
+    DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION,
+    Reinforcement,
+)
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
@@ -124,7 +127,7 @@ class TestChoose:
         assert_approx(
             reinforcement.get_distance_for_d_calculation("R"),
             0.8,
-            "The single-layer centroid sits 0.8 cm from the bottom edge",
+            "The single-layer centroid sits 0.8 cm from the stirrup's inner face",
         )
 
     def test_rechoosing_discards_previous_bars(
@@ -143,6 +146,54 @@ class TestChoose:
             reinforcement.area,
             first_area,
             "Re-choosing the same area should give the same bars, not pile them up",
+        )
+
+
+class TestLayerCentroidPosition:
+    """y_centroid_position is the layer height from the bottom face (cm)."""
+
+    def test_bottom_layer_measured_from_bottom_face(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        reinforcement.set_required_area(4.0)  # 2φ16 in layer 0
+        expected = (
+            RectangularBeam.nominal_covering
+            + DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
+            + 0.8
+        )  # cm: cover + default stirrup + φ16/2
+        assert_approx(
+            reinforcement.chosen_bars[0].y_centroid_position,
+            expected,
+            "Bottom layer height should add the cover and stirrup to φ/2",
+        )
+
+    def test_uses_chosen_stirrup_diameter(self, reinforcement: Reinforcement) -> None:
+        reinforcement.stirrup_diameter = 0.63  # cm, φ6.3
+        reinforcement.set_required_area(4.0)
+        expected = RectangularBeam.nominal_covering + 0.63 + 0.8  # cm
+        assert_approx(
+            reinforcement.chosen_bars[0].y_centroid_position,
+            expected,
+            "Bottom layer height should use the chosen stirrup diameter",
+        )
+
+    def test_top_layer_measured_from_bottom_face(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        top = Reinforcement(
+            beam_double, is_bottom_reinforcement=False, center_position=250.0, id="T"
+        )
+        top.moment_shift = 28.0
+        top.set_required_area(4.0)  # 2φ16 in layer 0
+        expected = beam_double.height - (
+            RectangularBeam.nominal_covering
+            + DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
+            + 0.8
+        )  # cm
+        assert_approx(
+            top.chosen_bars[0].y_centroid_position,
+            expected,
+            "Top layer height should be h minus cover, stirrup and φ/2",
         )
 
 

@@ -24,10 +24,7 @@ class Layer:
 
         Reference: ABNT NBR 6118 - Section 9.3.1
         """
-        if beam_height < 60:
-            good_adherence_threshold = 30
-        else:
-            good_adherence_threshold = beam_height - 30
+        good_adherence_threshold = 30 if beam_height < 60 else beam_height - 30
         return self.y_centroid_position <= good_adherence_threshold
 
     def set_anchorage_length(
