@@ -29,6 +29,7 @@ SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
 
 ONE_WAY_SLAB_THRESHOLD_RATIO = 2.0  # Based on Based on 'Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado', item 7.3.
 DEFAULT_WIDTH = 100  # cm; default width for slabs, used in pre-sizing calculation
+MAX_THICKNESS_FLOAT_TOLERANCE = 1e-9  # cm; absorbs float drift in the effective spans
 
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
 
@@ -522,9 +523,13 @@ class Slab(metaclass=_SlabMeta):
     @property
     def max_thickness(self) -> int:
         """
-        It is the max thickness to be considered a surface, Based on ABNT NBR 6118 - Section 14.4.2.1
+        Return the largest whole thickness (cm) for the slab to remain a surface.
+
+        References:
+            ABNT NBR 6118:2026 — Section 14.4.2.1
         """
-        return math.ceil(min(self.effective_dimensions) / 3)  # cm
+        limit = min(self.effective_dimensions) / 3  # cm
+        return math.floor(limit + MAX_THICKNESS_FLOAT_TOLERANCE)  # cm
 
     # ------------------------------------------------------------------
     # Validation helpers

@@ -333,18 +333,29 @@ class TestIsOneWay:
 
 
 class TestMaxThickness:
-    """max_thickness = ceil(min(dimensions) / 3)."""
+    """max_thickness = floor(min(effective_dimensions) / 3)."""
 
-    def test_square_500(self) -> None:
+    def test_square_500_rounds_limit_down(self) -> None:
         s = _make_slab_with_beams(500.0, 500.0)
-        expected = math.ceil(500.0 / 3)
+        expected = 166  # 500 / 3 = 166.67 cm, an upper bound: round down
         assert s.max_thickness == expected, f"max_thickness should be {expected}"
 
     def test_rect_300x500(self) -> None:
         s = _make_slab_with_beams(300.0, 500.0)
-        expected = math.ceil(300.0 / 3)
+        expected = 100  # 300 / 3 = 100 cm exactly
         assert s.max_thickness == expected, (
             f"max_thickness of 300×500 should be {expected}"
+        )
+
+    def test_float_drift_keeps_exact_limit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        s = _make_slab_with_beams(300.0, 500.0)
+        monkeypatch.setattr(
+            Slab, "effective_dimensions", property(lambda _: (300.0 - 1e-12, 500.0))
+        )
+        assert s.max_thickness == 100, (
+            "A span a hair under 300 cm should still allow 100 cm, not 99 cm"
         )
 
 
