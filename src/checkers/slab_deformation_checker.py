@@ -131,7 +131,7 @@ class SlabDeformationChecker(DeformationChecker):
             float: Immediate elastic deflection.
         """
         alpha = self.alpha_for_deflection
-        ecs_kn_cm2 = self.concrete.ecs / 10  # MPa to kN/cm²
+        ecs_kn_cm2 = APP_CONFIG.pavement_concrete.ecs / 10  # MPa to kN/cm²
         elastic_deflection = (
             (self.design_load * self.span**4)
             / (ecs_kn_cm2 * self.height**3)
@@ -210,7 +210,6 @@ class SlabDeformationChecker(DeformationChecker):
             self.span,
             self.width,
             self.height,
-            self.concrete,
             APP_CONFIG.pavement_steel,
         )
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm

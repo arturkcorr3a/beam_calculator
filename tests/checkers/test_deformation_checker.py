@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import pytest
 
 from src.checkers.deformation_checker import DeformationChecker
+from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -48,6 +49,12 @@ class _StubChecker(DeformationChecker):
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C30 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+
+
 @pytest.fixture
 def base_checker() -> _StubChecker:
     """Return a _StubChecker with standard base geometry (b=20, h unset, C30, span=500).
@@ -60,7 +67,6 @@ def base_checker() -> _StubChecker:
     return _StubChecker(
         permanent_load=10.0,
         variable_load=5.0,
-        concrete=Concrete.C30,
         span=500.0,
         width=20.0,
         effective_depth_discount=4.0,

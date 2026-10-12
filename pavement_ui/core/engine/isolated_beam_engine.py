@@ -1,7 +1,7 @@
 """IsolatedBeamCalculator: the engine behind the IsolatedBeamEngine port."""
 
 import traceback
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from pavement_ui.core.engine import config_mapper
 from pavement_ui.core.engine.keys import cm_from_m, from_key, m_from_cm
@@ -25,7 +25,6 @@ from src.calculators.simply_supported_beam import (
     design_simply_supported_beam,
 )
 from src.loading.linear_loads import LinearLoads
-from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
 
@@ -78,7 +77,7 @@ class IsolatedBeamJob:
     log: LogValues = LogValues()
 
     def run(self) -> IsolatedBeamOutcome:
-        """Apply the settings (with the window's concrete) and dimension the beam
+        """Apply the settings and dimension the beam
 
         Returns:
             Success; IsolatedInvalidInput if the engine refuses the section;
@@ -86,16 +85,12 @@ class IsolatedBeamJob:
         """
         try:
             apply_log_settings(self.log)  # this runs in the engine's worker process
-            # the cover reads APP_CONFIG.pavement_concrete (bug M2)
-            config_mapper.apply(
-                replace(self.config, concrete_key=self.data.concrete_key)
-            )
+            config_mapper.apply(self.config)
             try:
                 section = RectangularBeam(
                     cm_from_m(self.data.length_m),
                     self.data.width_cm,
                     self.data.height_cm,
-                    from_key(Concrete, self.data.concrete_key),
                     from_key(Steel, self.config.steel_key),
                 )
             except ValueError as error:

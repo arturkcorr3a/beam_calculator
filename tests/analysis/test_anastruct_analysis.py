@@ -17,6 +17,7 @@ from src.analysis.anastruct_analysis import AnaStructBeamAnalysis
 from src.analysis.beam_analysis import BeamAnalysis
 from src.analysis.model import BeamSupport, DistributedLoad
 from src.analysis.solver import analyse_beam
+from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -29,13 +30,18 @@ _Q = 10.0  # kN/m, downward
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 def _section(length: float, label: str = "") -> RectangularBeam:
-    """Return a C25/CA50 20x60 cm section of the given length (cm)."""
+    """Return a CA50 20x60 cm section of the given length (cm)."""
     return RectangularBeam(
         length=length,
         width=20.0,
         height=60.0,
-        concrete=Concrete.C25,
         steel=Steel.CA50,
         label=label,
     )

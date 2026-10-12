@@ -7,6 +7,7 @@ from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.calculators.stirrup_rebar_coordinator import coordinate_span
+from src.config import APP_CONFIG
 from src.loading.forces import design_effort_elu
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -24,7 +25,7 @@ length = span1 + span2 + span3  # cm
 width = 19  # cm
 height = 65  # cm
 
-concrete = Concrete.C40
+APP_CONFIG.pavement_concrete = Concrete.C40
 steel = Steel.CA50
 
 # Contínua (sem considerações de rigidez)
@@ -45,7 +46,7 @@ load_span3 = DistributedLoad(span1 + span2, length, load3)
 supports = [p1, p2, p3, p4]
 loads = [load_span1, load_span2, load_span3]
 
-beam = RectangularBeam(length, width, height, concrete, steel)
+beam = RectangularBeam(length, width, height, steel)
 analysis = analyse_beam(beam, supports, loads)
 
 # ==============================================================================

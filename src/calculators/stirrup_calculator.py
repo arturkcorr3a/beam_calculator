@@ -1,6 +1,7 @@
 from math import cos, pi, sin
 
 from src.calculators.utils import cotan
+from src.config import APP_CONFIG
 from src.logger import log_element, log_operation, logger_label
 from src.structural_elements.rectangular_beam import RectangularBeam
 
@@ -48,8 +49,8 @@ class StirrupCalculator:
     @property
     def compressed_strut_resistance(self) -> float:
         """Design resistance of compressed concrete strut (V_Rd2) in kN. NBR 6118 - Section 17.4.2.2."""
-        alpha_v2 = self.beam.concrete.alpha_v2  # dimensionless
-        fcd = self.beam.concrete.fcd  # kN/cm²
+        alpha_v2 = APP_CONFIG.pavement_concrete.alpha_v2  # dimensionless
+        fcd = APP_CONFIG.pavement_concrete.fcd  # kN/cm²
         bw = self.beam.width  # cm
         compressed_strut_resistance = (
             0.27 * alpha_v2 * fcd * bw * self.effective_depth
@@ -62,7 +63,7 @@ class StirrupCalculator:
     @property
     def concrete_contribution(self) -> float:
         """Concrete contribution to shear resistance (V_c = V_c0) in kN. NBR 6118 - Section 17.4.2.2."""
-        fctd = self.beam.concrete.fctd  # kN/cm²
+        fctd = APP_CONFIG.pavement_concrete.fctd  # kN/cm²
         bw = self.beam.width  # cm
         concrete_contribution = 0.6 * fctd * bw * self.effective_depth  # kN
         log_operation(
@@ -103,7 +104,7 @@ class StirrupCalculator:
     @property
     def minimum_ratio(self) -> float:
         """Minimum stirrup reinforcement ratio (A_sw_min/s) in cm²/cm. NBR 6118 - Section 17.4.1.1.1."""
-        fct_m = self.beam.concrete.fct_m  # kN/cm²
+        fct_m = APP_CONFIG.pavement_concrete.fct_m  # kN/cm²
         fywk = self.beam.steel.fywk  # kN/cm²
         bw = self.beam.width  # cm
         minimum_ratio = 0.2 * fct_m / fywk * bw * sin(STIRRUP_ANGLE)  # cm²/cm

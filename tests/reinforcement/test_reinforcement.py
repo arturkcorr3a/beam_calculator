@@ -18,9 +18,15 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C30 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+
+
 @pytest.fixture
 def beam_double() -> RectangularBeam:
-    """Build a light beam double (C25/CA50, 20x60 cm, 500 cm long).
+    """Build a light beam double (CA50, 20x60 cm, 500 cm long).
 
     The reinforcement orchestration only reads material grades and geometry off
     the beam, so a ``SimpleNamespace`` cast to ``RectangularBeam`` avoids running
@@ -29,7 +35,6 @@ def beam_double() -> RectangularBeam:
     """
     beam = types.SimpleNamespace(
         steel=Steel.CA50,
-        concrete=Concrete.C25,
         width=20.0,
         height=60.0,
         length=500.0,

@@ -5,17 +5,23 @@ import types
 import pytest
 
 from src.calculators.stirrup_calculator import StirrupCalculator
+from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from tests.helpers import assert_approx
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 @pytest.fixture
 def beam() -> types.SimpleNamespace:
-    """A minimal beam stub: width=20 cm, C25 concrete, CA50 steel."""
+    """A minimal beam stub: width=20 cm, CA50 steel."""
     return types.SimpleNamespace(
         width=20.0,
-        concrete=Concrete.C25,
         steel=Steel.CA50,
     )
 

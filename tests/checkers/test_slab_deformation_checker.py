@@ -63,6 +63,12 @@ def _make_support(
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C30 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+
+
 @pytest.fixture
 def square_slab_all_fixed() -> SlabDeformationChecker:
     """Return a square slab (lx=ly=400, all edges fixed → case 9).
@@ -73,7 +79,6 @@ def square_slab_all_fixed() -> SlabDeformationChecker:
     return SlabDeformationChecker(
         permanent_load=5.0,
         variable_load=2.0,
-        concrete=Concrete.C30,
         lx=400.0,
         ly=400.0,
         usage="residential",
@@ -90,7 +95,6 @@ def rectangular_slab() -> SlabDeformationChecker:
     return SlabDeformationChecker(
         permanent_load=5.0,
         variable_load=2.0,
-        concrete=Concrete.C30,
         lx=400.0,
         ly=600.0,
         usage="residential",
@@ -150,7 +154,6 @@ class TestDimensionsRatio:
         slab = SlabDeformationChecker(
             permanent_load=5.0,
             variable_load=2.0,
-            concrete=Concrete.C30,
             lx=lx,
             ly=ly,
             usage="residential",
@@ -201,7 +204,6 @@ class TestSupportingCase:
         slab = SlabDeformationChecker(
             permanent_load=5.0,
             variable_load=2.0,
-            concrete=Concrete.C30,
             lx=400.0,
             ly=600.0,
             usage="residential",
@@ -226,7 +228,6 @@ class TestSupportingCase:
         slab = SlabDeformationChecker(
             permanent_load=5.0,
             variable_load=2.0,
-            concrete=Concrete.C30,
             lx=400.0,
             ly=600.0,
             usage="residential",
@@ -516,7 +517,6 @@ class TestTensionedReinforcementArea:
         slab = SlabDeformationChecker(
             permanent_load=0.1,
             variable_load=0.05,
-            concrete=Concrete.C30,
             lx=100.0,
             ly=100.0,
             usage="residential",
@@ -548,7 +548,6 @@ class TestTensionedReinforcementArea:
         slab = SlabDeformationChecker(
             permanent_load=0.1,
             variable_load=0.05,
-            concrete=Concrete.C30,
             lx=100.0,
             ly=100.0,
             usage="residential",

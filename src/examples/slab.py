@@ -51,7 +51,6 @@ import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from src.config import APP_CONFIG
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -200,7 +199,6 @@ def pre_size_slab_with_log(slab: Slab, log: PreSizingLog) -> bool:
     from src.checkers.slab_deformation_checker import SlabDeformationChecker
     from src.pavement_elements.slab_edge import Edges
 
-    concrete = APP_CONFIG.pavement_concrete
     original_thickness = slab.thickness
 
     support_conditions = {edge: slab.edges[edge].support_condition for edge in Edges}
@@ -224,7 +222,6 @@ def pre_size_slab_with_log(slab: Slab, log: PreSizingLog) -> bool:
             permanent_load=current_permanent_load,
             variable_load=slab.variable_load,
             usage=slab.local,
-            concrete=concrete,
             lx=lx,
             ly=ly,
             support_conditions=support_conditions,

@@ -11,7 +11,7 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 
 @pytest.fixture
 def simply_supported_beam() -> RectangularBeam:
-    """Build a real C25/CA50 beam section, 20x60 cm, 500 cm long.
+    """Build a real CA50 beam section, 20x60 cm, 500 cm long.
 
     Exercises ``__init__``, ``_validate_width`` (valid path), and ``area``.
     """
@@ -19,7 +19,6 @@ def simply_supported_beam() -> RectangularBeam:
         length=500.0,
         width=20.0,
         height=60.0,
-        concrete=Concrete.C25,
         steel=Steel.CA50,
         label="B1",
     )
@@ -39,10 +38,7 @@ class TestConstruction:
         assert simply_supported_beam.height == 60.0, "Height should be stored as given"
         assert simply_supported_beam.length == 500.0, "Length should be stored as given"
 
-    def test_stores_materials(self, simply_supported_beam: RectangularBeam) -> None:
-        assert simply_supported_beam.concrete == Concrete.C25, (
-            "Concrete class should be stored as given"
-        )
+    def test_stores_steel(self, simply_supported_beam: RectangularBeam) -> None:
         assert simply_supported_beam.steel == Steel.CA50, (
             "Steel grade should be stored as given"
         )
@@ -57,7 +53,6 @@ class TestValidateWidth:
                 length=500.0,
                 width=10.0,
                 height=60.0,
-                concrete=Concrete.C25,
                 steel=Steel.CA50,
             )
 
@@ -66,7 +61,6 @@ class TestValidateWidth:
             length=500.0,
             width=12.0,
             height=60.0,
-            concrete=Concrete.C25,
             steel=Steel.CA50,
         )
         assert beam.width == 12.0, "A 12 cm width sits exactly at the minimum"

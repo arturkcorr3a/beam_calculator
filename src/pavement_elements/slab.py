@@ -260,7 +260,6 @@ class Slab(metaclass=_SlabMeta):
         """
         original_thickness = self.thickness
         self.thickness = SLAB_MIN_THICKNESS
-        concrete = APP_CONFIG.pavement_concrete
 
         self.resolve_support_conditions(pillar_registry)
         support_conditions = self._current_support_conditions()
@@ -270,7 +269,6 @@ class Slab(metaclass=_SlabMeta):
             permanent_load=self.permanent_load,
             variable_load=self.variable_load,
             usage=self.local,
-            concrete=concrete,
             lx=lx,
             ly=ly,
             support_conditions=support_conditions,

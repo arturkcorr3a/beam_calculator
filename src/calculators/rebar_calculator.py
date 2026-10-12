@@ -7,6 +7,7 @@ from src.calculators.layout_selection import (
     LayoutSignature,
     select_layout,
 )
+from src.config import APP_CONFIG
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -326,7 +327,7 @@ class RebarCalculator:
         """
         Calculates the required tensioned rebar area (As1) for the current design bending moment, based on the actual depth of the equivalent rectangular stress block (y) and equilibrium of internal forces.
         """
-        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
+        uniform_stress = APP_CONFIG.pavement_concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         y = self.actual_y if self.is_singly_reinforced else self.max_y  # cm
         as1 = (uniform_stress * bw * y) / (self.beam.steel.fyd)
@@ -356,8 +357,8 @@ class RebarCalculator:
         """
         Calculates the maximum depth (cm) of the equivalent rectangular stress block to maintain the deformation domain 3 (the limit is to turn to 4, as domain 2 would also be ok), based on ABNT NBR 6118 - Section 17.2.2.
         """
-        lambda_c = self.beam.concrete.lambda_c  # no unit
-        epsilon_cu = self.beam.concrete.epsilon_cu  # no unit
+        lambda_c = APP_CONFIG.pavement_concrete.lambda_c  # no unit
+        epsilon_cu = APP_CONFIG.pavement_concrete.epsilon_cu  # no unit
         steel_elastic_modulus_in_kn_cm2 = (
             Steel.elastic_modulus / 10
         )  # convert MPa to kN/cm²
@@ -381,10 +382,10 @@ class RebarCalculator:
         """
         Maximum depth (cm) of the equivalent rectangular stress block (y) to maintain ductility, based on ABNT NBR 6118 - Section 14.6.4.3.
         """
-        if self.beam.concrete.value <= 50:
-            max_y_ductility = 0.45 * self.beam.concrete.lambda_c * self.d
+        if APP_CONFIG.pavement_concrete.value <= 50:
+            max_y_ductility = 0.45 * APP_CONFIG.pavement_concrete.lambda_c * self.d
         else:
-            max_y_ductility = 0.35 * self.beam.concrete.lambda_c * self.d
+            max_y_ductility = 0.35 * APP_CONFIG.pavement_concrete.lambda_c * self.d
         log_property(f"Maximum depth (y) for ductility = {max_y_ductility:.4f} cm")
         return max_y_ductility
 
@@ -479,7 +480,7 @@ class RebarCalculator:
         """
         Calculates the maximum bending moment (kN.cm) that the beam can resist with single reinforcement, for the current rebar configuration (due to effective depth and maximum y)
         """
-        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
+        uniform_stress = APP_CONFIG.pavement_concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         y_max = self.max_y  # cm
         d = self.d  # cm
@@ -495,7 +496,7 @@ class RebarCalculator:
         Calculates the actual depth of the equivalent rectangular stress block (y) (cm) for the current effective depth and design bending moment. Based on equilibrium of internal forces and moment.
         """
         d = self.d  # cm
-        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
+        uniform_stress = APP_CONFIG.pavement_concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         actual_y = d - sqrt(
             d**2 - (2 * self.design_bending_moment) / (uniform_stress * bw)
@@ -509,8 +510,8 @@ class RebarCalculator:
         """
         Calculates the strain in the compressed reinforcement (no unit) for the current rebar configuration, based on the actual depth of the equivalent rectangular stress block (y), the distance from the extreme compression fiber to the centroid of the compressed rebar (d'), and the maximum depth of the equivalent rectangular stress block (y).
         """
-        epsilon_cu = self.beam.concrete.epsilon_cu  # no unit
-        lambda_c = self.beam.concrete.lambda_c  # no unit
+        epsilon_cu = APP_CONFIG.pavement_concrete.epsilon_cu  # no unit
+        lambda_c = APP_CONFIG.pavement_concrete.lambda_c  # no unit
         epsilon_s2 = (
             epsilon_cu * (self.max_y - lambda_c * self.d_compressed) / self.max_y
         )
@@ -570,7 +571,7 @@ class RebarCalculator:
         This correction ensures that the compressed reinforcement properly accounts for the stress contribution without affecting the calculation of the additional tensioned reinforcement.
         """
         sigma_s2 = self.calculate_sigma_s2()  # kN/cm²
-        corrected_sigma_s2 = sigma_s2 - self.beam.concrete.uniform_stress
+        corrected_sigma_s2 = sigma_s2 - APP_CONFIG.pavement_concrete.uniform_stress
         log_operation(
             f"Corrected stress in the compressed reinforcement (corrected_sigma_s2) = {corrected_sigma_s2:.2f} kN/cm²"
         )

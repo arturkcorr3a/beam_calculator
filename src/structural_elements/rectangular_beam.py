@@ -3,7 +3,6 @@ from typing import assert_never
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
 from src.logger import log_element, logger_label
-from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.properties.steel import Steel
 
@@ -48,7 +47,6 @@ class RectangularBeam(metaclass=_BeamMeta):
         length: float,
         width: float,
         height: float,
-        concrete: Concrete,
         steel: Steel,
         label: str = "",
     ):
@@ -58,7 +56,6 @@ class RectangularBeam(metaclass=_BeamMeta):
             length: Beam length (cm).
             width: Cross-section width (cm).
             height: Cross-section height (cm).
-            concrete: Concrete class (e.g. Concrete.C25).
             steel: Steel grade (e.g. Steel.CA50).
         """
         self.label = label
@@ -66,11 +63,10 @@ class RectangularBeam(metaclass=_BeamMeta):
         self.height = height
         self._validate_width()
         self.length = length
-        self.concrete = concrete
         self.steel = steel
 
         log_element(
-            f"{self.width:.0f} x {self.height:.0f} cm; {self.length / 100.0:.2f} m long, {self.concrete.name}, {self.steel.name}"
+            f"{self.width:.0f} x {self.height:.0f} cm; {self.length / 100.0:.2f} m long, {APP_CONFIG.pavement_concrete.name}, {self.steel.name}"
         )
 
     def _validate_width(self) -> None:

@@ -13,6 +13,7 @@ import pytest
 
 from src.analysis.beam_analysis import BeamAnalysis
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
+from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -40,6 +41,12 @@ def beam_mock() -> BeamAnalysis:
     return cast(BeamAnalysis, mock)
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C30 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+
+
 def _make_checker(
     beam_mock: BeamAnalysis,
     *,
@@ -54,7 +61,6 @@ def _make_checker(
         permanent_load=permanent_load,
         variable_load=variable_load,
         psi_2=psi_2,
-        concrete=Concrete.C30,
         span=500.0,
         width=20.0,
         effective_depth_discount=4.0,

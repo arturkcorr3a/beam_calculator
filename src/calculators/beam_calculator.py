@@ -222,7 +222,6 @@ class BeamCalculator:
             One support per span boundary, ordered left to right.
         """
         axis = cast(Axis, self._beam.axis)
-        concrete = APP_CONFIG.pavement_concrete
         positions = [0.0]
         for span in self._beam.spans:
             positions.append(
@@ -233,7 +232,7 @@ class BeamCalculator:
                 position,
                 self._pillar_registry[
                     pillar_id
-                ].calculate_stiffness_for_beam_supporting(axis, concrete),
+                ].calculate_stiffness_for_beam_supporting(axis),
             )
             for position, pillar_id in zip(
                 positions, self._support_pillar_ids(), strict=True
@@ -270,13 +269,11 @@ class BeamCalculator:
             span.get_effective_length(self._pillar_registry)
             for span in self._beam.spans
         )
-        concrete = APP_CONFIG.pavement_concrete
         steel = APP_CONFIG.pavement_steel
         return RectangularBeam(
             length,
             self._beam.width,
             self._beam.height,
-            concrete,
             steel,
             self.label,
         )
@@ -343,7 +340,6 @@ class BeamCalculator:
             effective_depth_discount=effective_depth_discount,
             span=span.get_effective_length(self._pillar_registry),
             width=structural_beam.width,
-            concrete=structural_beam.concrete,
             permanent_load=span.permanent_load,
             variable_load=span.variable_load,
             psi_2=span.psi_2,

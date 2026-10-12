@@ -1,3 +1,4 @@
+from src.config import APP_CONFIG
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as SPC,
 )
@@ -30,7 +31,7 @@ def max_design_bending_moment(beam: RectangularBeam, d: float, y_max: float) -> 
     Returns:
         Maximum design bending moment (kN.cm).
     """
-    uniform_stress = beam.concrete.uniform_stress  # kN/cm²
+    uniform_stress = APP_CONFIG.pavement_concrete.uniform_stress  # kN/cm²
     return uniform_stress * beam.width * y_max * (d - 0.5 * y_max)
 
 
@@ -44,7 +45,7 @@ def min_design_bending_moment(beam: RectangularBeam) -> float:
         Minimum design bending moment (kN.cm).
     """
     w_0 = SPC.gross_section_modulus(beam.width, beam.height)
-    return 0.8 * w_0 * beam.concrete.fctk_sup  # kN.cm
+    return 0.8 * w_0 * APP_CONFIG.pavement_concrete.fctk_sup  # kN.cm
 
 
 def almost_permanent_combination_els(

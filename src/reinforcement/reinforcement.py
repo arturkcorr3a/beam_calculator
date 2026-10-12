@@ -126,7 +126,6 @@ class Reinforcement:
                 reinforcement=self,
                 moment_shift=moment_shift,
                 steel=self.steel,
-                concrete=self.beam.concrete,
                 layer_index=layer_index,
                 id=f"{self.id} | Layer {layer_index}",
             )

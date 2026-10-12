@@ -27,6 +27,12 @@ from tests.helpers import assert_approx
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 @pytest.fixture
 def beam_mock() -> Generator[Mock]:
     """A Mock(spec=RectangularBeam) with nominal_covering patched on _BeamMeta.
@@ -38,7 +44,6 @@ def beam_mock() -> Generator[Mock]:
     beam.width = 20
     beam.height = 60
     beam.length = 500
-    beam.concrete = Concrete.C25
     beam.steel = Steel.CA50
     beam.area = 1200
     with patch.object(_BeamMeta, "nominal_covering", new_callable=PropertyMock) as m:
@@ -152,9 +157,11 @@ class TestMaxY:
             "max_y for C25/CA50/d=56 cm (cm)",
         )
 
-    def test_c60_ductility_branch(self, beam_mock: Mock) -> None:
+    def test_c60_ductility_branch(
+        self, beam_mock: Mock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """max_y uses 0.35*lambda_c branch when fck > 50 (cm)."""
-        beam_mock.concrete = Concrete.C60
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C60)
         calc = RebarCalculator(
             beam=beam_mock,
             bending_moment=272,
@@ -619,7 +626,7 @@ def cycling_calculator(monkeypatch: pytest.MonkeyPatch) -> RebarCalculator:
     monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
     monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C40)
     monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GRANITE)
-    beam = RectangularBeam(1000.0, 14.0, 55.0, Concrete.C40, Steel.CA50)
+    beam = RectangularBeam(1000.0, 14.0, 55.0, Steel.CA50)
     return RebarCalculator(
         beam=beam, bending_moment=_CYCLE_MOMENT, bending_moment_position=500.0
     )

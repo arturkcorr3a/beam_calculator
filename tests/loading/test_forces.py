@@ -5,6 +5,7 @@ from typing import cast
 
 import pytest
 
+from src.config import APP_CONFIG
 from src.loading.forces import (
     almost_permanent_combination_els,
     calculate_cracking_moment,
@@ -18,24 +19,24 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 @pytest.fixture
 def beam_c25_20x60() -> RectangularBeam:
-    """Minimal duck-typed C25 beam, 20 cm wide by 60 cm tall.
+    """Minimal duck-typed beam, 20 cm wide by 60 cm tall (concrete pinned to C25).
 
     Uses ``types.SimpleNamespace`` rather than a mock so that any access to an
-    attribute the production code does not expect fails loudly. The nested
-    concrete namespace is built from the real ``Concrete.C25`` member so the
-    reference values stay in sync with the material definition. The result is
+    attribute the production code does not expect fails loudly. The result is
     cast to ``RectangularBeam`` because the functions under test only read the
-    ``width``, ``height``, and ``concrete`` attributes.
+    ``width`` and ``height`` attributes.
     """
     beam = types.SimpleNamespace(
         width=20.0,
         height=60.0,
-        concrete=types.SimpleNamespace(
-            uniform_stress=Concrete.C25.uniform_stress,
-            fctk_sup=Concrete.C25.fctk_sup,
-        ),
     )
     return cast(RectangularBeam, beam)
 
