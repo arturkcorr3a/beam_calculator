@@ -5,6 +5,7 @@ from typing import cast
 
 import pytest
 
+import src.pavement_elements.pavement as pavement_module
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
@@ -342,6 +343,29 @@ class TestPreSizeSlabs:
 
         with pytest.raises(ValueError, match="lowered too much"):
             p.pre_size_slabs()
+
+    def test_non_converging_sizing_raises_after_max_passes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A slab that never stabilizes stops the loop at the pass cap"""
+        monkeypatch.setattr(pavement_module, "MAX_SLAB_PRE_SIZE_PASSES", 3)
+        p = Pavement()
+        calls: list[int] = [0]
+
+        def _oscillating_pre_size(registry: dict[str, Pillar]) -> bool:
+            calls[0] += 1
+            return False  # always resized
+
+        unstable = _make_slab_double("LU")
+        stable = _make_slab_double("LS")
+        unstable.pre_size = _oscillating_pre_size  # type: ignore[attr-defined]
+        stable.pre_size = lambda registry: True  # type: ignore[attr-defined]  # pyright: ignore[reportUnknownLambdaType]
+        p.add_slab(unstable)
+        p.add_slab(stable)
+
+        with pytest.raises(ValueError, match=r"after 3 passes; still resizing: LU\.$"):
+            p.pre_size_slabs()
+        assert calls[0] == 3, "pre_size should run exactly once per allowed pass"
 
 
 # ---------------------------------------------------------------------------

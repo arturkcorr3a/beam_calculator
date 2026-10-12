@@ -6,6 +6,8 @@ from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
 
+MAX_SLAB_PRE_SIZE_PASSES = 10_000  # slab pre-sizing passes before giving up
+
 
 @logger_label("Pavement")
 @dataclass
@@ -97,14 +99,28 @@ class Pavement:
             beam.pre_size(self.pillars)
 
     def pre_size_slabs(self) -> None:
-        """
-        Pre-sizes all slabs based on the maximum span length of their spans.
+        """Pre-size all slabs until a full pass leaves every thickness unchanged
+
+        A slab's thickness depends on its neighbors' (through the support conditions), so passes repeat until no slab is resized.
+
+        Raises:
+            ValueError: If slabs are still being resized after MAX_SLAB_PRE_SIZE_PASSES passes (the sizing does not converge).
         """
         log_general("Pre-sizing slabs...")
 
         pass_num = 0
         stable: list[bool | None] = [None] * len(self.slabs)
         while False in stable or None in stable:
+            if pass_num >= MAX_SLAB_PRE_SIZE_PASSES:
+                unstable_ids = [
+                    slab.id
+                    for slab, is_stable in zip(self.slabs.values(), stable, strict=True)
+                    if is_stable is not True
+                ]
+                raise ValueError(
+                    f"Slab pre-sizing did not converge after {pass_num} passes; "
+                    f"still resizing: {', '.join(unstable_ids)}."
+                )
             pass_num += 1
             log_iteration(f"Passing {pass_num} starting...", "Slabs Pre-sizing")
             for i, slab in enumerate(self.slabs.values()):
