@@ -309,13 +309,20 @@ class Reinforcement:
         return sorted(counts.items(), key=lambda x: x[0].diameter_mm, reverse=True)
 
     def _add_rebar_to_layers(self, rebar: Rebar, count: int, current_layer: int) -> int:
-        bars_to_add = [rebar] * count
-        if self.check_for_enough_space(
-            self.chosen_bars[current_layer].bars + bars_to_add
-        ):
-            self.chosen_bars[current_layer].bars.extend(bars_to_add)
-            return current_layer + 1
+        """Place bars first-fit, advancing a layer only when the next bar doesn't fit
 
+        Args:
+            rebar: Bar to place, repeated count times.
+            count: Number of bars to place.
+            current_layer: Index of the layer to start filling.
+
+        Returns:
+            Index of the layer the last bar went into, where the next (smaller)
+            diameter group continues.
+
+        Raises:
+            ValueError: If the bars need more than the maximum number of layers.
+        """
         while count > 0:
             if current_layer >= APP_CONFIG.max_layers:
                 self.clear_chosen_bars()
@@ -331,7 +338,7 @@ class Reinforcement:
                 current_layer += 1
 
         log_property(
-            f"Distributed {rebar.diameter_mm}mm bars across {current_layer + 1} layers."
+            f"Distributed {rebar.diameter_mm}mm bars up to layer {current_layer} ({current_layer + 1} layers in use)."
         )
         return current_layer
 

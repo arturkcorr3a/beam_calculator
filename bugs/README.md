@@ -5,7 +5,7 @@ from a line-by-line review of every `src/` module, spot-verified against the sou
 Fixed, stale and not-a-bug reports are deleted (git history keeps the diagnosis), so
 numbering has gaps.
 
-**Totals:** 0 critical · 1 high · 8 medium · 0 low.
+**Totals:** 0 critical · 1 high · 7 medium · 0 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 
@@ -18,7 +18,6 @@ numbering has gaps.
 ## MEDIUM — correctness risk under specific inputs, or unconservative simplification
 
 - [M2](medium/M2-nominal-covering-global-concrete.md) — `nominal_covering` uses global concrete, not the element's *(latent)*
-- [M6](medium/M6-distribute-bars-layer-advance.md) — `_add_rebar_to_layers` forces a layer advance
 - [M7](medium/M7-pick-best-option-empty-indexerror.md) — `_pick_best_option` bare `IndexError` when infeasible
 - [M8](medium/M8-max-thickness-ceil-wrong-direction.md) — `max_thickness` rounds the limit the wrong way
 - [M9](medium/M9-presize-loop-no-guard.md) — Slab pre-sizing fixed-point loop has no convergence guard
@@ -35,6 +34,6 @@ numbering has gaps.
 1. **H8** — end-support anchorage (`src/examples/pavement/t_concreto2.py` still fails on V4).
 2. **M16** — wrong bond zone in anchorage (`has_good_adherence`); remove the GUI shift
    in `reinforcement_reader.py` together with the fix.
-3. **M6, M7, M8, M9** — packing, infeasible-shear error, thickness limit, iteration cap.
+3. **M7, M8, M9** — infeasible-shear error, thickness limit, iteration cap.
 4. **M14, M15** — ID reproducibility on reload, named constant.
 5. **M2** — latent item.

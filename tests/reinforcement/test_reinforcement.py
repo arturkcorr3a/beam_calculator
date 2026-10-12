@@ -169,6 +169,46 @@ class TestDistributeBars:
         ):
             reinforcement.distribute_bars_in_layers(bars)
 
+    def test_smaller_group_fills_remaining_space_in_layer(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """Smaller bars fill the room left in a layer before a new layer opens"""
+        # 15 cm available (20 - 2 x 2.5 cover), 3 cm spacing: 2φ16 + 3φ10
+        # needs 18.2 cm, but 2φ16 + 2φ10 fit (14.2 cm)
+        bars = [Rebar(diameter_mm=16, steel=Steel.CA50) for _ in range(2)] + [
+            Rebar(diameter_mm=10, steel=Steel.CA50) for _ in range(3)
+        ]
+        reinforcement.distribute_bars_in_layers(bars)
+        layers = reinforcement.chosen_bars
+        assert sorted(_diameters(layers[0])) == [10, 10, 16, 16], (
+            "Layer 0 should hold both φ16 plus the two φ10 that still fit"
+        )
+        assert _diameters(layers[1]) == [10], (
+            "Only the φ10 that does not fit should open layer 1"
+        )
+
+    def test_three_groups_beyond_max_layers_raise_value_error(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        """Three diameter groups past the last layer raise ValueError, not IndexError"""
+        narrow_beam = cast(
+            RectangularBeam,
+            types.SimpleNamespace(**{**vars(beam_double), "width": 12.0}),
+        )
+        reinforcement = Reinforcement(
+            narrow_beam, is_bottom_reinforcement=True, center_position=250.0
+        )
+        bars = (
+            [Rebar(diameter_mm=25, steel=Steel.CA50) for _ in range(3)]
+            + [Rebar(diameter_mm=12.5, steel=Steel.CA50)]
+            + [Rebar(diameter_mm=10, steel=Steel.CA50)]
+        )
+        with pytest.raises(
+            ValueError,
+            match="Cannot distribute bars within the maximum number of layers",
+        ):
+            reinforcement.distribute_bars_in_layers(bars)
+
 
 def _layer(*diameters_mm: float) -> Layer:
     """Build a layer 0 holding CA50 bars of the given diameters (mm), in order."""
