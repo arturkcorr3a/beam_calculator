@@ -33,3 +33,7 @@ nominal cover (±0.5 cm), so wrong effective depth and anchorage space.
 Make `nominal_covering` an instance property that reads `self.concrete`. This touches
 every class-level call site listed above (src and `pavement_ui/core/engine`). Apply the
 same change to `Slab`, or document the single-concrete assumption explicitly.
+
+## User Edit
+
+Leave it like that, and change the code so EVERYWHERE uses the APP_CONFIG concrete
