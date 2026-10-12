@@ -9,6 +9,7 @@ from src.config import APP_CONFIG
 from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
 from src.data.carvalho.table_7_2.data import TABLE_7_2
 from src.data.carvalho.table_7_2.model import Table72
+from src.loading.combination_factors import almost_permanent_reduction_factor
 from src.loading.forces import (
     almost_permanent_combination_els,
     min_design_bending_moment,
@@ -21,14 +22,22 @@ from src.properties.section_properties_calculator import (
 )
 from src.structural_elements.rectangular_beam import RectangularBeam
 
+ASSUMED_SLAB_BAR_DIAMETER = 1.0  # cm
+
 
 def _default_effective_depth_discount() -> float:
-    """Get the default effective depth discount (cm) for slabs, based on ABNT NBR 6118 - Section 7.4."""
+    """Get the default effective depth discount (cm) for slabs, considering the inner layer of an orthogonal reinforcement.
+
+    Returns:
+        Distance from the tensioned face to the inner layer's centroid (cm).
+
+    References:
+        ABNT NBR 6118:2026 — Section 7.4 (nominal cover)
+    """
     from src.pavement_elements.slab import Slab
 
     covering = Slab.nominal_covering
-    rebar_discount_10_mm = 1
-    return covering + 1.5 * rebar_discount_10_mm
+    return covering + 1.5 * ASSUMED_SLAB_BAR_DIAMETER
 
 
 @dataclass(kw_only=True)
@@ -42,7 +51,7 @@ class SlabDeformationChecker(DeformationChecker):
     span: float = field(init=False)  # cm
 
     compressed_reinforcement_area: float = field(default=0, init=False)  # cm²
-    effective_depth_compressed: float = field(default=0, init=False)  # cm²
+    effective_depth_compressed: float = field(default=0, init=False)  # cm
 
     effective_depth_discount: float = field(
         default_factory=_default_effective_depth_discount, init=False
@@ -99,7 +108,9 @@ class SlabDeformationChecker(DeformationChecker):
     @property
     def design_load(self) -> float:
         load_kn_m2 = almost_permanent_combination_els(
-            self.permanent_load, self.variable_load, self.usage
+            self.permanent_load,
+            self.variable_load,
+            almost_permanent_reduction_factor(self.usage),
         )
         design_load = load_kn_m2 / 10_000  # Convert kN/m² to kN/cm²
         log_operation(f"Design load = {design_load:.4f} kN/cm²")
@@ -120,7 +131,7 @@ class SlabDeformationChecker(DeformationChecker):
             float: Immediate elastic deflection.
         """
         alpha = self.alpha_for_deflection
-        ecs_kn_cm2 = self.concrete.ecs / 10  # MPa to kN/cm²
+        ecs_kn_cm2 = APP_CONFIG.pavement_concrete.ecs / 10  # MPa to kN/cm²
         elastic_deflection = (
             (self.design_load * self.span**4)
             / (ecs_kn_cm2 * self.height**3)
@@ -199,7 +210,6 @@ class SlabDeformationChecker(DeformationChecker):
             self.span,
             self.width,
             self.height,
-            self.concrete,
             APP_CONFIG.pavement_steel,
         )
         md_min = min_design_bending_moment(dummy_beam)  # kN.cm

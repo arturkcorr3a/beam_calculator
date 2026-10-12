@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from src.checkers.deformation_check_result import DeformationCheckResult
+from src.config import APP_CONFIG
 from src.loading.forces import (
     calculate_cracking_moment,
 )
 from src.logger import log_operation, log_property, logger_label
-from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
@@ -24,12 +24,11 @@ class DeformationChecker(ABC):
 
     permanent_load: float  # kN/m
     variable_load: float  # kN/m
-    concrete: Concrete
     span: float  # cm
     width: float  # cm
     effective_depth_discount: float  # cm
     compressed_reinforcement_area: float  # cm²
-    effective_depth_compressed: float  # cm²
+    effective_depth_compressed: float  # cm
     tensioned_reinforcement_area: float  # cm²
     height: float = field(default=0, init=False)  # cm
     effective_depth: float = field(init=False)  # cm
@@ -98,7 +97,7 @@ class DeformationChecker(ABC):
         """
         Calculates the cracking moment for the element (kN.cm), according to ABNT NBR 6118 - Section 17.3.1.
         """
-        tensile_strength = self.concrete.fct_m  # kN/cm²
+        tensile_strength = APP_CONFIG.pavement_concrete.fct_m  # kN/cm²
         moment_of_inertia = section.moment_of_inertia(self.width, self.height)
         distance_to_tension_fiber = self.height / 2.0
         cracking_moment = calculate_cracking_moment(
@@ -138,7 +137,7 @@ class DeformationChecker(ABC):
             )
             return gross_section_moment_of_inertia
 
-        modular_ratio = Steel.elastic_modulus / self.concrete.ecs
+        modular_ratio = Steel.elastic_modulus / APP_CONFIG.pavement_concrete.ecs
 
         cracked_section_moment_of_inertia = section.cracked_section_moment_of_inertia(
             self.width,

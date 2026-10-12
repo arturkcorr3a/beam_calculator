@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, cast
 
+from src.config import APP_CONFIG
 from src.logger import log_operation, log_property, logger_label
-from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
 
@@ -16,14 +16,12 @@ class AnchorageCalculator:
         *,  # This forces the use of keyword arguments for clarity
         moment_shift: float,
         steel: Steel,
-        concrete: Concrete,
         layer_index: int,
         reinforcement: Reinforcement,
         id: str = "",
     ):
         self.moment_shift = moment_shift  # cm, a_l
         self.steel = steel
-        self.concrete = concrete
         self.layer = reinforcement.chosen_bars[layer_index]
         self.reinforcement = reinforcement
         self.beam_height = self.reinforcement.beam.height  # cm
@@ -83,12 +81,12 @@ class AnchorageCalculator:
 
     @property
     def design_bond_strength(self) -> float:
-        """Calculate the design bond strength (f_bd) in kN/cm. NBR 6118 - Section 9.3.2.1"""
+        """Calculate the design bond strength (f_bd) in kN/cm². NBR 6118 - Section 9.3.2.1"""
         eta_1 = self.steel.bond_coefficient
         eta_2 = self.adherence_coefficient
         eta_3 = self.diameter_coefficient
-        f_bd = eta_1 * eta_2 * eta_3 * self.concrete.fctd
-        log_property(f"Design Bond Strength (f_bd) = {f_bd:.4f} kN/cm")
+        f_bd = eta_1 * eta_2 * eta_3 * APP_CONFIG.pavement_concrete.fctd
+        log_property(f"Design Bond Strength (f_bd) = {f_bd:.4f} kN/cm²")
         return f_bd
 
     @property

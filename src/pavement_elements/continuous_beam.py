@@ -19,6 +19,7 @@ from src.pavement_elements.geometry_utils import (
     Axis,
     between,
     get_pillar_perpendicular_range,
+    ranges_overlap,
     round_up_to_multiple_of_5,
     x_coord,
     y_coord,
@@ -83,6 +84,11 @@ class ContinuousBeam:
     )  # governing calculator of each interest point, left to right
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
+
+    @classmethod
+    def reset_id_counter(cls) -> None:
+        """Restart auto-generated ids at 1 (V1)"""
+        cls._counter = count(1)
 
     def __post_init__(self):
         if not self.id:
@@ -375,7 +381,10 @@ class ContinuousBeam:
         headers: list[str], rows: list[list[str]], indent: str
     ) -> list[str]:
         """Lay out rows under headers in left-aligned columns, each padded to its widest cell."""
-        widths = [max(len(cell) for cell in column) for column in zip(headers, *rows)]
+        widths = [
+            max(len(cell) for cell in column)
+            for column in zip(headers, *rows, strict=False)
+        ]
         return [
             indent
             + "  ".join(
@@ -456,11 +465,11 @@ class ContinuousBeam:
         most_loaded_span_for_els = max(
             self.spans,
             key=lambda span: almost_permanent_combination_els(
-                span.permanent_load, span.variable_load
+                span.permanent_load, span.variable_load, span.psi_2
             ),
         )
         log_operation(
-            f"Most loaded span for ELS: {most_loaded_span_for_els.start_pillar_id} to {most_loaded_span_for_els.end_pillar_id} with total load {almost_permanent_combination_els(most_loaded_span_for_els.permanent_load, most_loaded_span_for_els.variable_load):.2f} kN/m"
+            f"Most loaded span for ELS: {most_loaded_span_for_els.start_pillar_id} to {most_loaded_span_for_els.end_pillar_id} with total load {almost_permanent_combination_els(most_loaded_span_for_els.permanent_load, most_loaded_span_for_els.variable_load, most_loaded_span_for_els.psi_2):.2f} kN/m"
         )
         return most_loaded_span_for_els
 
@@ -625,16 +634,12 @@ class ContinuousBeam:
         """
         Finds every pillar whose position or cross-section footprint intersects the beam.
         """
-        beam_low, beam_high = self._get_range()
-
-        def touches_beam(pillar: Pillar) -> bool:
-            pillar_low, pillar_high = get_pillar_perpendicular_range(pillar, axis)
-            return bool(
-                between(pillar_low, beam_low, beam_high)
-                or between(pillar_high, beam_low, beam_high)
-            )
-
-        return [pillar for pillar in pillar_registry.values() if touches_beam(pillar)]
+        beam_range = self._get_range()
+        return [
+            pillar
+            for pillar in pillar_registry.values()
+            if ranges_overlap(get_pillar_perpendicular_range(pillar, axis), beam_range)
+        ]
 
     def _build_resolved_spans(self) -> None:
         """Builds resolved_spans from the sorted pillar_ids."""

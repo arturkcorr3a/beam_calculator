@@ -29,6 +29,7 @@ SLAB_MIN_THICKNESS = 8  # cm; from ABNT NBR 6118 - Section 12.4.1
 
 ONE_WAY_SLAB_THRESHOLD_RATIO = 2.0  # Based on Based on 'Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado', item 7.3.
 DEFAULT_WIDTH = 100  # cm; default width for slabs, used in pre-sizing calculation
+MAX_THICKNESS_FLOAT_TOLERANCE = 1e-9  # cm; absorbs float drift in the effective spans
 
 type CornerKey = Literal["bottom_left", "top_left", "bottom_right", "top_right"]
 
@@ -73,7 +74,7 @@ class _SlabMeta(type):
 
 
 @logger_label("{id}")
-@dataclass
+@dataclass(eq=False)
 class Slab(metaclass=_SlabMeta):
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 
@@ -114,6 +115,11 @@ class Slab(metaclass=_SlabMeta):
     )  # Carvalho Quadro 7.2 case (1-9) of that verification
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
+
+    @classmethod
+    def reset_id_counter(cls) -> None:
+        """Restart auto-generated ids at 1 (L1)"""
+        cls._counter = count(1)
 
     def __post_init__(self):
         if not self.id:
@@ -254,7 +260,6 @@ class Slab(metaclass=_SlabMeta):
         """
         original_thickness = self.thickness
         self.thickness = SLAB_MIN_THICKNESS
-        concrete = APP_CONFIG.pavement_concrete
 
         self.resolve_support_conditions(pillar_registry)
         support_conditions = self._current_support_conditions()
@@ -264,7 +269,6 @@ class Slab(metaclass=_SlabMeta):
             permanent_load=self.permanent_load,
             variable_load=self.variable_load,
             usage=self.local,
-            concrete=concrete,
             lx=lx,
             ly=ly,
             support_conditions=support_conditions,
@@ -343,6 +347,20 @@ class Slab(metaclass=_SlabMeta):
     def add_permanent_load(self, load: float) -> None:
         """Adds a permanent load (kN/m²) to the slab's total permanent load."""
         self.permanent_load += load
+
+    @property
+    def total_permanent_load(self) -> float:
+        """Permanent load (kN/m²) including the slab's own weight at the current thickness
+
+        ``permanent_load`` holds the finishes only; the own weight is added here
+        so it reaches the supporting beams once the thickness is final.
+
+        References:
+            ABNT NBR 6120:2019 — Table 1
+        """
+        return self.permanent_load + SuperficialLoads.get_concrete_element_own_weight(
+            self.thickness / 100
+        )
 
     def resolve_and_validate(
         self,
@@ -508,9 +526,13 @@ class Slab(metaclass=_SlabMeta):
     @property
     def max_thickness(self) -> int:
         """
-        It is the max thickness to be considered a surface, Based on ABNT NBR 6118 - Section 14.4.2.1
+        Return the largest whole thickness (cm) for the slab to remain a surface.
+
+        References:
+            ABNT NBR 6118:2026 — Section 14.4.2.1
         """
-        return math.ceil(min(self.effective_dimensions) / 3)  # cm
+        limit = min(self.effective_dimensions) / 3  # cm
+        return math.floor(limit + MAX_THICKNESS_FLOAT_TOLERANCE)  # cm
 
     # ------------------------------------------------------------------
     # Validation helpers
@@ -548,7 +570,13 @@ class Slab(metaclass=_SlabMeta):
     def _resolve_edge(
         self, edge: Edges, beam_registry: dict[str, ContinuousBeam]
     ) -> ContinuousBeam:
-        "Finds the beam (and respective spans) that supports a given edge of the slab."
+        """Find the beam (and respective spans) that supports a given edge of the slab
+
+        Raises:
+            ValueError: If no beam contains both corner pillars of the edge, or
+                if the beam has no span between them (e.g. both corners are the
+                same pillar).
+        """
         corner_1, corner_2 = CORNER_EDGE_DICT[edge]
         corner_pillar_1 = self.corners_pillar_dict[corner_1]
         corner_pillar_2 = self.corners_pillar_dict[corner_2]
@@ -557,8 +585,12 @@ class Slab(metaclass=_SlabMeta):
             if beam.contains_pillar(corner_pillar_1.id) and beam.contains_pillar(
                 corner_pillar_2.id
             ):
-                self.edges[edge].resolve_beam(beam)
                 spans = beam.get_spans_between(corner_pillar_1.id, corner_pillar_2.id)
+                if not spans:
+                    raise ValueError(
+                        f"Slab '{self.id}': {edge.value} edge has no span between pillars '{corner_pillar_1.id}' and '{corner_pillar_2.id}' on beam '{beam.id}'."
+                    )
+                self.edges[edge].resolve_beam(beam)
                 self.edges[edge].resolve_spans(spans)
                 return beam
         raise ValueError(

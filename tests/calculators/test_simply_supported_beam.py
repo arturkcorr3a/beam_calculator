@@ -23,7 +23,7 @@ def design(monkeypatch: pytest.MonkeyPatch) -> SimplySupportedBeamDesign:
     """Dimension a 20 × 50 cm, 5 m, C30/CA50 beam under its own weight."""
     monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
     monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
-    section = RectangularBeam(_LENGTH_CM, 20.0, 50.0, Concrete.C30, Steel.CA50)
+    section = RectangularBeam(_LENGTH_CM, 20.0, 50.0, Steel.CA50)
     return design_simply_supported_beam(section)
 
 
@@ -73,6 +73,6 @@ class TestUndersizedSection:
     def test_raises_value_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C20)
-        section = RectangularBeam(3000.0, 12.0, 25.0, Concrete.C20, Steel.CA50)
+        section = RectangularBeam(3000.0, 12.0, 25.0, Steel.CA50)
         with pytest.raises(ValueError, match="exceeds maximum allowable limit"):
             design_simply_supported_beam(section)

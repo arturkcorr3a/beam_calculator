@@ -7,6 +7,7 @@ import numpy as np
 from anastruct.fem.system import SystemElements
 
 from src.analysis.model import BeamSupport, DistributedLoad
+from src.config import APP_CONFIG
 from src.logger import log_property
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -149,7 +150,7 @@ class AnaStructBeamAnalysis:
         area = SectionPropertiesCalculator.rectangular_cross_sectional_area(
             width, height
         )  # cm²
-        ecs = section.concrete.ecs  # MPa
+        ecs = APP_CONFIG.pavement_concrete.ecs  # MPa
         self._flexural_rigidity = ecs * inertia * 1e-5  # MPa·cm⁴ → kN·m²
         axial_rigidity = ecs * area * 0.1  # MPa·cm² → kN
 

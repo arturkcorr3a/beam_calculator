@@ -1,6 +1,8 @@
 """Tests for src/pavement_elements/slab.py."""
 
 import math
+import types
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
@@ -9,6 +11,7 @@ import src.pavement_elements.slab as _slab_module
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
 from src.loading.superficial_loads import SuperficialLoads
+from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import (
@@ -168,6 +171,31 @@ class TestValidatePillarCount:
 
 
 # ---------------------------------------------------------------------------
+# TestIdentity
+# ---------------------------------------------------------------------------
+
+
+class TestIdentity:
+    """Slabs are entities: they compare and hash by identity, not by field values."""
+
+    def test_slabs_with_same_data_are_not_equal(self) -> None:
+        first = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        second = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        assert first != second, "distinct slabs with equal data should differ"
+
+    def test_slab_equals_itself(self) -> None:
+        slab = Slab(("P1", "P2", "P3", "P4"), "Bedrooms")
+        assert slab is slab, "a slab should equal itself"
+
+    def test_slab_is_hashable(self) -> None:
+        first = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        second = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        assert len({first, second, first}) == 2, (
+            "slabs should be usable in a set, one entry per object"
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestAddPermanentLoad
 # ---------------------------------------------------------------------------
 
@@ -184,6 +212,43 @@ class TestAddPermanentLoad:
     def test_initial_load_is_zero(self) -> None:
         s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
         assert_approx(s.permanent_load, 0.0, "initial permanent_load should be 0")
+
+
+# ---------------------------------------------------------------------------
+# TestTotalPermanentLoad
+# ---------------------------------------------------------------------------
+
+
+class TestTotalPermanentLoad:
+    """total_permanent_load adds the own weight (25 kN/m³ × h) to the finishes."""
+
+    def test_adds_own_weight(self) -> None:
+        """Add 25 kN/m³ × 0.10 m = 2.5 kN/m² to 3.0 kN/m² of finishes"""
+        s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
+        s.add_permanent_load(3.0)
+        s.thickness = 10
+        assert_approx(
+            s.total_permanent_load, 5.5, "total_permanent_load should be 5.5 kN/m²"
+        )
+
+    def test_follows_thickness_changes(self) -> None:
+        """Recompute the own weight when the thickness changes"""
+        s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
+        s.add_permanent_load(3.0)
+        s.thickness = 10
+        _ = s.total_permanent_load
+        s.thickness = 12
+        assert_approx(
+            s.total_permanent_load, 6.0, "total_permanent_load should be 6.0 kN/m²"
+        )
+
+    def test_does_not_change_permanent_load(self) -> None:
+        """Keep permanent_load as finishes only"""
+        s = Slab(corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms")
+        s.add_permanent_load(3.0)
+        s.thickness = 10
+        _ = s.total_permanent_load
+        assert_approx(s.permanent_load, 3.0, "permanent_load should stay 3.0 kN/m²")
 
 
 # ---------------------------------------------------------------------------
@@ -268,18 +333,29 @@ class TestIsOneWay:
 
 
 class TestMaxThickness:
-    """max_thickness = ceil(min(dimensions) / 3)."""
+    """max_thickness = floor(min(effective_dimensions) / 3)."""
 
-    def test_square_500(self) -> None:
+    def test_square_500_rounds_limit_down(self) -> None:
         s = _make_slab_with_beams(500.0, 500.0)
-        expected = math.ceil(500.0 / 3)
+        expected = 166  # 500 / 3 = 166.67 cm, an upper bound: round down
         assert s.max_thickness == expected, f"max_thickness should be {expected}"
 
     def test_rect_300x500(self) -> None:
         s = _make_slab_with_beams(300.0, 500.0)
-        expected = math.ceil(300.0 / 3)
+        expected = 100  # 300 / 3 = 100 cm exactly
         assert s.max_thickness == expected, (
             f"max_thickness of 300×500 should be {expected}"
+        )
+
+    def test_float_drift_keeps_exact_limit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        s = _make_slab_with_beams(300.0, 500.0)
+        monkeypatch.setattr(
+            Slab, "effective_dimensions", property(lambda _: (300.0 - 1e-12, 500.0))
+        )
+        assert s.max_thickness == 100, (
+            "A span a hair under 300 cm should still allow 100 cm, not 99 cm"
         )
 
 
@@ -353,6 +429,35 @@ class TestResolveEdgeMessage:
         }
         with pytest.raises(ValueError, match=r"No valid beam found for top edge\.$"):
             s._resolve_edge(Edges.TOP, {})  # pyright: ignore[reportPrivateUsage]
+
+    def test_no_span_between_corners_raises(self) -> None:
+        """A beam with both corner pillars but no span between them is rejected"""
+        s = Slab(corner_pillar_ids=("PA", "PB", "PC", "PD"), local="Bedrooms")
+        corner = Pillar(0.0, 400.0, 20.0, 30.0)
+        s.corners_pillar_dict = {
+            "bottom_left": Pillar(0.0, 0.0, 20.0, 30.0),
+            "bottom_right": Pillar(500.0, 0.0, 20.0, 30.0),
+            "top_left": corner,
+            "top_right": corner,  # same pillar on both top corners
+        }
+
+        def contains_pillar(pillar_id: str) -> bool:
+            return True
+
+        def get_spans_between(start_pillar_id: str, end_pillar_id: str) -> list[Span]:
+            return []
+
+        beam = cast(
+            ContinuousBeam,
+            types.SimpleNamespace(
+                id="V_top",
+                contains_pillar=contains_pillar,
+                get_spans_between=get_spans_between,
+            ),
+        )
+        with pytest.raises(ValueError, match=r"top edge has no span between pillars"):
+            s._resolve_edge(Edges.TOP, {"V_top": beam})  # pyright: ignore[reportPrivateUsage]
+        assert s.edges[Edges.TOP].spans == [], "the edge should stay unresolved"
 
 
 # ---------------------------------------------------------------------------
@@ -502,7 +607,7 @@ class TestPreSize:
 
         s.pre_size({})
         # h = 8, 9, 10 -> a = 0.3h = 2.4, 2.7, 3.0; l0 = 280 / 380
-        for (lx, ly, span), a in zip(verified_spans, (2.4, 2.7, 3.0)):
+        for (lx, ly, span), a in zip(verified_spans, (2.4, 2.7, 3.0), strict=False):
             assert_approx(lx, 280 + 2 * a, f"checker lx should match h = {a / 0.3:.0f}")
             assert_approx(ly, 380 + 2 * a, f"checker ly should match h = {a / 0.3:.0f}")
             assert_approx(span, 280 + 2 * a, "checker span should be min(lx, ly)")

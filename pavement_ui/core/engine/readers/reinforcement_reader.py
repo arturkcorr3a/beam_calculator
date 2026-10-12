@@ -17,23 +17,14 @@ def _groups(layer: Layer) -> tuple[BarGroup, ...]:
     return tuple(BarGroup(n, d) for d, n in sorted(counter.items(), reverse=True))
 
 
-def read_layers(
-    reinforcement: Reinforcement, face_offset_cm: float
-) -> tuple[BarLayer, ...]:
+def read_layers(reinforcement: Reinforcement) -> tuple[BarLayer, ...]:
     """Return the non-empty chosen layers, numbered from 1 at the reinforced face
 
-    The engine's ``y_centroid_position`` is measured from the inner face of the
-    stirrup, not from the section edge (bug M16), so it is shifted by
-    face_offset_cm to get the height from the bottom face.
-
-    Args:
-        face_offset_cm: Cover plus stirrup diameter (cm), as used for d.
+    Each layer's height is the engine's ``y_centroid_position``, measured from
+    the bottom face of the section.
     """
-    shift = face_offset_cm if reinforcement.is_bottom_reinforcement else -face_offset_cm
     return tuple(
-        BarLayer(
-            layer.layer_index + 1, layer.y_centroid_position + shift, _groups(layer)
-        )
+        BarLayer(layer.layer_index + 1, layer.y_centroid_position, _groups(layer))
         for layer in reinforcement.chosen_bars
         if layer.bars
     )

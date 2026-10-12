@@ -29,6 +29,9 @@ class Span:
     )
     permanent_load: float = field(default=0.0, init=False)  # kN/m
     variable_load: float = field(default=0.0, init=False)  # kN/m
+    psi_2: float = field(
+        default=0.0, init=False
+    )  # largest quasi-permanent reduction factor of the variable loads
     characteristic_shear_force: float = field(
         default=0.0, init=False
     )  # kN, greatest |V| inside the span, set when stirrups are dimensioned
@@ -85,19 +88,37 @@ class Span:
 
     def get_other_supported_slab(self, slab: Slab) -> Slab | None:
         """Returns the other supported slab, given one of them."""
-        if self.supported_slabs[0] == slab:
+        if self.supported_slabs[0] is slab:
             return self.supported_slabs[1]
-        elif self.supported_slabs[1] == slab:
+        elif self.supported_slabs[1] is slab:
             return self.supported_slabs[0]
         else:
             raise ValueError(f"Slab '{slab.id}' is not supported by this span.")
 
-    def add_load(self, load: float, permanent: bool = True) -> None:
-        """Adds a load (kN/m) to the span's total load from slabs."""
+    def add_load(
+        self, load: float, permanent: bool = True, psi_2: float | None = None
+    ) -> None:
+        """Add a load to the span's total load
+
+        The span keeps the largest psi_2 among its variable loads, applied to the
+        whole variable load in the quasi-permanent combination.
+
+        Args:
+            load: Distributed load (kN/m).
+            permanent: Whether the load is permanent; otherwise it is variable.
+            psi_2: Quasi-permanent reduction factor of a variable load; ignored
+                for permanent loads.
+
+        Raises:
+            ValueError: If a variable load is added without psi_2.
+        """
         if permanent:
             self.permanent_load += load
-        else:
-            self.variable_load += load
+            return
+        if psi_2 is None:
+            raise ValueError("A variable load needs its quasi-permanent factor psi_2.")
+        self.variable_load += load
+        self.psi_2 = max(self.psi_2, psi_2)
 
     def set_stirrups(self, stirrups: Stirrups) -> None:
         """Sets the stirrups for this span."""

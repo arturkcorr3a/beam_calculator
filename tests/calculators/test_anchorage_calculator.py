@@ -7,6 +7,7 @@ from unittest.mock import PropertyMock, patch
 import pytest
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
+from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.layer import Layer
@@ -52,20 +53,24 @@ def _make_reinforcement(
     )
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 def _make_ac(
     layer: Layer,
     required_area: float,
     area: float,
     beam_height: float = 60.0,
     steel: Steel = Steel.CA50,
-    concrete: Concrete = Concrete.C25,
 ) -> AnchorageCalculator:
     """Construct AnchorageCalculator with minimal stubs."""
     reinforcement = _make_reinforcement(layer, required_area, area, beam_height)
     return AnchorageCalculator(
         moment_shift=28.0,
         steel=steel,
-        concrete=concrete,
         layer_index=0,
         reinforcement=reinforcement,  # pyright: ignore[reportArgumentType]
         id="Test",
@@ -215,7 +220,7 @@ class TestBasicAnchorageLength:
         """
         # Fake steel: bond_coefficient=100, fyd=0.1 → computed leg ≈ tiny
         # We patch the bond_coefficient and fyd on the Steel instance indirectly
-        # by building a SimpleNamespace with real concrete but fake steel attributes.
+        # by building a SimpleNamespace with fake steel attributes.
         fake_steel: Any = types.SimpleNamespace(
             bond_coefficient=100.0,
             fyd=0.1,
@@ -229,7 +234,6 @@ class TestBasicAnchorageLength:
         ac_fake = AnchorageCalculator(
             moment_shift=28.0,
             steel=fake_steel,
-            concrete=Concrete.C25,
             layer_index=0,
             reinforcement=reinforcement,  # pyright: ignore[reportArgumentType]
             id="fake",

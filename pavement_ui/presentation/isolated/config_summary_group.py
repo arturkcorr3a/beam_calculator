@@ -10,7 +10,7 @@ from pavement_ui.presentation.widgets.key_value_table import KeyValueTable
 
 
 class ConfigSummaryGroup(QGroupBox):
-    """Steel, aggregate size, bar types and layers of the current project"""
+    """Concrete, steel, aggregate size, bar types and layers of the current project"""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(s.FROM_CONFIG, parent)
@@ -21,6 +21,7 @@ class ConfigSummaryGroup(QGroupBox):
     def set_config(self, config: ConfigValues) -> None:
         self._table.set_items(
             [
+                (s.CONCRETE, label(OptionKind.CONCRETE, config.concrete_key)),
                 (s.STEEL, label(OptionKind.STEEL, config.steel_key)),
                 (
                     s.AGG_SIZE,

@@ -4,7 +4,6 @@ from pavement_ui.core.engine.keys import m_from_cm
 from pavement_ui.core.engine.readers.reinforcement_reader import read_layers
 from pavement_ui.core.results.beam_result import DesignPoint, PointKind, SupportMark
 from src.calculators.rebar_calculator import RebarCalculator
-from src.structural_elements.rectangular_beam import RectangularBeam
 
 _SUPPORT_TOLERANCE_M = 0.01  # a point within 1 cm of a support is on it
 
@@ -41,14 +40,10 @@ def read_point(
     span_index = _span_index(position_m, span_ends_m)
     support = _support_at(position_m, supports)
     tensioned = calculator.tensioned_reinforcement
-    # same cover and stirrup the engine subtracts for d; read inside the job
-    face_offset_cm = RectangularBeam.nominal_covering + (
-        calculator.stirrup_diameter or 0.0
-    )
     compression = (
         ()
         if calculator.is_singly_reinforced
-        else read_layers(calculator.compressed_reinforcement, face_offset_cm)
+        else read_layers(calculator.compressed_reinforcement)
     )
     return DesignPoint(
         kind=PointKind.SPAN if support is None else PointKind.SUPPORT,
@@ -60,7 +55,7 @@ def read_point(
         bottom_tensioned=tensioned.is_bottom_reinforcement,
         as_required_cm2=tensioned.required_area or 0.0,
         as_effective_cm2=tensioned.area,
-        tension_layers=read_layers(tensioned, face_offset_cm),
+        tension_layers=read_layers(tensioned),
         compression_layers=compression,
         moment_shift_cm=tensioned.moment_shift or 0.0,
     )

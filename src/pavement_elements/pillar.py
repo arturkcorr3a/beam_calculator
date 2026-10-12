@@ -2,15 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import count
-from typing import TYPE_CHECKING
 
 from src.config import APP_CONFIG
 from src.logger import log_operation
 from src.pavement_elements.geometry_utils import Axis
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
-
-if TYPE_CHECKING:
-    from src.properties.concrete import Concrete
 
 MIN_DIMENSION_CM = 14.0  # cm — ABNT NBR 6118 §13.2.3
 MIN_AREA_CM2 = 360.0  # cm² — ABNT NBR 6118 §13.2.3
@@ -39,6 +35,11 @@ class Pillar:
     id: str = field(default="", kw_only=True)  # empty: generated from the counter
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
+
+    @classmethod
+    def reset_id_counter(cls) -> None:
+        """Restart auto-generated ids at 1 (P1)"""
+        cls._counter = count(1)
 
     def __post_init__(self):
         if not self.id:
@@ -69,17 +70,14 @@ class Pillar:
         """
         return self.depth if axis == Axis.X else self.width
 
-    def calculate_stiffness_for_beam_supporting(
-        self, axis: Axis, concrete: Concrete
-    ) -> float:
+    def calculate_stiffness_for_beam_supporting(self, axis: Axis) -> float:
         """Return the rotational stiffness this pillar gives a beam along an axis.
 
         Args:
             axis: Axis of the beam the pillar supports.
-            concrete: Pillar concrete; its secant modulus Ecs is used as Ec.
 
         Returns:
-            Rotational stiffness (kN.m/rad), with l = ``APP_CONFIG.ceiling_height``.
+            Rotational stiffness (kN.m/rad).
         """
         # PAPER — reference for the half-pillar rotational stiffness 3·E·I/(l/2)
         inertia = SectionPropertiesCalculator.moment_of_inertia(
@@ -87,7 +85,12 @@ class Pillar:
         )  # cm⁴
         half_height = APP_CONFIG.ceiling_height / 2  # m
         half_stiffness = (
-            HALF_PILLAR_COEFFICIENT * concrete.ecs * 1e3 * inertia * 1e-8 / half_height
+            HALF_PILLAR_COEFFICIENT
+            * APP_CONFIG.pavement_concrete.ecs
+            * 1e3
+            * inertia
+            * 1e-8
+            / half_height
         )  # MPa→kN/m², cm⁴→m⁴ ⇒ kN·m/rad
         stiffness = 2 * half_stiffness
         log_operation(

@@ -45,8 +45,8 @@ class AppConfig:
             fck: Concrete characteristic compressive strength (MPa).
 
         References:
-            ABNT NBR 6118:2014 — Section 7.4.2, Table 7.1
-            ABNT NBR 6118:2014 — Section 7.4.7.6
+            ABNT NBR 6118:2026 — Section 7.4.2, Table 7.1
+            ABNT NBR 6118:2026 — Section 7.4.7.6
         """
         return fck > self.exposure_class.minimum_fck
 
@@ -58,7 +58,7 @@ class AppConfig:
                 required for the configured exposure class.
 
         References:
-            ABNT NBR 6118:2014 — Section 7.4.2, Table 7.1
+            ABNT NBR 6118:2026 — Section 7.4.2, Table 7.1
         """
         minimum_fck = self.exposure_class.minimum_fck
         if self.pavement_concrete.value < minimum_fck:

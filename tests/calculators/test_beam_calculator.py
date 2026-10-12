@@ -41,6 +41,7 @@ def _make_span_stub(
     span = types.SimpleNamespace(
         permanent_load=permanent_load,
         variable_load=variable_load,
+        psi_2=0.3,
         start_pillar_id="P1",
         end_pillar_id="P2",
         get_length=lambda registry, _l=length_cm: _l,  # pyright: ignore[reportUnknownLambdaType]
@@ -151,7 +152,7 @@ class TestBuildSupports:
         supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
         for support, pillar_id in zip(supports, ["P1", "P2"], strict=True):
             expected = registry[pillar_id].calculate_stiffness_for_beam_supporting(
-                Axis.X, Concrete.C25
+                Axis.X
             )
             assert_approx(
                 support.rotational_stiffness,
@@ -219,7 +220,6 @@ class TestBuildStructuralBeam:
         )
         assert beam.width == 20.0, "beam width should be 20 cm (cm)"
         assert beam.height == 60.0, "beam height should be 60 cm (cm)"
-        assert beam.concrete == Concrete.C25, "beam concrete should be C25"
         assert beam.steel == Steel.CA50, "beam steel should be CA50"
 
 
@@ -334,7 +334,7 @@ class TestVerifyDeformation:
 
     def _make_structural_beam_stub(self) -> types.SimpleNamespace:
         """Build a structural beam (section) stub compatible with _verify_deformation."""
-        return types.SimpleNamespace(width=20.0, height=60.0, concrete=Concrete.C25)
+        return types.SimpleNamespace(width=20.0, height=60.0)
 
     def _make_analysis_stub(self) -> types.SimpleNamespace:
         """Build a BeamAnalysis stub with canned moment (kN.m) and deflection (cm)."""

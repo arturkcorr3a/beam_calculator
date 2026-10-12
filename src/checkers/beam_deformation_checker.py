@@ -13,6 +13,7 @@ from src.properties.section_properties_calculator import (
 class BeamDeformationChecker(DeformationChecker):
     analysis: BeamAnalysis
     position: float  # cm — position along the beam length of the interest point
+    psi_2: float  # quasi-permanent reduction factor of the variable load
 
     @property
     def service_moment(self) -> float:
@@ -29,7 +30,7 @@ class BeamDeformationChecker(DeformationChecker):
     @property
     def design_load(self) -> float:
         load_kn_m = almost_permanent_combination_els(
-            self.permanent_load, self.variable_load
+            self.permanent_load, self.variable_load, self.psi_2
         )
         design_load = load_kn_m / 100  # Convert kN/m to kN/cm
         log_operation(f"Design load for ELS: {design_load:.2f} kN/cm")

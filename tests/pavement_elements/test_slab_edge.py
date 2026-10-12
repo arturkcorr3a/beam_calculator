@@ -5,6 +5,9 @@ from typing import cast
 
 import pytest
 
+import src.pavement_elements.slab_edge as slab_edge_module
+from src.config import APP_CONFIG
+from src.config_options import OccupancyCategory
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.geometry_utils import Axis
@@ -23,14 +26,16 @@ from tests.helpers import assert_approx
 
 @pytest.fixture
 def slab_double() -> Slab:
-    """Minimal slab double (permanent_load=4 kN/m², variable_load=2 kN/m²)."""
+    """Minimal slab double (finishes 4 + own weight 2.5 kN/m², variable_load=2 kN/m²)."""
     return cast(
         Slab,
         types.SimpleNamespace(
             id="L_edge_test",
             thickness=10,
             permanent_load=4.0,
+            total_permanent_load=6.5,
             variable_load=2.0,
+            local="Bedrooms",
             is_lowered=False,
         ),
     )
@@ -142,11 +147,11 @@ class TestClearResolved:
 class TestResolveSupportCondition:
     """resolve_support_condition sets 'fixed' only when fixed_length/total > 0.8."""
 
-    def test_empty_spans_raises_zero_division(
+    def test_empty_spans_raises_value_error(
         self, bottom_edge: SlabEdge, pillar_registry: dict[str, Pillar]
     ) -> None:
-        # Latent ZeroDivisionError when spans is empty — documented behavior
-        with pytest.raises(ZeroDivisionError):
+        """An edge without spans fails with a clear message, not a ZeroDivisionError"""
+        with pytest.raises(ValueError, match=r"bottom edge has no supporting spans"):
             bottom_edge.resolve_support_condition(pillar_registry)
 
     def test_all_spans_no_other_slab_stays_pinned(
@@ -189,6 +194,31 @@ class TestResolveSupportCondition:
         edge.resolve_support_condition(pillar_registry)
         assert edge.support_condition == "fixed", (
             "similar-thickness adjacent slab should produce fixed condition"
+        )
+
+    def test_fixed_ratio_threshold_constant_is_used(
+        self,
+        slab_double: Slab,
+        pillar_registry: dict[str, Pillar],
+        pillars: tuple[Pillar, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Raising FIXED_RATIO_THRESHOLD to 1.0 keeps a fully fixed edge pinned."""
+        monkeypatch.setattr(slab_edge_module, "FIXED_RATIO_THRESHOLD", 1.0)
+        p1, p2 = pillars
+        edge = SlabEdge(Edges.BOTTOM, slab_double)
+        other = cast(
+            Slab, types.SimpleNamespace(id="L_adj", thickness=10, is_lowered=False)
+        )
+
+        span = _make_span(p1, p2)
+        span.add_supported_slab(slab_double)
+        span.add_supported_slab(other)
+        edge.spans = [span]
+
+        edge.resolve_support_condition(pillar_registry)
+        assert edge.support_condition == "pinned", (
+            "a 100% fixed edge is not strictly above a 1.0 threshold, so it stays pinned"
         )
 
     def test_adjacent_much_thinner_slab_stays_pinned(
@@ -300,7 +330,7 @@ class TestUnloadOnSpans:
         pillar_registry: dict[str, Pillar],
         pillars: tuple[Pillar, Pillar],
     ) -> None:
-        """slab perm=4 kN/m², var=2 kN/m²; area=6.25 m²; edge_len=500 cm=5 m → 5/2.5 kN/m."""
+        """slab perm=6.5 kN/m² (with own weight), var=2 kN/m²; area=6.25 m²; edge_len=5 m → 8.125/2.5 kN/m."""
         p1, p2 = pillars
         edge = SlabEdge(Edges.BOTTOM, slab_double)
         edge.resolve_beam(beam_double)
@@ -311,7 +341,42 @@ class TestUnloadOnSpans:
 
         edge.unload_on_spans(pillar_registry)
 
-        # permanent = 4.0 * 6.25 / 5.0 = 5.0 kN/m
-        assert_approx(span.permanent_load, 5.0, "permanent load should be 5.0 kN/m")
+        # permanent = (4.0 + 2.5 own weight) * 6.25 / 5.0 = 8.125 kN/m
+        assert_approx(
+            span.permanent_load,
+            8.125,
+            "permanent load should include the slab own weight (8.125 kN/m)",
+        )
         # variable = 2.0 * 6.25 / 5.0 = 2.5 kN/m
         assert_approx(span.variable_load, 2.5, "variable load should be 2.5 kN/m")
+
+    def test_sets_span_psi_2_from_slab_local(
+        self,
+        slab_double: Slab,
+        beam_double: ContinuousBeam,
+        pillar_registry: dict[str, Pillar],
+        pillars: tuple[Pillar, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A storage room in a residential building unloads with psi_2 = 0.6"""
+        monkeypatch.setattr(
+            APP_CONFIG, "building_category", OccupancyCategory.RESIDENTIAL
+        )
+        slab_double.local = "Storage rooms"
+        edge = SlabEdge(Edges.BOTTOM, slab_double)
+        edge.resolve_beam(beam_double)
+        edge.influence_area = 6.25  # m²
+        span = _make_span(*pillars)
+        edge.spans = [span]
+
+        edge.unload_on_spans(pillar_registry)
+
+        assert_approx(span.psi_2, 0.6, "span psi_2 should follow the storage room")
+
+    def test_empty_spans_raises_value_error(
+        self, bottom_edge: SlabEdge, pillar_registry: dict[str, Pillar]
+    ) -> None:
+        """An edge without spans fails with a clear message, not a ZeroDivisionError"""
+        bottom_edge.influence_area = 6.25  # m²
+        with pytest.raises(ValueError, match=r"bottom edge has no supporting spans"):
+            bottom_edge.unload_on_spans(pillar_registry)

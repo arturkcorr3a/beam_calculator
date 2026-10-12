@@ -9,15 +9,24 @@ from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.layer import Layer
-from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.reinforcement import (
+    DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION,
+    Reinforcement,
+)
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C30 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+
+
 @pytest.fixture
 def beam_double() -> RectangularBeam:
-    """Build a light beam double (C25/CA50, 20x60 cm, 500 cm long).
+    """Build a light beam double (CA50, 20x60 cm, 500 cm long).
 
     The reinforcement orchestration only reads material grades and geometry off
     the beam, so a ``SimpleNamespace`` cast to ``RectangularBeam`` avoids running
@@ -26,7 +35,6 @@ def beam_double() -> RectangularBeam:
     """
     beam = types.SimpleNamespace(
         steel=Steel.CA50,
-        concrete=Concrete.C25,
         width=20.0,
         height=60.0,
         length=500.0,
@@ -124,7 +132,7 @@ class TestChoose:
         assert_approx(
             reinforcement.get_distance_for_d_calculation("R"),
             0.8,
-            "The single-layer centroid sits 0.8 cm from the bottom edge",
+            "The single-layer centroid sits 0.8 cm from the stirrup's inner face",
         )
 
     def test_rechoosing_discards_previous_bars(
@@ -146,6 +154,54 @@ class TestChoose:
         )
 
 
+class TestLayerCentroidPosition:
+    """y_centroid_position is the layer height from the bottom face (cm)."""
+
+    def test_bottom_layer_measured_from_bottom_face(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        reinforcement.set_required_area(4.0)  # 2φ16 in layer 0
+        expected = (
+            RectangularBeam.nominal_covering
+            + DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
+            + 0.8
+        )  # cm: cover + default stirrup + φ16/2
+        assert_approx(
+            reinforcement.chosen_bars[0].y_centroid_position,
+            expected,
+            "Bottom layer height should add the cover and stirrup to φ/2",
+        )
+
+    def test_uses_chosen_stirrup_diameter(self, reinforcement: Reinforcement) -> None:
+        reinforcement.stirrup_diameter = 0.63  # cm, φ6.3
+        reinforcement.set_required_area(4.0)
+        expected = RectangularBeam.nominal_covering + 0.63 + 0.8  # cm
+        assert_approx(
+            reinforcement.chosen_bars[0].y_centroid_position,
+            expected,
+            "Bottom layer height should use the chosen stirrup diameter",
+        )
+
+    def test_top_layer_measured_from_bottom_face(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        top = Reinforcement(
+            beam_double, is_bottom_reinforcement=False, center_position=250.0, id="T"
+        )
+        top.moment_shift = 28.0
+        top.set_required_area(4.0)  # 2φ16 in layer 0
+        expected = beam_double.height - (
+            RectangularBeam.nominal_covering
+            + DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
+            + 0.8
+        )  # cm
+        assert_approx(
+            top.chosen_bars[0].y_centroid_position,
+            expected,
+            "Top layer height should be h minus cover, stirrup and φ/2",
+        )
+
+
 class TestValidateLayerIndex:
     """Tests for the layer-index bounds check."""
 
@@ -163,6 +219,46 @@ class TestDistributeBars:
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "max_layers", 1)
         bars = [Rebar(diameter_mm=32, steel=Steel.CA50) for _ in range(20)]
+        with pytest.raises(
+            ValueError,
+            match="Cannot distribute bars within the maximum number of layers",
+        ):
+            reinforcement.distribute_bars_in_layers(bars)
+
+    def test_smaller_group_fills_remaining_space_in_layer(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """Smaller bars fill the room left in a layer before a new layer opens"""
+        # 15 cm available (20 - 2 x 2.5 cover), 3 cm spacing: 2φ16 + 3φ10
+        # needs 18.2 cm, but 2φ16 + 2φ10 fit (14.2 cm)
+        bars = [Rebar(diameter_mm=16, steel=Steel.CA50) for _ in range(2)] + [
+            Rebar(diameter_mm=10, steel=Steel.CA50) for _ in range(3)
+        ]
+        reinforcement.distribute_bars_in_layers(bars)
+        layers = reinforcement.chosen_bars
+        assert sorted(_diameters(layers[0])) == [10, 10, 16, 16], (
+            "Layer 0 should hold both φ16 plus the two φ10 that still fit"
+        )
+        assert _diameters(layers[1]) == [10], (
+            "Only the φ10 that does not fit should open layer 1"
+        )
+
+    def test_three_groups_beyond_max_layers_raise_value_error(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        """Three diameter groups past the last layer raise ValueError, not IndexError"""
+        narrow_beam = cast(
+            RectangularBeam,
+            types.SimpleNamespace(**{**vars(beam_double), "width": 12.0}),
+        )
+        reinforcement = Reinforcement(
+            narrow_beam, is_bottom_reinforcement=True, center_position=250.0
+        )
+        bars = (
+            [Rebar(diameter_mm=25, steel=Steel.CA50) for _ in range(3)]
+            + [Rebar(diameter_mm=12.5, steel=Steel.CA50)]
+            + [Rebar(diameter_mm=10, steel=Steel.CA50)]
+        )
         with pytest.raises(
             ValueError,
             match="Cannot distribute bars within the maximum number of layers",

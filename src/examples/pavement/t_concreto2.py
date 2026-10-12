@@ -8,6 +8,7 @@ from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import PermanentLoadDefinition, Slab
+from src.persistency.yaml_io import save_pavement
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 
@@ -167,6 +168,8 @@ def main():
     configure_logger(APP_CONFIG.log_level, APP_CONFIG.log_output)
 
     pavement = build_pavement()
+    save_pavement(pavement, "saved/t_concreto2.yaml")
+
     pavement.resolve()
     pavement.print_beam_reports()
 

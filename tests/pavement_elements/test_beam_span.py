@@ -258,6 +258,16 @@ class TestGetOtherSupportedSlab:
         with pytest.raises(ValueError, match="is not supported by this span"):
             x_span.get_other_supported_slab(unknown)
 
+    def test_same_data_different_slab_raises(self, x_span: Span) -> None:
+        """A copy of a supported slab is a different slab, not the supported one"""
+        supported = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        neighbor = Slab(("P3", "P4", "P5", "P6"), "Bedrooms", id="L2")
+        copy = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
+        x_span.add_supported_slab(supported)
+        x_span.add_supported_slab(neighbor)
+        with pytest.raises(ValueError, match="is not supported by this span"):
+            x_span.get_other_supported_slab(copy)
+
 
 # ---------------------------------------------------------------------------
 # TestAddLoad
@@ -273,8 +283,8 @@ class TestAddLoad:
         assert_approx(x_span.permanent_load, 8.0, "permanent_load should accumulate")
 
     def test_variable_load_accumulates(self, x_span: Span) -> None:
-        x_span.add_load(2.0, permanent=False)
-        x_span.add_load(1.5, permanent=False)
+        x_span.add_load(2.0, permanent=False, psi_2=0.3)
+        x_span.add_load(1.5, permanent=False, psi_2=0.3)
         assert_approx(x_span.variable_load, 3.5, "variable_load should accumulate")
 
     def test_permanent_does_not_affect_variable(self, x_span: Span) -> None:
@@ -284,7 +294,21 @@ class TestAddLoad:
         )
 
     def test_variable_does_not_affect_permanent(self, x_span: Span) -> None:
-        x_span.add_load(5.0, permanent=False)
+        x_span.add_load(5.0, permanent=False, psi_2=0.3)
         assert_approx(
             x_span.permanent_load, 0.0, "variable load must not touch permanent_load"
         )
+
+    def test_keeps_largest_psi_2(self, x_span: Span) -> None:
+        x_span.add_load(2.0, permanent=False, psi_2=0.3)
+        x_span.add_load(1.0, permanent=False, psi_2=0.6)
+        x_span.add_load(2.0, permanent=False, psi_2=0.4)
+        assert_approx(x_span.psi_2, 0.6, "psi_2 should be the largest one added")
+
+    def test_permanent_load_ignores_psi_2(self, x_span: Span) -> None:
+        x_span.add_load(5.0, permanent=True, psi_2=0.6)
+        assert_approx(x_span.psi_2, 0.0, "a permanent load must not set psi_2")
+
+    def test_variable_load_without_psi_2_raises(self, x_span: Span) -> None:
+        with pytest.raises(ValueError, match="psi_2"):
+            x_span.add_load(5.0, permanent=False)

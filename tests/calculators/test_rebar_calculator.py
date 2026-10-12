@@ -10,7 +10,10 @@ from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
+from src.calculators import rebar_calculator
 from src.calculators.rebar_calculator import RebarCalculator
+from src.config import APP_CONFIG
+from src.config_options import Aggregate, ExposureClass
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import (
@@ -24,8 +27,14 @@ from tests.helpers import assert_approx
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 @pytest.fixture
-def beam_mock() -> Generator[Mock, None, None]:
+def beam_mock() -> Generator[Mock]:
     """A Mock(spec=RectangularBeam) with nominal_covering patched on _BeamMeta.
 
     Yields the beam mock inside the patch context so callers have a stable
@@ -35,7 +44,6 @@ def beam_mock() -> Generator[Mock, None, None]:
     beam.width = 20
     beam.height = 60
     beam.length = 500
-    beam.concrete = Concrete.C25
     beam.steel = Steel.CA50
     beam.area = 1200
     with patch.object(_BeamMeta, "nominal_covering", new_callable=PropertyMock) as m:
@@ -149,9 +157,11 @@ class TestMaxY:
             "max_y for C25/CA50/d=56 cm (cm)",
         )
 
-    def test_c60_ductility_branch(self, beam_mock: Mock) -> None:
+    def test_c60_ductility_branch(
+        self, beam_mock: Mock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """max_y uses 0.35*lambda_c branch when fck > 50 (cm)."""
-        beam_mock.concrete = Concrete.C60
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C60)
         calc = RebarCalculator(
             beam=beam_mock,
             bending_moment=272,
@@ -596,3 +606,83 @@ class TestStirrupDiameterInDepths:
         assert_approx(calc.d, 55.37, "d with 6.3 mm stirrups (cm)")
         # 3 (cover) + 0.63 (stirrup) + 1.0 (default bars)
         assert_approx(calc.d_compressed, 4.63, "d' with 6.3 mm stirrups (cm)")
+
+
+# ---------------------------------------------------------------------------
+# TestCalculateForCycle
+# ---------------------------------------------------------------------------
+
+# 14 × 55 cm, C40, top tension: 3φ16 (6.03 cm², two layers, d = 49.87 cm) needs
+# 6.12 cm², so 2φ20 (6.28 cm², one layer, d = 50.87 cm) is chosen, which needs
+# only 5.99 cm², so 3φ16 is chosen again (t_concreto2, V3).
+_CYCLE_MOMENT = -87.5  # kN.m
+_STIRRUP_DIAMETER = 0.63  # cm
+_MOMENT_SHIFT = 50.9  # cm
+
+
+@pytest.fixture
+def cycling_calculator(monkeypatch: pytest.MonkeyPatch) -> RebarCalculator:
+    """RebarCalculator whose bar layout cycles between 3x16mm and 2x20mm"""
+    monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C40)
+    monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GRANITE)
+    beam = RectangularBeam(1000.0, 14.0, 55.0, Steel.CA50)
+    return RebarCalculator(
+        beam=beam, bending_moment=_CYCLE_MOMENT, bending_moment_position=500.0
+    )
+
+
+def _tensioned_diameters(calc: RebarCalculator) -> list[float]:
+    """Diameters (mm) of all chosen tensioned bars"""
+    return sorted(
+        bar.diameter_mm
+        for layer in calc.tensioned_reinforcement.chosen_bars
+        for bar in layer.bars
+    )
+
+
+class TestCalculateForCycle:
+    """calculate_for resolves a bar-layout cycle to a self-consistent layout."""
+
+    def test_keeps_the_safe_layout(self, cycling_calculator: RebarCalculator) -> None:
+        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        assert _tensioned_diameters(cycling_calculator) == [20.0, 20.0], (
+            "2x20mm should be kept"
+        )
+
+    def test_bars_cover_area_at_final_d(
+        self, cycling_calculator: RebarCalculator
+    ) -> None:
+        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        assert (
+            cycling_calculator.tensioned_reinforcement.area
+            >= cycling_calculator.tensioned_rebar_area
+        ), "chosen bars should cover the area required at the final d"
+
+    def test_repeated_call_keeps_the_safe_layout(
+        self, cycling_calculator: RebarCalculator
+    ) -> None:
+        """A second pass (as in coordinate_span) must not fall back to 3x16mm"""
+        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        assert _tensioned_diameters(cycling_calculator) == [20.0, 20.0], (
+            "2x20mm should still be kept"
+        )
+
+    def test_cap_keeps_a_layout_and_warns(
+        self, cycling_calculator: RebarCalculator, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """At the cap, a layout is kept and a warning is logged instead of raising"""
+        warnings: list[str] = []
+
+        def record(message: str, label: str | None = None) -> None:
+            warnings.append(message)
+
+        monkeypatch.setattr(rebar_calculator, "MAX_EFFECTIVE_DEPTH_ITERATIONS", 1)
+        monkeypatch.setattr(rebar_calculator, "log_general", record)
+        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        assert _tensioned_diameters(cycling_calculator) == [16.0, 16.0, 16.0], (
+            "the only pass (3x16mm) should be kept"
+        )
+        assert len(warnings) == 1, "one warning should be logged"
+        assert "did not converge" in warnings[0], "warning should name the cause"

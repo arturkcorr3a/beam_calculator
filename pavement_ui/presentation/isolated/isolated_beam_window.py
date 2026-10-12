@@ -57,7 +57,7 @@ class IsolatedBeamWindow(QWidget):
         self.setWindowTitle(s.TITLE)
         self.resize(*_SIZE_PX)
         self._session, self._executor, self._engine = session, executor, engine
-        self._inputs = IsolatedInputsGroup(session.options, session.config.concrete_key)
+        self._inputs = IsolatedInputsGroup()
         self._summary = ConfigSummaryGroup()
         self._weight = SelfWeightCard()
         self._scheme = BeamSchemeWidget()

@@ -114,6 +114,7 @@ class RebarChooser:
         slot = best
         while slot > 0:
             rebar_index = previous[slot]
+            assert rebar_index != -1, f"Broken DP chain at slot {slot}"
             result.append(rebars[rebar_index])
             slot -= coins[rebar_index]
 

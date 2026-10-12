@@ -15,11 +15,11 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 def main():
     width = 22  # cm
     height = 40  # cm
-    concrete = Concrete.C25  # MPa
     steel = Steel.CA50
     length = 410  # cm
 
     APP_CONFIG.exposure_class = ExposureClass.WEAK
+    APP_CONFIG.pavement_concrete = Concrete.C25
 
     v2 = BeamSupport(0)
     v3 = BeamSupport(length)
@@ -31,7 +31,6 @@ def main():
     loads = [p, q]
 
     beam = RectangularBeam(
-        concrete=concrete,
         steel=steel,
         width=width,
         height=height,

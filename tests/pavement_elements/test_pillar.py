@@ -155,6 +155,12 @@ def _expected_stiffness(
     return 2 * 3 * concrete.ecs * 1e3 * inertia_cm4 * 1e-8 / (height_m / 2)
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 class TestCalculateStiffness:
     """Rotational stiffness k = 2·3·Ec·Ic/(l/2) given to a beam by a pillar."""
 
@@ -165,7 +171,7 @@ class TestCalculateStiffness:
         monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
         expected = _expected_stiffness(30 * 20**3 / 12, Concrete.C25, 2.5)
         assert_approx(
-            pillar.calculate_stiffness_for_beam_supporting(Axis.X, Concrete.C25),
+            pillar.calculate_stiffness_for_beam_supporting(Axis.X),
             expected,
             "X-beam stiffness should cube the width (kN.m/rad)",
         )
@@ -177,7 +183,7 @@ class TestCalculateStiffness:
         monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
         expected = _expected_stiffness(20 * 30**3 / 12, Concrete.C25, 2.5)
         assert_approx(
-            pillar.calculate_stiffness_for_beam_supporting(Axis.Y, Concrete.C25),
+            pillar.calculate_stiffness_for_beam_supporting(Axis.Y),
             expected,
             "Y-beam stiffness should cube the depth (kN.m/rad)",
         )
@@ -187,10 +193,10 @@ class TestCalculateStiffness:
     ) -> None:
         """k is inversely proportional to the ceiling height (kN.m/rad)."""
         monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
-        reference = pillar.calculate_stiffness_for_beam_supporting(Axis.X, Concrete.C25)
+        reference = pillar.calculate_stiffness_for_beam_supporting(Axis.X)
         monkeypatch.setattr(APP_CONFIG, "ceiling_height", 5.0)
         assert_approx(
-            pillar.calculate_stiffness_for_beam_supporting(Axis.X, Concrete.C25),
+            pillar.calculate_stiffness_for_beam_supporting(Axis.X),
             reference / 2,
             "Doubling the ceiling height should halve the stiffness (kN.m/rad)",
         )
@@ -198,10 +204,11 @@ class TestCalculateStiffness:
     def test_stiffness_follows_concrete_modulus(
         self, pillar: Pillar, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """k scales with the concrete's secant modulus Ecs (kN.m/rad)."""
+        """k scales with the project concrete's secant modulus Ecs (kN.m/rad)."""
         monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
-        c25 = pillar.calculate_stiffness_for_beam_supporting(Axis.X, Concrete.C25)
-        c40 = pillar.calculate_stiffness_for_beam_supporting(Axis.X, Concrete.C40)
+        c25 = pillar.calculate_stiffness_for_beam_supporting(Axis.X)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C40)
+        c40 = pillar.calculate_stiffness_for_beam_supporting(Axis.X)
         assert_approx(
             c40 / c25,
             Concrete.C40.ecs / Concrete.C25.ecs,

@@ -190,7 +190,9 @@ _ENTRIES = (
     SlabMomentEntry(
         1.60,
         (
-            MomentCoefficients(8.34, 3.14),
+            MomentCoefficients(
+                8.34, 3.14
+            ),  # ASK Quadro 7.3, lambda = 1.60, case 1, mu_x = 8.34, mu_y = 3.14 ou 4.14? No livro diz 3.14, mas parece que deveria ser 4.14
             MomentCoefficients(7.21, 4.14),
             MomentCoefficients(5.98, 1.95),
             MomentCoefficients(5.06, 2.31),

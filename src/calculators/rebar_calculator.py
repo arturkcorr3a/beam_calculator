@@ -1,6 +1,13 @@
 from functools import cached_property
 from math import sqrt
 
+from src.calculators.layout_selection import (
+    LayerDiameters,
+    LayoutPass,
+    LayoutSignature,
+    select_layout,
+)
+from src.config import APP_CONFIG
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -8,20 +15,29 @@ from src.loading.forces import (
 )
 from src.logger import (
     log_element,
+    log_general,
     log_iteration,
     log_operation,
     log_property,
     logger_label,
 )
 from src.properties.steel import Steel
-from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.reinforcement import (
+    DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION,
+    Reinforcement,
+)
 from src.structural_elements.rectangular_beam import RectangularBeam
 
-DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = (
-    1.0  # cm, default diameter of stirrup bars if not chosen (10 mm)
-)
-
 EFFECTIVE_DEPTH_TOLERANCE = 0.01  # cm
+MAX_EFFECTIVE_DEPTH_ITERATIONS = 100  # passes before keeping the best layout seen
+
+
+def _layer_diameters(reinforcement: Reinforcement) -> LayerDiameters:
+    """Bar diameters (mm) per layer of a reinforcement"""
+    return tuple(
+        tuple(bar.diameter_mm for bar in layer.bars)
+        for layer in reinforcement.chosen_bars
+    )
 
 
 @logger_label("Rebar Calculator - {id}")
@@ -96,7 +112,10 @@ class RebarCalculator:
     def calculate_for(self, stirrup_diameter: float, moment_shift: float) -> None:
         """Dimension the longitudinal reinforcement for the given stirrups
 
-        Iterates until the effective depth (d) converges.
+        Each pass computes the required areas at the current d and chooses bars for them; it converges when the chosen bars give back the d they were chosen with.
+        A repeated layout is a cycle; the cheapest layout in it that covers the area required at its own d is kept.
+        Has a cap on MAX_EFFECTIVE_DEPTH_ITERATIONS
+        passes.
 
         Args:
             stirrup_diameter: Diameter of the chosen stirrup bars (cm).
@@ -104,30 +123,114 @@ class RebarCalculator:
                 for the bars' anchorage.
         """
         self.stirrup_diameter = stirrup_diameter
+
         self.tensioned_reinforcement.moment_shift = moment_shift
         self.compressed_reinforcement.moment_shift = moment_shift
+        self.tensioned_reinforcement.stirrup_diameter = stirrup_diameter
+        self.compressed_reinforcement.stirrup_diameter = stirrup_diameter
 
-        current_d = 0.0
-        iteration_count = 1
-        while abs(current_d - self.d) > EFFECTIVE_DEPTH_TOLERANCE:
-            log_iteration(f"Iteration {iteration_count} starting...")
-            current_d = self.d
+        passes: list[LayoutPass] = []
+        last_seen: dict[LayoutSignature, int] = {}  # signature -> latest pass index
+        for iteration in range(1, MAX_EFFECTIVE_DEPTH_ITERATIONS + 1):
+            log_iteration(f"Iteration {iteration} starting...")
             self.cleanup()
             self.calculate_and_set_required_tensioned_rebar_area()
+            used_d = self.d  # cm, from the previous pass's bars
             self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
             if not self.is_singly_reinforced:
                 self.compressed_reinforcement.set_required_area(
                     self.compressed_rebar_area
                 )
-            as2 = 0.0 if self.is_singly_reinforced else self.compressed_rebar_area
+            layout_pass = self._current_layout_pass()
+            self.cleanup()  # d now follows the bars just chosen
+            delta_d = abs(self.d - used_d)  # cm
             log_iteration(
-                f"Iteration {iteration_count} summary: d={self.d:.2f} cm | As1={self.tensioned_rebar_area:.3f} cm2 | As2={as2:.3f} cm2 | delta d={abs(current_d - self.d):.3f} cm"
+                f"Iteration {iteration} summary: d={used_d:.2f} cm | As1={layout_pass.tensioned_required:.3f} cm2 | As2={layout_pass.compressed_required:.3f} cm2 | delta d={delta_d:.3f} cm"
             )
-            iteration_count += 1
+            if delta_d <= EFFECTIVE_DEPTH_TOLERANCE:
+                self.calculate_and_set_required_tensioned_rebar_area()
+                break
+
+            previous_index = last_seen.get(layout_pass.signature)
+            last_seen[layout_pass.signature] = len(passes)
+            passes.append(layout_pass)
+            if (
+                previous_index is not None
+            ):  # if it is not the first time we have tried this layout
+                self._resolve_cycle(passes[previous_index:-1], layout_pass)
+                break
+        else:
+            self._resolve_non_convergence(passes)
         final_as2 = 0.0 if self.is_singly_reinforced else self.compressed_rebar_area
         log_element(
             f"d={self.d:.2f} cm | As1={self.tensioned_rebar_area:.3f} cm2 | As2={final_as2:.3f} cm2",
         )
+
+    def _resolve_cycle(self, cycle: list[LayoutPass], repeat: LayoutPass) -> None:
+        """Keep the best layout of a cycle of passes
+
+        Args:
+            cycle: The passes of the cycle, in order.
+            repeat: The pass that repeated the cycle's first layout; its
+                required areas are those at the last cycle member's own d.
+        """
+        kept, is_safe = select_layout(
+            cycle, (repeat.tensioned_required, repeat.compressed_required)
+        )
+        self._apply_layout(kept)
+        log_element(
+            f"Cycle between {' <-> '.join(p.describe() for p in cycle)}; keeping {kept.describe()}"
+        )
+        if not is_safe:
+            log_general(
+                f"WARNING: no layout in the cycle covers the area required at its own d; keeping the largest, {kept.describe()}"
+            )
+
+    def _resolve_non_convergence(self, passes: list[LayoutPass]) -> None:
+        """Keep the best layout seen when d neither converged nor cycled"""
+        self.cleanup()
+        self.calculate_and_set_required_tensioned_rebar_area()
+        kept, is_safe = select_layout(passes, self._current_requirement())
+        self._apply_layout(kept)
+        shortfall = "" if is_safe else " (below the area required at its own d)"
+        log_general(
+            f"WARNING: d did not converge within {MAX_EFFECTIVE_DEPTH_ITERATIONS} iterations; keeping {kept.describe()}{shortfall}"
+        )
+
+    def _current_requirement(self) -> tuple[float, float]:
+        """Tensioned and compressed areas (cm²) required at the current d"""
+        compressed = 0.0 if self.is_singly_reinforced else self.compressed_rebar_area
+        return self.tensioned_rebar_area, compressed
+
+    def _current_layout_pass(self) -> LayoutPass:
+        """Snapshot the bars just chosen and the areas they were chosen for"""
+        tensioned_required, compressed_required = self._current_requirement()
+        is_doubly = compressed_required > 0
+        compressed = self.compressed_reinforcement
+        return LayoutPass(
+            signature=(
+                _layer_diameters(self.tensioned_reinforcement),
+                _layer_diameters(compressed) if is_doubly else (),
+            ),
+            tensioned_required=tensioned_required,
+            compressed_required=compressed_required,
+            tensioned_provided=self.tensioned_reinforcement.area,
+            compressed_provided=compressed.area if is_doubly else 0.0,
+        )
+
+    def _apply_layout(self, layout_pass: LayoutPass) -> None:
+        """Re-choose the bars of a previous pass and recompute the areas at its d
+
+        The bar choice is deterministic, so choosing for the same required
+        areas gives back the same layout.
+        """
+        self.tensioned_reinforcement.set_required_area(layout_pass.tensioned_required)
+        if layout_pass.compressed_required > 0:
+            self.compressed_reinforcement.set_required_area(
+                layout_pass.compressed_required
+            )
+        self.cleanup()
+        self.calculate_and_set_required_tensioned_rebar_area()
 
     def calculate_and_set_required_tensioned_rebar_area(self) -> None:
         """
@@ -224,7 +327,7 @@ class RebarCalculator:
         """
         Calculates the required tensioned rebar area (As1) for the current design bending moment, based on the actual depth of the equivalent rectangular stress block (y) and equilibrium of internal forces.
         """
-        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
+        uniform_stress = APP_CONFIG.pavement_concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         y = self.actual_y if self.is_singly_reinforced else self.max_y  # cm
         as1 = (uniform_stress * bw * y) / (self.beam.steel.fyd)
@@ -254,8 +357,8 @@ class RebarCalculator:
         """
         Calculates the maximum depth (cm) of the equivalent rectangular stress block to maintain the deformation domain 3 (the limit is to turn to 4, as domain 2 would also be ok), based on ABNT NBR 6118 - Section 17.2.2.
         """
-        lambda_c = self.beam.concrete.lambda_c  # no unit
-        epsilon_cu = self.beam.concrete.epsilon_cu  # no unit
+        lambda_c = APP_CONFIG.pavement_concrete.lambda_c  # no unit
+        epsilon_cu = APP_CONFIG.pavement_concrete.epsilon_cu  # no unit
         steel_elastic_modulus_in_kn_cm2 = (
             Steel.elastic_modulus / 10
         )  # convert MPa to kN/cm²
@@ -279,10 +382,10 @@ class RebarCalculator:
         """
         Maximum depth (cm) of the equivalent rectangular stress block (y) to maintain ductility, based on ABNT NBR 6118 - Section 14.6.4.3.
         """
-        if self.beam.concrete.value <= 50:
-            max_y_ductility = 0.45 * self.beam.concrete.lambda_c * self.d
+        if APP_CONFIG.pavement_concrete.value <= 50:
+            max_y_ductility = 0.45 * APP_CONFIG.pavement_concrete.lambda_c * self.d
         else:
-            max_y_ductility = 0.35 * self.beam.concrete.lambda_c * self.d
+            max_y_ductility = 0.35 * APP_CONFIG.pavement_concrete.lambda_c * self.d
         log_property(f"Maximum depth (y) for ductility = {max_y_ductility:.4f} cm")
         return max_y_ductility
 
@@ -333,17 +436,15 @@ class RebarCalculator:
             ValueError: If the reinforcement is chosen but its first layer has
                 no bars.
         """
-        covering = RectangularBeam.nominal_covering  # cm
         if not reinforcement.is_chosen:
-            return covering
+            return RectangularBeam.nominal_covering  # cm
 
         first_layer = reinforcement.chosen_bars[0]
-        first_layer_bars = first_layer.bars
-        if not first_layer_bars:
+        if not first_layer.bars:
             raise ValueError(
                 f"{kind} reinforcement is marked chosen, but no bars have been set in the first layer. Cannot calculate effective depth ({depth_name})."
             )
-        covering = max(bar.effective_covering(covering) for bar in first_layer_bars)
+        covering = reinforcement.effective_covering()  # cm
         log_property(
             f"ACTUAL effective covering (c) = {covering:.2f} cm for first layer {first_layer.get_bar_diameters_for_print()}",
             label,
@@ -379,7 +480,7 @@ class RebarCalculator:
         """
         Calculates the maximum bending moment (kN.cm) that the beam can resist with single reinforcement, for the current rebar configuration (due to effective depth and maximum y)
         """
-        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
+        uniform_stress = APP_CONFIG.pavement_concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         y_max = self.max_y  # cm
         d = self.d  # cm
@@ -395,7 +496,7 @@ class RebarCalculator:
         Calculates the actual depth of the equivalent rectangular stress block (y) (cm) for the current effective depth and design bending moment. Based on equilibrium of internal forces and moment.
         """
         d = self.d  # cm
-        uniform_stress = self.beam.concrete.uniform_stress  # kN/cm²
+        uniform_stress = APP_CONFIG.pavement_concrete.uniform_stress  # kN/cm²
         bw = self.beam.width  # cm
         actual_y = d - sqrt(
             d**2 - (2 * self.design_bending_moment) / (uniform_stress * bw)
@@ -409,8 +510,8 @@ class RebarCalculator:
         """
         Calculates the strain in the compressed reinforcement (no unit) for the current rebar configuration, based on the actual depth of the equivalent rectangular stress block (y), the distance from the extreme compression fiber to the centroid of the compressed rebar (d'), and the maximum depth of the equivalent rectangular stress block (y).
         """
-        epsilon_cu = self.beam.concrete.epsilon_cu  # no unit
-        lambda_c = self.beam.concrete.lambda_c  # no unit
+        epsilon_cu = APP_CONFIG.pavement_concrete.epsilon_cu  # no unit
+        lambda_c = APP_CONFIG.pavement_concrete.lambda_c  # no unit
         epsilon_s2 = (
             epsilon_cu * (self.max_y - lambda_c * self.d_compressed) / self.max_y
         )
@@ -470,7 +571,7 @@ class RebarCalculator:
         This correction ensures that the compressed reinforcement properly accounts for the stress contribution without affecting the calculation of the additional tensioned reinforcement.
         """
         sigma_s2 = self.calculate_sigma_s2()  # kN/cm²
-        corrected_sigma_s2 = sigma_s2 - self.beam.concrete.uniform_stress
+        corrected_sigma_s2 = sigma_s2 - APP_CONFIG.pavement_concrete.uniform_stress
         log_operation(
             f"Corrected stress in the compressed reinforcement (corrected_sigma_s2) = {corrected_sigma_s2:.2f} kN/cm²"
         )

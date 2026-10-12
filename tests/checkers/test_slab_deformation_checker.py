@@ -14,6 +14,7 @@ from src.checkers.slab_deformation_checker import (
     _default_effective_depth_discount,  # pyright: ignore[reportPrivateUsage]
 )
 from src.config import APP_CONFIG
+from src.config_options import OccupancyCategory
 from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
 from src.data.carvalho.table_7_2.data import TABLE_7_2
 from src.pavement_elements.slab import Slab
@@ -62,6 +63,12 @@ def _make_support(
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C30 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+
+
 @pytest.fixture
 def square_slab_all_fixed() -> SlabDeformationChecker:
     """Return a square slab (lx=ly=400, all edges fixed → case 9).
@@ -72,7 +79,6 @@ def square_slab_all_fixed() -> SlabDeformationChecker:
     return SlabDeformationChecker(
         permanent_load=5.0,
         variable_load=2.0,
-        concrete=Concrete.C30,
         lx=400.0,
         ly=400.0,
         usage="residential",
@@ -89,7 +95,6 @@ def rectangular_slab() -> SlabDeformationChecker:
     return SlabDeformationChecker(
         permanent_load=5.0,
         variable_load=2.0,
-        concrete=Concrete.C30,
         lx=400.0,
         ly=600.0,
         usage="residential",
@@ -149,7 +154,6 @@ class TestDimensionsRatio:
         slab = SlabDeformationChecker(
             permanent_load=5.0,
             variable_load=2.0,
-            concrete=Concrete.C30,
             lx=lx,
             ly=ly,
             usage="residential",
@@ -200,7 +204,6 @@ class TestSupportingCase:
         slab = SlabDeformationChecker(
             permanent_load=5.0,
             variable_load=2.0,
-            concrete=Concrete.C30,
             lx=400.0,
             ly=600.0,
             usage="residential",
@@ -225,7 +228,6 @@ class TestSupportingCase:
         slab = SlabDeformationChecker(
             permanent_load=5.0,
             variable_load=2.0,
-            concrete=Concrete.C30,
             lx=400.0,
             ly=600.0,
             usage="residential",
@@ -310,6 +312,40 @@ class TestDesignLoad:
             rectangular_slab.design_load,
             0.00056,
             "design_load should be (5 + 0.3*2) / 10000 = 0.00056 kN/cm²",
+            abs_tol=1e-9,
+        )
+
+    def test_commercial_building_uses_0_4(
+        self,
+        rectangular_slab: SlabDeformationChecker,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """(5 + 0.4 * 2) / 10000 = 0.00058 kN/cm²"""
+        monkeypatch.setattr(
+            APP_CONFIG, "building_category", OccupancyCategory.COMMERCIAL
+        )
+        rectangular_slab.usage = "General use rooms and bathrooms"
+        assert_approx(
+            rectangular_slab.design_load,
+            0.00058,
+            "a commercial slab should use psi_2 = 0.4",
+            abs_tol=1e-9,
+        )
+
+    def test_storage_room_uses_0_6(
+        self,
+        rectangular_slab: SlabDeformationChecker,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """(5 + 0.6 * 2) / 10000 = 0.00062 kN/cm²"""
+        monkeypatch.setattr(
+            APP_CONFIG, "building_category", OccupancyCategory.RESIDENTIAL
+        )
+        rectangular_slab.usage = "Storage rooms"
+        assert_approx(
+            rectangular_slab.design_load,
+            0.00062,
+            "a storage room should use psi_2 = 0.6",
             abs_tol=1e-9,
         )
 
@@ -481,7 +517,6 @@ class TestTensionedReinforcementArea:
         slab = SlabDeformationChecker(
             permanent_load=0.1,
             variable_load=0.05,
-            concrete=Concrete.C30,
             lx=100.0,
             ly=100.0,
             usage="residential",
@@ -513,7 +548,6 @@ class TestTensionedReinforcementArea:
         slab = SlabDeformationChecker(
             permanent_load=0.1,
             variable_load=0.05,
-            concrete=Concrete.C30,
             lx=100.0,
             ly=100.0,
             usage="residential",

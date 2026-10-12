@@ -49,9 +49,8 @@ from __future__ import annotations
 import csv
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from src.config import APP_CONFIG
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -139,7 +138,9 @@ class PreSizingLog:
         print("=" * 100)
 
     def export_csv(self, path: str) -> None:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
         with open(path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(
@@ -198,7 +199,6 @@ def pre_size_slab_with_log(slab: Slab, log: PreSizingLog) -> bool:
     from src.checkers.slab_deformation_checker import SlabDeformationChecker
     from src.pavement_elements.slab_edge import Edges
 
-    concrete = APP_CONFIG.pavement_concrete
     original_thickness = slab.thickness
 
     support_conditions = {edge: slab.edges[edge].support_condition for edge in Edges}
@@ -222,7 +222,6 @@ def pre_size_slab_with_log(slab: Slab, log: PreSizingLog) -> bool:
             permanent_load=current_permanent_load,
             variable_load=slab.variable_load,
             usage=slab.local,
-            concrete=concrete,
             lx=lx,
             ly=ly,
             support_conditions=support_conditions,
@@ -427,7 +426,7 @@ def main() -> None:
     log.print_table()
     log.print_summary()
 
-    today = datetime.now(tz=timezone.utc).strftime("%b-%d").lower()
+    today = datetime.now(tz=UTC).strftime("%b-%d").lower()
     csv_path = f"results/{today}/slab_pre_sizing_iterations.csv"
     log.export_csv(csv_path)
 

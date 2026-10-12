@@ -11,6 +11,7 @@ from src.pavement_elements.geometry_utils import (
     calculate_polygon_area,
     effective_span,
     get_pillar_perpendicular_range,
+    ranges_overlap,
     round_up_to_multiple_of_5,
 )
 from src.pavement_elements.pillar import Pillar
@@ -86,6 +87,31 @@ class TestAxisGrouping:
 # ---------------------------------------------------------------------------
 # TestBetween
 # ---------------------------------------------------------------------------
+
+
+class TestRangesOverlap:
+    """ranges_overlap() detects any shared stretch of two closed ranges."""
+
+    def test_partial_overlap_is_true(self) -> None:
+        assert ranges_overlap((0.0, 10.0), (5.0, 15.0)), "[0, 10] and [5, 15] overlap"
+
+    def test_contained_range_is_true(self) -> None:
+        assert ranges_overlap((4.0, 6.0), (0.0, 10.0)), "[4, 6] lies inside [0, 10]"
+
+    def test_straddling_range_is_true(self) -> None:
+        assert ranges_overlap((-50.0, 50.0), (-8.0, 8.0)), (
+            "[-50, 50] contains [-8, 8] with no endpoint inside it"
+        )
+
+    def test_touching_within_tolerance_is_true(self) -> None:
+        assert ranges_overlap((0.0, 10.0), (10.0 + TOLERANCE, 20.0)), (
+            "ranges touching within TOLERANCE should overlap"
+        )
+
+    def test_disjoint_is_false(self) -> None:
+        assert not ranges_overlap((0.0, 10.0), (10.0 + TOLERANCE + 1e-9, 20.0)), (
+            "ranges apart by more than TOLERANCE should not overlap"
+        )
 
 
 class TestBetween:

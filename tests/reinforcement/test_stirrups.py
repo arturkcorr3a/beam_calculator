@@ -51,7 +51,7 @@ class TestPickBestOption:
     """Tests for selecting the option with the lowest reinforcement ratio."""
 
     def test_lowest_ratio_wins(self) -> None:
-        best = Stirrups._pick_best_option([(10.0, 0.5), (12.0, 0.8)]) # pyright: ignore[reportPrivateUsage]
+        best = Stirrups._pick_best_option([(10.0, 0.5), (12.0, 0.8)])  # pyright: ignore[reportPrivateUsage]
         assert best == (10.0, 0.5), (
             "The widest spacing with the thinnest bar has the lowest ratio"
         )
@@ -92,3 +92,18 @@ class TestChoose:
         )
         assert stirrups.spacing == 20.0, "choose should store the chosen spacing"
         assert stirrups.diameter == 0.8, "choose should store the chosen diameter"
+
+    def test_unreachable_ratio_raises_value_error(self, stirrups: Stirrups) -> None:
+        stirrups.required_ratio = 999.0
+        with pytest.raises(ValueError, match="No stirrup meets"):
+            stirrups.choose()
+
+    def test_max_spacing_below_minimum_raises_value_error(
+        self, stirrups: Stirrups
+    ) -> None:
+        stirrups.required_ratio = 0.01
+        stirrups.calculator = cast(
+            StirrupCalculator, types.SimpleNamespace(max_spacing=4.0)
+        )  # below MIN_SPACING (4.5 cm): the spacing loop never runs
+        with pytest.raises(ValueError, match="No stirrup meets"):
+            stirrups.choose()

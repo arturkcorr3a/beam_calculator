@@ -5,11 +5,11 @@ from typing import cast
 
 import pytest
 
+from src.config import APP_CONFIG
 from src.loading.forces import (
     almost_permanent_combination_els,
     calculate_cracking_moment,
     design_effort_elu,
-    get_almost_permanent_combination_reduction_factor,
     max_design_bending_moment,
     min_design_bending_moment,
     normal_elu_combination,
@@ -19,24 +19,24 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
 
 
+@pytest.fixture(autouse=True)
+def pinned_concrete(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the project concrete to C25 for every test in this module"""
+    monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+
+
 @pytest.fixture
 def beam_c25_20x60() -> RectangularBeam:
-    """Minimal duck-typed C25 beam, 20 cm wide by 60 cm tall.
+    """Minimal duck-typed beam, 20 cm wide by 60 cm tall (concrete pinned to C25).
 
     Uses ``types.SimpleNamespace`` rather than a mock so that any access to an
-    attribute the production code does not expect fails loudly. The nested
-    concrete namespace is built from the real ``Concrete.C25`` member so the
-    reference values stay in sync with the material definition. The result is
+    attribute the production code does not expect fails loudly. The result is
     cast to ``RectangularBeam`` because the functions under test only read the
-    ``width``, ``height``, and ``concrete`` attributes.
+    ``width`` and ``height`` attributes.
     """
     beam = types.SimpleNamespace(
         width=20.0,
         height=60.0,
-        concrete=types.SimpleNamespace(
-            uniform_stress=Concrete.C25.uniform_stress,
-            fctk_sup=Concrete.C25.fctk_sup,
-        ),
     )
     return cast(RectangularBeam, beam)
 
@@ -70,9 +70,7 @@ class TestDesignEffortElu:
 class TestMaxDesignBendingMoment:
     """Tests for the maximum design bending moment of a singly reinforced beam."""
 
-    def test_known_values_c25_20x60(
-        self, beam_c25_20x60: RectangularBeam
-    ) -> None:
+    def test_known_values_c25_20x60(self, beam_c25_20x60: RectangularBeam) -> None:
         expected_moment = 15178.57143  # kN.cm
         assert_approx(
             max_design_bending_moment(beam_c25_20x60, d=55.0, y_max=10.0),
@@ -84,9 +82,7 @@ class TestMaxDesignBendingMoment:
 class TestMinDesignBendingMoment:
     """Tests for the minimum design bending moment from minimum rebar area."""
 
-    def test_known_values_c25_20x60(
-        self, beam_c25_20x60: RectangularBeam
-    ) -> None:
+    def test_known_values_c25_20x60(self, beam_c25_20x60: RectangularBeam) -> None:
         expected_moment = 3201.07497  # kN.cm
         assert_approx(
             min_design_bending_moment(beam_c25_20x60),
@@ -95,52 +91,39 @@ class TestMinDesignBendingMoment:
         )
 
 
-class TestGetAlmostPermanentCombinationReductionFactor:
-    """Tests for the psi_2 reduction factor stub.
-
-    The function is a documented ``# IMPLEMENT`` placeholder pending ABNT NBR
-    8681; both branches currently return the same 0.3 constant. These tests lock
-    in that behavior until the real table lookup is implemented.
-    """
-
-    def test_none_usage(self) -> None:
-        expected_factor = 0.3
-        assert get_almost_permanent_combination_reduction_factor(None) == expected_factor, (
-            "With no usage, the placeholder psi_2 should be 0.3"
-        )
-
-    def test_string_usage(self) -> None:
-        expected_factor = 0.3
-        assert (
-            get_almost_permanent_combination_reduction_factor("residential")
-            == expected_factor
-        ), "With a usage string, the placeholder psi_2 should still be 0.3"
-
-
 class TestAlmostPermanentCombinationEls:
     """Tests for the almost permanent load combination (CQP) for ELS."""
 
-    def test_without_usage(self) -> None:
+    def test_residential_factor(self) -> None:
         expected_combination = 23.0  # kN (20 + 0.3 * 10)
         assert_approx(
-            almost_permanent_combination_els(20.0, 10.0),
+            almost_permanent_combination_els(20.0, 10.0, psi_2=0.3),
             expected_combination,
             "20 permanent + 0.3 * 10 variable should give 23",
         )
 
-    def test_with_usage_arg(self) -> None:
-        expected_combination = 34.5  # kN (30 + 0.3 * 15)
+    def test_commercial_factor(self) -> None:
+        expected_combination = 36.0  # kN (30 + 0.4 * 15)
         assert_approx(
-            almost_permanent_combination_els(30.0, 15.0, usage="residential"),
+            almost_permanent_combination_els(30.0, 15.0, psi_2=0.4),
             expected_combination,
-            "30 permanent + 0.3 * 15 variable should give 34.5",
+            "30 permanent + 0.4 * 15 variable should give 36",
+        )
+
+    def test_storage_factor(self) -> None:
+        expected_combination = 39.0  # kN (30 + 0.6 * 15)
+        assert_approx(
+            almost_permanent_combination_els(30.0, 15.0, psi_2=0.6),
+            expected_combination,
+            "30 permanent + 0.6 * 15 variable should give 39",
         )
 
     def test_zero_loads(self) -> None:
         expected_combination = 0.0
-        assert almost_permanent_combination_els(0.0, 0.0) == expected_combination, (
-            "Zero loads should give a zero combination"
-        )
+        assert (
+            almost_permanent_combination_els(0.0, 0.0, psi_2=0.6)
+            == expected_combination
+        ), "Zero loads should give a zero combination"
 
 
 class TestNormalEluCombination:
