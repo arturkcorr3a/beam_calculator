@@ -5,7 +5,7 @@ from a line-by-line review of every `src/` module, spot-verified against the sou
 Fixed, stale and not-a-bug reports are deleted (git history keeps the diagnosis), so
 numbering has gaps.
 
-**Totals:** 0 critical · 1 high · 11 medium · 0 low.
+**Totals:** 0 critical · 1 high · 10 medium · 0 low.
 
 ## CRITICAL — wrong result or crash on a normal input path
 
@@ -17,7 +17,6 @@ numbering has gaps.
 
 ## MEDIUM — correctness risk under specific inputs, or unconservative simplification
 
-- [M1](medium/M1-slab-effective-depth-discount.md) — Slab effective-depth discount `c + 1.5φ` is undocumented *(downgraded to LOW severity)*
 - [M2](medium/M2-nominal-covering-global-concrete.md) — `nominal_covering` uses global concrete, not the element's *(latent)*
 - [M3](medium/M3-table-lookup-float-equality.md) — Table lookups use exact float `==`
 - [M4](medium/M4-substring-lookup-first-hit.md) — Substring matching returns first partial hit *(latent)*
@@ -40,4 +39,4 @@ numbering has gaps.
    in `reinforcement_reader.py` together with the fix.
 3. **M6, M7, M8, M9** — packing, infeasible-shear error, thickness limit, iteration cap.
 4. **M14, M15, M3** — ID reproducibility on reload, named constant, float lookups.
-5. **M1, M2, M4** — documentation and latent items.
+5. **M2, M4** — latent items.

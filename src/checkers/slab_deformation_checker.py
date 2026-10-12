@@ -22,14 +22,22 @@ from src.properties.section_properties_calculator import (
 )
 from src.structural_elements.rectangular_beam import RectangularBeam
 
+ASSUMED_SLAB_BAR_DIAMETER = 1.0  # cm
+
 
 def _default_effective_depth_discount() -> float:
-    """Get the default effective depth discount (cm) for slabs, based on ABNT NBR 6118 - Section 7.4."""
+    """Get the default effective depth discount (cm) for slabs, considering the inner layer of an orthogonal reinforcement.
+
+    Returns:
+        Distance from the tensioned face to the inner layer's centroid (cm).
+
+    References:
+        ABNT NBR 6118:2026 — Section 7.4 (nominal cover)
+    """
     from src.pavement_elements.slab import Slab
 
     covering = Slab.nominal_covering
-    rebar_discount_10_mm = 1
-    return covering + 1.5 * rebar_discount_10_mm
+    return covering + 1.5 * ASSUMED_SLAB_BAR_DIAMETER
 
 
 @dataclass(kw_only=True)
