@@ -94,6 +94,12 @@ The desktop GUI follows [docs/UI_SPEC.md](docs/UI_SPEC.md).
 
 ---
 
+## Source-of-truth tests (`tests/carvalho_source_of_truth/`)
+
+These tests encode worked examples from Carvalho (`docs/carvalho-examples/`). **Do not modify them unless the user explicitly asks.** In particular, never change inputs, expected values, tolerances or `xfail` markers to make a test pass: a failure means the engine disagrees with the book. The only allowed edit without an explicit request is keeping the code runnable after an engine API change (imports, constructor/attribute names, unit conversions), without changing what is asserted.
+
+---
+
 ## Testing conventions
 
 When writing tests,
