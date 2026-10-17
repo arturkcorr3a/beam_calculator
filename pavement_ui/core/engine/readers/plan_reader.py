@@ -106,7 +106,7 @@ def read_plan(records: PavementRecords, pavement: Pavement) -> PlanGeometry:
             polygon = _counter_clockwise(
                 [(m_from_cm(p.x), m_from_cm(p.y)) for p in corners]
             )
-        slabs.append(SlabShape(record.id, polygon, record.usage_key))
+        slabs.append(SlabShape(record.id, polygon, record.usage_key, record.lowered_cm))
     return PlanGeometry(
         pillars=tuple(_pillar_shape(r) for r in records.pillars),
         beams=tuple(_beam_shape(b, pillars) for b in pavement.beams.values()),

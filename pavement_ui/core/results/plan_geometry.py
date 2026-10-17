@@ -42,11 +42,13 @@ class SlabShape:
     Attributes:
         polygon_m: Corners counter-clockwise, or None if a corner pillar is missing.
         usage_key: Engine usage description.
+        lowered_cm: Lowering below the floor level (cm); 0 when not lowered.
     """
 
     id: str
     polygon_m: tuple[Point, ...] | None
     usage_key: str
+    lowered_cm: int = 0
 
 
 @dataclass(frozen=True, slots=True)
