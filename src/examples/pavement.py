@@ -48,6 +48,7 @@ matplotlib.use("Agg")  # headless-safe; the figure is written to disk
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
+from src.examples.simple_example import SimpleExample
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment, Axis
@@ -312,42 +313,41 @@ def print_parameters(pavement: Pavement) -> None:
 # ==============================================================================
 # 4. MAIN
 # ==============================================================================
-def main() -> None:
-    pavement = build_pavement()
+class PavementExample(SimpleExample):
+    """Build the sample pavement, plot its layout and dimension its beams"""
 
-    # Resolve geometry and derive spans / centerlines.
-    pavement.validate()
+    def run(self) -> None:
+        pavement = build_pavement()
 
-    # Pre-dimension beams and propagate loads down to the beam spans.
-    # NOTE: Pavement.resolve() is not used here because Slab.pre_size() is still
-    # a placeholder (raises NotImplementedError). We run the working steps
-    # explicitly instead.
-    pavement.pre_size_beams()
-    pavement.load_beam_spans()
-    pavement.unload_slabs_on_beams()
+        # Resolve geometry and derive spans / centerlines.
+        pavement.validate()
 
-    # Show the resolved parameters and draw the layout.
-    print_parameters(pavement)
-    today = datetime.now(tz=UTC).strftime("%b-%d").lower()
-    path = f"results/{today}/pavement_layout.png"
-    figure_path = plot_pavement(pavement, path)
-    print(f"[FIGURE SAVED] {figure_path}")
+        # Pre-dimension beams and propagate loads down to the beam spans.
+        # NOTE: Pavement.resolve() is not used here because Slab.pre_size() is still
+        # a placeholder (raises NotImplementedError). We run the working steps
+        # explicitly instead.
+        pavement.pre_size_beams()
+        pavement.load_beam_spans()
+        pavement.unload_slabs_on_beams()
 
-    # Final beam dimensioning + report export.
-    # NOTE: the slab influence-area split is still a simplified model
-    # (proportional to side length; see Slab.resolve_influence_areas), but the
-    # loads it produces are now in consistent units, so the rebar/stirrup
-    # solver runs. We still guard it so the geometry/parameters above are shown
-    # even if a particular beam cannot be solved.
-    try:
-        pavement.dimension_beams()
-        pavement.print_beam_reports()
-    except Exception as exc:  # noqa: BLE001 — example-level guard
-        print(
-            "[DIMENSIONING SKIPPED] Beam reinforcement could not be computed:\n"
-            f"    {exc}"
-        )
+        # Show the resolved parameters and draw the layout.
+        print_parameters(pavement)
+        today = datetime.now(tz=UTC).strftime("%b-%d").lower()
+        path = f"results/{today}/pavement_layout.png"
+        figure_path = plot_pavement(pavement, path)
+        print(f"[FIGURE SAVED] {figure_path}")
 
-
-if __name__ == "__main__":
-    main()
+        # Final beam dimensioning + report export.
+        # NOTE: the slab influence-area split is still a simplified model
+        # (proportional to side length; see Slab.resolve_influence_areas), but the
+        # loads it produces are now in consistent units, so the rebar/stirrup
+        # solver runs. We still guard it so the geometry/parameters above are shown
+        # even if a particular beam cannot be solved.
+        try:
+            pavement.dimension_beams()
+            pavement.print_beam_reports()
+        except Exception as exc:  # noqa: BLE001 — example-level guard
+            print(
+                "[DIMENSIONING SKIPPED] Beam reinforcement could not be computed:\n"
+                f"    {exc}"
+            )
