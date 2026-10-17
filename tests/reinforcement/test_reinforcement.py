@@ -116,7 +116,7 @@ class TestChoose:
             reinforcement.choose()
 
     def test_full_selection(self, reinforcement: Reinforcement) -> None:
-        reinforcement.set_required_area(4.0)
+        reinforcement.set_required_area(4.02)
         assert reinforcement.is_chosen is True, (
             "Choosing bars for a reachable area should flag the reinforcement"
         )
@@ -128,24 +128,50 @@ class TestChoose:
         assert [bar.diameter_mm for bar in reinforcement.chosen_bars[0].bars] == [
             16,
             16,
-        ], "The optimal solution for 4 cm² is two 16 mm bars in layer 0"
+        ], "The minimum-area solution for 4.02 cm² is two 16 mm bars in layer 0"
         assert_approx(
             reinforcement.get_distance_for_d_calculation("R"),
             0.8,
             "The single-layer centroid sits 0.8 cm from the stirrup's inner face",
         )
 
+    def test_near_minimum_area_prefers_fewer_bars(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """For 2.0 cm², 1x12.5mm + 1x10mm (2.01 cm²) beats 4x8mm and 2x16mm"""
+        reinforcement.set_required_area(2.0)
+        assert sorted(bar.diameter_mm for bar in reinforcement.chosen_bars[0].bars) == [
+            10,
+            12.5,
+        ], "Within the area tolerance, two bars should beat four 8 mm bars"
+        assert_approx(
+            reinforcement.area,
+            2.0125827937059615,
+            "1x12.5mm + 1x10mm should total ~2.01 cm²",
+        )
+
+    def test_near_minimum_area_prefers_fewer_layers(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """For 4.0 cm², one layer of 2x16mm beats the two-layer 4.013 cm² mix"""
+        reinforcement.set_required_area(4.0)
+        assert [bar.diameter_mm for bar in reinforcement.chosen_bars[0].bars] == [
+            16,
+            16,
+        ], "Two 16 mm bars in one layer should be chosen"
+        assert reinforcement.chosen_bars[1].bars == [], "No second layer should be used"
+
     def test_rechoosing_discards_previous_bars(
         self, reinforcement: Reinforcement
     ) -> None:
         """A second choice does not keep the multi-layer bars of the first (cm²)."""
-        reinforcement.set_required_area(14.0)
+        reinforcement.set_required_area(18.0)
         first_area = reinforcement.area
         assert len(reinforcement.chosen_bars[1].bars) > 0, (
-            "14 cm² in a 20 cm wide beam should need a second layer"
+            "18 cm² in a 20 cm wide beam should need a second layer"
         )
 
-        reinforcement.set_required_area(14.0)
+        reinforcement.set_required_area(18.0)
 
         assert_approx(
             reinforcement.area,
@@ -160,7 +186,7 @@ class TestLayerCentroidPosition:
     def test_bottom_layer_measured_from_bottom_face(
         self, reinforcement: Reinforcement
     ) -> None:
-        reinforcement.set_required_area(4.0)  # 2φ16 in layer 0
+        reinforcement.set_required_area(4.02)  # 2φ16 in layer 0
         expected = (
             RectangularBeam.nominal_covering
             + DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
@@ -174,7 +200,7 @@ class TestLayerCentroidPosition:
 
     def test_uses_chosen_stirrup_diameter(self, reinforcement: Reinforcement) -> None:
         reinforcement.stirrup_diameter = 0.63  # cm, φ6.3
-        reinforcement.set_required_area(4.0)
+        reinforcement.set_required_area(4.02)
         expected = RectangularBeam.nominal_covering + 0.63 + 0.8  # cm
         assert_approx(
             reinforcement.chosen_bars[0].y_centroid_position,
@@ -189,7 +215,7 @@ class TestLayerCentroidPosition:
             beam_double, is_bottom_reinforcement=False, center_position=250.0, id="T"
         )
         top.moment_shift = 28.0
-        top.set_required_area(4.0)  # 2φ16 in layer 0
+        top.set_required_area(4.02)  # 2φ16 in layer 0
         expected = beam_double.height - (
             RectangularBeam.nominal_covering
             + DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
@@ -206,7 +232,7 @@ class TestValidateLayerIndex:
     """Tests for the layer-index bounds check."""
 
     def test_out_of_range_raises(self, reinforcement: Reinforcement) -> None:
-        reinforcement.set_required_area(4.0)
+        reinforcement.set_required_area(4.02)
         with pytest.raises(ValueError, match="Layer index must be between 0 and"):
             reinforcement._validate_layer_index(99)  # pyright: ignore[reportPrivateUsage]
 
@@ -327,7 +353,7 @@ class TestClearChosenBars:
     """Tests for resetting the chosen-bar layers."""
 
     def test_resets_layers(self, reinforcement: Reinforcement) -> None:
-        reinforcement.set_required_area(4.0)
+        reinforcement.set_required_area(4.02)
         reinforcement.clear_chosen_bars()
         assert reinforcement.chosen_bars[0].bars == [], (
             "Clearing should empty every layer's bar list"
@@ -360,7 +386,7 @@ class TestEndSupportAnchorage:
     def test_beam_start_anchors_right_only(self, beam_double: RectangularBeam) -> None:
         """At x = 0 the left side is hooked with zero length; the right one is calculated (cm)."""
         reinforcement = _make_reinforcement(beam_double, center_position=0.0)
-        reinforcement.set_required_area(4.0)
+        reinforcement.set_required_area(4.02)
         for bar in _bars(reinforcement):
             assert bar.left_length == 0, "No left anchorage at the beam start"
             assert bar.right_length > 0, "Right anchorage should be calculated"
@@ -374,7 +400,7 @@ class TestEndSupportAnchorage:
     def test_beam_end_anchors_left_only(self, beam_double: RectangularBeam) -> None:
         """At x = L the right side is hooked with zero length; the left one is calculated (cm)."""
         reinforcement = _make_reinforcement(beam_double, center_position=500.0)
-        reinforcement.set_required_area(4.0)
+        reinforcement.set_required_area(4.02)
         for bar in _bars(reinforcement):
             assert bar.right_length == 0, "No right anchorage at the beam end"
             assert bar.left_length > 0, "Left anchorage should be calculated"
@@ -390,9 +416,9 @@ class TestEndSupportAnchorage:
     ) -> None:
         """The anchorage length does not depend on position; only the skipped side does (cm)."""
         at_start = _make_reinforcement(beam_double, center_position=0.0)
-        at_start.set_required_area(4.0)
+        at_start.set_required_area(4.02)
         at_midspan = _make_reinforcement(beam_double, center_position=250.0)
-        at_midspan.set_required_area(4.0)
+        at_midspan.set_required_area(4.02)
         assert_approx(
             _bars(at_start)[0].right_length,
             _bars(at_midspan)[0].right_length,
@@ -402,7 +428,7 @@ class TestEndSupportAnchorage:
     def test_midspan_anchors_both_sides(self, beam_double: RectangularBeam) -> None:
         """Away from the ends both anchorage lengths are calculated (cm)."""
         reinforcement = _make_reinforcement(beam_double, center_position=250.0)
-        reinforcement.set_required_area(4.0)
+        reinforcement.set_required_area(4.02)
         for bar in _bars(reinforcement):
             assert bar.left_length > 0, "Left anchorage should be calculated"
             assert bar.right_length > 0, "Right anchorage should be calculated"

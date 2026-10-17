@@ -46,6 +46,54 @@ class TestChooseBestCombination:
             "The two-bar minimum forces two 32 mm bars even when one overshoots"
         )
 
+    def test_real_area_covers_required(self, chooser: RebarChooser) -> None:
+        """Every cached solution covers the required area with unrounded areas (cm²)"""
+        for combination, solution in chooser.solutions_per_diameter.items():
+            area = sum(bar.area_cm2 for bar in solution)
+            assert area >= chooser.required_area, (
+                f"Solution for {combination} totals {area} cm² < 4.0 cm²"
+            )
+
+
+class TestRankedSolutions:
+    """Tests for the global ranking across diameter combinations."""
+
+    def test_minimum_area_first(self) -> None:
+        chooser = RebarChooser(Steel.CA50, 2.0)
+        best = chooser.ranked_solutions[0]
+        assert sorted(bar.diameter_mm for bar in best) == [8, 8, 8, 8], (
+            "Four 8 mm bars give the smallest area reaching 2.0 cm²"
+        )
+        assert_approx(
+            sum(bar.area_cm2 for bar in best),
+            2.0106192982974678,
+            "Four 8 mm bars should total ~2.01 cm²",
+        )
+
+    def test_sorted_by_area(self, chooser: RebarChooser) -> None:
+        areas = [
+            sum(bar.area_cm2 for bar in solution)
+            for solution in chooser.ranked_solutions
+        ]
+        assert areas == sorted(areas), "Solutions should be ordered by total area"
+
+    def test_no_duplicate_bar_sets(self, chooser: RebarChooser) -> None:
+        keys = [
+            tuple(sorted(bar.diameter_mm for bar in solution))
+            for solution in chooser.ranked_solutions
+        ]
+        assert len(keys) == len(set(keys)), (
+            "Combinations yielding the same bars should appear once"
+        )
+
+    def test_tie_prefers_fewer_bars(self) -> None:
+        """2x16mm and 8x8mm both total 4.02 cm²; the fewer bars rank first"""
+        chooser = RebarChooser(Steel.CA50, 4.02)
+        best = chooser.ranked_solutions[0]
+        assert [bar.diameter_mm for bar in best] == [16, 16], (
+            "On equal area, two 16 mm bars should beat eight 8 mm bars"
+        )
+
 
 class TestPossibleDiameterCombinations:
     """Tests for the generated diameter-combination set."""

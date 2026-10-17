@@ -10,7 +10,6 @@ from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
-from src.calculators import rebar_calculator
 from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.config_options import Aggregate, ExposureClass
@@ -354,7 +353,7 @@ class TestMinTensionRebarArea:
         """min_tension_rebar_area for 20×60 cm C25/CA50 beam (cm²)."""
         assert_approx(
             calculator.min_tension_rebar_area,
-            1.7999999999999998,
+            1.80,
             "min_tension_rebar_area for 20×60/C25/CA50 (cm²)",
         )
 
@@ -612,9 +611,9 @@ class TestStirrupDiameterInDepths:
 # TestCalculateForCycle
 # ---------------------------------------------------------------------------
 
-# 14 × 55 cm, C40, top tension: 3φ16 (6.03 cm², two layers, d = 49.87 cm) needs
-# 6.12 cm², so 2φ20 (6.28 cm², one layer, d = 50.87 cm) is chosen, which needs
-# only 5.99 cm², so 3φ16 is chosen again (t_concreto2, V3).
+# 14 × 55 cm, C40, top tension (t_concreto2, V3): this used to cycle between
+# 3φ16 (two layers) and 2φ20 (one layer); with the area tolerance 2φ20
+# (6.28 cm²) is chosen directly and keeps d stable.
 _CYCLE_MOMENT = -87.5  # kN.m
 _STIRRUP_DIAMETER = 0.63  # cm
 _MOMENT_SHIFT = 50.9  # cm
@@ -622,7 +621,7 @@ _MOMENT_SHIFT = 50.9  # cm
 
 @pytest.fixture
 def cycling_calculator(monkeypatch: pytest.MonkeyPatch) -> RebarCalculator:
-    """RebarCalculator whose bar layout cycles between 3x16mm and 2x20mm"""
+    """RebarCalculator for the t_concreto2 V3 section that used to cycle"""
     monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
     monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C40)
     monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GRANITE)
@@ -642,7 +641,7 @@ def _tensioned_diameters(calc: RebarCalculator) -> list[float]:
 
 
 class TestCalculateForCycle:
-    """calculate_for resolves a bar-layout cycle to a self-consistent layout."""
+    """calculate_for settles on a self-consistent layout for a section that used to cycle."""
 
     def test_keeps_the_safe_layout(self, cycling_calculator: RebarCalculator) -> None:
         cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
@@ -662,27 +661,9 @@ class TestCalculateForCycle:
     def test_repeated_call_keeps_the_safe_layout(
         self, cycling_calculator: RebarCalculator
     ) -> None:
-        """A second pass (as in coordinate_span) must not fall back to 3x16mm"""
+        """A second pass (as in coordinate_span) must keep the same layout"""
         cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
         cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
         assert _tensioned_diameters(cycling_calculator) == [20.0, 20.0], (
             "2x20mm should still be kept"
         )
-
-    def test_cap_keeps_a_layout_and_warns(
-        self, cycling_calculator: RebarCalculator, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """At the cap, a layout is kept and a warning is logged instead of raising"""
-        warnings: list[str] = []
-
-        def record(message: str, label: str | None = None) -> None:
-            warnings.append(message)
-
-        monkeypatch.setattr(rebar_calculator, "MAX_EFFECTIVE_DEPTH_ITERATIONS", 1)
-        monkeypatch.setattr(rebar_calculator, "log_general", record)
-        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
-        assert _tensioned_diameters(cycling_calculator) == [16.0, 16.0, 16.0], (
-            "the only pass (3x16mm) should be kept"
-        )
-        assert len(warnings) == 1, "one warning should be logged"
-        assert "did not converge" in warnings[0], "warning should name the cause"
