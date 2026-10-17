@@ -134,7 +134,7 @@ slabs:
   - P7
   local: Bedrooms
   permanent_load: 0.0
-  lowered: 5
+  # lowered: 5
 config:
   aggregate: granite
   max_aggregate_size: 2.5
