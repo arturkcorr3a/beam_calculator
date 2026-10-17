@@ -18,7 +18,7 @@ the required extent grows.
 
 ## Impact
 
-`src/examples/pavement/t_concreto2.py` fails on V4: the bottom bars at x = 1966.7 cm
+`src/examples/t_concreto2.py` fails on V4: the bottom bars at x = 1966.7 cm
 need ≈ 66 cm to the right but only 53.8 cm remain → `No valid reinforcement combination
 found.` Any short end region with low shear can hit the same failure.
 
