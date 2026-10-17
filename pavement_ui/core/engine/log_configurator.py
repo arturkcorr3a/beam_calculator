@@ -3,14 +3,14 @@
 from pavement_ui.core.engine.keys import from_key, to_key
 from pavement_ui.core.model.settings import LogValues
 from src.config import APP_CONFIG
-from src.logger import LogLevel, LogOutput, configure_logger
+from src.logger import LogLevel, LogOutput, configure_logger, set_log_level
 
 
 class LogConfigurator:
     """Reconfigure the engine logger only when its settings actually change
 
-    Each ``configure_logger`` call opens a new log file, so repeated calls with
-    the same settings are skipped.
+    Each ``configure_logger`` call opens a new log file, so it is only called
+    when the output changes; a level-only change keeps the current file.
     """
 
     def __init__(self) -> None:
@@ -27,7 +27,10 @@ class LogConfigurator:
         output = from_key(LogOutput, log.output_key)
         APP_CONFIG.log_level = level
         APP_CONFIG.log_output = output
-        configure_logger(level, output)
+        if log.output_key == self._current.output_key:
+            set_log_level(level)
+        else:
+            configure_logger(level, output)
         self._current = log
 
 

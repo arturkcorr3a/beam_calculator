@@ -39,9 +39,9 @@ class LogValues:
     """Calculation memorial settings — never saved to the file [Manual]
 
     Attributes:
-        level_key: Log level key (e.g. "PROPERTY").
+        level_key: Log level key (e.g. "GENERAL").
         output_key: Log output key (e.g. "BOTH").
     """
 
-    level_key: str = "PROPERTY"
+    level_key: str = "GENERAL"
     output_key: str = "BOTH"

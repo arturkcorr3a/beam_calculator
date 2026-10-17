@@ -45,6 +45,7 @@ PLAN_HINT: Final = "coordenadas em metros"
 PLAN_ZOOM_IN: Final = "Aproximar"
 PLAN_ZOOM_OUT: Final = "Afastar"
 PLAN_FIT: Final = "Ajustar à janela"
+PLAN_SLAB_LOWERED: Final = "Rebaixada {cm} cm"
 AXIS_X: Final = "X"
 AXIS_Y: Final = "Y"
 

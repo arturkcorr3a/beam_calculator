@@ -72,6 +72,14 @@ class BeamLogger:
         if output in (LogOutput.FILE, LogOutput.BOTH):
             self._open_log_file()
 
+    def set_level(self, level: LogLevel) -> None:
+        """Change the level threshold, keeping the current output and log file
+
+        Unlike ``configure``, the open log file (if any) is neither closed nor
+        replaced, so no new file is created.
+        """
+        self._level = level
+
     @contextmanager
     def suppressed(self) -> Generator[None]:
         """Silence every message inside the context, without reopening the log file
@@ -190,5 +198,6 @@ log_element = _logger.log_element
 log_interaction = _logger.log_interaction
 log_general = _logger.log_general
 configure_logger = _logger.configure
+set_log_level = _logger.set_level
 suppress_logging = _logger.suppressed
 # loggerlabel is a plain function — already importable at module level

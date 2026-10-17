@@ -32,6 +32,8 @@ WARNING_BG: Final = "#FFF3DF"
 # --- Plan ---------------------------------------------------------------------
 PLAN_SLAB: Final = "#E4EEFA"
 PLAN_SLAB_SELECTED: Final = "#BCD3F0"
+PLAN_SLAB_LOWERED: Final = "#F6EAD7"
+PLAN_SLAB_LOWERED_SELECTED: Final = "#EBCFA5"
 PLAN_BEAM_FILL: Final = "#AAB4BE"
 PLAN_BEAM_OUTLINE: Final = "#5F6A75"
 PLAN_PILLAR: Final = "#2A3138"

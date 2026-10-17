@@ -26,6 +26,7 @@ class PavementGateway:
 
     def __init__(self) -> None:
         self._log = LogValues()  # passed on to design jobs (they run in the worker)
+        apply_log_settings(self._log)  # the UI process starts at the UI defaults
         self._options: EngineOptions | None = None
 
     def options(self) -> EngineOptions:

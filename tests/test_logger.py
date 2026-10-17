@@ -773,3 +773,51 @@ class TestSuppressed:
         assert logger_module.suppress_logging.__self__ is logger_module._logger, (  # pyright: ignore[reportPrivateUsage, reportFunctionMemberAccess]
             "suppress_logging should suppress the module's shared logger"
         )
+
+
+# ---------------------------------------------------------------------------
+# Level change without reconfiguring
+# ---------------------------------------------------------------------------
+
+
+class TestBeamLoggerSetLevel:
+    """set_level() changes the threshold without touching the log file."""
+
+    def test_set_level_keeps_open_log_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(logger_module, "_LOGS_DIR", tmp_path)
+        lg = BeamLogger(LogLevel.PROPERTY, LogOutput.FILE)
+        first_file = lg._log_file  # pyright: ignore[reportPrivateUsage]
+        assert first_file is not None
+        lg.set_level(LogLevel.GENERAL)
+        assert lg._log_file is first_file, (  # pyright: ignore[reportPrivateUsage]
+            "set_level should keep the same log file handle"
+        )
+        assert not first_file.closed, "set_level should not close the log file"
+        log_files = list(tmp_path.glob("beam_calculator_*.log"))
+        assert len(log_files) == 1, "set_level should not create a new log file"
+        first_file.close()
+
+    def test_set_level_in_console_mode_opens_no_file(
+        self, console_logger: BeamLogger
+    ) -> None:
+        console_logger.set_level(LogLevel.GENERAL)
+        assert console_logger._log_file is None, (  # pyright: ignore[reportPrivateUsage]
+            "set_level in CONSOLE mode should not open a log file"
+        )
+
+    def test_set_level_filters_lower_messages(
+        self, captured_logger: tuple[BeamLogger, io.StringIO]
+    ) -> None:
+        lg, buf = captured_logger
+        lg.set_level(LogLevel.GENERAL)
+        lg.log_property("hidden", label="T")
+        assert _emitted(buf) == "", "messages below the new level should be dropped"
+        lg.log_general("visible", label="T")
+        assert "visible" in _emitted(buf), "messages at the new level should be emitted"
+
+    def test_module_alias_targets_the_shared_logger(self) -> None:
+        assert logger_module.set_log_level.__self__ is logger_module._logger, (  # pyright: ignore[reportPrivateUsage, reportFunctionMemberAccess]
+            "set_log_level should change the module's shared logger"
+        )
