@@ -1,7 +1,7 @@
 from collections import Counter
 from functools import cached_property
 from itertools import combinations
-from math import ceil
+from math import ceil, floor
 
 from src.config import APP_CONFIG
 from src.logger import log_operation, log_property, logger_label
@@ -42,12 +42,13 @@ class RebarChooser:
         )
 
     @cached_property
-    def possible_diameter_combinations(self) -> set[tuple[float, ...]]:
+    def possible_diameter_combinations(self) -> list[tuple[float, ...]]:
         """Assemble all possible combinations of rebar diameters up to the configured maximum bar types."""
-        possible_combinations: set[tuple[float, ...]] = set()
+        unique_combinations: set[tuple[float, ...]] = set()
 
         for i in range(1, APP_CONFIG.max_bar_types + 1):
-            possible_combinations.update(combinations(self.steel.available_sizes, i))
+            unique_combinations.update(combinations(self.steel.available_sizes, i))
+        possible_combinations = sorted(unique_combinations)
 
         log_property(f"Available steel sizes: {self.steel.available_sizes}")
         log_property(
@@ -74,9 +75,10 @@ class RebarChooser:
         # Each bar's area is mapped to an integer slot count; slot * eps = area in cm²
         eps = 0.01  # discretization step, cm²
 
-        # Build one Rebar per diameter and convert its area to an integer coin value
+        # Build one Rebar per diameter and convert its area to an integer coin value,
+        # rounded down so a slot never claims more area than its bars provide
         rebars: list[Rebar] = [Rebar(diameter, self.steel) for diameter in combination]
-        coins = [round(rebar.area_cm2 / eps) for rebar in rebars]
+        coins = [floor(rebar.area_cm2 / eps) for rebar in rebars]
 
         # The DP table must cover at least the required area plus room to overshoot
         # by one full coin, and must be large enough to host a 2-bar solution
@@ -127,6 +129,35 @@ class RebarChooser:
             f"Best combination for ({combo_label}): {bars_description} (area = {total_area:.2f} cm², bars = {len(result)})"
         )
         return tuple(result)
+
+    @cached_property
+    def ranked_solutions(self) -> tuple[tuple[Rebar, ...], ...]:
+        """Rank the distinct solutions of every diameter subset, smallest area first
+
+        Ties are broken by fewer bars, then fewer distinct diameters, then
+        larger bars. Subsets that yield the same bar multi-set appear once.
+
+        Returns:
+            Solutions ordered from most to least preferred.
+        """
+        unique: dict[tuple[float, ...], tuple[Rebar, ...]] = {}
+        for solution in self.solutions_per_diameter.values():
+            if solution:
+                key = tuple(sorted(bar.diameter_mm for bar in solution))
+                unique.setdefault(key, solution)
+
+        def rank(solution: tuple[Rebar, ...]) -> tuple[float, int, int, float]:
+            diameters = [bar.diameter_mm for bar in solution]
+            return (
+                round(sum(bar.area_cm2 for bar in solution), 6),
+                len(solution),
+                len(set(diameters)),
+                -max(diameters),
+            )
+
+        ranked = tuple(sorted(unique.values(), key=rank))
+        log_property(f"Ranked {len(ranked)} distinct solutions by total area")
+        return ranked
 
     def get_best_solution_for_combo(
         self, combination: tuple[float, ...]

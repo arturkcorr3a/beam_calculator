@@ -18,6 +18,8 @@ from src.structural_elements.rectangular_beam import RectangularBeam
 DEFAULT_DISTANCE_FOR_D_CALCULATION = 1.0  # cm
 DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = 1.0  # cm
 END_SUPPORT_TOLERANCE = 1e-3  # cm
+# Buildable options within this fraction of the smallest buildable area are tied
+AREA_TOLERANCE_RATIO = 0.05
 
 
 @logger_label("Longitudinal Reinforcement - {id}")
@@ -39,7 +41,7 @@ class Reinforcement:
         self.steel = beam.steel
         self.chosen_bars: tuple[Layer, ...] = self._build_empty_layers()
         self.is_chosen = False
-        self.rebar_choice_options: dict[tuple[float, ...], tuple[Rebar, ...]] = {}
+        self.rebar_choice_options: tuple[tuple[Rebar, ...], ...] = ()
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
         self.moment_shift: float | None = None  # cm, a_l
@@ -65,29 +67,35 @@ class Reinforcement:
         if self.moment_shift is None:
             raise ValueError("Moment shift must be set before choosing reinforcement.")
 
-        self.clear_chosen_bars()  # drop bars left by a previous choice
         rebar_chooser = RebarChooser(self.steel, self.required_area)
-        self.rebar_choice_options = rebar_chooser.solutions_per_diameter
-        for optimal_reinforcement in self.rebar_choice_options.values():
-            try:
-                combo_label = ", ".join(
-                    f"{bar.diameter_mm}mm" for bar in optimal_reinforcement
-                )
-                log_iteration(f"Trying reinforcement combination: {combo_label}")
-                self.distribute_bars_in_layers(list(optimal_reinforcement))
-                self.arrange_bars()
-                self._update_layers_y_centroids()
-                self._run_anchorage_calculation()
-                log_iteration(f"Combination successful: {combo_label}")
+        self.rebar_choice_options = rebar_chooser.ranked_solutions
+
+        # Options come sorted by area: the first buildable one sets the band, and within it fewer layers, then fewer bars, win
+        best_layers: tuple[Layer, ...] | None = None
+        best_key: tuple[int, int, float] | None = None
+        threshold_area = float("inf")  # cm², set by the first buildable option
+        for option in self.rebar_choice_options:
+            option_area = sum(bar.area_cm2 for bar in option)  # cm²
+            if option_area > threshold_area:
                 break
-            except ValueError:
-                log_iteration(
-                    "Combination failed due to spacing or anchorage constraints. Trying next combination."
-                )
-                self.clear_chosen_bars()
+
+            is_buildable = self._try_layout(option)
+            if not is_buildable:
                 continue
-        if len(self.chosen_bars[0].bars) == 0:
+
+            is_first_buildable = best_layers is None
+            if is_first_buildable:
+                threshold_area = option_area * (1 + AREA_TOLERANCE_RATIO)
+
+            layers_used = sum(1 for layer in self.chosen_bars if layer.bars)
+            key = (layers_used, len(option), option_area)
+            if best_key is None or key < best_key:
+                best_layers, best_key = self.chosen_bars, key
+
+        if best_layers is None:
+            self.clear_chosen_bars()
             raise ValueError("No valid reinforcement combination found.")
+        self.chosen_bars = best_layers
 
         self.is_chosen = True
         all_bars = [bar for layer in self.chosen_bars for bar in layer.bars]
@@ -98,6 +106,32 @@ class Reinforcement:
         log_element(
             f"Bars chosen for required area {self.required_area:.2f} cm2: {bar_desc}"
         )
+
+    def _try_layout(self, option: tuple[Rebar, ...]) -> bool:
+        """Lay out an option on fresh layers and check spacing and anchorage
+
+        Args:
+            option: Bars to lay out.
+
+        Returns:
+            Whether the option fits; on failure the layers are left empty.
+        """
+        combo_label = ", ".join(f"{bar.diameter_mm}mm" for bar in option)
+        log_iteration(f"Trying reinforcement combination: {combo_label}")
+        self.clear_chosen_bars()
+        try:
+            self.distribute_bars_in_layers(list(option))
+            self.arrange_bars()
+            self._update_layers_y_centroids()
+            self._run_anchorage_calculation()
+        except ValueError:
+            log_iteration(
+                "Combination failed due to spacing or anchorage constraints. Trying next combination."
+            )
+            self.clear_chosen_bars()
+            return False
+        log_iteration(f"Combination successful: {combo_label}")
+        return True
 
     @property
     def _is_at_beam_start(self) -> bool:
