@@ -1,0 +1,155 @@
+"""Command-line runner for the examples and saved pavements.
+
+Usage::
+
+    python -m src.main --example t_concreto2 [--log-level ELEMENT] [--log-output console]
+    python -m src.main --load saved_fixed [--log-level GENERAL] [--log-output both]
+"""
+
+from __future__ import annotations
+
+import argparse
+import inspect
+from collections.abc import Sequence
+from importlib import import_module
+from pathlib import Path
+from types import ModuleType
+
+from src.config import APP_CONFIG
+from src.examples.simple_example import SimpleExample
+from src.logger import LogLevel, LogOutput, configure_logger
+from src.persistency import load_pavement
+
+EXAMPLES_DIR = Path(__file__).parent / "examples"
+SAVED_DIR = Path(__file__).parent.parent / "saved"
+EXAMPLES_PACKAGE = "src.examples"
+_INTERFACE_MODULE = "simple_example"
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the parser for the runner's command-line options"""
+    parser = argparse.ArgumentParser(
+        prog="python -m src.main",
+        description="Run an example from src/examples or a pavement saved in saved/.",
+    )
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument(
+        "--example",
+        metavar="NAME",
+        help="Example module in src/examples (the .py extension is optional).",
+    )
+    target.add_argument(
+        "--load",
+        metavar="PATH",
+        help="YAML file in saved/ to load and resolve (.yaml is optional).",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        choices=[level.name for level in LogLevel],
+        help=f"Minimum log level to show (default: {APP_CONFIG.log_level.name}).",
+    )
+    parser.add_argument(
+        "--log-output",
+        type=str.lower,
+        choices=[output.value for output in LogOutput],
+        help=f"Where logs are written (default: {APP_CONFIG.log_output.value}).",
+    )
+    return parser
+
+
+def available_examples() -> list[str]:
+    """List the example module names in src/examples, sorted"""
+    return sorted(
+        path.stem
+        for path in EXAMPLES_DIR.glob("*.py")
+        if path.stem not in {"__init__", _INTERFACE_MODULE}
+    )
+
+
+def available_saved() -> list[str]:
+    """List the YAML file names in saved/, sorted"""
+    return sorted(path.name for path in SAVED_DIR.glob("*.yaml"))
+
+
+def resolve_saved(name: str) -> Path:
+    """Map a ``--load`` value to a file in saved/, adding ``.yaml`` if missing"""
+    path = SAVED_DIR / name
+    return path if path.suffix == ".yaml" else path.with_name(f"{path.name}.yaml")
+
+
+def find_example(module: ModuleType) -> SimpleExample:
+    """Instantiate the single SimpleExample subclass defined in a module
+
+    Subclasses that are only imported into the module are ignored.
+
+    Raises:
+        ValueError: If the module defines no subclass or more than one.
+    """
+    classes = [
+        member
+        for _, member in inspect.getmembers(module, inspect.isclass)
+        if issubclass(member, SimpleExample)
+        and member is not SimpleExample
+        and member.__module__ == module.__name__
+    ]
+    if len(classes) != 1:
+        names = [cls.__name__ for cls in classes]
+        raise ValueError(
+            f"{module.__name__} must define exactly one SimpleExample subclass, "
+            f"found {len(classes)}: {names}"
+        )
+    return classes[0]()
+
+
+def apply_log_options(level: str | None, output: str | None) -> None:
+    """Apply the optional log flags to APP_CONFIG and reconfigure the logger
+
+    Args:
+        level: A ``LogLevel`` name, or None to keep the current level.
+        output: A ``LogOutput`` value, or None to keep the current output.
+    """
+    if level is not None:
+        APP_CONFIG.log_level = LogLevel[level]
+    if output is not None:
+        APP_CONFIG.log_output = LogOutput(output)
+    configure_logger(APP_CONFIG.log_level, APP_CONFIG.log_output)
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    """Parse the command line and run the requested example or saved pavement
+
+    Args:
+        argv: Arguments without the program name; None reads ``sys.argv``.
+    """
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    example: str | None = args.example
+    load: str | None = args.load
+    log_level: str | None = args.log_level
+    log_output: str | None = args.log_output
+
+    if example is not None:
+        name = Path(example).stem
+        if name not in available_examples():
+            parser.error(
+                f"example '{example}' not found in {EXAMPLES_DIR}; "
+                f"available: {', '.join(available_examples())}"
+            )
+        apply_log_options(log_level, log_output)
+        find_example(import_module(f"{EXAMPLES_PACKAGE}.{name}")).run()
+        return
+
+    assert load is not None  # guaranteed by the required exclusive group
+    path = resolve_saved(load)
+    if not path.is_file():
+        parser.error(
+            f"file '{load}' not found in {SAVED_DIR}; "
+            f"available: {', '.join(available_saved())}"
+        )
+    apply_log_options(log_level, log_output)
+    load_pavement(path).resolve()
+
+
+if __name__ == "__main__":
+    main()

@@ -4,6 +4,7 @@ Example from "Cálculo e Detalhamento de Estruturas de Concreto Armado'
 
 from src.config import APP_CONFIG
 from src.config_options import OccupancyCategory
+from src.examples.simple_example import SimpleExample
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
@@ -166,15 +167,14 @@ def build_pavement():
     return pavement
 
 
-def main():
-    pavement = build_pavement()
-    pavement.resolve()
+class SavingExample(SimpleExample):
+    """Size the Carvalho pavement and save it to YAML"""
 
-    for slab in pavement.slabs.values():
-        print(f"{slab.id}: {slab.thickness} cm")
+    def run(self) -> None:
+        pavement = build_pavement()
+        pavement.resolve()
 
-    save_pavement(pavement, PATH)
+        for slab in pavement.slabs.values():
+            print(f"{slab.id}: {slab.thickness} cm")
 
-
-if __name__ == "__main__":
-    main()
+        save_pavement(pavement, PATH)
