@@ -7,6 +7,8 @@ from src.config_options import ExposureClass
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
+from src.structural_elements.support import Support
+from tests.helpers import assert_approx
 
 
 @pytest.fixture
@@ -64,6 +66,106 @@ class TestValidateWidth:
             steel=Steel.CA50,
         )
         assert beam.width == 12.0, "A 12 cm width sits exactly at the minimum"
+
+
+@pytest.fixture
+def three_support_beam() -> RectangularBeam:
+    """Build a 600 cm beam on three 20 cm wide supports at 0, 300 and 600 cm."""
+    return RectangularBeam(
+        length=600.0,
+        width=20.0,
+        height=60.0,
+        steel=Steel.CA50,
+        supports=[
+            Support(center=0.0, left=-10.0, right=10.0),
+            Support(center=300.0, left=290.0, right=310.0),
+            Support(center=600.0, left=590.0, right=610.0),
+        ],
+    )
+
+
+class TestSupports:
+    """Tests for the beam's support list and its validation."""
+
+    def test_default_point_supports_at_ends(
+        self, simply_supported_beam: RectangularBeam
+    ) -> None:
+        assert simply_supported_beam.supports == [
+            Support(0.0, 0.0, 0.0),
+            Support(500.0, 500.0, 500.0),
+        ], "Without supports, the beam should get zero-width supports at both ends"
+
+    def test_stores_given_supports(self, three_support_beam: RectangularBeam) -> None:
+        centers = [support.center for support in three_support_beam.supports]
+        assert centers == [0.0, 300.0, 600.0], "Supports should be stored as given"
+
+    def test_overlapping_supports_raise(self) -> None:
+        with pytest.raises(ValueError, match="without overlapping"):
+            RectangularBeam(
+                length=500.0,
+                width=20.0,
+                height=60.0,
+                steel=Steel.CA50,
+                supports=[
+                    Support(center=0.0, left=-10.0, right=10.0),
+                    Support(center=15.0, left=5.0, right=25.0),
+                ],
+            )
+
+    def test_unordered_supports_raise(self) -> None:
+        with pytest.raises(ValueError, match="without overlapping"):
+            RectangularBeam(
+                length=500.0,
+                width=20.0,
+                height=60.0,
+                steel=Steel.CA50,
+                supports=[
+                    Support(center=500.0, left=490.0, right=510.0),
+                    Support(center=0.0, left=-10.0, right=10.0),
+                ],
+            )
+
+
+class TestGetSupportFace:
+    """Tests for the nearest support face lookup."""
+
+    def test_mid_span_to_the_left(self, three_support_beam: RectangularBeam) -> None:
+        face = three_support_beam.get_support_face(150.0, left=True)
+        assert_approx(face, 10.0, "First support's right face is left of 150 cm")
+
+    def test_mid_span_to_the_right(self, three_support_beam: RectangularBeam) -> None:
+        face = three_support_beam.get_support_face(150.0, left=False)
+        assert_approx(face, 290.0, "Interior support's left face is right of 150 cm")
+
+    def test_end_support_center_to_the_right(
+        self, three_support_beam: RectangularBeam
+    ) -> None:
+        face = three_support_beam.get_support_face(0.0, left=False)
+        assert_approx(face, 10.0, "From the end support center, its inner face")
+
+    def test_inside_interior_support(self, three_support_beam: RectangularBeam) -> None:
+        left_face = three_support_beam.get_support_face(300.0, left=True)
+        right_face = three_support_beam.get_support_face(300.0, left=False)
+        assert_approx(left_face, 290.0, "Inside a support, its own left face")
+        assert_approx(right_face, 310.0, "Inside a support, its own right face")
+
+    def test_exactly_on_a_face(self, three_support_beam: RectangularBeam) -> None:
+        left_face = three_support_beam.get_support_face(310.0, left=True)
+        right_face = three_support_beam.get_support_face(310.0, left=False)
+        assert_approx(left_face, 310.0, "A face on the position counts to the left")
+        assert_approx(right_face, 310.0, "A face on the position counts to the right")
+
+    def test_no_face_to_the_left_raises(
+        self, three_support_beam: RectangularBeam
+    ) -> None:
+        with pytest.raises(ValueError, match="No support face to the left"):
+            three_support_beam.get_support_face(-20.0, left=True)
+
+    def test_no_face_to_the_right_raises(
+        self, three_support_beam: RectangularBeam
+    ) -> None:
+        with pytest.raises(ValueError, match="No support face to the right"):
+            three_support_beam.get_support_face(620.0, left=False)
 
 
 class TestNominalCovering:
