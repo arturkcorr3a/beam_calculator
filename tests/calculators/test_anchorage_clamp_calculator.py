@@ -23,7 +23,7 @@ def calculator(monkeypatch: pytest.MonkeyPatch) -> AnchorageClampCalculator:
         available_length=20.0,
         necessary_length=50.0,
         design_bond_strength=0.25,
-        stirrup_width=15.0,
+        stirrup_inner_width=15.0,
     )
 
 

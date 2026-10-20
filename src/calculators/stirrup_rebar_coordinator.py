@@ -8,7 +8,7 @@ MAX_ITERATIONS = 1_000  # stirrup-longitudinal reinforcement passes before givin
 def coordinate_span(calculators: list[RebarCalculator], stirrups: Stirrups) -> None:
     """Dimension a span's stirrups and longitudinal reinforcements together
 
-    The stirrups depend on the effective depth (d), which in turn depends on the stirrup diameter and on the chosen bars. Each pass dimensions the stirrups with the smallest d among the calculators (the most conservative), then dimensions every calculator's longitudinal reinforcement with the chosen stirrup diameter and moment shift. Passes repeat until no calculator's d changes by more than EFFECTIVE_DEPTH_TOLERANCE.
+    The stirrups depend on the effective depth (d), which in turn depends on the stirrup diameter and on the chosen bars. Each pass dimensions the stirrups with the smallest d among the calculators (the most conservative), then dimensions every calculator's longitudinal reinforcement with the chosen stirrup diameter, moment shift and the span's design shear. Passes repeat until no calculator's d changes by more than EFFECTIVE_DEPTH_TOLERANCE.
 
     Args:
         calculators: Longitudinal reinforcement calculators of the interest points that share the stirrups (one span).
@@ -29,7 +29,11 @@ def coordinate_span(calculators: list[RebarCalculator], stirrups: Stirrups) -> N
         moment_shift = stirrups.calculator.calculate_moment_shift()  # cm
 
         for calculator in calculators:
-            calculator.calculate_for(stirrup_diameter, moment_shift)
+            calculator.calculate_for(
+                stirrup_diameter,
+                moment_shift,
+                stirrups.calculator.design_shear_force,
+            )
 
         depths = [calculator.d for calculator in calculators]  # cm
         if previous_depths is not None:

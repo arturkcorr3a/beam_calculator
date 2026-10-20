@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from src.reinforcement.clamps import Clamps
 from src.structural_elements.rebar import Rebar
 
 
@@ -12,6 +13,8 @@ class Layer:
     bars: list[Rebar]
     layer_index: int
     y_centroid_position: float = field(init=False)  # cm
+    left_clamps: Clamps | None = field(default=None, init=False)
+    right_clamps: Clamps | None = field(default=None, init=False)
 
     @property
     def area(self) -> float:
@@ -48,6 +51,18 @@ class Layer:
                 bar.left_hook_enabled = enable
             else:
                 bar.right_hook_enabled = enable
+
+    def set_clamps(self, left: bool, clamps: Clamps | None) -> None:
+        """Set the clamps that complete the anchorage on one side of the layer
+
+        Args:
+            left: Whether the clamps are on the left side; otherwise the right.
+            clamps: Clamps to set, or None to remove them.
+        """
+        if left:
+            self.left_clamps = clamps
+        else:
+            self.right_clamps = clamps
 
     def get_bar_diameters_for_print(self) -> str:
         """Returns a string representation of the bar diameters in the layer."""

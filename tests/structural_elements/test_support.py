@@ -25,3 +25,33 @@ class TestValidation:
     def test_center_after_right_face_raises(self) -> None:
         with pytest.raises(ValueError, match="left <= center <= right"):
             Support(center=100.0, left=90.0, right=99.0)
+
+
+class TestIsExtremity:
+    """Tests for detecting supports on either end of the beam."""
+
+    def test_start_support(self) -> None:
+        support = Support(center=0.0, left=-10.0, right=10.0)
+        assert support.is_extremity(500.0), "A support at 0 cm is an extremity"
+
+    def test_end_support(self) -> None:
+        support = Support(center=500.0, left=490.0, right=510.0)
+        assert support.is_extremity(500.0), (
+            "A support at the beam length is an extremity"
+        )
+
+    def test_interior_support(self) -> None:
+        support = Support(center=300.0, left=290.0, right=310.0)
+        assert not support.is_extremity(500.0), (
+            "An interior support is not an extremity"
+        )
+
+    def test_within_tolerance(self) -> None:
+        support = Support(center=499.9995, left=490.0, right=510.0)
+        assert support.is_extremity(500.0), "A center within 1e-3 cm of the end counts"
+
+    def test_outside_tolerance(self) -> None:
+        support = Support(center=0.01, left=-10.0, right=10.0)
+        assert not support.is_extremity(500.0), (
+            "A center 0.01 cm from the start does not count"
+        )

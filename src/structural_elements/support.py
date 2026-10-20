@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+_EXTREMITY_TOLERANCE = 1e-3  # cm
+
 
 @dataclass(frozen=True)
 class Support:
@@ -27,3 +29,17 @@ class Support:
                 "Support faces must satisfy left <= center <= right. "
                 f"Got left={self.left}, center={self.center}, right={self.right} cm."
             )
+
+    def is_extremity(self, beam_length: float) -> bool:
+        """Return whether the support sits on either end of the beam
+
+        Args:
+            beam_length: Length of the beam the support belongs to (cm).
+
+        Returns:
+            True if the center is at 0 or at ``beam_length``, within 1e-3 cm.
+        """
+        return (
+            abs(self.center) <= _EXTREMITY_TOLERANCE
+            or abs(self.center - beam_length) <= _EXTREMITY_TOLERANCE
+        )

@@ -109,7 +109,9 @@ class RebarCalculator:
                 delattr(self, prop)
                 log_property(f"Cleared cached property: {prop}")
 
-    def calculate_for(self, stirrup_diameter: float, moment_shift: float) -> None:
+    def calculate_for(
+        self, stirrup_diameter: float, moment_shift: float, design_shear: float
+    ) -> None:
         """Dimension the longitudinal reinforcement for the given stirrups
 
         Each pass computes the required areas at the current d and chooses bars for them; it converges when the chosen bars give back the d they were chosen with.
@@ -121,6 +123,8 @@ class RebarCalculator:
             stirrup_diameter: Diameter of the chosen stirrup bars (cm).
             moment_shift: Moment shift length a_l of the stirrups (cm), used
                 for the bars' anchorage.
+            design_shear: Design shear force V_d of the span (kN), used for the
+                anchorage clamps at the extremity supports.
         """
         self.stirrup_diameter = stirrup_diameter
 
@@ -128,6 +132,8 @@ class RebarCalculator:
         self.compressed_reinforcement.moment_shift = moment_shift
         self.tensioned_reinforcement.stirrup_diameter = stirrup_diameter
         self.compressed_reinforcement.stirrup_diameter = stirrup_diameter
+        self.tensioned_reinforcement.design_shear = design_shear
+        self.compressed_reinforcement.design_shear = design_shear
 
         passes: list[LayoutPass] = []
         last_seen: dict[LayoutSignature, int] = {}  # signature -> latest pass index
@@ -136,6 +142,7 @@ class RebarCalculator:
             self.cleanup()
             self.calculate_and_set_required_tensioned_rebar_area()
             used_d = self.d  # cm, from the previous pass's bars
+            self._share_effective_depth()
             self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
             if not self.is_singly_reinforced:
                 self.compressed_reinforcement.set_required_area(
@@ -224,6 +231,7 @@ class RebarCalculator:
         The bar choice is deterministic, so choosing for the same required
         areas gives back the same layout.
         """
+        self._share_effective_depth()
         self.tensioned_reinforcement.set_required_area(layout_pass.tensioned_required)
         if layout_pass.compressed_required > 0:
             self.compressed_reinforcement.set_required_area(
@@ -231,6 +239,11 @@ class RebarCalculator:
             )
         self.cleanup()
         self.calculate_and_set_required_tensioned_rebar_area()
+
+    def _share_effective_depth(self) -> None:
+        """Hand the current d (cm) to both reinforcements, for their clamps"""
+        self.tensioned_reinforcement.effective_depth = self.d
+        self.compressed_reinforcement.effective_depth = self.d
 
     def calculate_and_set_required_tensioned_rebar_area(self) -> None:
         """

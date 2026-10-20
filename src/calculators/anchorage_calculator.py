@@ -1,9 +1,15 @@
 from typing import TYPE_CHECKING, cast
 
+from src.calculators.anchorage_clamp_calculator import (
+    AnchorageClampCalculator,
+    AnchorageClampCalculatorLabel,
+)
 from src.config import APP_CONFIG
 from src.logger import log_operation, log_property, logger_label
 from src.properties.steel import Steel
+from src.reinforcement.clamps import Clamps
 from src.structural_elements.rectangular_beam import RectangularBeam
+from src.structural_elements.support import Support
 
 if TYPE_CHECKING:
     from src.reinforcement.reinforcement import Reinforcement  # noqa: TC004
@@ -27,28 +33,115 @@ class AnchorageCalculator:
         self.beam_height = self.reinforcement.beam.height  # cm
         self.id = id
 
-    def run(self, available_space: float, left: bool) -> None:
-        """
-        Checks the available space and sets the layer bars's lengths.
-        If there isn't enough space, try to add hooks and recalculate.
+    def run(
+        self, available_space: float, left: bool, allow_clamp: bool = False
+    ) -> Clamps | None:
+        """Check the available space and set the layer bars' anchorage lengths
 
-        Raises a ValueError if there isn't enough space even after adding hooks.
+        Tries straight bars first, then hooked bars. If both fail and clamps are allowed at an extremity support, the hooked bars take the whole
+        available space and clamps carry the rest of the force.
+
+        Args:
+            available_space: Length from the section to the bar's end (cm).
+            left: Whether to anchor towards the left; otherwise the right.
+            allow_clamp: Whether clamps may complete the anchorage when the
+                hooked bars do not fit.
+
+        Returns:
+            The clamps set on the layer, or None if the bars anchor without them.
+
+        Raises:
+            ValueError: If there isn't enough space even with hooks, and clamps
+                are not allowed or not possible at that end.
         """
         self.left = left
         self.logging_info = f"{self.id} ({'Left' if self.left else 'Right'})"
         passed = self._run_current_state(available_space, with_hooks=False)
         if passed:
-            return
+            return None
 
         log_operation("Not enough space for anchorage; Add hooks and re-trying...")
-        passed = self._run_current_state(
-            self.get_adjusted_available_space_for_hooks(available_space),
-            with_hooks=True,
+        hooked_available_space = self.get_adjusted_available_space_for_hooks(
+            available_space
         )
-        if not passed:
-            error_message = f"Not enough space for anchorage - even with hooks. Available: {available_space:.2f} cm, Required: {self.total_anchorage_length:.2f} cm. Consider reducing bar diameter."
+        passed = self._run_current_state(hooked_available_space, with_hooks=True)
+        if passed:
+            return None
+
+        error_message = f"Not enough space for anchorage - even with hooks. Available: {available_space:.2f} cm, Required: {self.total_anchorage_length:.2f} cm. Consider reducing bar diameter."
+        if not (allow_clamp and self._is_at_extremity_support):
             log_operation(error_message)
             raise ValueError(error_message)
+
+        clamp_available_length = self.clamp_available_length
+        if clamp_available_length <= 0:
+            error_message += " No length inside the support for clamps."
+            log_operation(error_message)
+            raise ValueError(error_message)
+
+        log_operation("Not enough space for anchorage with hooks; Adding clamps...")
+        self.layer.set_anchorage_length(hooked_available_space, self.left)
+        clamps = self._build_clamp_calculator(clamp_available_length).run()
+        self.layer.set_clamps(self.left, clamps)
+        return clamps
+
+    def _build_clamp_calculator(
+        self, clamp_available_length: float
+    ) -> AnchorageClampCalculator:
+        """Build the clamp calculator for the current side, with hooks enabled
+
+        Args:
+            clamp_available_length: Length inside the extremity support (cm).
+
+        Raises:
+            ValueError: If the reinforcement's effective depth or design shear
+                is not set.
+        """
+        effective_depth = self.reinforcement.effective_depth
+        design_shear = self.reinforcement.design_shear
+        if effective_depth is None or design_shear is None:
+            raise ValueError(
+                "Effective depth and design shear must be set before calculating clamps."
+            )
+        return AnchorageClampCalculator(
+            moment_shift=self.moment_shift,
+            effective_depth=effective_depth,
+            design_shear=design_shear,
+            label_info=AnchorageClampCalculatorLabel(
+                beam_label=self.reinforcement.beam.label, is_left=self.left
+            ),
+            available_length=clamp_available_length,
+            necessary_length=self.necessary_anchorage_length,
+            design_bond_strength=self.design_bond_strength,
+            stirrup_inner_width=self.reinforcement.stirrup_inner_width,
+        )
+
+    @property
+    def _extremity_support(self) -> Support:
+        """Return the support the bars end in on the current side"""
+        supports = self.reinforcement.beam.supports
+        return supports[0] if self.left else supports[-1]
+
+    @property
+    def _is_at_extremity_support(self) -> bool:
+        """Whether the bars end in a support on either end of the beam"""
+        return self._extremity_support.is_extremity(self.reinforcement.beam.length)
+
+    @property
+    def clamp_available_length(self) -> float:
+        """Calculate the anchorage length inside the extremity support
+
+        Measured from the support's inner face to its outer face minus the
+        effective covering.
+
+        Returns:
+            Length in cm; zero or negative when the support has no room.
+        """
+        support = self._extremity_support
+        effective_covering = self.reinforcement.effective_covering()  # cm
+        length = (support.right - support.left) - effective_covering
+        log_property(f"Available length inside the support = {length:.2f} cm")
+        return length
 
     def _run_current_state(self, available_space: float, with_hooks: bool) -> bool:
         """

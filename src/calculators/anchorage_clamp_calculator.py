@@ -26,7 +26,7 @@ class AnchorageClampCalculator:
         available_length: float,
         necessary_length: float,
         design_bond_strength: float,
-        stirrup_width: float,
+        stirrup_inner_width: float,
     ) -> None:
         self.moment_shift = moment_shift
         self.effective_depth = effective_depth
@@ -35,7 +35,7 @@ class AnchorageClampCalculator:
         self.available_length = available_length
         self.necessary_length = necessary_length
         self.design_bond_strength = design_bond_strength
-        self.stirrup_width = stirrup_width
+        self.stirrup_width = stirrup_inner_width
 
     def run(self) -> Clamps:
         force_on_rebar = self._calculate_force_on_rebar()
