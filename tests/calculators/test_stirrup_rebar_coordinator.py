@@ -9,6 +9,8 @@ from src.calculators import stirrup_rebar_coordinator
 from src.calculators.stirrup_rebar_coordinator import coordinate_span
 from tests.helpers import assert_approx
 
+_DESIGN_SHEAR = 150.0  # kN, V_d returned by the stirrups' calculator
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------
@@ -22,8 +24,10 @@ def _make_calculator_stub(d: float = 56.0) -> types.SimpleNamespace:
     """
     calculator = types.SimpleNamespace(d=d, base_d=d, calls=[])
 
-    def calculate_for(stirrup_diameter: float, moment_shift: float) -> None:
-        calculator.calls.append((stirrup_diameter, moment_shift))
+    def calculate_for(
+        stirrup_diameter: float, moment_shift: float, design_shear: float
+    ) -> None:
+        calculator.calls.append((stirrup_diameter, moment_shift, design_shear))
         calculator.d = calculator.base_d - stirrup_diameter
 
     calculator.calculate_for = calculate_for
@@ -41,7 +45,10 @@ def _make_stirrups_stub(
     """
     stirrups = types.SimpleNamespace(
         depths=[],
-        calculator=types.SimpleNamespace(calculate_moment_shift=lambda: moment_shift),
+        calculator=types.SimpleNamespace(
+            calculate_moment_shift=lambda: moment_shift,
+            design_shear_force=_DESIGN_SHEAR,
+        ),
     )
 
     def calculate_and_choose(effective_depth: float) -> tuple[float, float]:
@@ -78,16 +85,16 @@ class TestCoordinateSpan:
 
         assert_approx(stirrups.depths[1], 55.5, "re-dimensioned with d - phi (cm)")
 
-    def test_propagates_diameter_and_moment_shift(self) -> None:
-        """Every calculator receives the stirrup diameter and moment shift (cm)."""
+    def test_propagates_diameter_moment_shift_and_design_shear(self) -> None:
+        """Every calculator receives the stirrup diameter, moment shift (cm) and V_d (kN)."""
         calculators = [_make_calculator_stub(), _make_calculator_stub(d=58.0)]
         stirrups = _make_stirrups_stub(lambda depth: 0.5, moment_shift=27.0)
 
         coordinate_span(calculators, stirrups)  # type: ignore[arg-type]
 
         for calculator in calculators:
-            assert calculator.calls[-1] == (0.5, 27.0), (
-                "calculate_for should receive (phi, a_l) from the stirrups"
+            assert calculator.calls[-1] == (0.5, 27.0, _DESIGN_SHEAR), (
+                "calculate_for should receive (phi, a_l, V_d) from the stirrups"
             )
 
     def test_stops_when_d_converges(self) -> None:
@@ -107,7 +114,7 @@ class TestCoordinateSpan:
 
         coordinate_span([calculator], stirrups)  # type: ignore[list-item]
 
-        assert [diameter for diameter, _ in calculator.calls] == [0.8, 0.63, 0.63], (
+        assert [diameter for diameter, _, _ in calculator.calls] == [0.8, 0.63, 0.63], (
             "rebars should be dimensioned with 0.8 cm, then 0.63 cm until d settles"
         )
 

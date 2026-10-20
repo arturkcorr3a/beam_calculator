@@ -210,7 +210,7 @@ class TestBuildStructuralBeam:
         monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
 
         span = _make_span_stub(length_cm=500.0)
-        bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
+        bc = BeamCalculator(_make_beam_stub(spans=[span]), _make_registry())  # type: ignore[arg-type]
         beam = bc._build_structural_beam()  # pyright: ignore[reportPrivateUsage]
 
         from src.structural_elements.rectangular_beam import RectangularBeam
@@ -221,6 +221,22 @@ class TestBuildStructuralBeam:
         assert beam.width == 20.0, "beam width should be 20 cm (cm)"
         assert beam.height == 60.0, "beam height should be 60 cm (cm)"
         assert beam.steel == Steel.CA50, "beam steel should be CA50"
+
+    def test_supports_span_pillar_widths(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Supports sit at cumulative effective lengths, ±half the pillar width (cm)."""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
+        beam = bc._build_structural_beam()  # pyright: ignore[reportPrivateUsage]
+
+        faces = [(s.left, s.center, s.right) for s in beam.supports]
+        assert faces == [
+            (-10.0, 0.0, 10.0),
+            (290.0, 300.0, 310.0),
+            (490.0, 500.0, 510.0),
+        ], "20 cm wide pillars on an X beam should give faces 10 cm from each center"
 
 
 # ---------------------------------------------------------------------------

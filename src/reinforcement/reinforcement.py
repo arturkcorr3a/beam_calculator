@@ -46,6 +46,8 @@ class Reinforcement:
         self.center_position = center_position
         self.moment_shift: float | None = None  # cm, a_l
         self.stirrup_diameter: float | None = None  # cm
+        self.effective_depth: float | None = None  # cm, d, used by clamps
+        self.design_shear: float | None = None  # kN, V_d, used by clamps
         self.id = id
 
     def _build_empty_layers(self) -> tuple[Layer, ...]:
@@ -59,6 +61,18 @@ class Reinforcement:
         self.choose()
 
     def choose(self) -> None:
+        """Choose the bars for the required area
+
+        Options that anchor without clamps are always preferred. Only if none
+        of them can be anchored, a second pass allows clamps at the extremity
+        supports.
+
+        Raises:
+            ValueError: If the required area or moment shift is not set, if
+                clamps are needed but the effective depth or design shear is not
+                set, or if no option can be laid out and anchored, even with
+                clamps.
+        """
         log_operation(
             f"Choosing reinforcement for required area: {self.required_area:.2f} cm²"
         )
@@ -70,6 +84,42 @@ class Reinforcement:
         rebar_chooser = RebarChooser(self.steel, self.required_area)
         self.rebar_choice_options = rebar_chooser.ranked_solutions
 
+        best_layers = self._select_best_layers(allow_clamp=False)
+        if best_layers is None:
+            log_operation(
+                "No combination anchors without clamps; retrying allowing clamps."
+            )
+            if self.effective_depth is None or self.design_shear is None:
+                self.clear_chosen_bars()
+                raise ValueError(
+                    "Effective depth and design shear must be set before allowing clamps."
+                )
+            best_layers = self._select_best_layers(allow_clamp=True)
+        if best_layers is None:
+            self.clear_chosen_bars()
+            raise ValueError("No valid reinforcement combination found.")
+
+        self.chosen_bars = best_layers
+        self.is_chosen = True
+        all_bars = [bar for layer in self.chosen_bars for bar in layer.bars]
+        counter = Counter(int(b.diameter_mm) for b in all_bars)
+        bar_desc = ", ".join(
+            f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
+        )
+        log_element(
+            f"Bars chosen for required area {self.required_area:.2f} cm2: {bar_desc}"
+        )
+
+    def _select_best_layers(self, allow_clamp: bool) -> tuple[Layer, ...] | None:
+        """Pick the best buildable option among the ranked choices
+
+        Args:
+            allow_clamp: Whether clamps may complete the anchorage at the
+                extremity supports.
+
+        Returns:
+            The laid-out layers of the best option, or None if no option fits.
+        """
         # Options come sorted by area: the first buildable one sets the band, and within it fewer layers, then fewer bars, win
         best_layers: tuple[Layer, ...] | None = None
         best_key: tuple[int, int, float] | None = None
@@ -79,7 +129,7 @@ class Reinforcement:
             if option_area > threshold_area:
                 break
 
-            is_buildable = self._try_layout(option)
+            is_buildable = self._try_layout(option, allow_clamp)
             if not is_buildable:
                 continue
 
@@ -91,27 +141,15 @@ class Reinforcement:
             key = (layers_used, len(option), option_area)
             if best_key is None or key < best_key:
                 best_layers, best_key = self.chosen_bars, key
+        return best_layers
 
-        if best_layers is None:
-            self.clear_chosen_bars()
-            raise ValueError("No valid reinforcement combination found.")
-        self.chosen_bars = best_layers
-
-        self.is_chosen = True
-        all_bars = [bar for layer in self.chosen_bars for bar in layer.bars]
-        counter = Counter(int(b.diameter_mm) for b in all_bars)
-        bar_desc = ", ".join(
-            f"{count}x{d}mm" for d, count in sorted(counter.items(), reverse=True)
-        )
-        log_element(
-            f"Bars chosen for required area {self.required_area:.2f} cm2: {bar_desc}"
-        )
-
-    def _try_layout(self, option: tuple[Rebar, ...]) -> bool:
+    def _try_layout(self, option: tuple[Rebar, ...], allow_clamp: bool) -> bool:
         """Lay out an option on fresh layers and check spacing and anchorage
 
         Args:
             option: Bars to lay out.
+            allow_clamp: Whether clamps may complete the anchorage at the
+                extremity supports.
 
         Returns:
             Whether the option fits; on failure the layers are left empty.
@@ -123,7 +161,7 @@ class Reinforcement:
             self.distribute_bars_in_layers(list(option))
             self.arrange_bars()
             self._update_layers_y_centroids()
-            self._run_anchorage_calculation()
+            self._run_anchorage_calculation(allow_clamp)
         except ValueError:
             log_iteration(
                 "Combination failed due to spacing or anchorage constraints. Trying next combination."
@@ -143,13 +181,17 @@ class Reinforcement:
         """Whether the reinforcement is centered on the beam's end support (x = L)."""
         return self.center_position >= self.beam.length - END_SUPPORT_TOLERANCE
 
-    def _run_anchorage_calculation(self) -> None:
-        """
-        Runs the anchorage calculation for each layer of the chosen reinforcement, setting the necessary lengths for each bar.
+    def _run_anchorage_calculation(self, allow_clamp: bool) -> None:
+        """Run the anchorage calculation for each layer, setting the bars' lengths
 
         Bars centered on an end support are anchored only towards the beam interior: at the beam start (x = 0) the left length stays zero, and at the beam end (x = L) the right length stays zero.
 
-        Raises a ValueError if there isn't enough space for anchorage, even after adding hooks.
+        Args:
+            allow_clamp: Whether clamps may complete the anchorage at the
+                extremity supports.
+
+        Raises:
+            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed).
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
         moment_shift = cast(float, self.moment_shift)
@@ -172,7 +214,9 @@ class Reinforcement:
                 left_available_space = (
                     self.center_position - RectangularBeam.nominal_covering
                 )  # cm
-                anchorage_calculator.run(left_available_space, left=True)
+                anchorage_calculator.run(
+                    left_available_space, left=True, allow_clamp=allow_clamp
+                )
 
             if self._is_at_beam_end:
                 is_left = False
@@ -182,7 +226,9 @@ class Reinforcement:
                 right_available_space = (
                     self.beam.length - RectangularBeam.nominal_covering
                 ) - self.center_position  # cm
-                anchorage_calculator.run(right_available_space, left=False)
+                anchorage_calculator.run(
+                    right_available_space, left=False, allow_clamp=allow_clamp
+                )
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """
@@ -269,6 +315,11 @@ class Reinforcement:
             else DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
         )  # cm
         return self.effective_covering() + stirrup_diameter
+
+    @property
+    def stirrup_inner_width(self) -> float:
+        """Return the width between the stirrup's inner faces (cm)"""
+        return self.beam.width - 2 * self._face_offset()
 
     def get_layer_absolute_centroid_with_weight(
         self, layer_index: int

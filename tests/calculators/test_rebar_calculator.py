@@ -537,7 +537,9 @@ class TestCalculateFor:
         calculator_preset.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
         calculator_preset.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
 
-        calculator_preset.calculate_for(1.0, 28.0)  # must not raise or loop forever
+        calculator_preset.calculate_for(
+            1.0, 28.0, 150.0
+        )  # must not raise or loop forever
 
         assert calculator_preset.tensioned_reinforcement.set_required_area.called, (  # type: ignore[attr-defined]
             "tensioned reinforcement should be chosen during calculate_for()"
@@ -558,7 +560,7 @@ class TestCalculateFor:
         calc.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
         calc.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
 
-        calc.calculate_for(1.0, 28.0)
+        calc.calculate_for(1.0, 28.0, 150.0)
 
         calc.compressed_reinforcement.set_required_area.assert_not_called()  # type: ignore[attr-defined]
 
@@ -569,7 +571,7 @@ class TestCalculateFor:
         calculator_preset.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
         calculator_preset.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
 
-        calculator_preset.calculate_for(1.0, 28.0)
+        calculator_preset.calculate_for(1.0, 28.0, 150.0)
 
         assert calculator_preset.tensioned_reinforcement.moment_shift == 28.0, (
             "tensioned reinforcement should receive a_l (cm)"
@@ -577,6 +579,26 @@ class TestCalculateFor:
         assert calculator_preset.compressed_reinforcement.moment_shift == 28.0, (
             "compressed reinforcement should receive a_l (cm)"
         )
+
+    def test_propagates_design_shear_and_depth_to_reinforcements(
+        self, calculator_preset: RebarCalculator
+    ) -> None:
+        """calculate_for() hands V_d (kN) and the current d (cm) to both reinforcements."""
+        calculator_preset.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
+        calculator_preset.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
+
+        calculator_preset.calculate_for(1.0, 28.0, 150.0)
+
+        for reinforcement in (
+            calculator_preset.tensioned_reinforcement,
+            calculator_preset.compressed_reinforcement,
+        ):
+            assert reinforcement.design_shear == 150.0, (
+                "reinforcement should receive V_d (kN)"
+            )
+            assert reinforcement.effective_depth == calculator_preset.d, (
+                "reinforcement should receive the d it is chosen with (cm)"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -617,6 +639,7 @@ class TestStirrupDiameterInDepths:
 _CYCLE_MOMENT = -87.5  # kN.m
 _STIRRUP_DIAMETER = 0.63  # cm
 _MOMENT_SHIFT = 50.9  # cm
+_DESIGN_SHEAR = 150.0  # kN
 
 
 @pytest.fixture
@@ -644,7 +667,9 @@ class TestCalculateForCycle:
     """calculate_for settles on a self-consistent layout for a section that used to cycle."""
 
     def test_keeps_the_safe_layout(self, cycling_calculator: RebarCalculator) -> None:
-        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        cycling_calculator.calculate_for(
+            _STIRRUP_DIAMETER, _MOMENT_SHIFT, _DESIGN_SHEAR
+        )
         assert _tensioned_diameters(cycling_calculator) == [20.0, 20.0], (
             "2x20mm should be kept"
         )
@@ -652,7 +677,9 @@ class TestCalculateForCycle:
     def test_bars_cover_area_at_final_d(
         self, cycling_calculator: RebarCalculator
     ) -> None:
-        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        cycling_calculator.calculate_for(
+            _STIRRUP_DIAMETER, _MOMENT_SHIFT, _DESIGN_SHEAR
+        )
         assert (
             cycling_calculator.tensioned_reinforcement.area
             >= cycling_calculator.tensioned_rebar_area
@@ -662,8 +689,12 @@ class TestCalculateForCycle:
         self, cycling_calculator: RebarCalculator
     ) -> None:
         """A second pass (as in coordinate_span) must keep the same layout"""
-        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
-        cycling_calculator.calculate_for(_STIRRUP_DIAMETER, _MOMENT_SHIFT)
+        cycling_calculator.calculate_for(
+            _STIRRUP_DIAMETER, _MOMENT_SHIFT, _DESIGN_SHEAR
+        )
+        cycling_calculator.calculate_for(
+            _STIRRUP_DIAMETER, _MOMENT_SHIFT, _DESIGN_SHEAR
+        )
         assert _tensioned_diameters(cycling_calculator) == [20.0, 20.0], (
             "2x20mm should still be kept"
         )

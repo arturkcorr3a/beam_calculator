@@ -17,6 +17,7 @@ from src.pavement_elements.geometry_utils import Axis
 from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE
 from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rectangular_beam import RectangularBeam
+from src.structural_elements.support import Support
 
 if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam
@@ -221,6 +222,7 @@ class BeamCalculator:
         Returns:
             One support per span boundary, ordered left to right.
         """
+        # FIXME dont consider effective length caps on inner pillars
         axis = cast(Axis, self._beam.axis)
         positions = [0.0]
         for span in self._beam.spans:
@@ -276,7 +278,23 @@ class BeamCalculator:
             self._beam.height,
             steel,
             self.label,
+            supports=self._build_support_geometry(),
         )
+
+    def _build_support_geometry(self) -> list[Support]:
+        """Builds the extent of each pillar along the beam, ordered left to right.
+
+        Centers sit on the theoretical supports (cumulative effective lengths, cm); faces sit half the pillar's parallel extent to each side.
+        """
+        axis = cast(Axis, self._beam.axis)
+        centers = [0.0] + [end for _, _, end in self._span_ranges()]
+        supports: list[Support] = []
+        for center, pillar_id in zip(centers, self._support_pillar_ids(), strict=True):
+            half_width = (
+                self._pillar_registry[pillar_id].get_parallel_extent(axis) / 2
+            )  # cm
+            supports.append(Support(center, center - half_width, center + half_width))
+        return supports
 
     def _build_rebar_calculator(
         self,

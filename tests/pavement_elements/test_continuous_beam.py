@@ -15,6 +15,7 @@ from src.pavement_elements.geometry_utils import Alignment, Axis
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrups import Stirrups
@@ -879,6 +880,36 @@ class TestReport:
         assert "50.0" in report, "bar extent should be center ∓ anchorage lengths"
         assert "150.0" in report, "bar extent should be center ∓ anchorage lengths"
         assert "4.30" in report, "should state the layer height from the bottom"
+
+    def test_reports_no_clamps_as_dash(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        report = dimensioned_beam.report(registry_horizontal)
+        row = next(line for line in report.splitlines() if "2φ12.5 + 1φ10" in line)
+
+        assert "Clamps L" in report, "layer table should have a left clamps column"
+        assert "Clamps R" in report, "layer table should have a right clamps column"
+        assert row.split()[-2:] == ["—", "—"], (
+            "a layer without clamps shows — on both sides"
+        )
+
+    def test_reports_clamps(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        layer = dimensioned_beam.reinforcement[0].chosen_bars[0]
+        layer.set_clamps(
+            True, Clamps(diameter=12.5, quantity=1, width=15.0, length=74.34)
+        )
+        report = dimensioned_beam.report(registry_horizontal)
+        row = next(line for line in report.splitlines() if "2φ12.5 + 1φ10" in line)
+
+        assert row.split()[-3:] == ["1φ12.5", "l=74.3", "—"], (
+            "left clamps show quantity, diameter (mm) and length (cm); right shows —"
+        )
 
     def test_reports_no_reinforcement(
         self,

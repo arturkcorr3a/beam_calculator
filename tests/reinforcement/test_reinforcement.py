@@ -15,6 +15,7 @@ from src.reinforcement.reinforcement import (
 )
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
+from src.structural_elements.support import Support
 from tests.helpers import assert_approx
 
 
@@ -434,3 +435,82 @@ class TestEndSupportAnchorage:
             assert bar.right_length > 0, "Right anchorage should be calculated"
             assert bar.left_hook_enabled is False, "No left hook away from the ends"
             assert bar.right_hook_enabled is False, "No right hook away from the ends"
+
+
+_SHORT_BEAM_LENGTH = 60.0  # cm, too short to anchor any bar past a_l = 28 cm
+
+
+def _make_short_beam(supports: list[Support]) -> RectangularBeam:
+    """Build a 20x60 cm beam double, 60 cm long, over the given supports."""
+    beam = types.SimpleNamespace(
+        steel=Steel.CA50,
+        width=20.0,
+        height=60.0,
+        length=_SHORT_BEAM_LENGTH,
+        label="V1",
+        supports=supports,
+    )
+    return cast(RectangularBeam, beam)
+
+
+def _make_clamp_ready_reinforcement(beam: RectangularBeam) -> Reinforcement:
+    """Build a midspan bottom Reinforcement with d and V_d set for clamps."""
+    reinforcement = _make_reinforcement(beam, center_position=_SHORT_BEAM_LENGTH / 2)
+    reinforcement.effective_depth = 55.0  # cm
+    reinforcement.design_shear = 100.0  # kN
+    return reinforcement
+
+
+@pytest.fixture
+def wide_supports() -> list[Support]:
+    """Return 20 cm-wide supports at both ends of the short beam."""
+    return [
+        Support(0.0, -10.0, 10.0),
+        Support(
+            _SHORT_BEAM_LENGTH, _SHORT_BEAM_LENGTH - 10.0, _SHORT_BEAM_LENGTH + 10.0
+        ),
+    ]
+
+
+class TestClampPass:
+    """Clamps are only allowed once no option anchors without them."""
+
+    def test_anchorable_option_gets_no_clamps(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """Bars that anchor straight or hooked never get clamps."""
+        reinforcement.set_required_area(4.02)
+        for layer in reinforcement.chosen_bars:
+            assert layer.left_clamps is None, "No left clamps when bars anchor"
+            assert layer.right_clamps is None, "No right clamps when bars anchor"
+
+    def test_short_beam_uses_clamps(self, wide_supports: list[Support]) -> None:
+        """When no option anchors, the clamp pass chooses one with clamps on both sides."""
+        reinforcement = _make_clamp_ready_reinforcement(_make_short_beam(wide_supports))
+        reinforcement.set_required_area(2.0)
+        assert reinforcement.is_chosen, "An option should be chosen with clamps"
+        for layer in reinforcement.chosen_bars:
+            if not layer.bars:
+                continue
+            assert layer.left_clamps is not None, "Left side needs clamps"
+            assert layer.right_clamps is not None, "Right side needs clamps"
+
+    def test_short_beam_without_support_width_raises(self) -> None:
+        """Zero-width supports leave no room for clamps, so choosing still fails."""
+        supports = [
+            Support(0.0, 0.0, 0.0),
+            Support(_SHORT_BEAM_LENGTH, _SHORT_BEAM_LENGTH, _SHORT_BEAM_LENGTH),
+        ]
+        reinforcement = _make_clamp_ready_reinforcement(_make_short_beam(supports))
+        with pytest.raises(ValueError, match="No valid reinforcement combination"):
+            reinforcement.set_required_area(2.0)
+
+    def test_clamp_pass_requires_depth_and_shear(
+        self, wide_supports: list[Support]
+    ) -> None:
+        """Reaching the clamp pass without d or V_d raises instead of failing silently."""
+        reinforcement = _make_reinforcement(
+            _make_short_beam(wide_supports), center_position=_SHORT_BEAM_LENGTH / 2
+        )
+        with pytest.raises(ValueError, match="Effective depth and design shear"):
+            reinforcement.set_required_area(2.0)

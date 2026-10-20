@@ -1,6 +1,7 @@
 """Unit tests for src/calculators/anchorage_calculator.py — AnchorageCalculator."""
 
 import types
+from collections.abc import Iterator
 from typing import Any
 from unittest.mock import PropertyMock, patch
 
@@ -10,9 +11,11 @@ from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import _BeamMeta  # pyright: ignore[reportPrivateUsage]
+from src.structural_elements.support import Support
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -486,3 +489,138 @@ class TestRun:
             mock_cov.return_value = 3.0
             with pytest.raises(ValueError, match="even with hooks"):
                 ac.run(available_space=1.0, left=True)
+
+
+# ---------------------------------------------------------------------------
+# TestClampFallback
+# ---------------------------------------------------------------------------
+
+_BEAM_LENGTH = 500.0  # cm
+_TIGHT_SPACE = 20.0  # cm, too short for a 16 mm bar even with hooks
+_EFFECTIVE_COVERING = 2.5  # cm
+_STIRRUP_INNER_WIDTH = 15.0  # cm
+
+
+def _make_clamp_ac(
+    layer: Layer,
+    supports: list[Support],
+    effective_depth: float | None = 40.0,
+) -> AnchorageCalculator:
+    """Construct an AnchorageCalculator whose reinforcement stub can build clamps"""
+    reinforcement = types.SimpleNamespace(
+        chosen_bars=[layer],
+        beam=types.SimpleNamespace(
+            height=60.0, length=_BEAM_LENGTH, label="V1", supports=supports
+        ),
+        required_area=2.0,
+        area=2.0,
+        effective_depth=effective_depth,
+        design_shear=100.0,
+        stirrup_inner_width=_STIRRUP_INNER_WIDTH,
+        effective_covering=lambda: _EFFECTIVE_COVERING,
+    )
+    return AnchorageCalculator(
+        moment_shift=28.0,
+        steel=Steel.CA50,
+        layer_index=0,
+        reinforcement=reinforcement,  # pyright: ignore[reportArgumentType]
+        id="Test",
+    )
+
+
+@pytest.fixture
+def wide_supports() -> list[Support]:
+    """Return 20 cm-wide end supports, and a 15 cm-wide one at the right end"""
+    return [Support(0.0, -10.0, 10.0), Support(_BEAM_LENGTH, 495.0, 510.0)]
+
+
+@pytest.fixture
+def nominal_covering_3cm() -> Iterator[None]:
+    """Pin the nominal covering to 3 cm while the test runs"""
+    with patch.object(
+        _BeamMeta, "nominal_covering", new_callable=PropertyMock
+    ) as mock_cov:
+        mock_cov.return_value = 3.0
+        yield
+
+
+@pytest.mark.usefixtures("nominal_covering_3cm")
+class TestClampFallback:
+    """Tests for run() completing the anchorage with clamps at extremity supports."""
+
+    def test_clamps_not_allowed_still_raises(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        with pytest.raises(ValueError, match="even with hooks"):
+            ac.run(available_space=_TIGHT_SPACE, left=True)
+        assert layer_16mm_good.left_clamps is None, "No clamps without allow_clamp"
+
+    def test_returns_clamps_and_sets_them_on_layer(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        clamps = ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+        assert isinstance(clamps, Clamps), "run() should return the clamps"
+        assert layer_16mm_good.left_clamps is clamps, "Clamps stored on the left"
+        assert layer_16mm_good.right_clamps is None, "Right side untouched"
+        assert_approx(
+            clamps.width, _STIRRUP_INNER_WIDTH, "Clamp width = stirrup inner width"
+        )
+
+    def test_bars_hooked_over_whole_adjusted_space(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        """Bars take the hook-adjusted space: 20 + 3 - max(3, 4.8) = 18.2 cm"""
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+        for bar in layer_16mm_good.bars:
+            assert bar.left_hook_enabled, "Clamped bars keep their hooks"
+            assert_approx(bar.left_length, 18.2, "Left length = adjusted space (cm)")
+
+    def test_no_clamps_when_bars_anchor(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        clamps = ac.run(available_space=200.0, left=True, allow_clamp=True)
+        assert clamps is None, "No clamps when straight bars fit"
+        assert layer_16mm_good.left_clamps is None, "No clamps set on the layer"
+
+    def test_zero_width_support_raises(self, layer_16mm_good: Layer) -> None:
+        supports = [Support(0.0, 0.0, 0.0), Support(_BEAM_LENGTH, 500.0, 500.0)]
+        ac = _make_clamp_ac(layer_16mm_good, supports)
+        with pytest.raises(ValueError, match="No length inside the support"):
+            ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+
+    def test_interior_support_raises(self, layer_16mm_good: Layer) -> None:
+        supports = [Support(50.0, 40.0, 60.0), Support(_BEAM_LENGTH, 495.0, 510.0)]
+        ac = _make_clamp_ac(layer_16mm_good, supports)
+        with pytest.raises(ValueError, match="even with hooks"):
+            ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+
+    def test_missing_effective_depth_raises(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports, effective_depth=None)
+        with pytest.raises(ValueError, match="Effective depth and design shear"):
+            ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+
+
+class TestClampAvailableLength:
+    """Tests for the anchorage length inside the extremity support (cm)."""
+
+    def test_left_support(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        """Left: inner face 10 minus (outer face -10 + 2.5 cover) = 17.5 cm"""
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        ac.left = True
+        assert_approx(ac.clamp_available_length, 17.5, "Left length (cm)")
+
+    def test_right_support(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        """Right: (outer face 510 - 2.5 cover) minus inner face 495 = 12.5 cm"""
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        ac.left = False
+        assert_approx(ac.clamp_available_length, 12.5, "Right length (cm)")
