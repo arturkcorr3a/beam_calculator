@@ -1,4 +1,4 @@
-"""Read models of reinforcement: bar groups, layers and stirrups."""
+"""Read models of reinforcement: bar groups, layers, clamps and stirrups."""
 
 from dataclasses import dataclass
 
@@ -17,6 +17,23 @@ class BarGroup:
 
 
 @dataclass(frozen=True, slots=True)
+class ClampSpec:
+    """U-shaped clamps that complete a layer's anchorage at an extremity support
+
+    Attributes:
+        quantity: Number of clamps.
+        diameter_mm: Clamp bar diameter (mm).
+        length_cm: Total clamp length l_c (cm).
+        width_cm: Clamp width, equal to the stirrup inner width (cm).
+    """
+
+    quantity: int
+    diameter_mm: float
+    length_cm: float
+    width_cm: float
+
+
+@dataclass(frozen=True, slots=True)
 class BarLayer:
     """One layer of longitudinal bars
 
@@ -24,11 +41,15 @@ class BarLayer:
         index: Layer number; 1 is the closest to the tensioned face.
         y_cm: Height of the layer centroid, measured from the bottom face (cm).
         groups: Bar groups, largest diameter first.
+        left_clamps: Clamps at the left end; None when the bars anchor alone.
+        right_clamps: Clamps at the right end; None when the bars anchor alone.
     """
 
     index: int
     y_cm: float
     groups: tuple[BarGroup, ...]
+    left_clamps: ClampSpec | None = None
+    right_clamps: ClampSpec | None = None
 
 
 @dataclass(frozen=True, slots=True)

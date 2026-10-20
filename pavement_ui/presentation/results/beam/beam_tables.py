@@ -9,6 +9,7 @@ from pavement_ui.presentation.formatting.elements import (
 )
 from pavement_ui.presentation.formatting.numbers import fmt_number, fmt_signed
 from pavement_ui.presentation.formatting.reinforcement import (
+    fmt_clamps_cell,
     fmt_stirrup,
     fmt_tension_cell,
 )
@@ -42,6 +43,10 @@ POINT_COLUMNS: tuple[ColumnSpec[DesignPoint], ...] = (
     ColumnSpec(s.COL_AS_EF, lambda p: fmt_number(p.as_effective_cm2, 2), numeric=True),
     ColumnSpec(s.COL_TENSION, lambda p: fmt_tension_cell(p.tension_layers)),
     ColumnSpec(s.COL_COMPRESSION, lambda p: fmt_tension_cell(p.compression_layers)),
+    ColumnSpec(
+        s.COL_CLAMPS,
+        lambda p: fmt_clamps_cell(p.tension_layers, p.compression_layers),
+    ),
 )
 
 

@@ -25,6 +25,7 @@ from src.pavement_elements.geometry_utils import (
     y_coord,
 )
 from src.pavement_elements.pillar import Pillar
+from src.reinforcement.clamps import Clamps
 from src.reinforcement.reinforcement import Reinforcement
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -181,7 +182,7 @@ class ContinuousBeam:
     def report(self, pillar_registry: dict[str, Pillar]) -> str:
         """Describe the beam's final state after dimensioning
 
-        Lists the section and materials, the supporting pillars, each span's geometry, loads and stirrups, and the longitudinal reinforcement of every interest point, grouped by span. Positions along the beam (x) accumulate the spans' effective lengths from the first theoretical support; layer heights (y) are measured from the bottom edge.
+        Lists the section and materials, the supporting pillars, each span's geometry, loads and stirrups, and the longitudinal reinforcement of every interest point (with its hooks and anchorage clamps), grouped by span. Positions along the beam (x) accumulate the spans' effective lengths from the first theoretical support; layer heights (y) are measured from the bottom edge.
 
         Returns:
             Multi-line plain-text report.
@@ -338,6 +339,8 @@ class ContinuousBeam:
                     f"{center + bar.right_length:.1f}",
                     "yes" if bar.left_hook_enabled else "no",
                     "yes" if bar.right_hook_enabled else "no",
+                    self._describe_clamps(layer.left_clamps),
+                    self._describe_clamps(layer.right_clamps),
                 ]
             )
         headers = [
@@ -348,6 +351,8 @@ class ContinuousBeam:
             "To (cm)",
             "Hook L",
             "Hook R",
+            "Clamps L",
+            "Clamps R",
         ]
         return [summary, *self._format_table(headers, rows, "    ")]
 
@@ -375,6 +380,13 @@ class ContinuousBeam:
             f"{count}φ{diameter:g}"
             for diameter, count in sorted(counter.items(), reverse=True)
         )
+
+    @staticmethod
+    def _describe_clamps(clamps: Clamps | None) -> str:
+        """Summarize a side's anchorage clamps (e.g. '1φ12.5 l=74.3'), or '—' if none."""
+        if clamps is None:
+            return "—"
+        return f"{clamps.quantity}φ{clamps.diameter:g} l={clamps.length:.1f}"
 
     @staticmethod
     def _format_table(
