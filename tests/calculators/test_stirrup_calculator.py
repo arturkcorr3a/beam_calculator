@@ -145,6 +145,13 @@ class TestMaxSpacing:
             sc_high.max_spacing, 16.8, "max_spacing=0.3*d=16.8 cm for high shear (cm)"
         )
 
+    def test_high_shear_capped_at_20(self, beam: types.SimpleNamespace) -> None:
+        """max_spacing = min(0.3*d, 20) = 20 when d=80 and V_Sd > 0.67*V_Rd2 (cm)."""
+        # V_Rd2=486*80/56≈694.3 → 0.67*694.3≈465.2 < 500 → branch 0.3*d=24, capped at 20
+        sc_high = StirrupCalculator(beam, design_shear_force=500.0)  # pyright: ignore[reportArgumentType]
+        sc_high.effective_depth = 80.0
+        assert sc_high.max_spacing == 20.0, "max_spacing should be 20 cm (capped) (cm)"
+
 
 class TestCalculateMomentShift:
     """Tests for calculate_moment_shift() (cm)."""

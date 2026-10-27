@@ -119,7 +119,7 @@ class StirrupCalculator:
         if self.design_shear_force <= 0.67 * self.compressed_strut_resistance:
             max_spacing = min(0.6 * self.effective_depth, 30.0)  # cm
         else:
-            max_spacing = min(0.3 * self.effective_depth, 30.0)  # cm
+            max_spacing = min(0.3 * self.effective_depth, 20.0)  # cm
         log_operation(f"Maximum stirrup spacing s_max = {max_spacing:.2f} cm")
         return max_spacing
 
