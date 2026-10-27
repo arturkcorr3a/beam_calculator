@@ -515,7 +515,7 @@ class Reinforcement:
             bar.effective_covering(RectangularBeam.nominal_covering)
             for bar in optimal_reinforcement
         )
-        available_width = self.beam.width - 2 * max_effective_covering
+        available_width = self.beam.width - 2 * max_effective_covering # FIXME add stirrup diameter x2 to available width calculation
         is_there_enough_space = total_width_needed <= available_width
         log_property(
             f"Checking space for {len(optimal_reinforcement)} bars: "
