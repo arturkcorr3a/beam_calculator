@@ -256,18 +256,18 @@ class TestDistributeBars:
         self, reinforcement: Reinforcement
     ) -> None:
         """Smaller bars fill the room left in a layer before a new layer opens"""
-        # 15 cm available (20 - 2 x 2.5 cover), 3 cm spacing: 2φ16 + 3φ10
-        # needs 18.2 cm, but 2φ16 + 2φ10 fit (14.2 cm)
+        # 13 cm available (20 - 2 x (2.5 cover + 1.0 default stirrup)), 3 cm
+        # spacing: 2φ16 + 2φ10 needs 14.2 cm, but 2φ16 + 1φ10 fit (10.2 cm)
         bars = [Rebar(diameter_mm=16, steel=Steel.CA50) for _ in range(2)] + [
             Rebar(diameter_mm=10, steel=Steel.CA50) for _ in range(3)
         ]
         reinforcement.distribute_bars_in_layers(bars)
         layers = reinforcement.chosen_bars
-        assert sorted(_diameters(layers[0])) == [10, 10, 16, 16], (
-            "Layer 0 should hold both φ16 plus the two φ10 that still fit"
+        assert sorted(_diameters(layers[0])) == [10, 16, 16], (
+            "Layer 0 should hold both φ16 plus the one φ10 that still fits"
         )
-        assert _diameters(layers[1]) == [10], (
-            "Only the φ10 that does not fit should open layer 1"
+        assert _diameters(layers[1]) == [10, 10], (
+            "Only the φ10 that do not fit should open layer 1"
         )
 
     def test_three_groups_beyond_max_layers_raise_value_error(
@@ -291,6 +291,28 @@ class TestDistributeBars:
             match="Cannot distribute bars within the maximum number of layers",
         ):
             reinforcement.distribute_bars_in_layers(bars)
+
+
+class TestCheckForEnoughSpace:
+    """The layer width excludes the cover and the stirrup on both sides (cm)."""
+
+    # 3φ25 with 3 cm spacing needs 7.5 + 2 x 3 = 13.5 cm
+    THREE_25MM_BARS = [Rebar(diameter_mm=25, steel=Steel.CA50) for _ in range(3)]
+
+    def test_default_stirrup_reduces_available_width(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        # 20 - 2 x (2.5 cover + 1.0 default stirrup) = 13 cm available
+        assert not reinforcement.check_for_enough_space(self.THREE_25MM_BARS), (
+            "3φ25 should not fit once the default stirrup is discounted"
+        )
+
+    def test_uses_chosen_stirrup_diameter(self, reinforcement: Reinforcement) -> None:
+        reinforcement.stirrup_diameter = 0.63  # cm, φ6.3
+        # 20 - 2 x (2.5 cover + 0.63 stirrup) = 13.74 cm available
+        assert reinforcement.check_for_enough_space(self.THREE_25MM_BARS), (
+            "3φ25 should fit with the thinner chosen stirrup"
+        )
 
 
 def _layer(*diameters_mm: float) -> Layer:

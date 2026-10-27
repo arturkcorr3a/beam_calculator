@@ -307,14 +307,15 @@ class Reinforcement:
             return covering
         return max(bar.effective_covering(covering) for bar in first_layer_bars)
 
+    def _stirrup_diameter(self) -> float:
+        """Return the chosen stirrup diameter, or the default while none is chosen (cm)."""
+        if self.stirrup_diameter is not None:
+            return self.stirrup_diameter
+        return DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
+
     def _face_offset(self) -> float:
         """Return the distance (cm) from the section face to the stirrup's inner face."""
-        stirrup_diameter = (
-            self.stirrup_diameter
-            if self.stirrup_diameter is not None
-            else DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
-        )  # cm
-        return self.effective_covering() + stirrup_diameter
+        return self.effective_covering() + self._stirrup_diameter()
 
     @property
     def stirrup_inner_width(self) -> float:
@@ -515,7 +516,9 @@ class Reinforcement:
             bar.effective_covering(RectangularBeam.nominal_covering)
             for bar in optimal_reinforcement
         )
-        available_width = self.beam.width - 2 * max_effective_covering # FIXME add stirrup diameter x2 to available width calculation
+        available_width = self.beam.width - 2 * (
+            max_effective_covering + self._stirrup_diameter()
+        )
         is_there_enough_space = total_width_needed <= available_width
         log_property(
             f"Checking space for {len(optimal_reinforcement)} bars: "
