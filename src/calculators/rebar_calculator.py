@@ -55,6 +55,7 @@ class RebarCalculator:
         id: str = "",
         d: float | None = None,  # Optional effective depth parameter
         d_compressed: float | None = None,  # Optional effective depth parameter
+        moment_zeros: tuple[float, ...] = (),
     ):
         """Initialize the RebarCalculator with a rectangular beam and its design bending moment.
 
@@ -62,6 +63,7 @@ class RebarCalculator:
             beam: Rectangular beam section.
             bending_moment: Characteristic bending moment (kN.m).
             bending_moment_position: Position along the beam's length where the bending moment is applied (cm).
+            moment_zeros: Positions along the beam where the bending moment is zero (cm), used for the bars' anchorage.
         """
         self.preset_d = d
         self.preset_d_compressed = d_compressed
@@ -81,12 +83,14 @@ class RebarCalculator:
             is_bottom_reinforcement=is_bottom_tensioned,
             center_position=bending_moment_position,
             id=self.id,
+            moment_zeros=moment_zeros,
         )
         self.compressed_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_top_tensioned,
             center_position=bending_moment_position,
             id=self.id,
+            moment_zeros=moment_zeros,
         )
         self.stirrup_diameter: float | None = None  # cm, set by calculate_for
 

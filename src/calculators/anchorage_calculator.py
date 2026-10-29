@@ -14,6 +14,8 @@ from src.structural_elements.support import Support
 if TYPE_CHECKING:
     from src.reinforcement.reinforcement import Reinforcement  # noqa: TC004
 
+END_ZERO_TOLERANCE = 1e-3  # cm, zero-moment points this close to a beam end are ignored
+
 
 @logger_label("Anchorage Calculator - {logging_info}")
 class AnchorageCalculator:
@@ -162,15 +164,51 @@ class AnchorageCalculator:
 
     @property
     def total_anchorage_length(self) -> float:
-        """Calculate the bar length past the section, l_b,nec plus the moment shift a_l
+        """Calculate the bar length past the section, NBR 6118 - Section 18.3.2.3.1
+
+        The greatest between l_b,nec and the length past the zero-moment point,
+        plus the moment shift a_l.
 
         Returns:
             Length in cm.
         """
         # PAPER get ref
-        total = self.necessary_anchorage_length + self.moment_shift
-        log_property(f"Total Anchorage Length (l_b,nec + a_l) = {total:.2f} cm")
+        total = (
+            max(self.necessary_anchorage_length, self.length_past_zero_moment)
+            + self.moment_shift
+        )
+        log_property(
+            f"Total Anchorage Length (max(l_b,nec, l_M=0 + 10φ) + a_l) = {total:.2f} cm"
+        )
         return total
+
+    @property
+    def length_past_zero_moment(self) -> float:
+        """Calculate the length from the section to 10φ past the nearest zero-moment point on the current side, NBR 6118 - Section 18.3.2.3.1
+
+        Zero-moment points at the beam ends are ignored.
+
+        Returns:
+            Length in cm; zero when there is no zero-moment point inside the
+            beam on the current side.
+        """
+        center = self.reinforcement.center_position  # cm
+        beam_length = self.reinforcement.beam.length  # cm
+        inner_zeros = [
+            zero
+            for zero in self.reinforcement.moment_zeros
+            if END_ZERO_TOLERANCE < zero < beam_length - END_ZERO_TOLERANCE
+        ]
+        if self.left:
+            distances = [center - zero for zero in inner_zeros if zero < center]
+        else:
+            distances = [zero - center for zero in inner_zeros if zero > center]
+        if not distances:
+            return 0.0
+
+        length = min(distances) + 10 * (self.max_diameter / 10)
+        log_property(f"Length to zero moment + 10φ = {length:.2f} cm")
+        return length
 
     @property
     def design_bond_strength(self) -> float:

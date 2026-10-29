@@ -545,6 +545,7 @@ class TestRunBySpan:
                 (420.0, 25.0),
             ],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
+            moment_zeros=list[float],
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -555,6 +556,7 @@ class TestRunBySpan:
             structural_beam: object,
             moment: float,
             position: float,
+            moment_zeros: tuple[float, ...],
         ) -> types.SimpleNamespace:
             # the support's right side (300.01 cm) needs more steel than its left side
             return _make_calculator_stub(
@@ -628,6 +630,7 @@ class TestRunBySpan:
             moment_extremes_per_segment=lambda: [(150.0, 40.0)],
             moment_extreme_in_range=moment_extreme_in_range,
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
+            moment_zeros=list[float],
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -640,6 +643,7 @@ class TestRunBySpan:
             structural_beam: object,
             moment: float,
             position: float,
+            moment_zeros: tuple[float, ...],
         ) -> types.SimpleNamespace:
             built.append((position, moment))
             return _make_calculator_stub(position, tensioned_area=4.0)

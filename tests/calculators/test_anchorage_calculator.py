@@ -23,6 +23,10 @@ from tests.helpers import assert_approx
 # ---------------------------------------------------------------------------
 
 
+_STUB_BEAM_LENGTH = 500.0  # cm
+_STUB_CENTER = 250.0  # cm
+
+
 def _make_layer(
     diameter_mm: float,
     good_adherence: bool,
@@ -46,13 +50,16 @@ def _make_reinforcement(
     required_area: float,
     area: float,
     beam_height: float = 60.0,
+    moment_zeros: tuple[float, ...] = (),
 ) -> types.SimpleNamespace:
-    """Build a minimal reinforcement stub."""
+    """Build a minimal reinforcement stub, centered on a 500 cm beam."""
     return types.SimpleNamespace(
         chosen_bars=[layer],
-        beam=types.SimpleNamespace(height=beam_height),
+        beam=types.SimpleNamespace(height=beam_height, length=_STUB_BEAM_LENGTH),
         required_area=required_area,
         area=area,
+        center_position=_STUB_CENTER,
+        moment_zeros=moment_zeros,
     )
 
 
@@ -68,9 +75,12 @@ def _make_ac(
     area: float,
     beam_height: float = 60.0,
     steel: Steel = Steel.CA50,
+    moment_zeros: tuple[float, ...] = (),
 ) -> AnchorageCalculator:
     """Construct AnchorageCalculator with minimal stubs."""
-    reinforcement = _make_reinforcement(layer, required_area, area, beam_height)
+    reinforcement = _make_reinforcement(
+        layer, required_area, area, beam_height, moment_zeros
+    )
     return AnchorageCalculator(
         moment_shift=28.0,
         steel=steel,
@@ -380,6 +390,60 @@ class TestTotalAnchorageLength:
             "total anchorage length should be l_b_nec + a_l (cm)",
         )
 
+    @pytest.mark.parametrize(
+        ("left", "zero"), [(True, 100.0), (False, 400.0)], ids=["left", "right"]
+    )
+    def test_far_zero_governs(
+        self, layer_16mm_good: Layer, left: bool, zero: float
+    ) -> None:
+        """A zero 150 cm away governs: 150 + 10φ + a_l (cm)."""
+        ac = _make_ac(layer_16mm_good, 2.0, 2.0, moment_zeros=(zero,))
+        ac.left = left
+        assert_approx(
+            ac.total_anchorage_length,
+            150.0 + 10 * 1.6 + 28.0,
+            "a far zero-moment point should govern over l_b,nec (cm)",
+        )
+
+    def test_near_zero_keeps_necessary_length(self, ac: AnchorageCalculator) -> None:
+        """A zero 5 cm away gives 5 + 10φ < l_b,nec, so l_b,nec governs (cm)."""
+        ac.reinforcement.moment_zeros = (245.0,)
+        ac.left = True
+        assert_approx(
+            ac.total_anchorage_length,
+            ac.necessary_anchorage_length + 28.0,
+            "l_b,nec should govern over a near zero-moment point (cm)",
+        )
+
+    def test_uses_nearest_zero_on_the_anchored_side(
+        self, layer_16mm_good: Layer
+    ) -> None:
+        """Only the nearest zero on the current side counts (cm)."""
+        ac = _make_ac(
+            layer_16mm_good, 2.0, 2.0, moment_zeros=(50.0, 100.0, 300.0, 450.0)
+        )
+        ac.left = True
+        assert_approx(
+            ac.length_past_zero_moment,
+            150.0 + 10 * 1.6,
+            "left side should use the zero at 100 cm (cm)",
+        )
+        ac.left = False
+        assert_approx(
+            ac.length_past_zero_moment,
+            50.0 + 10 * 1.6,
+            "right side should use the zero at 300 cm (cm)",
+        )
+
+    def test_ignores_zeros_at_beam_ends(self, layer_16mm_good: Layer) -> None:
+        """Zeros at x = 0 and x = L are skipped, leaving l_b,nec + a_l (cm)."""
+        ac = _make_ac(layer_16mm_good, 2.0, 2.0, moment_zeros=(0.0, _STUB_BEAM_LENGTH))
+        for left in (True, False):
+            ac.left = left
+            assert ac.length_past_zero_moment == 0.0, (
+                f"end zeros should be ignored (left={left})"
+            )
+
 
 # ---------------------------------------------------------------------------
 # TestGetAdjustedAvailableSpaceForHooks
@@ -514,6 +578,8 @@ def _make_clamp_ac(
         ),
         required_area=2.0,
         area=2.0,
+        center_position=_BEAM_LENGTH / 2,
+        moment_zeros=(),
         effective_depth=effective_depth,
         design_shear=100.0,
         stirrup_inner_width=_STIRRUP_INNER_WIDTH,

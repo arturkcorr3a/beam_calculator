@@ -74,6 +74,7 @@ def design_simply_supported_beam(section: RectangularBeam) -> SimplySupportedBea
         bending_moment=moment,
         bending_moment_position=position,
         id=section.label,
+        moment_zeros=tuple(analysis.moment_zeros()),
     )
     coordinate_span([calculator], stirrups)
 

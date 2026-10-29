@@ -114,6 +114,20 @@ class TestStoredMoment:
             "bending_moment_position should be the input position (cm)"
         )
 
+    def test_passes_moment_zeros_to_reinforcements(self, beam_mock: Mock) -> None:
+        calc = RebarCalculator(
+            beam=beam_mock,
+            bending_moment=272,
+            bending_moment_position=250.0,
+            moment_zeros=(100.0, 400.0),
+        )
+        assert calc.tensioned_reinforcement.moment_zeros == (100.0, 400.0), (
+            "tensioned reinforcement should receive the zero-moment positions (cm)"
+        )
+        assert calc.compressed_reinforcement.moment_zeros == (100.0, 400.0), (
+            "compressed reinforcement should receive the zero-moment positions (cm)"
+        )
+
     def test_keeps_negative_sign(self, beam_mock: Mock) -> None:
         hogging = RebarCalculator(
             beam=beam_mock, bending_moment=-80, bending_moment_position=0.0

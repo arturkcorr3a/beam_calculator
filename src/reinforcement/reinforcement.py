@@ -36,6 +36,7 @@ class Reinforcement:
         is_bottom_reinforcement: bool,
         center_position: float,
         id: str = "",
+        moment_zeros: tuple[float, ...] = (),
     ):
         self.beam = beam
         self.steel = beam.steel
@@ -44,6 +45,7 @@ class Reinforcement:
         self.rebar_choice_options: tuple[tuple[Rebar, ...], ...] = ()
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
+        self.moment_zeros = moment_zeros  # cm, positions where M = 0
         self.moment_shift: float | None = None  # cm, a_l
         self.stirrup_diameter: float | None = None  # cm
         self.effective_depth: float | None = None  # cm, d, used by clamps
