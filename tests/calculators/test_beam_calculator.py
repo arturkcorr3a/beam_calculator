@@ -546,6 +546,7 @@ class TestRunBySpan:
             ],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
+            bending_moment=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -557,6 +558,7 @@ class TestRunBySpan:
             moment: float,
             position: float,
             moment_zeros: tuple[float, ...],
+            support_moments: tuple[float, ...],
         ) -> types.SimpleNamespace:
             # the support's right side (300.01 cm) needs more steel than its left side
             return _make_calculator_stub(
@@ -631,6 +633,7 @@ class TestRunBySpan:
             moment_extreme_in_range=moment_extreme_in_range,
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
+            bending_moment=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -644,6 +647,7 @@ class TestRunBySpan:
             moment: float,
             position: float,
             moment_zeros: tuple[float, ...],
+            support_moments: tuple[float, ...],
         ) -> types.SimpleNamespace:
             built.append((position, moment))
             return _make_calculator_stub(position, tensioned_area=4.0)
@@ -684,6 +688,56 @@ class TestRunBySpan:
             coordinated[1][0], 300.01, "point at the span's greatest moment (cm)"
         )
         assert built[-1][1] == -25.0, "the point keeps the moment's sign (kN.m)"
+
+
+    def test_passes_support_moments_to_calculators(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each calculator gets the moment at every support center, left to right (kN.m)."""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+        moments_by_position = {0.0: -10.0, 300.0: -60.0, 500.0: -5.0}  # kN.m
+        analysis = types.SimpleNamespace(
+            moment_extremes_per_segment=lambda: [(150.0, 40.0), (420.0, 25.0)],
+            shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
+            moment_zeros=list[float],
+            bending_moment=moments_by_position.__getitem__,
+        )
+
+        def analyse_beam(*args: object) -> types.SimpleNamespace:
+            return analysis
+
+        received: list[tuple[float, ...]] = []
+
+        def build_rebar_calculator(
+            self: BeamCalculator,
+            structural_beam: object,
+            moment: float,
+            position: float,
+            moment_zeros: tuple[float, ...],
+            support_moments: tuple[float, ...],
+        ) -> types.SimpleNamespace:
+            received.append(support_moments)
+            return _make_calculator_stub(position, tensioned_area=4.0)
+
+        def do_nothing(*args: object) -> None:
+            return None
+
+        monkeypatch.setattr(beam_calculator, "analyse_beam", analyse_beam)
+        monkeypatch.setattr(
+            BeamCalculator, "_build_rebar_calculator", build_rebar_calculator
+        )
+        monkeypatch.setattr(BeamCalculator, "_store_reinforcement", do_nothing)
+        monkeypatch.setattr(BeamCalculator, "_verify_deformation", do_nothing)
+        monkeypatch.setattr(beam_calculator, "coordinate_span", do_nothing)
+        spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
+        bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
+
+        bc.run()
+
+        assert received == [(-10.0, -60.0, -5.0)] * 2, (
+            "every calculator should get the moment at each support center (kN.m)"
+        )
 
 
 # ---------------------------------------------------------------------------

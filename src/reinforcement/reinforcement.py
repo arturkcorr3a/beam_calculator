@@ -37,7 +37,24 @@ class Reinforcement:
         center_position: float,
         id: str = "",
         moment_zeros: tuple[float, ...] = (),
+        support_moments: tuple[float, ...] = (),
+        span_moment: float | None = None,
     ):
+        """Initialize an empty longitudinal reinforcement
+
+        Args:
+            beam: Rectangular beam section.
+            is_bottom_reinforcement: Whether the bars sit on the bottom face.
+            center_position: Position of the interest point along the beam (cm).
+            moment_zeros: Positions along the beam where the bending moment is
+                zero (cm), used for the bars' anchorage.
+            support_moments: Characteristic bending moment on each of the beam's
+                supports (kN.m), aligned with ``beam.supports``; missing ones
+                are read as zero.
+            span_moment: Characteristic positive moment of the span (kN.m). Set
+                only on the bottom bars of a positive-moment point; enables the
+                support anchorage checks.
+        """
         self.beam = beam
         self.steel = beam.steel
         self.chosen_bars: tuple[Layer, ...] = self._build_empty_layers()
@@ -46,11 +63,20 @@ class Reinforcement:
         self.is_bottom_reinforcement = is_bottom_reinforcement
         self.center_position = center_position
         self.moment_zeros = moment_zeros  # cm, positions where M = 0
+        self.support_moments = support_moments  # kN.m, characteristic, signed
+        self.span_moment = span_moment  # kN.m, characteristic, M_vão
         self.moment_shift: float | None = None  # cm, a_l
         self.stirrup_diameter: float | None = None  # cm
         self.effective_depth: float | None = None  # cm, d, used by clamps
+        self.stress_block_depth: float | None = None  # cm, y, used by supports
         self.design_shear: float | None = None  # kN, V_d, used by clamps
         self.id = id
+
+    def support_moment(self, support_index: int) -> float:
+        """Return the characteristic moment on a support (kN.m), zero if not given"""
+        if support_index < len(self.support_moments):
+            return self.support_moments[support_index]
+        return 0.0
 
     def _build_empty_layers(self) -> tuple[Layer, ...]:
         """Builds a tuple of empty layers for the reinforcement, based on the maximum number of layers defined in the configuration."""

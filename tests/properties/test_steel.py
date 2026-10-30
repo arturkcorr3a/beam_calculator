@@ -165,6 +165,49 @@ class TestBondCoefficient:
         )
 
 
+class TestBendPinDiameter:
+    """Tests for the bending pin diameter (D) of hooks, in cm (Table 9.1)."""
+
+    def test_ca25_small_bar(self, steel_ca25: Steel) -> None:
+        assert_approx(
+            steel_ca25.bend_pin_diameter(10),
+            4.0,
+            "For CA-25 bars under 20 mm, D should be 4φ (4.0 cm for 10 mm)",
+        )
+
+    def test_ca25_large_bar(self, steel_ca25: Steel) -> None:
+        assert_approx(
+            steel_ca25.bend_pin_diameter(20),
+            10.0,
+            "For CA-25 bars of 20 mm or more, D should be 5φ (10.0 cm for 20 mm)",
+        )
+
+    def test_ca50_small_bar(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.bend_pin_diameter(16),
+            8.0,
+            "For CA-50 bars under 20 mm, D should be 5φ (8.0 cm for 16 mm)",
+        )
+
+    def test_ca50_large_bar(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.bend_pin_diameter(20),
+            16.0,
+            "For CA-50 bars of 20 mm or more, D should be 8φ (16.0 cm for 20 mm)",
+        )
+
+    def test_ca60_small_bar(self, steel_ca60: Steel) -> None:
+        assert_approx(
+            steel_ca60.bend_pin_diameter(10),
+            6.0,
+            "For CA-60 bars under 20 mm, D should be 6φ (6.0 cm for 10 mm)",
+        )
+
+    def test_ca60_large_bar_raises(self, steel_ca60: Steel) -> None:
+        with pytest.raises(ValueError):
+            steel_ca60.bend_pin_diameter(20)
+
+
 class TestAvailableSizes:
     """Tests for the available rebar diameters (mm)."""
 

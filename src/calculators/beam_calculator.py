@@ -54,6 +54,10 @@ class BeamCalculator:
 
         interest_points = self._interest_points(analysis)
         moment_zeros = tuple(analysis.moment_zeros())  # cm
+        support_moments = tuple(
+            analysis.bending_moment(support.center)
+            for support in structural_beam.supports
+        )  # kN.m
         self._build_stirrups(structural_beam, analysis)
 
         results: list[tuple[float, RebarCalculator]] = []
@@ -74,7 +78,11 @@ class BeamCalculator:
                 log_operation(f"Interest point: {moment:.2f} kN.m at {position:.2f} cm")
                 calculators.append(
                     self._build_rebar_calculator(
-                        structural_beam, moment, position, moment_zeros
+                        structural_beam,
+                        moment,
+                        position,
+                        moment_zeros,
+                        support_moments,
                     )
                 )
             coordinate_span(calculators, span.stirrups)
@@ -305,6 +313,7 @@ class BeamCalculator:
         bending_moment: float,
         bending_moment_position: float,
         moment_zeros: tuple[float, ...],
+        support_moments: tuple[float, ...],
     ) -> RebarCalculator:
         """Builds the longitudinal reinforcement calculator for a single interest point (dimensioned later by ``coordinate_span``).
 
@@ -314,6 +323,8 @@ class BeamCalculator:
             bending_moment_position: Position of the point along the beam (cm).
             moment_zeros: Positions along the beam where the bending moment is
                 zero (cm), used for the bars' anchorage.
+            support_moments: Characteristic bending moment on each support
+                (kN.m), left to right, used for the support anchorage checks.
         """
         return RebarCalculator(
             beam=structural_beam,
@@ -321,6 +332,7 @@ class BeamCalculator:
             bending_moment_position=bending_moment_position,
             id=self.label,
             moment_zeros=moment_zeros,
+            support_moments=support_moments,
         )
 
     def _store_reinforcement(self, calculator: RebarCalculator) -> None:
