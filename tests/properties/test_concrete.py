@@ -44,8 +44,10 @@ class TestSafetyFactor:
 
     def test_gamma_c(self) -> None:
         expected_gamma_c = 1.4
-        assert GAMMA_C == expected_gamma_c, (
-            "The concrete safety factor (gamma_c) should be 1.4"
+        assert_approx(
+            GAMMA_C,
+            expected_gamma_c,
+            "The concrete safety factor (gamma_c) should be 1.4",
         )
 
 

@@ -207,9 +207,38 @@ class TestNominalCovering:
         pavement_concrete: Concrete,
         expected: float,
     ) -> None:
+        # Small aggregate (1.0 cm floor), so Table 7.2 governs
+        monkeypatch.setattr(APP_CONFIG, "max_aggregate_size", 0.95)
         monkeypatch.setattr(APP_CONFIG, "exposure_class", exposure_class)
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", pavement_concrete)
         assert RectangularBeam.nominal_covering == expected, (
             f"Exposure class {exposure_class} with {pavement_concrete} "
             f"should give {expected} cm nominal covering"
+        )
+
+    @pytest.mark.parametrize(
+        ("exposure_class", "pavement_concrete", "max_aggregate_size", "expected"),
+        [
+            # class 1, C25: table 2.0 cm, 2.5 cm aggregate needs 2.5 cm
+            (ExposureClass.WEAK, Concrete.C25, 2.5, 2.5),
+            # class 2, C30: table 2.5 cm, 3.8 cm aggregate needs 3.5 cm
+            (ExposureClass.MODERATE, Concrete.C30, 3.8, 3.5),
+            # class 3, C30: table 4.0 cm beats the 3.5 cm from a 3.8 cm aggregate
+            (ExposureClass.SEVERE, Concrete.C30, 3.8, 4.0),
+        ],
+    )
+    def test_covering_raised_by_aggregate(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        exposure_class: ExposureClass,
+        pavement_concrete: Concrete,
+        max_aggregate_size: float,
+        expected: float,
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "max_aggregate_size", max_aggregate_size)
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", exposure_class)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", pavement_concrete)
+        assert RectangularBeam.nominal_covering == expected, (
+            f"Exposure class {exposure_class} with {pavement_concrete} and a "
+            f"{max_aggregate_size} cm aggregate should give {expected} cm nominal covering"
         )

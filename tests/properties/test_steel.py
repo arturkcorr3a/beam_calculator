@@ -26,8 +26,10 @@ class TestSafetyFactor:
 
     def test_gamma_s(self) -> None:
         expected_gamma_s = 1.15
-        assert GAMMA_S == expected_gamma_s, (
-            "The steel safety factor (gamma_s) should be 1.15"
+        assert_approx(
+            GAMMA_S,
+            expected_gamma_s,
+            "The steel safety factor (gamma_s) should be 1.15",
         )
 
 

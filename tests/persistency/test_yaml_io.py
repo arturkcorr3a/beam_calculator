@@ -35,7 +35,7 @@ from src.persistency.schema import BeamDict, PavementDict, PillarDict, SlabDict
 
 
 @pytest.fixture(autouse=True)
-def restore_app_config() -> Generator[None, None, None]:
+def restore_app_config() -> Generator[None]:
     """Snapshot and restore APP_CONFIG around every test.
 
     load_pavement mutates the global APP_CONFIG singleton in place.  Without

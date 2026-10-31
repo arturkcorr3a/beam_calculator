@@ -4,7 +4,7 @@ import inspect
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import datetime
-from enum import Enum, IntEnum
+from enum import IntEnum, StrEnum
 from pathlib import Path
 from typing import IO, TypeVar
 
@@ -22,7 +22,7 @@ class LogLevel(IntEnum):
     DISABLED = 7
 
 
-class LogOutput(str, Enum):
+class LogOutput(StrEnum):
     CONSOLE = "console"
     FILE = "file"
     BOTH = "both"

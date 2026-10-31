@@ -217,6 +217,32 @@ class TestIsConcreteGreaterThanMinimum:
         )
 
 
+class TestMinimumNominalCoverForAggregate:
+    """Tests for the minimum nominal cover set by the maximum aggregate size."""
+
+    @pytest.mark.parametrize(
+        ("max_aggregate_size", "expected"),
+        [
+            (0.95, 1.0),  # 0.79 cm rounded up to 1.0 cm
+            (1.9, 2.0),  # 1.58 cm rounded up to 2.0 cm
+            (2.4, 2.0),  # exactly 2.0 cm, no rounding
+            (2.5, 2.5),  # 2.08 cm rounded up to 2.5 cm
+            (3.0, 2.5),  # exactly 2.5 cm, no rounding
+            (3.2, 3.0),  # 2.67 cm rounded up to 3.0 cm
+        ],
+    )
+    def test_cover_rounded_up_to_half_centimeter(
+        self, config: AppConfig, max_aggregate_size: float, expected: float
+    ) -> None:
+        config.max_aggregate_size = max_aggregate_size
+        assert_approx(
+            config.minimum_nominal_cover_for_aggregate(),
+            expected,
+            f"A {max_aggregate_size} cm aggregate should require a {expected} cm "
+            "nominal cover",
+        )
+
+
 class TestValidateConcreteClass:
     """Tests for rejecting pavement concrete below the exposure-class minimum."""
 

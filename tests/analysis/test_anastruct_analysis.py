@@ -140,7 +140,9 @@ class TestMomentExtremesPerSegment:
         extremes = two_span_beam.moment_extremes_per_segment()
         assert len(extremes) == 3, "Four boundary points create three segments"
         expected = [(112.5, 6.328125), (300.0, -11.25), (487.5, 6.328125)]
-        for (position, moment), (exp_position, exp_moment) in zip(extremes, expected):
+        for (position, moment), (exp_position, exp_moment) in zip(
+            extremes, expected, strict=True
+        ):
             assert_approx(position, exp_position, "Extreme position (cm)", abs_tol=0.01)
             assert_approx(moment, exp_moment, "Extreme moment (kN.m)", abs_tol=0.01)
 
@@ -213,7 +215,7 @@ class TestPositionsForMoment:
         second = (11.25 + root) / 10 * 100  # cm
         expected = [first, second, 600.0 - second, 600.0 - first]
         assert len(positions) == 4, "M = 5 kN.m is reached twice in each span"
-        for actual, exp in zip(positions, expected):
+        for actual, exp in zip(positions, expected, strict=True):
             assert_approx(actual, exp, "Crossing of M = 5 kN.m (cm)", abs_tol=0.01)
 
     def test_unreachable_target(self, two_span_beam: AnaStructBeamAnalysis) -> None:

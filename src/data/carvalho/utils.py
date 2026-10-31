@@ -1,6 +1,7 @@
 """Shared interpolation utilities for Carvalho table lookups."""
 
-from typing import Protocol, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import Protocol
 
 
 class HasAspectRatio(Protocol):
@@ -8,10 +9,7 @@ class HasAspectRatio(Protocol):
     def aspect_ratio(self) -> float: ...
 
 
-E = TypeVar("E", bound=HasAspectRatio)
-
-
-def find_bracket_and_fraction(
+def find_bracket_and_fraction[E: HasAspectRatio](
     entries: Sequence[E],
     lambda_val: float,
 ) -> tuple[E, E, float]:

@@ -155,7 +155,7 @@ def _beam_from_dict(data: BeamDict, remap: Callable[[str], str]) -> ContinuousBe
     except ValueError:
         raise ValueError(
             f"malformed pavement file: invalid beam alignment '{alignment_value}'"
-        )
+        ) from None
 
     return ContinuousBeam(
         pillar_ids=[

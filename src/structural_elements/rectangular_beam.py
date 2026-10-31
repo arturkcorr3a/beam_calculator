@@ -16,7 +16,7 @@ class _BeamMeta(type):
     @property
     def nominal_covering(self) -> float:
         """
-        Returns the nominal covering (cm) for the beam with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
+        Returns the nominal covering (cm) for the beam with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4. The table value gets the discount for concrete stronger than the minimum and is then raised, if needed, to the minimum cover allowed by the maximum aggregate size (ABNT NBR 6118 - Section 7.4.7.6).
         """
         exposure_class = APP_CONFIG.exposure_class
         fck = APP_CONFIG.pavement_concrete.value
@@ -27,15 +27,20 @@ class _BeamMeta(type):
 
         match exposure_class:
             case ExposureClass.WEAK:
-                return 2.5 - discount_for_concrete_greater_than_minimum
+                table_cover = 2.5
             case ExposureClass.MODERATE:
-                return 3.0 - discount_for_concrete_greater_than_minimum
+                table_cover = 3.0
             case ExposureClass.SEVERE:
-                return 4.0 - discount_for_concrete_greater_than_minimum
+                table_cover = 4.0
             case ExposureClass.VERY_SEVERE:
-                return 5.0 - discount_for_concrete_greater_than_minimum
+                table_cover = 5.0
             case _:
                 assert_never(exposure_class)
+
+        return max(
+            table_cover - discount_for_concrete_greater_than_minimum,
+            APP_CONFIG.minimum_nominal_cover_for_aggregate(),
+        )  # cm — ABNT NBR 6118 - Table 7.2 and Section 7.4.7.6
 
 
 @logger_label("Structural {label}")
