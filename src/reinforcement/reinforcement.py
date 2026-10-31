@@ -361,17 +361,64 @@ class Reinforcement:
         layer_centroid, layer_weight = self.get_layer_relative_centroid_with_weight(
             layer_index
         )
-
-        offset = 0.0
-        for i in range(layer_index):
-            max_dia = max(b.diameter_mm for b in self.chosen_bars[i].bars) / 10
-            offset += self.get_vertical_spacing(max_dia) + max_dia
-
-        layer_centroid_from_closest_edge = layer_centroid + offset
+        layer_centroid_from_closest_edge = layer_centroid + self._layer_offset(
+            layer_index
+        )
         log_property(
             f"Absolute Centroid for Layer {layer_index}: {layer_centroid_from_closest_edge:.2f} cm from the {'bottom' if self.is_bottom_reinforcement else 'top'} stirrup's inner face"
         )
         return layer_centroid_from_closest_edge, layer_weight
+
+    def _layer_offset(self, layer_index: int) -> float:
+        """Return the distance from the stirrup's inner face to the near edge of a layer (cm)
+
+        Each previous layer adds its largest bar diameter and the minimum vertical spacing for that diameter.
+        """
+        offset = 0.0
+        for i in range(layer_index):
+            max_dia = max(b.diameter_mm for b in self.chosen_bars[i].bars) / 10
+            offset += self.get_vertical_spacing(max_dia) + max_dia
+        return offset
+
+    def _clamps_stack_height(self, diameter_mm: float, quantity: int) -> float:
+        """Return the height from the stirrup's inner face to the far edge of the clamp rows (cm)
+
+        Each clamp is a row with its two legs at the stirrup's inner corners. The rows are stacked after the last non-empty layer, with the minimum vertical spacing between rows; the spacing to the last layer uses the larger of the two diameters.
+
+        Args:
+            diameter_mm: Clamp bar diameter φ (mm).
+            quantity: Number of clamps, one row each.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.2
+        """
+        last_index = max(i for i, layer in enumerate(self.chosen_bars) if layer.bars)
+        last_diameter = (
+            max(b.diameter_mm for b in self.chosen_bars[last_index].bars) / 10
+        )  # cm
+        diameter = diameter_mm / 10  # cm
+        height = self._layer_offset(last_index) + last_diameter  # cm
+        height += self.get_vertical_spacing(max(last_diameter, diameter)) + diameter
+        height += (quantity - 1) * (self.get_vertical_spacing(diameter) + diameter)
+        return height
+
+    def clamps_fit(self, diameter_mm: float, quantity: int) -> bool:
+        """Check whether the clamps fit in the reinforced half of the section
+
+        The clamp rows, stacked after the layers, must stay between the stirrup's inner face at the reinforced side and the section's mid-height.
+
+        Args:
+            diameter_mm: Clamp bar diameter φ (mm).
+            quantity: Number of clamps, one row each.
+        """
+        height = self._clamps_stack_height(diameter_mm, quantity)  # cm
+        room = self.beam.height / 2 - self._face_offset()  # cm
+        does_fit = height <= room
+        log_property(
+            f"Clamps {quantity}x{diameter_mm:g}mm: stack height = {height:.2f} cm, "
+            f"room up to mid-height = {room:.2f} cm, Fits: {'Yes' if does_fit else 'No'}"
+        )
+        return does_fit
 
     def _set_layer_y_centroid_position(self, layer_index: int) -> None:
         """

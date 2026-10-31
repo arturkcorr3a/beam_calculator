@@ -64,6 +64,14 @@ class Layer:
         else:
             self.right_clamps = clamps
 
+    def get_clamps(self, left: bool) -> Clamps | None:
+        """Return the clamps on one side of the layer, or None if there are none
+
+        Args:
+            left: Whether to read the left side; otherwise the right.
+        """
+        return self.left_clamps if left else self.right_clamps
+
     def get_bar_diameters_for_print(self) -> str:
         """Returns a string representation of the bar diameters in the layer."""
         return ", ".join(f"{bar.diameter_mm}mm" for bar in self.bars)

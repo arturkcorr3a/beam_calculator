@@ -92,11 +92,41 @@ class AnchorageCalculator:
 
         log_operation("Not enough space for anchorage with hooks; Adding clamps...")
         self.layer.set_anchorage_length(hooked_available_space, self.left)
+        return self._add_clamps(clamp_available_length, self.necessary_anchorage_length)
+
+    def _add_clamps(
+        self, clamp_available_length: float, necessary_length: float
+    ) -> Clamps:
+        """Choose the clamps for the current side and share them with the side's other layers
+
+        One set of clamps serves every layer on a side. The current layer gets the chosen clamps, and so does every layer that already had clamps on this side, so a larger choice replaces the previous one.
+
+        Args:
+            clamp_available_length: Length available for the clamps (cm).
+            necessary_length: Anchorage length the bars would need (cm).
+
+        Returns:
+            The clamps set on the side's layers.
+
+        Raises:
+            ValueError: Propagated from the clamp calculator if the reinforcement's effective depth or design shear is not set, or if no clamp arrangement fits.
+        """
         clamps = self._build_clamp_calculator(
-            clamp_available_length, self.necessary_anchorage_length
+            clamp_available_length, necessary_length
         ).run()
-        self.layer.set_clamps(self.left, clamps)
+        for layer in self.reinforcement.chosen_bars:
+            if layer is self.layer or layer.get_clamps(self.left) is not None:
+                layer.set_clamps(self.left, clamps)
         return clamps
+
+    @property
+    def _side_clamps(self) -> Clamps | None:
+        """Return the clamps already set on the current side by any layer, or None"""
+        for layer in self.reinforcement.chosen_bars:
+            clamps = layer.get_clamps(self.left)
+            if clamps is not None:
+                return clamps
+        return None
 
     def _build_clamp_calculator(
         self, clamp_available_length: float, necessary_length: float
@@ -128,6 +158,8 @@ class AnchorageCalculator:
             necessary_length=necessary_length,
             design_bond_strength=self.design_bond_strength,
             stirrup_inner_width=self.reinforcement.stirrup_inner_width,
+            clamps_fit=self.reinforcement.clamps_fit,
+            existing_clamps=self._side_clamps,
         )
 
     @property
@@ -285,9 +317,7 @@ class AnchorageCalculator:
 
         log_operation("Not enough space for 10φ past the face; Adding clamps...")
         self.layer.set_anchorage_length(hooked_space, self.left)
-        clamps = self._build_clamp_calculator(clamp_available_length, past_face).run()
-        self.layer.set_clamps(self.left, clamps)
-        return clamps
+        return self._add_clamps(clamp_available_length, past_face)
 
     def _run_outer_support_anchorage(
         self, support: Support, face_distance: float, allow_clamp: bool
@@ -341,9 +371,7 @@ class AnchorageCalculator:
             "Not enough space inside the support with hooks; Adding clamps..."
         )
         self.layer.set_anchorage_length(face_distance + space, self.left)
-        clamps = self._build_clamp_calculator(room, past_face).run()
-        self.layer.set_clamps(self.left, clamps)
-        return clamps
+        return self._add_clamps(room, past_face)
 
     def _check_support_area(self, support_index: int) -> None:
         """Check that the bars carried to the support cover part of the span's area

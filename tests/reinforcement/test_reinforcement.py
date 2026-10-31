@@ -229,6 +229,67 @@ class TestLayerCentroidPosition:
         )
 
 
+def _place_layers(reinforcement: Reinforcement, *layers: tuple[float, ...]) -> None:
+    """Put bars of the given diameters (mm) straight into the first layers"""
+    for layer, diameters in zip(reinforcement.chosen_bars, layers, strict=False):
+        layer.bars = [Rebar(diameter_mm=d, steel=Steel.CA50) for d in diameters]
+
+
+class TestClampsFit:
+    """Clamp rows stack after the layers, up to the section's mid-height.
+
+    With the default 2.5 cm cover and 1.0 cm stirrup, the room from the stirrup's
+    inner face to mid-height of the 60 cm beam is 30 - 3.5 = 26.5 cm.
+    """
+
+    def test_stack_height_single_clamp(self, reinforcement: Reinforcement) -> None:
+        """2φ16 layer, one φ10 clamp: 1.6 + max(1.6, 2, 1.25) + 1.0 = 4.6 cm"""
+        _place_layers(reinforcement, (16, 16))
+        height = reinforcement._clamps_stack_height(10, 1)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 4.6, "Stack height for one φ10 clamp (cm)")
+
+    def test_stack_height_spacing_uses_larger_diameter(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """2φ25 layer, one φ6.3 clamp: the spacing to the layer is 2.5 cm, so 2.5 + 2.5 + 0.63"""
+        _place_layers(reinforcement, (25, 25))
+        height = reinforcement._clamps_stack_height(6.3, 1)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 5.63, "Spacing from the larger diameter (cm)")
+
+    def test_stack_height_adds_rows(self, reinforcement: Reinforcement) -> None:
+        """Three φ10 clamps add two rows of 2 + 1.0 cm: 4.6 + 6.0 = 10.6 cm"""
+        _place_layers(reinforcement, (16, 16))
+        height = reinforcement._clamps_stack_height(10, 3)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 10.6, "Stack height for three φ10 clamps (cm)")
+
+    def test_stack_height_after_last_layer(self, reinforcement: Reinforcement) -> None:
+        """2φ16 + 2φ12.5 layers, one φ10 clamp: (2 + 1.6) + 1.25 + 2 + 1.0 = 7.85 cm"""
+        _place_layers(reinforcement, (16, 16), (12.5, 12.5))
+        height = reinforcement._clamps_stack_height(10, 1)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 7.85, "Clamps stack after the second layer (cm)")
+
+    def test_fits_up_to_mid_height(self, reinforcement: Reinforcement) -> None:
+        """Eight φ10 clamps reach 25.6 cm, within the 26.5 cm room"""
+        _place_layers(reinforcement, (16, 16))
+        assert reinforcement.clamps_fit(10, 8), "Stack within mid-height fits"
+
+    def test_does_not_fit_past_mid_height(self, reinforcement: Reinforcement) -> None:
+        """Nine φ10 clamps reach 28.6 cm, past the 26.5 cm room"""
+        _place_layers(reinforcement, (16, 16))
+        assert not reinforcement.clamps_fit(10, 9), "Stack past mid-height fails"
+
+    def test_top_reinforcement_uses_top_half(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        """Top bars stack downwards from the top face, with the same room"""
+        top = Reinforcement(
+            beam_double, is_bottom_reinforcement=False, center_position=250.0, id="T"
+        )
+        _place_layers(top, (16, 16))
+        assert top.clamps_fit(10, 8), "Eight φ10 clamps fit in the top half"
+        assert not top.clamps_fit(10, 9), "Nine φ10 clamps pass mid-height"
+
+
 class TestValidateLayerIndex:
     """Tests for the layer-index bounds check."""
 

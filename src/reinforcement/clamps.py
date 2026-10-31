@@ -1,5 +1,9 @@
 from dataclasses import dataclass
 
+from src.properties.section_properties_calculator import (
+    SectionPropertiesCalculator as section,
+)
+
 
 @dataclass(frozen=True, kw_only=True)
 class Clamps:
@@ -16,3 +20,12 @@ class Clamps:
     quantity: int
     width: float
     length: float
+
+    @property
+    def area(self) -> float:
+        """Return the steel area crossing the section, counting both legs of every clamp (cm²)"""
+        return (
+            2
+            * self.quantity
+            * section.circular_cross_sectional_area(self.diameter / 10)
+        )

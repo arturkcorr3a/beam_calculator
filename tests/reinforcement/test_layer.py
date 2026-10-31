@@ -3,6 +3,7 @@
 import pytest
 
 from src.properties.steel import Steel
+from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
 from src.structural_elements.rebar import Rebar
 from tests.helpers import assert_approx
@@ -93,6 +94,25 @@ class TestSetHooks:
             ValueError, match="No bars in the layer to enable/disable hooks"
         ):
             empty_layer.set_hooks(left=True, enable=True)
+
+
+class TestClamps:
+    """Tests for setting and reading the clamps on each side."""
+
+    def test_no_clamps_by_default(self, layer_two_10mm: Layer) -> None:
+        assert layer_two_10mm.get_clamps(left=True) is None, "No left clamps"
+        assert layer_two_10mm.get_clamps(left=False) is None, "No right clamps"
+
+    def test_reads_the_set_side(self, layer_two_10mm: Layer) -> None:
+        clamps = Clamps(diameter=8, quantity=1, width=15.0, length=40.0)
+        layer_two_10mm.set_clamps(left=False, clamps=clamps)
+        assert layer_two_10mm.get_clamps(left=False) is clamps, "Right clamps set"
+        assert layer_two_10mm.get_clamps(left=True) is None, "Left side untouched"
+
+    def test_area_counts_both_legs(self) -> None:
+        """Two 10 mm clamps have four legs: 4 · π · 0.5² / 4 = π cm²"""
+        clamps = Clamps(diameter=10, quantity=2, width=15.0, length=40.0)
+        assert_approx(clamps.area, 3.14159265, "Area of two 10 mm clamps (cm²)")
 
 
 class TestGetBarDiametersForPrint:

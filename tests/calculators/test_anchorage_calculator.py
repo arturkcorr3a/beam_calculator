@@ -567,6 +567,11 @@ _EFFECTIVE_COVERING = 2.5  # cm
 _STIRRUP_INNER_WIDTH = 15.0  # cm
 
 
+def _always_fits(diameter_mm: float, quantity: int) -> bool:
+    """Let every clamp arrangement fit in the stub's section"""
+    return True
+
+
 def _make_clamp_ac(
     layer: Layer,
     supports: list[Support],
@@ -587,6 +592,7 @@ def _make_clamp_ac(
         design_shear=100.0,
         stirrup_inner_width=_STIRRUP_INNER_WIDTH,
         effective_covering=lambda: _EFFECTIVE_COVERING,
+        clamps_fit=_always_fits,
     )
     return AnchorageCalculator(
         moment_shift=28.0,
@@ -654,6 +660,44 @@ class TestClampFallback:
         clamps = ac.run(available_space=200.0, left=True, allow_clamp=True)
         assert clamps is None, "No clamps when straight bars fit"
         assert layer_16mm_good.left_clamps is None, "No clamps set on the layer"
+
+    def test_chooses_clamps_for_required_area(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        """A_sc = 0.94 cm² is best met by one 8 mm clamp (1.01 cm²)"""
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        clamps = ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+        assert clamps is not None, "Clamps should be chosen"
+        assert clamps.diameter == 8, "Clamp diameter (mm)"
+        assert clamps.quantity == 1, "Number of clamps"
+
+    def test_reuses_side_clamps_with_enough_area(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        """Another layer's 10 mm clamp (1.57 cm²) covers A_sc = 0.94 cm² and is reused"""
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        other_layer = Layer([Rebar(diameter_mm=16, steel=Steel.CA50)], 1)
+        existing = Clamps(diameter=10, quantity=1, width=15.0, length=50.0)
+        other_layer.set_clamps(True, existing)
+        ac.reinforcement.chosen_bars = (layer_16mm_good, other_layer)
+        clamps = ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+        assert clamps is existing, "The side's clamps should be reused"
+        assert layer_16mm_good.left_clamps is existing, "Layer shares the clamps"
+
+    def test_replaces_short_side_clamps_on_every_layer(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        """Another layer's 6.3 mm clamp (0.62 cm²) is short of 0.94 cm²; both layers get the new choice"""
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        other_layer = Layer([Rebar(diameter_mm=16, steel=Steel.CA50)], 1)
+        existing = Clamps(diameter=6.3, quantity=1, width=15.0, length=50.0)
+        other_layer.set_clamps(True, existing)
+        ac.reinforcement.chosen_bars = (layer_16mm_good, other_layer)
+        clamps = ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+        assert clamps is not existing, "Short clamps should be replaced"
+        assert layer_16mm_good.left_clamps is clamps, "Current layer gets the clamps"
+        assert other_layer.left_clamps is clamps, "Other layer gets the new clamps"
+        assert other_layer.right_clamps is None, "Right side untouched"
 
     def test_zero_width_support_raises(self, layer_16mm_good: Layer) -> None:
         supports = [Support(0.0, 0.0, 0.0), Support(_BEAM_LENGTH, 500.0, 500.0)]
@@ -744,6 +788,7 @@ def _make_support_ac(
         design_shear=_SUPPORT_DESIGN_SHEAR,
         stirrup_inner_width=_STIRRUP_INNER_WIDTH,
         effective_covering=lambda: _EFFECTIVE_COVERING,
+        clamps_fit=_always_fits,
     )
     return AnchorageCalculator(
         moment_shift=28.0,
