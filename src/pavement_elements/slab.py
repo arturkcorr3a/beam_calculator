@@ -320,6 +320,7 @@ class Slab(metaclass=_SlabMeta):
         References:
             ABNT NBR 6118:2014 — Section 14.7.2.2
         """
+        # NOTE the 0.3 * h cap is disabled for now; see effective_span() for details
         x_dimension, y_dimension = self.dimensions
         effective_x = effective_span(
             x_dimension,

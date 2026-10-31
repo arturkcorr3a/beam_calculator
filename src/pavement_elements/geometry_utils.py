@@ -104,8 +104,10 @@ def effective_span(
             f"Supports leave no clear span: axis distance {axis_distance} cm, "
             f"support widths {support_width_1} cm and {support_width_2} cm."
         )
-    a1 = min(support_width_1 / 2, 0.3 * height)
-    a2 = min(support_width_2 / 2, 0.3 * height)
+
+    # NOTE the 0.3 * h cap is disabled for now; phrasing on NBR 6118 allows for it to not be applies (can x have to); I am disabling it for now to avoid mismatching between structural beam and real beam
+    a1 = support_width_1 / 2 # min(support_width_1 / 2, 0.3 * height)
+    a2 = support_width_2 / 2 # min(support_width_2 / 2, 0.3 * height)
     return clear_span + a1 + a2
 
 

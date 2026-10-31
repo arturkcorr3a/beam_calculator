@@ -136,6 +136,10 @@ class TestGetEffectiveLength:
             span.get_effective_length(registry), 400, "narrow pillars should keep 400"
         )
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_wide_pillars_use_beam_height(
         self, wide_registry: dict[str, Pillar]
     ) -> None:
@@ -147,6 +151,10 @@ class TestGetEffectiveLength:
             span.get_effective_length(wide_registry), 524, "should cap at 0.3h"
         )
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not 'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_explicit_height_overrides_beam_height(
         self, wide_registry: dict[str, Pillar]
     ) -> None:
@@ -160,6 +168,10 @@ class TestGetEffectiveLength:
             "explicit height should be used for the cap",
         )
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not 'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_y_axis_uses_pillar_depth(self) -> None:
         p1 = Pillar(x=0, y=0, width=20, depth=100)
         p2 = Pillar(x=0, y=600, width=20, depth=100)

@@ -61,6 +61,7 @@ class Span:
         References:
             ABNT NBR 6118:2014 — Section 14.6.2.4
         """
+        # NOTE the 0.3 * h cap is disabled - see effective_span() for details
         axis = cast(Axis, self.beam.axis)
         start_pillar = pillar_registry[self.start_pillar_id]
         end_pillar = pillar_registry[self.end_pillar_id]

@@ -288,6 +288,11 @@ class TestEffectiveDimensions:
         assert_approx(lx, 500.0, "lx should equal the centerline distance")
         assert_approx(ly, 400.0, "ly should equal the centerline distance")
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not "
+        "'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_wide_beams_capped_at_0_3h(self) -> None:
         s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
         s.thickness = 10
@@ -296,6 +301,11 @@ class TestEffectiveDimensions:
         assert_approx(lx, 486.0, "lx should be l0 + 2 * 0.3h")
         assert_approx(ly, 386.0, "ly should be l0 + 2 * 0.3h")
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not "
+        "'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_follows_thickness_changes(self) -> None:
         s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
         s.thickness = 10
@@ -585,6 +595,11 @@ class TestPreSize:
         with pytest.raises(ValueError, match="cannot be stabilized"):
             s.pre_size({})
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not "
+        "'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_checker_spans_follow_thickness(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

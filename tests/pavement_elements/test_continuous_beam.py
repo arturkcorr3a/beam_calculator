@@ -528,6 +528,11 @@ class TestPreSize:
         horizontal_beam.pre_size(registry_horizontal)
         assert horizontal_beam.height == 20, "200 cm span should pre-size to 20 cm"
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not "
+        "'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_pre_size_uses_effective_span_on_wide_pillars(
         self, wall: WallDefinition
     ) -> None:
