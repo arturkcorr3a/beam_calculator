@@ -52,7 +52,7 @@ class _SlabMeta(type):
     @property
     def nominal_covering(self) -> float:
         """
-        Returns the nominal covering (cm) for the slab with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4.
+        Returns the nominal covering (cm) for the slab with the configured exposure class, with 10 mm execution tolerance, based on ABNT NBR 6118 - Section 7.4. The table value gets the discount for concrete stronger than the minimum and is then raised, if needed, to the minimum cover allowed by the maximum aggregate size (ABNT NBR 6118 - Section 7.4.7.6).
         """
         exposure_class = APP_CONFIG.exposure_class
         fck = APP_CONFIG.pavement_concrete.value
@@ -60,17 +60,23 @@ class _SlabMeta(type):
         discount_for_concrete_greater_than_minimum = (
             0.5 if APP_CONFIG.is_concrete_greater_than_minimum(fck) else 0.0
         )  # cm — ABNT NBR 6118 - Section 7.4.7.6
+
         match exposure_class:
             case ExposureClass.WEAK:
-                return 2.0 - discount_for_concrete_greater_than_minimum
+                table_cover = 2.0
             case ExposureClass.MODERATE:
-                return 2.5 - discount_for_concrete_greater_than_minimum
+                table_cover = 2.5
             case ExposureClass.SEVERE:
-                return 3.5 - discount_for_concrete_greater_than_minimum
+                table_cover = 3.5
             case ExposureClass.VERY_SEVERE:
-                return 4.5 - discount_for_concrete_greater_than_minimum
+                table_cover = 4.5
             case _:
                 assert_never(exposure_class)
+
+        return max(
+            table_cover - discount_for_concrete_greater_than_minimum,
+            APP_CONFIG.minimum_nominal_cover_for_aggregate(),
+        )  # cm — ABNT NBR 6118 - Table 7.2 and Section 7.4.7.6
 
 
 @logger_label("{id}")
@@ -320,6 +326,7 @@ class Slab(metaclass=_SlabMeta):
         References:
             ABNT NBR 6118:2014 — Section 14.7.2.2
         """
+        # NOTE the 0.3 * h cap is disabled for now; see effective_span() for details
         x_dimension, y_dimension = self.dimensions
         effective_x = effective_span(
             x_dimension,

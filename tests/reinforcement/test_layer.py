@@ -3,8 +3,9 @@
 import pytest
 
 from src.properties.steel import Steel
+from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
-from src.structural_elements.rebar import Rebar
+from src.structural_elements.rebar import HookGeometry, Rebar
 from tests.helpers import assert_approx
 
 
@@ -93,6 +94,59 @@ class TestSetHooks:
             ValueError, match="No bars in the layer to enable/disable hooks"
         ):
             empty_layer.set_hooks(left=True, enable=True)
+
+    def test_resets_side_geometry(self, layer_two_10mm: Layer) -> None:
+        layer_two_10mm.set_frame_joint_hooks(left=False, tip_length=30.0)
+        layer_two_10mm.set_hooks(left=False, enable=True)
+        for bar in layer_two_10mm.bars:
+            assert bar.right_hook_geometry is None, (
+                "A standard hook should drop the frame-joint geometry"
+            )
+
+
+class TestSetFrameJointHooks:
+    """Tests for hooking one side's bars as bent into a frame joint."""
+
+    def test_sets_geometry_per_bar(self) -> None:
+        layer = Layer(
+            [Rebar(diameter_mm=16, steel=Steel.CA50), Rebar(10, Steel.CA50)], 0
+        )
+        layer.set_frame_joint_hooks(left=True, tip_length=40.0)
+        expected = [
+            HookGeometry(pin_diameter=24.0, tip_length=40.0),  # cm, 15φ for φ16
+            HookGeometry(pin_diameter=15.0, tip_length=40.0),  # cm, 15φ for φ10
+        ]
+        for bar, geometry in zip(layer.bars, expected, strict=True):
+            assert bar.left_hook_enabled is True, "The left hook should be enabled"
+            assert bar.left_hook_geometry == geometry, (
+                "Each bar bends with its own 15φ and the shared tip"
+            )
+            assert bar.right_hook_geometry is None, "The right side is untouched"
+
+    def test_empty_raises(self, empty_layer: Layer) -> None:
+        with pytest.raises(
+            ValueError, match="No bars in the layer to enable/disable hooks"
+        ):
+            empty_layer.set_frame_joint_hooks(left=True, tip_length=40.0)
+
+
+class TestClamps:
+    """Tests for setting and reading the clamps on each side."""
+
+    def test_no_clamps_by_default(self, layer_two_10mm: Layer) -> None:
+        assert layer_two_10mm.get_clamps(left=True) is None, "No left clamps"
+        assert layer_two_10mm.get_clamps(left=False) is None, "No right clamps"
+
+    def test_reads_the_set_side(self, layer_two_10mm: Layer) -> None:
+        clamps = Clamps(diameter=8, quantity=1, width=15.0, length=40.0)
+        layer_two_10mm.set_clamps(left=False, clamps=clamps)
+        assert layer_two_10mm.get_clamps(left=False) is clamps, "Right clamps set"
+        assert layer_two_10mm.get_clamps(left=True) is None, "Left side untouched"
+
+    def test_area_counts_both_legs(self) -> None:
+        """Two 10 mm clamps have four legs: 4 · π · 0.5² / 4 = π cm²"""
+        clamps = Clamps(diameter=10, quantity=2, width=15.0, length=40.0)
+        assert_approx(clamps.area, 3.14159265, "Area of two 10 mm clamps (cm²)")
 
 
 class TestGetBarDiametersForPrint:

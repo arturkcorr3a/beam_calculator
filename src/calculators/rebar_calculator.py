@@ -55,6 +55,8 @@ class RebarCalculator:
         id: str = "",
         d: float | None = None,  # Optional effective depth parameter
         d_compressed: float | None = None,  # Optional effective depth parameter
+        moment_zeros: tuple[float, ...] = (),
+        support_moments: tuple[float, ...] = (),
     ):
         """Initialize the RebarCalculator with a rectangular beam and its design bending moment.
 
@@ -62,6 +64,8 @@ class RebarCalculator:
             beam: Rectangular beam section.
             bending_moment: Characteristic bending moment (kN.m).
             bending_moment_position: Position along the beam's length where the bending moment is applied (cm).
+            moment_zeros: Positions along the beam where the bending moment is zero (cm), used for the bars' anchorage.
+            support_moments: Characteristic bending moment on each of the beam's supports (kN.m), aligned with ``beam.supports``; used for the support anchorage checks of positive-moment bars.
         """
         self.preset_d = d
         self.preset_d_compressed = d_compressed
@@ -74,6 +78,7 @@ class RebarCalculator:
 
         is_bottom_tensioned = bending_moment >= 0
         is_top_tensioned = not is_bottom_tensioned
+        is_span_moment = bending_moment > 0
         self.id = id
 
         self.tensioned_reinforcement = Reinforcement(
@@ -81,12 +86,17 @@ class RebarCalculator:
             is_bottom_reinforcement=is_bottom_tensioned,
             center_position=bending_moment_position,
             id=self.id,
+            moment_zeros=moment_zeros,
+            support_moments=support_moments if is_span_moment else (),
+            span_moment=bending_moment if is_span_moment else None,
         )
         self.compressed_reinforcement = Reinforcement(
             self.beam,
             is_bottom_reinforcement=is_top_tensioned,
             center_position=bending_moment_position,
             id=self.id,
+            moment_zeros=moment_zeros,
+            is_tensioned=False,
         )
         self.stirrup_diameter: float | None = None  # cm, set by calculate_for
 
@@ -142,7 +152,7 @@ class RebarCalculator:
             self.cleanup()
             self.calculate_and_set_required_tensioned_rebar_area()
             used_d = self.d  # cm, from the previous pass's bars
-            self._share_effective_depth()
+            self._share_section_depths()
             self.tensioned_reinforcement.set_required_area(self.tensioned_rebar_area)
             if not self.is_singly_reinforced:
                 self.compressed_reinforcement.set_required_area(
@@ -231,7 +241,7 @@ class RebarCalculator:
         The bar choice is deterministic, so choosing for the same required
         areas gives back the same layout.
         """
-        self._share_effective_depth()
+        self._share_section_depths()
         self.tensioned_reinforcement.set_required_area(layout_pass.tensioned_required)
         if layout_pass.compressed_required > 0:
             self.compressed_reinforcement.set_required_area(
@@ -240,10 +250,18 @@ class RebarCalculator:
         self.cleanup()
         self.calculate_and_set_required_tensioned_rebar_area()
 
-    def _share_effective_depth(self) -> None:
-        """Hand the current d (cm) to both reinforcements, for their clamps"""
-        self.tensioned_reinforcement.effective_depth = self.d
-        self.compressed_reinforcement.effective_depth = self.d
+    def _share_section_depths(self) -> None:
+        """Hand the current d and y (cm) to both reinforcements, for their clamps and support checks
+
+        y is the stress block depth used by ``as1``.
+        """
+        y = self.actual_y if self.is_singly_reinforced else self.max_y  # cm
+        for reinforcement in (
+            self.tensioned_reinforcement,
+            self.compressed_reinforcement,
+        ):
+            reinforcement.effective_depth = self.d
+            reinforcement.stress_block_depth = y
 
     def calculate_and_set_required_tensioned_rebar_area(self) -> None:
         """

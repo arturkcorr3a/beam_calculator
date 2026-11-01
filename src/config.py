@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import ceil
 
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.logger import LogLevel, LogOutput, configure_logger
@@ -10,6 +11,10 @@ from src.properties.steel import Steel
 # NOTE: When adding, removing, or renaming a field here, update ConfigDict in
 # src/persistency/schema.py, config_to_dict in serialization.py, and
 # config_from_dict in deserialization.py in lockstep.
+
+AGGREGATE_COVER_FACTOR = 1.2  # ABNT NBR 6118:2026 - Section 7.4.7.6
+COVER_ROUNDING_STEP = 0.5  # cm
+_ROUNDING_TOLERANCE = 1e-9  # absorbs float drift on exact multiples of the step
 
 
 @dataclass(slots=True)
@@ -49,6 +54,20 @@ class AppConfig:
             ABNT NBR 6118:2026 — Section 7.4.7.6
         """
         return fck > self.exposure_class.minimum_fck
+
+    def minimum_nominal_cover_for_aggregate(self) -> float:
+        """Get the smallest nominal cover the coarse aggregate allows
+
+        The maximum aggregate size cannot exceed the nominal cover by more than 20 %. The resulting cover is rounded up to the next 0.5 cm step, the same step used by Table 7.2.
+
+        Returns:
+            Minimum nominal cover (cm).
+
+        References:
+            ABNT NBR 6118:2026 — Section 7.4.7.6
+        """
+        steps = self.max_aggregate_size / AGGREGATE_COVER_FACTOR / COVER_ROUNDING_STEP
+        return ceil(steps - _ROUNDING_TOLERANCE) * COVER_ROUNDING_STEP
 
     def validate_concrete_class(self) -> None:
         """Ensure the pavement concrete meets the minimum for the exposure class

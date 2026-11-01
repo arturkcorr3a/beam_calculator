@@ -1,8 +1,15 @@
+from collections.abc import Callable
+from math import ceil
 from typing import NamedTuple
 
 from src.config import APP_CONFIG
 from src.logger import log_operation, log_property, logger_label
+from src.properties.section_properties_calculator import (
+    SectionPropertiesCalculator as section,
+)
 from src.reinforcement.clamps import Clamps
+
+CLAMP_AREA_TOLERANCE_RATIO = 0.05
 
 
 class AnchorageClampCalculatorLabel(NamedTuple):
@@ -27,7 +34,24 @@ class AnchorageClampCalculator:
         necessary_length: float,
         design_bond_strength: float,
         stirrup_inner_width: float,
+        clamps_fit: Callable[[float, int], bool],
+        existing_clamps: Clamps | None = None,
     ) -> None:
+        """Store the data needed to choose the clamps at one extremity
+
+        Args:
+            moment_shift: Moment shift a_l (cm).
+            effective_depth: Effective depth d (cm).
+            design_shear: Design shear force V_d at the support (kN).
+            available_length: Anchorage length inside the support (cm).
+            necessary_length: Anchorage length the bars would need (cm).
+            design_bond_strength: Design bond strength f_bd (kN/cm²).
+            stirrup_inner_width: Width between the stirrup's inner faces (cm).
+            clamps_fit: Whether a given clamp diameter (mm) and quantity fit in
+                the reinforced half of the section.
+            existing_clamps: Clamps already set on this side by another layer,
+                reused when their area is enough.
+        """
         self.moment_shift = moment_shift
         self.effective_depth = effective_depth
         self.design_shear = design_shear
@@ -36,11 +60,25 @@ class AnchorageClampCalculator:
         self.necessary_length = necessary_length
         self.design_bond_strength = design_bond_strength
         self.stirrup_width = stirrup_inner_width
+        self.clamps_fit = clamps_fit
+        self.existing_clamps = existing_clamps
 
     def run(self) -> Clamps:
+        """Choose the clamps for this extremity, reusing the side's existing ones when they are enough
+
+        Raises:
+            ValueError: If no clamp arrangement fits in the section.
+        """
         force_on_rebar = self._calculate_force_on_rebar()
         force_on_clamp = self._calculate_force_on_clamp(force_on_rebar)
         required_area = self._calculate_required_clamp_area(force_on_clamp)
+        existing = self.existing_clamps
+        if existing is not None and existing.area >= required_area:
+            log_operation(
+                f"Reusing {existing.quantity} {existing.diameter:.1f} clamps ({existing.area:.2f} cm^2)"
+            )
+            return existing
+
         diameter, quantity = self._choose_clamps(required_area)
         required_length = self._calculate_required_clamp_length(diameter)
         chosen_clamps = Clamps(
@@ -94,8 +132,44 @@ class AnchorageClampCalculator:
         return a_sc
 
     def _choose_clamps(self, required_area: float) -> tuple[float, int]:
-        # IMPLEMENT should return the clamp diameter and number of clamps needed based on the required area
-        return (12.5, 1)  # Example values; replace with actual logic
+        """Choose the clamp diameter and quantity for the required area
+
+        All clamps use one diameter. For each available diameter, the fewest clamps whose legs reach the required area are kept if they fit in the section. Options within a small band of the smallest fitting area are tied; among them, fewer clamps win, then the smaller diameter. The ranking is a design decision, not a normative rule.
+
+        Args:
+            required_area: Required clamp steel area A_sc (cm²).
+
+        Returns:
+            The clamp diameter (mm) and the number of clamps.
+
+        Raises:
+            ValueError: If no clamp arrangement fits in the section.
+        """
+        candidates: list[tuple[float, int, float]] = []  # (area cm², quantity, φ mm)
+        for diameter in APP_CONFIG.pavement_steel.available_sizes:
+            leg_area = section.circular_cross_sectional_area(diameter / 10)  # cm²
+            quantity = max(1, ceil(required_area / (2 * leg_area)))
+            if not self.clamps_fit(diameter, quantity):
+                continue
+            candidates.append((2 * quantity * leg_area, quantity, diameter))
+
+        if not candidates:
+            error_message = f"No clamp arrangement fits in the section for {required_area:.2f} cm^2."
+            log_operation(error_message)
+            raise ValueError(error_message)
+
+        threshold_area = min(area for area, _, _ in candidates) * (
+            1 + CLAMP_AREA_TOLERANCE_RATIO
+        )  # cm²
+        _, quantity, diameter = min(
+            (c for c in candidates if c[0] <= threshold_area),
+            key=lambda c: (c[1], c[2]),
+        )
+        log_property(
+            "Fitting clamp options: "
+            + ", ".join(f"{n}x{d:g}mm ({a:.2f} cm^2)" for a, n, d in candidates)
+        )
+        return diameter, quantity
 
     def _calculate_required_clamp_length(self, clamp_diameter: float) -> float:
         """Calculate the total clamp length (l_c)

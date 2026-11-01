@@ -337,8 +337,8 @@ class ContinuousBeam:
                     self._describe_bars(layer.bars),
                     f"{center - bar.left_length:.1f}",
                     f"{center + bar.right_length:.1f}",
-                    "yes" if bar.left_hook_enabled else "no",
-                    "yes" if bar.right_hook_enabled else "no",
+                    self._describe_hook(bar.left_hook_enabled, bar.left_hook_length),
+                    self._describe_hook(bar.right_hook_enabled, bar.right_hook_length),
                     self._describe_clamps(layer.left_clamps),
                     self._describe_clamps(layer.right_clamps),
                 ]
@@ -349,8 +349,8 @@ class ContinuousBeam:
             "Bars",
             "From (cm)",
             "To (cm)",
-            "Hook L",
-            "Hook R",
+            "Hook L (cm)",
+            "Hook R (cm)",
             "Clamps L",
             "Clamps R",
         ]
@@ -380,6 +380,11 @@ class ContinuousBeam:
             f"{count}φ{diameter:g}"
             for diameter, count in sorted(counter.items(), reverse=True)
         )
+
+    @staticmethod
+    def _describe_hook(enabled: bool, length: float) -> str:
+        """Summarize a side's hook as its length (cm), or 'no' if there is none."""
+        return f"{length:.1f}" if enabled else "no"
 
     @staticmethod
     def _describe_clamps(clamps: Clamps | None) -> str:

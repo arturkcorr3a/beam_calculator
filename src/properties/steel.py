@@ -81,6 +81,57 @@ class Steel(Enum, metaclass=_SteelMeta):
                 return 1.00
         return 1.0
 
+    def bend_pin_diameter(self, diameter_mm: float) -> float:
+        """Return the bending pin diameter (D) for a hook of the given bar
+
+        Args:
+            diameter_mm: Bar diameter φ (mm).
+
+        Returns:
+            Pin diameter in cm.
+
+        Raises:
+            ValueError: If the norm gives no pin for the bar (CA-60 with
+                φ >= 20 mm).
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.4.2.3, Table 9.1
+        """
+        is_small = diameter_mm < 20
+        match self:
+            case Steel.CA25:
+                ratio = 4 if is_small else 5
+            case Steel.CA50:
+                ratio = 5 if is_small else 8
+            case Steel.CA60:
+                if not is_small:
+                    raise ValueError(
+                        f"No bending pin for CA-60 bars with {diameter_mm} mm (φ >= 20 mm)."
+                    )
+                ratio = 6
+        return ratio * diameter_mm / 10
+
+    def frame_joint_bend_diameter(self, diameter_mm: float) -> float:
+        """Return the inner bend diameter (D) of a longitudinal bar bent in a frame joint
+
+        Args:
+            diameter_mm: Bar diameter φ (mm).
+
+        Returns:
+            Bend diameter in cm: 10φ for CA-25, 15φ for CA-50 and 18φ for CA-60.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.2.2
+        """
+        match self:
+            case Steel.CA25:
+                ratio = 10
+            case Steel.CA50:
+                ratio = 15
+            case Steel.CA60:
+                ratio = 18
+        return ratio * diameter_mm / 10
+
     def is_size_available(self, diameter: float) -> bool:
         """
         Checks if a given rebar diameter (in mm) is available for the steel type.

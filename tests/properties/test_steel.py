@@ -26,8 +26,10 @@ class TestSafetyFactor:
 
     def test_gamma_s(self) -> None:
         expected_gamma_s = 1.15
-        assert GAMMA_S == expected_gamma_s, (
-            "The steel safety factor (gamma_s) should be 1.15"
+        assert_approx(
+            GAMMA_S,
+            expected_gamma_s,
+            "The steel safety factor (gamma_s) should be 1.15",
         )
 
 
@@ -162,6 +164,81 @@ class TestBondCoefficient:
         expected_bond_coefficient = 1.00
         assert steel_ca60.bond_coefficient == expected_bond_coefficient, (
             "For CA-60 steel, the bond coefficient should be 1.00"
+        )
+
+
+class TestBendPinDiameter:
+    """Tests for the bending pin diameter (D) of hooks, in cm (Table 9.1)."""
+
+    def test_ca25_small_bar(self, steel_ca25: Steel) -> None:
+        assert_approx(
+            steel_ca25.bend_pin_diameter(10),
+            4.0,
+            "For CA-25 bars under 20 mm, D should be 4φ (4.0 cm for 10 mm)",
+        )
+
+    def test_ca25_large_bar(self, steel_ca25: Steel) -> None:
+        assert_approx(
+            steel_ca25.bend_pin_diameter(20),
+            10.0,
+            "For CA-25 bars of 20 mm or more, D should be 5φ (10.0 cm for 20 mm)",
+        )
+
+    def test_ca50_small_bar(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.bend_pin_diameter(16),
+            8.0,
+            "For CA-50 bars under 20 mm, D should be 5φ (8.0 cm for 16 mm)",
+        )
+
+    def test_ca50_large_bar(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.bend_pin_diameter(20),
+            16.0,
+            "For CA-50 bars of 20 mm or more, D should be 8φ (16.0 cm for 20 mm)",
+        )
+
+    def test_ca60_small_bar(self, steel_ca60: Steel) -> None:
+        assert_approx(
+            steel_ca60.bend_pin_diameter(10),
+            6.0,
+            "For CA-60 bars under 20 mm, D should be 6φ (6.0 cm for 10 mm)",
+        )
+
+    def test_ca60_large_bar_raises(self, steel_ca60: Steel) -> None:
+        with pytest.raises(ValueError):
+            steel_ca60.bend_pin_diameter(20)
+
+
+class TestFrameJointBendDiameter:
+    """Tests for the bend diameter (cm) of bars bent in a frame joint, NBR 6118 18.2.2."""
+
+    def test_ca25(self, steel_ca25: Steel) -> None:
+        assert_approx(
+            steel_ca25.frame_joint_bend_diameter(10),
+            10.0,
+            "For CA-25, D should be 10φ (10.0 cm for 10 mm)",
+        )
+
+    def test_ca50(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.frame_joint_bend_diameter(16),
+            24.0,
+            "For CA-50, D should be 15φ (24.0 cm for 16 mm)",
+        )
+
+    def test_ca50_large_bar(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.frame_joint_bend_diameter(25),
+            37.5,
+            "For CA-50, D should stay 15φ for φ >= 20 mm (37.5 cm for 25 mm)",
+        )
+
+    def test_ca60(self, steel_ca60: Steel) -> None:
+        assert_approx(
+            steel_ca60.frame_joint_bend_diameter(10),
+            18.0,
+            "For CA-60, D should be 18φ (18.0 cm for 10 mm)",
         )
 
 

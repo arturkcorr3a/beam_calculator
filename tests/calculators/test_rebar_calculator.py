@@ -114,6 +114,59 @@ class TestStoredMoment:
             "bending_moment_position should be the input position (cm)"
         )
 
+    def test_passes_moment_zeros_to_reinforcements(self, beam_mock: Mock) -> None:
+        calc = RebarCalculator(
+            beam=beam_mock,
+            bending_moment=272,
+            bending_moment_position=250.0,
+            moment_zeros=(100.0, 400.0),
+        )
+        assert calc.tensioned_reinforcement.moment_zeros == (100.0, 400.0), (
+            "tensioned reinforcement should receive the zero-moment positions (cm)"
+        )
+        assert calc.compressed_reinforcement.moment_zeros == (100.0, 400.0), (
+            "compressed reinforcement should receive the zero-moment positions (cm)"
+        )
+
+    def test_passes_support_moments_to_positive_tensioned_only(
+        self, beam_mock: Mock
+    ) -> None:
+        calc = RebarCalculator(
+            beam=beam_mock,
+            bending_moment=272,
+            bending_moment_position=250.0,
+            support_moments=(-30.0, -40.0),
+        )
+        tensioned = calc.tensioned_reinforcement
+        assert tensioned.support_moments == (-30.0, -40.0), (
+            "positive-moment bars should receive the support moments (kN.m)"
+        )
+        assert tensioned.span_moment == 272, (
+            "positive-moment bars should receive the span moment (kN.m)"
+        )
+        compressed = calc.compressed_reinforcement
+        assert compressed.support_moments == (), (
+            "compressed bars should not run the support checks"
+        )
+        assert compressed.span_moment is None, (
+            "compressed bars should not run the support checks"
+        )
+
+    def test_negative_moment_skips_support_checks(self, beam_mock: Mock) -> None:
+        calc = RebarCalculator(
+            beam=beam_mock,
+            bending_moment=-80,
+            bending_moment_position=0.0,
+            support_moments=(-80.0, -40.0),
+        )
+        for reinforcement in (
+            calc.tensioned_reinforcement,
+            calc.compressed_reinforcement,
+        ):
+            assert reinforcement.span_moment is None, (
+                "negative-moment points should not run the support checks"
+            )
+
     def test_keeps_negative_sign(self, beam_mock: Mock) -> None:
         hogging = RebarCalculator(
             beam=beam_mock, bending_moment=-80, bending_moment_position=0.0
@@ -598,6 +651,33 @@ class TestCalculateFor:
             )
             assert reinforcement.effective_depth == calculator_preset.d, (
                 "reinforcement should receive the d it is chosen with (cm)"
+            )
+
+    def test_propagates_stress_block_depth_to_reinforcements(
+        self, calculator_preset: RebarCalculator
+    ) -> None:
+        """calculate_for() hands the y used by As1 (cm) to both reinforcements."""
+        calculator_preset.tensioned_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
+        calculator_preset.compressed_reinforcement.set_required_area = Mock()  # type: ignore[method-assign]
+
+        calculator_preset.calculate_for(1.0, 28.0, 150.0)
+
+        expected_y = (
+            calculator_preset.actual_y
+            if calculator_preset.is_singly_reinforced
+            else calculator_preset.max_y
+        )  # cm
+        for reinforcement in (
+            calculator_preset.tensioned_reinforcement,
+            calculator_preset.compressed_reinforcement,
+        ):
+            assert reinforcement.stress_block_depth is not None, (
+                "reinforcement should receive y (cm)"
+            )
+            assert_approx(
+                reinforcement.stress_block_depth,
+                expected_y,
+                "reinforcement should receive the y used by As1 (cm)",
             )
 
 

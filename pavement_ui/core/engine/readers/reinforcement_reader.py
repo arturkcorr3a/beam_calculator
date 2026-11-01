@@ -30,11 +30,17 @@ def _clamp(clamps: Clamps | None) -> ClampSpec | None:
     return ClampSpec(clamps.quantity, clamps.diameter, clamps.length, clamps.width)
 
 
+def _hook(enabled: bool, length_cm: float) -> float | None:
+    """Return one side's hook length (cm), or None when there is no hook."""
+    return length_cm if enabled else None
+
+
 def read_layers(reinforcement: Reinforcement) -> tuple[BarLayer, ...]:
     """Return the non-empty chosen layers, numbered from 1 at the reinforced face
 
     Each layer's height is the engine's ``y_centroid_position``, measured from
-    the bottom face of the section.
+    the bottom face of the section. Hooks are read from the layer's first bar,
+    the largest; every bar in a layer shares the same hooks.
     """
     return tuple(
         BarLayer(
@@ -43,6 +49,12 @@ def read_layers(reinforcement: Reinforcement) -> tuple[BarLayer, ...]:
             _groups(layer),
             left_clamps=_clamp(layer.left_clamps),
             right_clamps=_clamp(layer.right_clamps),
+            left_hook_cm=_hook(
+                layer.bars[0].left_hook_enabled, layer.bars[0].left_hook_length
+            ),
+            right_hook_cm=_hook(
+                layer.bars[0].right_hook_enabled, layer.bars[0].right_hook_length
+            ),
         )
         for layer in reinforcement.chosen_bars
         if layer.bars

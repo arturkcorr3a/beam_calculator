@@ -36,19 +36,51 @@ class Reinforcement:
         is_bottom_reinforcement: bool,
         center_position: float,
         id: str = "",
+        moment_zeros: tuple[float, ...] = (),
+        support_moments: tuple[float, ...] = (),
+        span_moment: float | None = None,
+        is_tensioned: bool = True,
     ):
+        """Initialize an empty longitudinal reinforcement
+
+        Args:
+            beam: Rectangular beam section.
+            is_bottom_reinforcement: Whether the bars sit on the bottom face.
+            center_position: Position of the interest point along the beam (cm).
+            moment_zeros: Positions along the beam where the bending moment is
+                zero (cm), used for the bars' anchorage.
+            support_moments: Characteristic bending moment on each of the beam's
+                supports (kN.m), aligned with ``beam.supports``; missing ones
+                are read as zero.
+            span_moment: Characteristic positive moment of the span (kN.m). Set
+                only on the bottom bars of a positive-moment point; enables the
+                support anchorage checks.
+            is_tensioned: Whether the bars are tensioned; False for the
+                compressed reinforcement.
+        """
         self.beam = beam
         self.steel = beam.steel
         self.chosen_bars: tuple[Layer, ...] = self._build_empty_layers()
         self.is_chosen = False
         self.rebar_choice_options: tuple[tuple[Rebar, ...], ...] = ()
         self.is_bottom_reinforcement = is_bottom_reinforcement
+        self.is_tensioned = is_tensioned
         self.center_position = center_position
+        self.moment_zeros = moment_zeros  # cm, positions where M = 0
+        self.support_moments = support_moments  # kN.m, characteristic, signed
+        self.span_moment = span_moment  # kN.m, characteristic, M_vão
         self.moment_shift: float | None = None  # cm, a_l
         self.stirrup_diameter: float | None = None  # cm
         self.effective_depth: float | None = None  # cm, d, used by clamps
+        self.stress_block_depth: float | None = None  # cm, y, used by supports
         self.design_shear: float | None = None  # kN, V_d, used by clamps
         self.id = id
+
+    def support_moment(self, support_index: int) -> float:
+        """Return the characteristic moment on a support (kN.m), zero if not given"""
+        if support_index < len(self.support_moments):
+            return self.support_moments[support_index]
+        return 0.0
 
     def _build_empty_layers(self) -> tuple[Layer, ...]:
         """Builds a tuple of empty layers for the reinforcement, based on the maximum number of layers defined in the configuration."""
@@ -184,14 +216,14 @@ class Reinforcement:
     def _run_anchorage_calculation(self, allow_clamp: bool) -> None:
         """Run the anchorage calculation for each layer, setting the bars' lengths
 
-        Bars centered on an end support are anchored only towards the beam interior: at the beam start (x = 0) the left length stays zero, and at the beam end (x = L) the right length stays zero.
+        Bars centered on an end support are anchored towards the beam interior as usual, and hooked into the support on the other side (see ``AnchorageCalculator.run_end_support``): tensioned top bars run to the support's outer face and bend into it as a frame joint; other bars keep a standard hook with zero length.
 
         Args:
             allow_clamp: Whether clamps may complete the anchorage at the
                 extremity supports.
 
         Raises:
-            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed).
+            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed), or if the standard hooks do not fit in the section height.
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
         moment_shift = cast(float, self.moment_shift)
@@ -207,9 +239,7 @@ class Reinforcement:
             )
 
             if self._is_at_beam_start:
-                is_left = True
-                layer.set_hooks(is_left, True)
-                layer.set_anchorage_length(0.0, is_left)
+                anchorage_calculator.run_end_support(left=True)
             else:
                 left_available_space = (
                     self.center_position - RectangularBeam.nominal_covering
@@ -219,9 +249,7 @@ class Reinforcement:
                 )
 
             if self._is_at_beam_end:
-                is_left = False
-                layer.set_hooks(is_left, True)
-                layer.set_anchorage_length(0.0, is_left)
+                anchorage_calculator.run_end_support(left=False)
             else:
                 right_available_space = (
                     self.beam.length - RectangularBeam.nominal_covering
@@ -307,14 +335,15 @@ class Reinforcement:
             return covering
         return max(bar.effective_covering(covering) for bar in first_layer_bars)
 
+    def _stirrup_diameter(self) -> float:
+        """Return the chosen stirrup diameter, or the default while none is chosen (cm)."""
+        if self.stirrup_diameter is not None:
+            return self.stirrup_diameter
+        return DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
+
     def _face_offset(self) -> float:
         """Return the distance (cm) from the section face to the stirrup's inner face."""
-        stirrup_diameter = (
-            self.stirrup_diameter
-            if self.stirrup_diameter is not None
-            else DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION
-        )  # cm
-        return self.effective_covering() + stirrup_diameter
+        return self.effective_covering() + self._stirrup_diameter()
 
     @property
     def stirrup_inner_width(self) -> float:
@@ -332,17 +361,64 @@ class Reinforcement:
         layer_centroid, layer_weight = self.get_layer_relative_centroid_with_weight(
             layer_index
         )
-
-        offset = 0.0
-        for i in range(layer_index):
-            max_dia = max(b.diameter_mm for b in self.chosen_bars[i].bars) / 10
-            offset += self.get_vertical_spacing(max_dia) + max_dia
-
-        layer_centroid_from_closest_edge = layer_centroid + offset
+        layer_centroid_from_closest_edge = layer_centroid + self._layer_offset(
+            layer_index
+        )
         log_property(
             f"Absolute Centroid for Layer {layer_index}: {layer_centroid_from_closest_edge:.2f} cm from the {'bottom' if self.is_bottom_reinforcement else 'top'} stirrup's inner face"
         )
         return layer_centroid_from_closest_edge, layer_weight
+
+    def _layer_offset(self, layer_index: int) -> float:
+        """Return the distance from the stirrup's inner face to the near edge of a layer (cm)
+
+        Each previous layer adds its largest bar diameter and the minimum vertical spacing for that diameter.
+        """
+        offset = 0.0
+        for i in range(layer_index):
+            max_dia = max(b.diameter_mm for b in self.chosen_bars[i].bars) / 10
+            offset += self.get_vertical_spacing(max_dia) + max_dia
+        return offset
+
+    def _clamps_stack_height(self, diameter_mm: float, quantity: int) -> float:
+        """Return the height from the stirrup's inner face to the far edge of the clamp rows (cm)
+
+        Each clamp is a row with its two legs at the stirrup's inner corners. The rows are stacked after the last non-empty layer, with the minimum vertical spacing between rows; the spacing to the last layer uses the larger of the two diameters.
+
+        Args:
+            diameter_mm: Clamp bar diameter φ (mm).
+            quantity: Number of clamps, one row each.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.2
+        """
+        last_index = max(i for i, layer in enumerate(self.chosen_bars) if layer.bars)
+        last_diameter = (
+            max(b.diameter_mm for b in self.chosen_bars[last_index].bars) / 10
+        )  # cm
+        diameter = diameter_mm / 10  # cm
+        height = self._layer_offset(last_index) + last_diameter  # cm
+        height += self.get_vertical_spacing(max(last_diameter, diameter)) + diameter
+        height += (quantity - 1) * (self.get_vertical_spacing(diameter) + diameter)
+        return height
+
+    def clamps_fit(self, diameter_mm: float, quantity: int) -> bool:
+        """Check whether the clamps fit in the reinforced half of the section
+
+        The clamp rows, stacked after the layers, must stay between the stirrup's inner face at the reinforced side and the section's mid-height.
+
+        Args:
+            diameter_mm: Clamp bar diameter φ (mm).
+            quantity: Number of clamps, one row each.
+        """
+        height = self._clamps_stack_height(diameter_mm, quantity)  # cm
+        room = self.beam.height / 2 - self._face_offset()  # cm
+        does_fit = height <= room
+        log_property(
+            f"Clamps {quantity}x{diameter_mm:g}mm: stack height = {height:.2f} cm, "
+            f"room up to mid-height = {room:.2f} cm, Fits: {'Yes' if does_fit else 'No'}"
+        )
+        return does_fit
 
     def _set_layer_y_centroid_position(self, layer_index: int) -> None:
         """
@@ -515,7 +591,9 @@ class Reinforcement:
             bar.effective_covering(RectangularBeam.nominal_covering)
             for bar in optimal_reinforcement
         )
-        available_width = self.beam.width - 2 * max_effective_covering # FIXME add stirrup diameter x2 to available width calculation
+        available_width = self.beam.width - 2 * (
+            max_effective_covering + self._stirrup_diameter()
+        )
         is_there_enough_space = total_width_needed <= available_width
         log_property(
             f"Checking space for {len(optimal_reinforcement)} bars: "

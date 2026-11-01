@@ -16,7 +16,7 @@ All Python docstrings follow **Google style**.
 def function(param: type) -> return_type:
     """One-line imperative summary (no trailing period).
 
-    Optional paragraph with additional context, formulas, or caveats.
+    Optional paragraph with additional context or caveats.
 
     Args:
         param: Meaning, valid range, and physical unit. Do NOT repeat the type
@@ -44,6 +44,7 @@ def function(param: type) -> return_type:
 4. **Raises** — list only exceptions raised explicitly in the body. Omit if none.
 5. **References** — normative standards and textbook citations. Format: `ABNT NBR XXXX:YYYY — Section X.X.X` or `Author (year) — Section/Table identifier`. Place after all other sections.
 6. **Attributes** (classes only) — list public instance attributes with their physical unit when relevant. Skip attributes already fully described by their name and type annotation.
+7. **No formulas** — never write formulas or equations in docstrings. Describe the rule in words and cite the norm section in References.
 
 ### When to prompt the user
 
@@ -72,6 +73,13 @@ Do not guess units or normative references — incorrect documentation is worse 
   - `pavement_ui/core/model/settings.py` — add/remove/rename the field in `ConfigValues` (or `LogValues` for log settings)
   - `pavement_ui/core/engine/config_mapper.py` — map the field between `ConfigValues` and `AppConfig`
   - `pavement_ui/presentation/dialogs/config/` — the form section that edits the field
+
+- **Patch notes (default step)**: every change set ends with a `docs/patches/NN-patch-<kebab-case-slug>.md` file describing the change for the TCC report. `NN` is a two-digit sequence number, one above the highest existing file in `docs/patches/` (the first is `01`). Write it in pt-BR, after the test run (so the numbers are real), with these sections:
+  - **Contexto** — why the change was made
+  - **Referências normativas** — norm items involved, with a short quote or paraphrase
+  - **Alterações por arquivo** — link to each changed file and what changed in it
+  - **Mudanças de comportamento/resultados** — old → new values of affected results
+  - **Testes** — tests added or changed
 
 ---
 

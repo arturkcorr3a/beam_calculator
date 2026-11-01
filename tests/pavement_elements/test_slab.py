@@ -288,6 +288,11 @@ class TestEffectiveDimensions:
         assert_approx(lx, 500.0, "lx should equal the centerline distance")
         assert_approx(ly, 400.0, "ly should equal the centerline distance")
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not "
+        "'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_wide_beams_capped_at_0_3h(self) -> None:
         s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
         s.thickness = 10
@@ -296,6 +301,11 @@ class TestEffectiveDimensions:
         assert_approx(lx, 486.0, "lx should be l0 + 2 * 0.3h")
         assert_approx(ly, 386.0, "ly should be l0 + 2 * 0.3h")
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not "
+        "'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_follows_thickness_changes(self) -> None:
         s = _make_slab_with_beams(500.0, 400.0, beam_width=20.0)
         s.thickness = 10
@@ -503,12 +513,51 @@ class TestNominalCovering:
         expected: float,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        # Small aggregate (1.0 cm floor), so Table 7.2 governs
+        monkeypatch.setattr(APP_CONFIG, "max_aggregate_size", 0.95)
         monkeypatch.setattr(APP_CONFIG, "exposure_class", exposure_class)
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", concrete)
         assert_approx(
             Slab.nominal_covering,
             expected,
             f"nominal_covering for exp{exposure_class}/{concrete}",
+        )
+
+    @pytest.mark.parametrize(
+        "exposure_class,concrete,max_aggregate_size,expected",
+        [
+            # table 2.5 - 0.5 = 2.0 cm; 2.5 cm aggregate needs 2.5 cm
+            (ExposureClass.MODERATE, Concrete.C30, 2.5, 2.5),
+            # table 2.0 - 0.5 = 1.5 cm; 1.9 cm aggregate needs 2.0 cm
+            (ExposureClass.WEAK, Concrete.C25, 1.9, 2.0),
+            # table 3.5 - 0.5 = 3.0 cm; 3.8 cm aggregate needs 3.5 cm
+            (ExposureClass.SEVERE, Concrete.C35, 3.8, 3.5),
+            # table 4.5 cm beats the 3.5 cm from a 3.8 cm aggregate
+            (ExposureClass.VERY_SEVERE, Concrete.C40, 3.8, 4.5),
+        ],
+        ids=[
+            "exp2-C30-agg2.5",
+            "exp1-C25-agg1.9",
+            "exp3-C35-agg3.8",
+            "exp4-C40-table-governs",
+        ],
+    )
+    def test_nominal_covering_raised_by_aggregate(
+        self,
+        exposure_class: ExposureClass,
+        concrete: Concrete,
+        max_aggregate_size: float,
+        expected: float,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "max_aggregate_size", max_aggregate_size)
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", exposure_class)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", concrete)
+        assert_approx(
+            Slab.nominal_covering,
+            expected,
+            f"nominal_covering for exp{exposure_class}/{concrete} with a "
+            f"{max_aggregate_size} cm aggregate",
         )
 
 
@@ -585,6 +634,11 @@ class TestPreSize:
         with pytest.raises(ValueError, match="cannot be stabilized"):
             s.pre_size({})
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="0.3h cap disabled in effective_span(): NBR 6118 wording ('pode', not "
+        "'deve') makes it optional; kept off to avoid structural/real beam mismatch",
+    )
     def test_checker_spans_follow_thickness(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

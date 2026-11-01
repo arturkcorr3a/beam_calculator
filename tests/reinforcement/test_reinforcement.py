@@ -2,6 +2,7 @@
 
 import types
 from typing import cast
+from unittest.mock import PropertyMock, patch
 
 import pytest
 
@@ -229,6 +230,67 @@ class TestLayerCentroidPosition:
         )
 
 
+def _place_layers(reinforcement: Reinforcement, *layers: tuple[float, ...]) -> None:
+    """Put bars of the given diameters (mm) straight into the first layers"""
+    for layer, diameters in zip(reinforcement.chosen_bars, layers, strict=False):
+        layer.bars = [Rebar(diameter_mm=d, steel=Steel.CA50) for d in diameters]
+
+
+class TestClampsFit:
+    """Clamp rows stack after the layers, up to the section's mid-height.
+
+    With the default 2.5 cm cover and 1.0 cm stirrup, the room from the stirrup's
+    inner face to mid-height of the 60 cm beam is 30 - 3.5 = 26.5 cm.
+    """
+
+    def test_stack_height_single_clamp(self, reinforcement: Reinforcement) -> None:
+        """2φ16 layer, one φ10 clamp: 1.6 + max(1.6, 2, 1.25) + 1.0 = 4.6 cm"""
+        _place_layers(reinforcement, (16, 16))
+        height = reinforcement._clamps_stack_height(10, 1)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 4.6, "Stack height for one φ10 clamp (cm)")
+
+    def test_stack_height_spacing_uses_larger_diameter(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """2φ25 layer, one φ6.3 clamp: the spacing to the layer is 2.5 cm, so 2.5 + 2.5 + 0.63"""
+        _place_layers(reinforcement, (25, 25))
+        height = reinforcement._clamps_stack_height(6.3, 1)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 5.63, "Spacing from the larger diameter (cm)")
+
+    def test_stack_height_adds_rows(self, reinforcement: Reinforcement) -> None:
+        """Three φ10 clamps add two rows of 2 + 1.0 cm: 4.6 + 6.0 = 10.6 cm"""
+        _place_layers(reinforcement, (16, 16))
+        height = reinforcement._clamps_stack_height(10, 3)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 10.6, "Stack height for three φ10 clamps (cm)")
+
+    def test_stack_height_after_last_layer(self, reinforcement: Reinforcement) -> None:
+        """2φ16 + 2φ12.5 layers, one φ10 clamp: (2 + 1.6) + 1.25 + 2 + 1.0 = 7.85 cm"""
+        _place_layers(reinforcement, (16, 16), (12.5, 12.5))
+        height = reinforcement._clamps_stack_height(10, 1)  # pyright: ignore[reportPrivateUsage]
+        assert_approx(height, 7.85, "Clamps stack after the second layer (cm)")
+
+    def test_fits_up_to_mid_height(self, reinforcement: Reinforcement) -> None:
+        """Eight φ10 clamps reach 25.6 cm, within the 26.5 cm room"""
+        _place_layers(reinforcement, (16, 16))
+        assert reinforcement.clamps_fit(10, 8), "Stack within mid-height fits"
+
+    def test_does_not_fit_past_mid_height(self, reinforcement: Reinforcement) -> None:
+        """Nine φ10 clamps reach 28.6 cm, past the 26.5 cm room"""
+        _place_layers(reinforcement, (16, 16))
+        assert not reinforcement.clamps_fit(10, 9), "Stack past mid-height fails"
+
+    def test_top_reinforcement_uses_top_half(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        """Top bars stack downwards from the top face, with the same room"""
+        top = Reinforcement(
+            beam_double, is_bottom_reinforcement=False, center_position=250.0, id="T"
+        )
+        _place_layers(top, (16, 16))
+        assert top.clamps_fit(10, 8), "Eight φ10 clamps fit in the top half"
+        assert not top.clamps_fit(10, 9), "Nine φ10 clamps pass mid-height"
+
+
 class TestValidateLayerIndex:
     """Tests for the layer-index bounds check."""
 
@@ -256,18 +318,18 @@ class TestDistributeBars:
         self, reinforcement: Reinforcement
     ) -> None:
         """Smaller bars fill the room left in a layer before a new layer opens"""
-        # 15 cm available (20 - 2 x 2.5 cover), 3 cm spacing: 2φ16 + 3φ10
-        # needs 18.2 cm, but 2φ16 + 2φ10 fit (14.2 cm)
+        # 13 cm available (20 - 2 x (2.5 cover + 1.0 default stirrup)), 3 cm
+        # spacing: 2φ16 + 2φ10 needs 14.2 cm, but 2φ16 + 1φ10 fit (10.2 cm)
         bars = [Rebar(diameter_mm=16, steel=Steel.CA50) for _ in range(2)] + [
             Rebar(diameter_mm=10, steel=Steel.CA50) for _ in range(3)
         ]
         reinforcement.distribute_bars_in_layers(bars)
         layers = reinforcement.chosen_bars
-        assert sorted(_diameters(layers[0])) == [10, 10, 16, 16], (
-            "Layer 0 should hold both φ16 plus the two φ10 that still fit"
+        assert sorted(_diameters(layers[0])) == [10, 16, 16], (
+            "Layer 0 should hold both φ16 plus the one φ10 that still fits"
         )
-        assert _diameters(layers[1]) == [10], (
-            "Only the φ10 that does not fit should open layer 1"
+        assert _diameters(layers[1]) == [10, 10], (
+            "Only the φ10 that do not fit should open layer 1"
         )
 
     def test_three_groups_beyond_max_layers_raise_value_error(
@@ -291,6 +353,28 @@ class TestDistributeBars:
             match="Cannot distribute bars within the maximum number of layers",
         ):
             reinforcement.distribute_bars_in_layers(bars)
+
+
+class TestCheckForEnoughSpace:
+    """The layer width excludes the cover and the stirrup on both sides (cm)."""
+
+    # 3φ25 with 3 cm spacing needs 7.5 + 2 x 3 = 13.5 cm
+    THREE_25MM_BARS = [Rebar(diameter_mm=25, steel=Steel.CA50) for _ in range(3)]
+
+    def test_default_stirrup_reduces_available_width(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        # 20 - 2 x (2.5 cover + 1.0 default stirrup) = 13 cm available
+        assert not reinforcement.check_for_enough_space(self.THREE_25MM_BARS), (
+            "3φ25 should not fit once the default stirrup is discounted"
+        )
+
+    def test_uses_chosen_stirrup_diameter(self, reinforcement: Reinforcement) -> None:
+        reinforcement.stirrup_diameter = 0.63  # cm, φ6.3
+        # 20 - 2 x (2.5 cover + 0.63 stirrup) = 13.74 cm available
+        assert reinforcement.check_for_enough_space(self.THREE_25MM_BARS), (
+            "3φ25 should fit with the thinner chosen stirrup"
+        )
 
 
 def _layer(*diameters_mm: float) -> Layer:
@@ -412,6 +496,21 @@ class TestEndSupportAnchorage:
                 "Interior side needs no hook with 250+ cm available"
             )
 
+    @pytest.mark.parametrize("center_position", [0.0, 500.0])
+    def test_end_support_hooks_must_fit(
+        self, beam_double: RectangularBeam, center_position: float
+    ) -> None:
+        """No option is valid when the end support's hooks never fit in the section."""
+        reinforcement = _make_reinforcement(beam_double, center_position)
+        reinforcement.effective_depth = 55.0  # cm
+        reinforcement.design_shear = 100.0  # kN
+        with (
+            patch.object(Rebar, "hook_height", new_callable=PropertyMock) as height,
+            pytest.raises(ValueError, match="No valid reinforcement combination"),
+        ):
+            height.return_value = 100.0  # cm, taller than the 60 cm section
+            reinforcement.set_required_area(4.02)
+
     def test_end_support_right_length_matches_midspan(
         self, beam_double: RectangularBeam
     ) -> None:
@@ -435,6 +534,76 @@ class TestEndSupportAnchorage:
             assert bar.right_length > 0, "Right anchorage should be calculated"
             assert bar.left_hook_enabled is False, "No left hook away from the ends"
             assert bar.right_hook_enabled is False, "No right hook away from the ends"
+
+    @pytest.mark.parametrize(
+        ("center_position", "left"), [(0.0, True), (500.0, False)], ids=["start", "end"]
+    )
+    def test_top_tensioned_bars_bend_into_pillar(
+        self, pillar_beam: RectangularBeam, center_position: float, left: bool
+    ) -> None:
+        """Over a 20 cm pillar the bars run 10 cm − max(c_nom, 3φ), then bend at 15φ (cm)."""
+        reinforcement = _make_top_reinforcement(pillar_beam, center_position)
+        reinforcement.set_required_area(4.02)
+        for bar in _bars(reinforcement):
+            diameter_cm = bar.diameter_mm / 10  # cm
+            geometry = bar.left_hook_geometry if left else bar.right_hook_geometry
+            length = bar.left_length if left else bar.right_length
+            expected_length = 10.0 - max(
+                RectangularBeam.nominal_covering, 3 * diameter_cm
+            )  # cm
+            assert geometry is not None, "The pillar side should be a frame joint"
+            assert_approx(geometry.pin_diameter, 15 * diameter_cm, "D = 15φ (cm)")
+            assert_approx(length, expected_length, "Axis to the outer face (cm)")
+
+    @pytest.mark.parametrize("center_position", [0.0, 500.0])
+    def test_top_tensioned_bars_skip_hook_height_check(
+        self, pillar_beam: RectangularBeam, center_position: float
+    ) -> None:
+        """The frame-joint leg goes into the pillar, so tall hooks do not block it."""
+        reinforcement = _make_top_reinforcement(pillar_beam, center_position)
+        with patch.object(Rebar, "hook_height", new_callable=PropertyMock) as height:
+            height.return_value = 100.0  # cm, taller than the 60 cm section
+            reinforcement.set_required_area(4.02)
+        assert reinforcement.is_chosen, "A combination should be chosen"
+
+    def test_top_compressed_bars_keep_standard_hook(
+        self, pillar_beam: RectangularBeam
+    ) -> None:
+        """Compressed top bars at x = 0 keep the standard hook with zero length (cm)."""
+        reinforcement = _make_top_reinforcement(pillar_beam, 0.0, is_tensioned=False)
+        reinforcement.set_required_area(4.02)
+        for bar in _bars(reinforcement):
+            assert bar.left_hook_enabled is True, "The bar keeps its hook"
+            assert bar.left_hook_geometry is None, "The hook is the standard one"
+            assert bar.left_length == 0, "No left anchorage at the beam start"
+
+
+@pytest.fixture
+def pillar_beam() -> RectangularBeam:
+    """Build a beam double (CA50, 20x60 cm, 500 cm long) over 20 cm-wide end pillars."""
+    beam = types.SimpleNamespace(
+        steel=Steel.CA50,
+        width=20.0,
+        height=60.0,
+        length=500.0,
+        supports=[Support(0.0, -10.0, 10.0), Support(500.0, 490.0, 510.0)],
+    )
+    return cast(RectangularBeam, beam)
+
+
+def _make_top_reinforcement(
+    beam: RectangularBeam, center_position: float, is_tensioned: bool = True
+) -> Reinforcement:
+    """Build a top Reinforcement over the beam at a given center (cm)."""
+    reinforcement = Reinforcement(
+        beam,
+        is_bottom_reinforcement=False,
+        center_position=center_position,
+        id="R",
+        is_tensioned=is_tensioned,
+    )
+    reinforcement.moment_shift = 28.0  # cm
+    return reinforcement
 
 
 _SHORT_BEAM_LENGTH = 60.0  # cm, too short to anchor any bar past a_l = 28 cm

@@ -1,6 +1,6 @@
 """Reinforcement notation: "2Φ16 + 1Φ12,5", "Φ5 c/15 cm", "1Φ12,5 (l = 74,3 cm)"."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from pavement_ui.core.results.reinforcement import (
     BarGroup,
@@ -47,34 +47,69 @@ def fmt_clamp(clamp: ClampSpec) -> str:
     )
 
 
-def _fmt_clamp_sides(layer: BarLayer) -> str | None:
-    """Format a layer's clamps by side, e.g. "esq. … · dir. …"; None without clamps"""
+def fmt_hook(length_cm: float) -> str:
+    """Format one side's hook length, e.g. "11,5 cm" """
+    return s.HOOK.format(length=fmt_length_cm(length_cm))
+
+
+def _fmt_sides(left: str | None, right: str | None) -> str | None:
+    """Join a layer's per-side items, e.g. "esq. … · dir. …"; None when both are None"""
     sides: list[str] = []
-    if layer.left_clamps is not None:
-        sides.append(s.CLAMP_LEFT.format(clamp=fmt_clamp(layer.left_clamps)))
-    if layer.right_clamps is not None:
-        sides.append(s.CLAMP_RIGHT.format(clamp=fmt_clamp(layer.right_clamps)))
-    return s.CLAMP_SIDE_JOIN.join(sides) if sides else None
+    if left is not None:
+        sides.append(s.SIDE_LEFT.format(value=left))
+    if right is not None:
+        sides.append(s.SIDE_RIGHT.format(value=right))
+    return s.SIDE_JOIN.join(sides) if sides else None
 
 
-def fmt_clamps_cell(
-    tension: Sequence[BarLayer], compression: Sequence[BarLayer]
+def _fmt_clamp_sides(layer: BarLayer) -> str | None:
+    """Format a layer's clamps by side; None without clamps"""
+    return _fmt_sides(
+        None if layer.left_clamps is None else fmt_clamp(layer.left_clamps),
+        None if layer.right_clamps is None else fmt_clamp(layer.right_clamps),
+    )
+
+
+def _fmt_hook_sides(layer: BarLayer) -> str | None:
+    """Format a layer's hooks by side; None without hooks"""
+    return _fmt_sides(
+        None if layer.left_hook_cm is None else fmt_hook(layer.left_hook_cm),
+        None if layer.right_hook_cm is None else fmt_hook(layer.right_hook_cm),
+    )
+
+
+def _fmt_sides_cell(
+    tension: Sequence[BarLayer],
+    compression: Sequence[BarLayer],
+    fmt_layer_sides: Callable[[BarLayer], str | None],
 ) -> str:
-    """Format every layer's clamps for a table cell, e.g. "Camada 1: esq. 1Φ12,5 (l = 74,3 cm)"
+    """Format every layer's per-side items for a table cell
 
     Compressed layers are prefixed so their numbers don't mix with the
     tensioned ones.
     """
     items: list[str] = []
     for layers, template in (
-        (tension, s.CLAMP_LAYER_ITEM),
-        (compression, s.CLAMP_COMPRESSION_ITEM),
+        (tension, s.SIDES_LAYER_ITEM),
+        (compression, s.SIDES_COMPRESSION_ITEM),
     ):
         for layer in layers:
-            sides = _fmt_clamp_sides(layer)
+            sides = fmt_layer_sides(layer)
             if sides is not None:
                 items.append(template.format(index=layer.index, sides=sides))
     return s.LAYER_JOIN.join(items) if items else s.NONE
+
+
+def fmt_clamps_cell(
+    tension: Sequence[BarLayer], compression: Sequence[BarLayer]
+) -> str:
+    """Format every layer's clamps for a table cell, e.g. "Camada 1: esq. 1Φ12,5 (l = 74,3 cm)" """
+    return _fmt_sides_cell(tension, compression, _fmt_clamp_sides)
+
+
+def fmt_hooks_cell(tension: Sequence[BarLayer], compression: Sequence[BarLayer]) -> str:
+    """Format every layer's hooks for a table cell, e.g. "Camada 1: esq. 11,5 cm · dir. 11,5 cm" """
+    return _fmt_sides_cell(tension, compression, _fmt_hook_sides)
 
 
 def fmt_stirrup(stirrup: StirrupSpec, prefixed: bool = False) -> str:
