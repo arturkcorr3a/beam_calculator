@@ -95,6 +95,57 @@ class AnchorageCalculator:
         self.layer.set_anchorage_length(hooked_available_space, self.left)
         return self._add_clamps(clamp_available_length, self.necessary_anchorage_length)
 
+    def run_end_support(self, left: bool) -> None:
+        """Anchor the layer bars into the end support they are centered on
+
+        Tensioned top bars (negative moment) run over the pillar to its outer face minus the covering, then bend down into it as a frame joint: D per Section 18.2.2 and a straight leg of l_b,nec (α = 0.7, hooked). The leg goes into the pillar, so the section height does not limit it. Other bars keep a standard hook at the support's center, which must fit in the section height.
+
+        Args:
+            left: Whether the support is on the left (x = 0); otherwise on the right (x = L).
+
+        Raises:
+            ValueError: If a standard hook does not fit in the section height.
+
+        References:
+            ABNT NBR 6118:2026 — Sections 9.4.2.5 and 18.2.2
+            CARVALHO, ch. 5, example 4 (detailing of the frame joint)
+        """
+        self.left = left
+        self.logging_info = f"{self.id} ({'Left' if self.left else 'Right'})"
+        is_frame_joint = (
+            self.reinforcement.is_tensioned
+            and not self.reinforcement.is_bottom_reinforcement
+        )
+        if not is_frame_joint:
+            self.check_hook_fits()
+            self.layer.set_hooks(self.left, True)
+            self.layer.set_anchorage_length(0.0, self.left)
+            return
+
+        self.layer.set_hooks(self.left, True)  # l_b,nec with α = 0.7
+        leg_length = self.necessary_anchorage_length  # cm
+        self.layer.set_frame_joint_hooks(self.left, leg_length)
+
+        support = self._extremity_support
+        center = self.reinforcement.center_position  # cm
+        outer_face_distance = (
+            center - support.left if self.left else support.right - center
+        )  # cm
+        horizontal_length = max(
+            self.get_adjusted_available_space_for_hooks(
+                outer_face_distance - RectangularBeam.nominal_covering
+            ),
+            0.0,
+        )  # cm
+        self.layer.set_anchorage_length(horizontal_length, self.left)
+        bend_diameter = self.steel.frame_joint_bend_diameter(self.max_diameter)  # cm
+        log_property(
+            f"Frame joint hook: D = {bend_diameter:.2f} cm; leg (l_b,nec) = {leg_length:.2f} cm"
+        )
+        log_operation(
+            f"Anchorage length of {horizontal_length:.2f} cm set over the end support, bent into it as a frame joint."
+        )
+
     def _add_clamps(
         self, clamp_available_length: float, necessary_length: float
     ) -> Clamps:

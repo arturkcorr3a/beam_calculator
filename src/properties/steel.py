@@ -111,6 +111,27 @@ class Steel(Enum, metaclass=_SteelMeta):
                 ratio = 6
         return ratio * diameter_mm / 10
 
+    def frame_joint_bend_diameter(self, diameter_mm: float) -> float:
+        """Return the inner bend diameter (D) of a longitudinal bar bent in a frame joint
+
+        Args:
+            diameter_mm: Bar diameter φ (mm).
+
+        Returns:
+            Bend diameter in cm: 10φ for CA-25, 15φ for CA-50 and 18φ for CA-60.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.2.2
+        """
+        match self:
+            case Steel.CA25:
+                ratio = 10
+            case Steel.CA50:
+                ratio = 15
+            case Steel.CA60:
+                ratio = 18
+        return ratio * diameter_mm / 10
+
     def is_size_available(self, diameter: float) -> bool:
         """
         Checks if a given rebar diameter (in mm) is available for the steel type.

@@ -535,6 +535,76 @@ class TestEndSupportAnchorage:
             assert bar.left_hook_enabled is False, "No left hook away from the ends"
             assert bar.right_hook_enabled is False, "No right hook away from the ends"
 
+    @pytest.mark.parametrize(
+        ("center_position", "left"), [(0.0, True), (500.0, False)], ids=["start", "end"]
+    )
+    def test_top_tensioned_bars_bend_into_pillar(
+        self, pillar_beam: RectangularBeam, center_position: float, left: bool
+    ) -> None:
+        """Over a 20 cm pillar the bars run 10 cm − max(c_nom, 3φ), then bend at 15φ (cm)."""
+        reinforcement = _make_top_reinforcement(pillar_beam, center_position)
+        reinforcement.set_required_area(4.02)
+        for bar in _bars(reinforcement):
+            diameter_cm = bar.diameter_mm / 10  # cm
+            geometry = bar.left_hook_geometry if left else bar.right_hook_geometry
+            length = bar.left_length if left else bar.right_length
+            expected_length = 10.0 - max(
+                RectangularBeam.nominal_covering, 3 * diameter_cm
+            )  # cm
+            assert geometry is not None, "The pillar side should be a frame joint"
+            assert_approx(geometry.pin_diameter, 15 * diameter_cm, "D = 15φ (cm)")
+            assert_approx(length, expected_length, "Axis to the outer face (cm)")
+
+    @pytest.mark.parametrize("center_position", [0.0, 500.0])
+    def test_top_tensioned_bars_skip_hook_height_check(
+        self, pillar_beam: RectangularBeam, center_position: float
+    ) -> None:
+        """The frame-joint leg goes into the pillar, so tall hooks do not block it."""
+        reinforcement = _make_top_reinforcement(pillar_beam, center_position)
+        with patch.object(Rebar, "hook_height", new_callable=PropertyMock) as height:
+            height.return_value = 100.0  # cm, taller than the 60 cm section
+            reinforcement.set_required_area(4.02)
+        assert reinforcement.is_chosen, "A combination should be chosen"
+
+    def test_top_compressed_bars_keep_standard_hook(
+        self, pillar_beam: RectangularBeam
+    ) -> None:
+        """Compressed top bars at x = 0 keep the standard hook with zero length (cm)."""
+        reinforcement = _make_top_reinforcement(pillar_beam, 0.0, is_tensioned=False)
+        reinforcement.set_required_area(4.02)
+        for bar in _bars(reinforcement):
+            assert bar.left_hook_enabled is True, "The bar keeps its hook"
+            assert bar.left_hook_geometry is None, "The hook is the standard one"
+            assert bar.left_length == 0, "No left anchorage at the beam start"
+
+
+@pytest.fixture
+def pillar_beam() -> RectangularBeam:
+    """Build a beam double (CA50, 20x60 cm, 500 cm long) over 20 cm-wide end pillars."""
+    beam = types.SimpleNamespace(
+        steel=Steel.CA50,
+        width=20.0,
+        height=60.0,
+        length=500.0,
+        supports=[Support(0.0, -10.0, 10.0), Support(500.0, 490.0, 510.0)],
+    )
+    return cast(RectangularBeam, beam)
+
+
+def _make_top_reinforcement(
+    beam: RectangularBeam, center_position: float, is_tensioned: bool = True
+) -> Reinforcement:
+    """Build a top Reinforcement over the beam at a given center (cm)."""
+    reinforcement = Reinforcement(
+        beam,
+        is_bottom_reinforcement=False,
+        center_position=center_position,
+        id="R",
+        is_tensioned=is_tensioned,
+    )
+    reinforcement.moment_shift = 28.0  # cm
+    return reinforcement
+
 
 _SHORT_BEAM_LENGTH = 60.0  # cm, too short to anchor any bar past a_l = 28 cm
 

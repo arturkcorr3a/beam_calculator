@@ -1215,3 +1215,111 @@ class TestRunInnerSupport:
         )
         with pytest.raises(ValueError, match="below"):
             ac.run(available_space=327.0, left=False)
+
+
+# ---------------------------------------------------------------------------
+# TestRunEndSupport
+# ---------------------------------------------------------------------------
+
+_END_SUPPORTS = [Support(0.0, -10.0, 10.0), Support(_BEAM_LENGTH, 485.0, 515.0)]
+
+
+def _make_end_support_ac(
+    layer: Layer,
+    center: float,
+    *,
+    is_tensioned: bool = True,
+    supports: list[Support] | None = None,
+) -> AnchorageCalculator:
+    """Construct an AnchorageCalculator centered on an end support of a 500 cm beam
+
+    Layers below mid-height are bottom bars; above it, top bars.
+    """
+    reinforcement = types.SimpleNamespace(
+        chosen_bars=[layer],
+        is_bottom_reinforcement=layer.y_centroid_position < 30.0,
+        is_tensioned=is_tensioned,
+        beam=types.SimpleNamespace(
+            height=60.0,
+            length=_BEAM_LENGTH,
+            supports=_END_SUPPORTS if supports is None else supports,
+        ),
+        required_area=2.0,
+        area=2.0,
+        center_position=center,
+        moment_zeros=(),
+        span_moment=None,
+    )
+    return AnchorageCalculator(
+        moment_shift=28.0,
+        steel=Steel.CA50,
+        layer_index=0,
+        reinforcement=reinforcement,  # pyright: ignore[reportArgumentType]
+        id="Test",
+    )
+
+
+@pytest.mark.usefixtures("nominal_covering_3cm")
+class TestRunEndSupport:
+    """Tests for run_end_support() — bars centered on an end support (x = 0 or x = L)."""
+
+    @pytest.mark.parametrize(
+        ("left", "center", "horizontal"),
+        [(True, 0.0, 5.2), (False, _BEAM_LENGTH, 10.2)],
+        ids=["start", "end"],
+    )
+    def test_top_tensioned_bars_bend_into_frame_joint(
+        self, layer_16mm_poor: Layer, left: bool, center: float, horizontal: float
+    ) -> None:
+        """Half widths 10 and 15 cm minus 3φ = 4.8 cm; D = 15φ = 24 cm; leg = 0.7 l_b"""
+        ac = _make_end_support_ac(layer_16mm_poor, center)
+        ac.run_end_support(left=left)
+        leg = 0.7 * ac.basic_anchorage_length  # cm, A_s,calc = A_s,ef
+        for bar in layer_16mm_poor.bars:
+            hook_enabled = bar.left_hook_enabled if left else bar.right_hook_enabled
+            geometry = bar.left_hook_geometry if left else bar.right_hook_geometry
+            length = bar.left_length if left else bar.right_length
+            assert hook_enabled, "The bar should be hooked into the pillar"
+            assert geometry is not None, "The hook should be a frame-joint one"
+            assert_approx(geometry.pin_diameter, 24.0, "D = 15φ for CA-50 (cm)")
+            assert_approx(geometry.tip_length, leg, "Leg = l_b,nec with α = 0.7 (cm)")
+            assert_approx(length, horizontal, "Axis to outer face − 3φ (cm)")
+
+    @pytest.mark.usefixtures("tall_hooks")
+    def test_frame_joint_skips_section_height_check(
+        self, layer_16mm_poor: Layer
+    ) -> None:
+        ac = _make_end_support_ac(layer_16mm_poor, 0.0)
+        ac.run_end_support(left=True)  # the leg goes into the pillar
+
+    def test_zero_width_support_gets_no_horizontal_length(
+        self, layer_16mm_poor: Layer
+    ) -> None:
+        supports = [Support(0.0, 0.0, 0.0), Support(_BEAM_LENGTH, 500.0, 500.0)]
+        ac = _make_end_support_ac(layer_16mm_poor, 0.0, supports=supports)
+        ac.run_end_support(left=True)
+        for bar in layer_16mm_poor.bars:
+            assert bar.left_length == 0.0, "No room over a zero-width support"
+            assert bar.left_hook_geometry is not None, "Still a frame-joint hook"
+
+    @pytest.mark.parametrize(
+        ("good_adherence", "is_tensioned"),
+        [(True, True), (False, False)],
+        ids=["bottom", "compressed-top"],
+    )
+    def test_other_bars_keep_standard_hook(
+        self, good_adherence: bool, is_tensioned: bool
+    ) -> None:
+        layer = _make_layer(16.0, good_adherence=good_adherence)
+        ac = _make_end_support_ac(layer, 0.0, is_tensioned=is_tensioned)
+        ac.run_end_support(left=True)
+        for bar in layer.bars:
+            assert bar.left_hook_enabled, "The bar keeps its hook"
+            assert bar.left_hook_geometry is None, "The hook is the standard one"
+            assert bar.left_length == 0.0, "No length past the support's center"
+
+    @pytest.mark.usefixtures("tall_hooks")
+    def test_other_bars_check_hook_fits(self, layer_16mm_good: Layer) -> None:
+        ac = _make_end_support_ac(layer_16mm_good, 0.0)
+        with pytest.raises(ValueError, match="Hooks do not fit"):
+            ac.run_end_support(left=True)

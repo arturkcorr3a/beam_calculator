@@ -5,7 +5,7 @@ import pytest
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
-from src.structural_elements.rebar import Rebar
+from src.structural_elements.rebar import HookGeometry, Rebar
 from tests.helpers import assert_approx
 
 
@@ -94,6 +94,40 @@ class TestSetHooks:
             ValueError, match="No bars in the layer to enable/disable hooks"
         ):
             empty_layer.set_hooks(left=True, enable=True)
+
+    def test_resets_side_geometry(self, layer_two_10mm: Layer) -> None:
+        layer_two_10mm.set_frame_joint_hooks(left=False, tip_length=30.0)
+        layer_two_10mm.set_hooks(left=False, enable=True)
+        for bar in layer_two_10mm.bars:
+            assert bar.right_hook_geometry is None, (
+                "A standard hook should drop the frame-joint geometry"
+            )
+
+
+class TestSetFrameJointHooks:
+    """Tests for hooking one side's bars as bent into a frame joint."""
+
+    def test_sets_geometry_per_bar(self) -> None:
+        layer = Layer(
+            [Rebar(diameter_mm=16, steel=Steel.CA50), Rebar(10, Steel.CA50)], 0
+        )
+        layer.set_frame_joint_hooks(left=True, tip_length=40.0)
+        expected = [
+            HookGeometry(pin_diameter=24.0, tip_length=40.0),  # cm, 15φ for φ16
+            HookGeometry(pin_diameter=15.0, tip_length=40.0),  # cm, 15φ for φ10
+        ]
+        for bar, geometry in zip(layer.bars, expected, strict=True):
+            assert bar.left_hook_enabled is True, "The left hook should be enabled"
+            assert bar.left_hook_geometry == geometry, (
+                "Each bar bends with its own 15φ and the shared tip"
+            )
+            assert bar.right_hook_geometry is None, "The right side is untouched"
+
+    def test_empty_raises(self, empty_layer: Layer) -> None:
+        with pytest.raises(
+            ValueError, match="No bars in the layer to enable/disable hooks"
+        ):
+            empty_layer.set_frame_joint_hooks(left=True, tip_length=40.0)
 
 
 class TestClamps:

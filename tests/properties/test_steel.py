@@ -210,6 +210,38 @@ class TestBendPinDiameter:
             steel_ca60.bend_pin_diameter(20)
 
 
+class TestFrameJointBendDiameter:
+    """Tests for the bend diameter (cm) of bars bent in a frame joint, NBR 6118 18.2.2."""
+
+    def test_ca25(self, steel_ca25: Steel) -> None:
+        assert_approx(
+            steel_ca25.frame_joint_bend_diameter(10),
+            10.0,
+            "For CA-25, D should be 10φ (10.0 cm for 10 mm)",
+        )
+
+    def test_ca50(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.frame_joint_bend_diameter(16),
+            24.0,
+            "For CA-50, D should be 15φ (24.0 cm for 16 mm)",
+        )
+
+    def test_ca50_large_bar(self, steel_ca50: Steel) -> None:
+        assert_approx(
+            steel_ca50.frame_joint_bend_diameter(25),
+            37.5,
+            "For CA-50, D should stay 15φ for φ >= 20 mm (37.5 cm for 25 mm)",
+        )
+
+    def test_ca60(self, steel_ca60: Steel) -> None:
+        assert_approx(
+            steel_ca60.frame_joint_bend_diameter(10),
+            18.0,
+            "For CA-60, D should be 18φ (18.0 cm for 10 mm)",
+        )
+
+
 class TestAvailableSizes:
     """Tests for the available rebar diameters (mm)."""
 

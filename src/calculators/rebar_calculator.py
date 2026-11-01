@@ -96,6 +96,7 @@ class RebarCalculator:
             center_position=bending_moment_position,
             id=self.id,
             moment_zeros=moment_zeros,
+            is_tensioned=False,
         )
         self.stirrup_diameter: float | None = None  # cm, set by calculate_for
 

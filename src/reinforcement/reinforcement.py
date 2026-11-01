@@ -39,6 +39,7 @@ class Reinforcement:
         moment_zeros: tuple[float, ...] = (),
         support_moments: tuple[float, ...] = (),
         span_moment: float | None = None,
+        is_tensioned: bool = True,
     ):
         """Initialize an empty longitudinal reinforcement
 
@@ -54,6 +55,8 @@ class Reinforcement:
             span_moment: Characteristic positive moment of the span (kN.m). Set
                 only on the bottom bars of a positive-moment point; enables the
                 support anchorage checks.
+            is_tensioned: Whether the bars are tensioned; False for the
+                compressed reinforcement.
         """
         self.beam = beam
         self.steel = beam.steel
@@ -61,6 +64,7 @@ class Reinforcement:
         self.is_chosen = False
         self.rebar_choice_options: tuple[tuple[Rebar, ...], ...] = ()
         self.is_bottom_reinforcement = is_bottom_reinforcement
+        self.is_tensioned = is_tensioned
         self.center_position = center_position
         self.moment_zeros = moment_zeros  # cm, positions where M = 0
         self.support_moments = support_moments  # kN.m, characteristic, signed
@@ -212,14 +216,14 @@ class Reinforcement:
     def _run_anchorage_calculation(self, allow_clamp: bool) -> None:
         """Run the anchorage calculation for each layer, setting the bars' lengths
 
-        Bars centered on an end support are anchored only towards the beam interior: at the beam start (x = 0) the left length stays zero, and at the beam end (x = L) the right length stays zero.
+        Bars centered on an end support are anchored towards the beam interior as usual, and hooked into the support on the other side (see ``AnchorageCalculator.run_end_support``): tensioned top bars run to the support's outer face and bend into it as a frame joint; other bars keep a standard hook with zero length.
 
         Args:
             allow_clamp: Whether clamps may complete the anchorage at the
                 extremity supports.
 
         Raises:
-            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed), or if the hooks do not fit in the section height.
+            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed), or if the standard hooks do not fit in the section height.
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
         moment_shift = cast(float, self.moment_shift)
@@ -235,10 +239,7 @@ class Reinforcement:
             )
 
             if self._is_at_beam_start:
-                is_left = True
-                anchorage_calculator.check_hook_fits()
-                layer.set_hooks(is_left, True)
-                layer.set_anchorage_length(0.0, is_left)
+                anchorage_calculator.run_end_support(left=True)
             else:
                 left_available_space = (
                     self.center_position - RectangularBeam.nominal_covering
@@ -248,10 +249,7 @@ class Reinforcement:
                 )
 
             if self._is_at_beam_end:
-                is_left = False
-                anchorage_calculator.check_hook_fits()
-                layer.set_hooks(is_left, True)
-                layer.set_anchorage_length(0.0, is_left)
+                anchorage_calculator.run_end_support(left=False)
             else:
                 right_available_space = (
                     self.beam.length - RectangularBeam.nominal_covering

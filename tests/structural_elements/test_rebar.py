@@ -3,7 +3,7 @@
 import pytest
 
 from src.properties.steel import Steel
-from src.structural_elements.rebar import Rebar
+from src.structural_elements.rebar import HookGeometry, Rebar
 from tests.helpers import assert_approx
 
 
@@ -130,6 +130,27 @@ class TestSideHookLength:
             "The right side stays without a hook"
         )
 
+    def test_side_geometry_replaces_standard_hook(self) -> None:
+        rebar = Rebar(diameter_mm=16, steel=Steel.CA50)
+        rebar.left_hook_enabled = True
+        rebar.left_hook_geometry = HookGeometry(pin_diameter=24.0, tip_length=40.0)
+        expected_length = 46.506192982974675  # cm (π·25.6/4 + 40 − 13.6)
+        assert_approx(
+            rebar.left_hook_length,
+            expected_length,
+            "The left hook uses its own D = 15φ and 40 cm tip",
+        )
+        assert_approx(
+            rebar.hook_length,
+            14.739822368615503,
+            "The standard hook length does not change",
+        )
+
+    def test_side_geometry_ignored_when_disabled(self) -> None:
+        rebar = Rebar(diameter_mm=16, steel=Steel.CA50)
+        rebar.right_hook_geometry = HookGeometry(pin_diameter=24.0, tip_length=40.0)
+        assert rebar.right_hook_length == 0.0, "No right hook, no length"
+
 
 class TestTotalLength:
     """Tests for the bar's cut length: straight lengths plus enabled hooks."""
@@ -151,4 +172,18 @@ class TestTotalLength:
             rebar_ca50_10mm.total_length,
             expected_length,
             "Straight lengths plus the right hook",
+        )
+
+    def test_with_right_side_geometry(self, rebar_ca50_10mm: Rebar) -> None:
+        rebar_ca50_10mm.left_length = 40.0
+        rebar_ca50_10mm.right_length = 60.0
+        rebar_ca50_10mm.right_hook_enabled = True
+        rebar_ca50_10mm.right_hook_geometry = HookGeometry(
+            pin_diameter=15.0, tip_length=30.0
+        )
+        expected_length = 134.0663706143592  # cm (100 + π·16/4 + 30 − 8.5)
+        assert_approx(
+            rebar_ca50_10mm.total_length,
+            expected_length,
+            "Straight lengths plus the right hook with its own geometry",
         )
