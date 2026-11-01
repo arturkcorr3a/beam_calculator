@@ -2,6 +2,7 @@
 
 import types
 from typing import cast
+from unittest.mock import PropertyMock, patch
 
 import pytest
 
@@ -494,6 +495,21 @@ class TestEndSupportAnchorage:
             assert bar.left_hook_enabled is False, (
                 "Interior side needs no hook with 250+ cm available"
             )
+
+    @pytest.mark.parametrize("center_position", [0.0, 500.0])
+    def test_end_support_hooks_must_fit(
+        self, beam_double: RectangularBeam, center_position: float
+    ) -> None:
+        """No option is valid when the end support's hooks never fit in the section."""
+        reinforcement = _make_reinforcement(beam_double, center_position)
+        reinforcement.effective_depth = 55.0  # cm
+        reinforcement.design_shear = 100.0  # kN
+        with (
+            patch.object(Rebar, "hook_height", new_callable=PropertyMock) as height,
+            pytest.raises(ValueError, match="No valid reinforcement combination"),
+        ):
+            height.return_value = 100.0  # cm, taller than the 60 cm section
+            reinforcement.set_required_area(4.02)
 
     def test_end_support_right_length_matches_midspan(
         self, beam_double: RectangularBeam

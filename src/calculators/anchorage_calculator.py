@@ -57,7 +57,7 @@ class AnchorageCalculator:
             The clamps set on the layer, or None if the bars anchor without them.
 
         Raises:
-            ValueError: If there isn't enough space even with hooks, and clamps are not allowed or not possible at that end; or if a reached support's checks fail.
+            ValueError: If there isn't enough space even with hooks, and clamps are not allowed or not possible at that end; if the hooks needed do not fit in the section height; or if a reached support's checks fail.
         """
         self.left = left
         self.logging_info = f"{self.id} ({'Left' if self.left else 'Right'})"
@@ -72,6 +72,7 @@ class AnchorageCalculator:
             return None
 
         log_operation("Not enough space for anchorage; Add hooks and re-trying...")
+        self.check_hook_fits()
         hooked_available_space = self.get_adjusted_available_space_for_hooks(
             available_space
         )
@@ -285,8 +286,9 @@ class AnchorageCalculator:
             The clamps set on the layer, or None if the bars anchor without them.
 
         Raises:
-            ValueError: If the bars do not fit, and clamps are not allowed or
-                there is no length past the face for them.
+            ValueError: If the bars do not fit, and clamps are not allowed,
+                the hooks do not fit in the section height, or there is no
+                length past the face for them.
 
         References:
             ABNT NBR 6118:2026 — Section 18.3.2.4.1
@@ -305,6 +307,7 @@ class AnchorageCalculator:
             log_operation(error_message)
             raise ValueError(error_message)
 
+        self.check_hook_fits()
         self.layer.set_hooks(self.left, True)
         hooked_space = self.get_adjusted_available_space_for_hooks(
             available_space
@@ -335,14 +338,18 @@ class AnchorageCalculator:
             The clamps set on the layer, or None if the bars anchor without them.
 
         Raises:
-            ValueError: If the hooked bars do not fit, and clamps are not
-                allowed or there is no length inside the support for them.
+            ValueError: If the straight bars do not fit and the hooks do not
+                fit in the section height; or if the hooked bars do not fit,
+                and clamps are not allowed or there is no length inside the
+                support for them.
 
         References:
             ABNT NBR 6118:2026 — Section 18.3.2.4.1
         """
         room = self._length_inside_support(support)  # cm
         for with_hooks in (False, True):
+            if with_hooks:
+                self.check_hook_fits()
             self.layer.set_hooks(self.left, with_hooks)
             space = (
                 self.get_adjusted_available_space_for_hooks(room)
@@ -611,6 +618,34 @@ class AnchorageCalculator:
         )
         log_property(f"Minimum Anchorage Length (l_b,min) = {l_b_min:.2f} cm")
         return l_b_min
+
+    def check_hook_fits(self) -> None:
+        """Check that the layer's 90° hooks fit in the section height
+
+        The hook's leg runs from the bars' axis towards the opposite face and must stop at the nominal covering. The room is h − y − c_nom for bottom bars and y − c_nom for top bars, with y the layer's centroid from the bottom face.
+
+        Raises:
+            ValueError: If the tallest hook in the layer (D/2 + φ/2 + 8φ) is
+                higher than the room.
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.4.2.3
+        """
+        y_centroid = self.layer.y_centroid_position  # cm
+        distance_to_opposite_face = (
+            self.beam_height - y_centroid
+            if self.reinforcement.is_bottom_reinforcement
+            else y_centroid
+        )  # cm
+        room = distance_to_opposite_face - RectangularBeam.nominal_covering  # cm
+        hook_height = max(bar.hook_height for bar in self.layer.bars)  # cm
+        log_property(
+            f"Hook height (D/2 + φ/2 + 8φ) = {hook_height:.2f} cm; room in the section = {room:.2f} cm"
+        )
+        if hook_height > room:
+            error_message = f"Hooks do not fit in the section height. Hook height: {hook_height:.2f} cm, Room: {room:.2f} cm."
+            log_operation(error_message)
+            raise ValueError(error_message)
 
     def get_adjusted_available_space_for_hooks(
         self, regular_available_space: float

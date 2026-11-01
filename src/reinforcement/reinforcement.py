@@ -219,7 +219,7 @@ class Reinforcement:
                 extremity supports.
 
         Raises:
-            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed).
+            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed), or if the hooks do not fit in the section height.
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
         moment_shift = cast(float, self.moment_shift)
@@ -236,6 +236,7 @@ class Reinforcement:
 
             if self._is_at_beam_start:
                 is_left = True
+                anchorage_calculator.check_hook_fits()
                 layer.set_hooks(is_left, True)
                 layer.set_anchorage_length(0.0, is_left)
             else:
@@ -248,6 +249,7 @@ class Reinforcement:
 
             if self._is_at_beam_end:
                 is_left = False
+                anchorage_calculator.check_hook_fits()
                 layer.set_hooks(is_left, True)
                 layer.set_anchorage_length(0.0, is_left)
             else:

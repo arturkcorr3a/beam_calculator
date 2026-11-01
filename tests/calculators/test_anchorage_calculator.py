@@ -53,9 +53,13 @@ def _make_reinforcement(
     beam_height: float = 60.0,
     moment_zeros: tuple[float, ...] = (),
 ) -> types.SimpleNamespace:
-    """Build a minimal reinforcement stub, centered on a 500 cm beam."""
+    """Build a minimal reinforcement stub, centered on a 500 cm beam.
+
+    Layers below mid-height are bottom bars; above it, top bars.
+    """
     return types.SimpleNamespace(
         chosen_bars=[layer],
+        is_bottom_reinforcement=layer.y_centroid_position < beam_height / 2,
         beam=types.SimpleNamespace(height=beam_height, length=_STUB_BEAM_LENGTH),
         required_area=required_area,
         area=area,
@@ -482,6 +486,51 @@ class TestGetAdjustedAvailableSpaceForHooks:
 
 
 # ---------------------------------------------------------------------------
+# TestCheckHookFits
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.usefixtures("nominal_covering_3cm")
+class TestCheckHookFits:
+    """Tests for check_hook_fits(): hook height D/2 + φ/2 + 8φ against the room in the section (cm)."""
+
+    def test_bottom_layer_fits(self, ac: AnchorageCalculator) -> None:
+        """Bottom φ16 at y = 5 cm, h = 60: room 60 - 5 - 3 = 52 >= 17.6 cm"""
+        ac.check_hook_fits()
+
+    def test_bottom_layer_too_short_raises(self, layer_16mm_good: Layer) -> None:
+        """Bottom φ16 at y = 5 cm, h = 20: room 20 - 5 - 3 = 12 < 17.6 cm"""
+        ac = _make_ac(layer_16mm_good, required_area=2.0, area=2.0, beam_height=20.0)
+        with pytest.raises(ValueError, match="Hooks do not fit"):
+            ac.check_hook_fits()
+
+    def test_top_layer_fits(self, layer_16mm_poor: Layer) -> None:
+        """Top φ16 at y = 55 cm: room 55 - 3 = 52 >= 17.6 cm"""
+        ac = _make_ac(layer_16mm_poor, required_area=2.0, area=2.0)
+        ac.check_hook_fits()
+
+    def test_top_layer_too_short_raises(self) -> None:
+        """Top φ16 at y = 15 cm, h = 20: room 15 - 3 = 12 < 17.6 cm"""
+        layer = _make_layer(16.0, good_adherence=True)
+        layer.y_centroid_position = 15.0
+        ac = _make_ac(layer, required_area=2.0, area=2.0, beam_height=20.0)
+        with pytest.raises(ValueError, match="Hooks do not fit"):
+            ac.check_hook_fits()
+
+    def test_tallest_bar_governs(self) -> None:
+        """φ10 (11 cm) would fit; φ20 (25 cm) does not in 30 - 5 - 3 = 22 cm"""
+        bars = [
+            Rebar(diameter_mm=10, steel=Steel.CA50),
+            Rebar(diameter_mm=20, steel=Steel.CA50),
+        ]
+        layer = Layer(bars=bars, layer_index=0)
+        layer.y_centroid_position = 5.0
+        ac = _make_ac(layer, required_area=2.0, area=2.0, beam_height=30.0)
+        with pytest.raises(ValueError, match="Hook height: 25.00 cm"):
+            ac.check_hook_fits()
+
+
+# ---------------------------------------------------------------------------
 # TestRun
 # ---------------------------------------------------------------------------
 
@@ -556,6 +605,19 @@ class TestRun:
             with pytest.raises(ValueError, match="even with hooks"):
                 ac.run(available_space=1.0, left=True)
 
+    @pytest.mark.usefixtures("nominal_covering_3cm", "tall_hooks")
+    def test_raises_when_needed_hooks_do_not_fit(self, ac: AnchorageCalculator) -> None:
+        with pytest.raises(ValueError, match="Hooks do not fit"):
+            ac.run(available_space=1.0, left=True)
+
+    @pytest.mark.usefixtures("nominal_covering_3cm", "tall_hooks")
+    def test_straight_bars_skip_hook_check(
+        self, ac: AnchorageCalculator, layer_16mm_good: Layer
+    ) -> None:
+        ac.run(available_space=200.0, left=True)
+        for bar in layer_16mm_good.bars:
+            assert not bar.left_hook_enabled, "Straight bars need no hook check"
+
 
 # ---------------------------------------------------------------------------
 # TestClampFallback
@@ -580,6 +642,7 @@ def _make_clamp_ac(
     """Construct an AnchorageCalculator whose reinforcement stub can build clamps"""
     reinforcement = types.SimpleNamespace(
         chosen_bars=[layer],
+        is_bottom_reinforcement=True,
         beam=types.SimpleNamespace(
             height=60.0, length=_BEAM_LENGTH, label="V1", supports=supports
         ),
@@ -616,6 +679,14 @@ def nominal_covering_3cm() -> Iterator[None]:
         _BeamMeta, "nominal_covering", new_callable=PropertyMock
     ) as mock_cov:
         mock_cov.return_value = 3.0
+        yield
+
+
+@pytest.fixture
+def tall_hooks() -> Iterator[None]:
+    """Make every bar's hook 100 cm tall, so it never fits in a 60 cm section"""
+    with patch.object(Rebar, "hook_height", new_callable=PropertyMock) as mock_height:
+        mock_height.return_value = 100.0
         yield
 
 
@@ -699,6 +770,15 @@ class TestClampFallback:
         assert other_layer.left_clamps is clamps, "Other layer gets the new clamps"
         assert other_layer.right_clamps is None, "Right side untouched"
 
+    @pytest.mark.usefixtures("tall_hooks")
+    def test_hooks_that_do_not_fit_block_clamps(
+        self, layer_16mm_good: Layer, wide_supports: list[Support]
+    ) -> None:
+        ac = _make_clamp_ac(layer_16mm_good, wide_supports)
+        with pytest.raises(ValueError, match="Hooks do not fit"):
+            ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
+        assert layer_16mm_good.left_clamps is None, "No clamps without hooks"
+
     def test_zero_width_support_raises(self, layer_16mm_good: Layer) -> None:
         supports = [Support(0.0, 0.0, 0.0), Support(_BEAM_LENGTH, 500.0, 500.0)]
         ac = _make_clamp_ac(layer_16mm_good, supports)
@@ -774,6 +854,7 @@ def _make_support_ac(
     ]
     reinforcement = types.SimpleNamespace(
         chosen_bars=[layer],
+        is_bottom_reinforcement=True,
         beam=types.SimpleNamespace(
             height=60.0, length=_SUPPORT_BEAM_LENGTH, label="V1", supports=supports
         ),
@@ -1011,6 +1092,22 @@ class TestRunOuterSupport:
             assert bar.left_hook_enabled, "Clamped bars keep their hooks"
             assert_approx(bar.left_length, 20.0 + 15.7, "Face distance + room (cm)")
 
+    @pytest.mark.usefixtures("tall_hooks")
+    def test_straight_bars_skip_hook_check(self, layer_16mm_good: Layer) -> None:
+        ac = _make_support_ac(
+            layer_16mm_good, 50.0, left_support=Support(0.0, -40.0, 40.0)
+        )
+        ac.run(available_space=47.0, left=True, allow_clamp=True)
+        for bar in layer_16mm_good.bars:
+            assert not bar.left_hook_enabled, "Straight bars need no hook check"
+
+    @pytest.mark.usefixtures("tall_hooks")
+    def test_hooks_that_do_not_fit_raise(self, layer_16mm_good: Layer) -> None:
+        ac = _make_support_ac(layer_16mm_good, 30.0)
+        with pytest.raises(ValueError, match="Hooks do not fit"):
+            ac.run(available_space=27.0, left=True, allow_clamp=True)
+        assert layer_16mm_good.left_clamps is None, "No clamps without hooks"
+
     def test_no_fit_without_clamps_raises(self, layer_16mm_good: Layer) -> None:
         ac = _make_support_ac(layer_16mm_good, 30.0)
         with pytest.raises(ValueError, match="inside the support - even with hooks"):
@@ -1077,6 +1174,13 @@ class TestRunInnerSupport:
         for bar in layer_16mm_good.bars:
             assert bar.right_hook_enabled, "Clamped bars keep their hooks"
             assert_approx(bar.right_length, 28.2, "Hook-adjusted space (cm)")
+
+    @pytest.mark.usefixtures("tall_hooks")
+    def test_hooks_that_do_not_fit_block_clamps(self, layer_16mm_good: Layer) -> None:
+        ac = _make_support_ac(layer_16mm_good, 270.0)
+        with pytest.raises(ValueError, match="Hooks do not fit"):
+            ac.run(available_space=30.0, left=False, allow_clamp=True)
+        assert layer_16mm_good.right_clamps is None, "No clamps without hooks"
 
     def test_clamps_get_length_past_face(self, layer_16mm_good: Layer) -> None:
         """Clamps get 28.2 - 20 = 8.2 cm past the face and 10φ = 16 cm needed"""

@@ -43,6 +43,10 @@ class BarLayer:
         groups: Bar groups, largest diameter first.
         left_clamps: Clamps at the left end; None when the bars anchor alone.
         right_clamps: Clamps at the right end; None when the bars anchor alone.
+        left_hook_cm: Extra cut length of the 90° hook at the left end (cm);
+            None without a hook.
+        right_hook_cm: Extra cut length of the 90° hook at the right end (cm);
+            None without a hook.
     """
 
     index: int
@@ -50,6 +54,8 @@ class BarLayer:
     groups: tuple[BarGroup, ...]
     left_clamps: ClampSpec | None = None
     right_clamps: ClampSpec | None = None
+    left_hook_cm: float | None = None
+    right_hook_cm: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
