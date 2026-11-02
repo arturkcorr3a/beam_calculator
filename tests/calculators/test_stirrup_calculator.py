@@ -153,6 +153,63 @@ class TestMaxSpacing:
         assert sc_high.max_spacing == 20.0, "max_spacing should be 20 cm (capped) (cm)"
 
 
+class TestMaxSpacingFor:
+    """Tests for max_spacing_for() with a shear other than the calculator's (cm)."""
+
+    def test_at_reduced_spacing_limit_keeps_low_shear_branch(
+        self, sc: StirrupCalculator
+    ) -> None:
+        """V_Sd = 0.67*V_Rd2 still uses min(0.6*d, 30) = 30 cm for d=56 (cm)."""
+        # 0.67 * 486 = 325.62 kN
+        assert sc.max_spacing_for(325.62) == 30.0, (
+            "max_spacing_for should use the low-shear branch at 0.67*V_Rd2 (cm)"
+        )
+
+    def test_above_reduced_spacing_limit_uses_high_shear_branch(
+        self, sc: StirrupCalculator
+    ) -> None:
+        """V_Sd > 0.67*V_Rd2 uses min(0.3*d, 20) = 16.8 cm for d=56 (cm)."""
+        assert_approx(
+            sc.max_spacing_for(326.0),
+            16.8,
+            "max_spacing_for should use 0.3*d above 0.67*V_Rd2 (cm)",
+        )
+
+    def test_ignores_calculator_shear(self, sc: StirrupCalculator) -> None:
+        """The calculator's own V_Sd (200 kN) does not change max_spacing_for (cm)."""
+        sc.design_shear_force = 400.0  # above 0.67*V_Rd2
+        assert sc.max_spacing_for(10.0) == 30.0, (
+            "max_spacing_for should depend only on the given shear (cm)"
+        )
+
+
+class TestShearResistance:
+    """Tests for shear_resistance() (V_Rd3 = V_c + V_sw) in kN."""
+
+    def test_no_stirrups_is_concrete_contribution(self, sc: StirrupCalculator) -> None:
+        """A zero ratio resists only V_c (kN)."""
+        assert_approx(
+            sc.shear_resistance(0.0),
+            86.18278771250553,
+            "V_Rd3 with A_sw/s = 0 equals V_c (kN)",
+        )
+
+    def test_value(self, sc: StirrupCalculator) -> None:
+        """V_Rd3 = V_c + A_sw/s * 0.9 * d * fywd for A_sw/s = 0.05 cm²/cm (kN)."""
+        expected = 86.18278771250553 + 0.05 * 0.9 * 56.0 * Steel.CA50.fywd
+        assert_approx(
+            sc.shear_resistance(0.05), expected, "V_Rd3 for A_sw/s = 0.05 (kN)"
+        )
+
+    def test_required_ratio_resists_design_shear(self, sc: StirrupCalculator) -> None:
+        """When V_sw governs, the required ratio resists exactly V_Sd = 200 kN (kN)."""
+        assert_approx(
+            sc.shear_resistance(sc.required_ratio),
+            200.0,
+            "V_Rd3 of the required ratio equals V_Sd (kN)",
+        )
+
+
 class TestCalculateMomentShift:
     """Tests for calculate_moment_shift() (cm)."""
 
