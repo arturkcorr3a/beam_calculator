@@ -114,6 +114,17 @@ class _Element:
                 positions.append(self.start + u * _CM_PER_M)
         return positions
 
+    def positions_for_shear(self, target_shear: float) -> list[float]:
+        """Return the global positions (cm) in this element where V equals a target (kN)."""
+        a, b, _ = self.coefficients
+        if a == 0:
+            return []  # constant shear: either never or everywhere equal
+        u = (target_shear - b) / (2 * a)
+        if not -_ROOT_TOLERANCE <= u <= self.length + _ROOT_TOLERANCE:
+            return []
+        u = min(max(u, 0.0), self.length)
+        return [self.start + u * _CM_PER_M]
+
     def vertex(self) -> float | None:
         """Return the global position (cm) of the parabola's vertex strictly inside the element."""
         a, b, _ = self.coefficients
@@ -274,6 +285,23 @@ class AnaStructBeamAnalysis:
             position
             for element in self._elements
             for position in element.positions_for(target_moment)
+        )
+        return _deduplicate(positions)
+
+    def positions_for_shear(self, target_shear: float) -> list[float]:
+        """Return the sorted positions where the shear force equals a target.
+
+        Args:
+            target_shear: Shear force to locate (kN).
+
+        Returns:
+            Positions along the beam (cm); empty if the target is never reached.
+            A target skipped by the jump over a support is not reached.
+        """
+        positions = sorted(
+            position
+            for element in self._elements
+            for position in element.positions_for_shear(target_shear)
         )
         return _deduplicate(positions)
 

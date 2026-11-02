@@ -67,3 +67,14 @@ class BeamAnalysis(Protocol):
             Positions along the beam (cm); empty if the target is never reached.
         """
         ...
+
+    def positions_for_shear(self, target_shear: float) -> list[float]:
+        """Return the sorted positions where the shear force equals a target.
+
+        Args:
+            target_shear: Shear force to locate (kN).
+
+        Returns:
+            Positions along the beam (cm); empty if the target is never reached.
+        """
+        ...
