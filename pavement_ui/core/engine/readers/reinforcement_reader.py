@@ -3,11 +3,13 @@
 from collections import Counter
 from typing import cast
 
+from pavement_ui.core.engine.keys import m_from_cm
 from pavement_ui.core.results.reinforcement import (
     BarGroup,
     BarLayer,
     ClampSpec,
     StirrupSpec,
+    StirrupZoneSpec,
 )
 from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
@@ -62,7 +64,11 @@ def read_layers(reinforcement: Reinforcement) -> tuple[BarLayer, ...]:
 
 
 def read_stirrup(stirrups: Stirrups) -> StirrupSpec:
-    """Return the chosen stirrups, with the diameter converted from cm to mm"""
+    """Return the chosen stirrups and their zones, with the diameter converted from cm to mm and the zone ends from cm to m"""
     diameter_cm = cast(float, stirrups.diameter)
     spacing_cm = cast(float, stirrups.spacing)
-    return StirrupSpec(diameter_cm * _MM_PER_CM, spacing_cm)
+    zones = tuple(
+        StirrupZoneSpec(m_from_cm(zone.start), m_from_cm(zone.end), zone.spacing)
+        for zone in stirrups.zones
+    )
+    return StirrupSpec(diameter_cm * _MM_PER_CM, spacing_cm, zones)

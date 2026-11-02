@@ -37,7 +37,7 @@ class SectionPanel(TitledPanel):
             self._drawing.clear()
             return
         point = result.points[index]
-        stirrup = result.spans[point.span_index - 1].stirrup
+        stirrup = result.spans[point.span_index - 1].stirrup.at(point.position_m)
         layout = section_layout(
             point,
             result.width_cm,

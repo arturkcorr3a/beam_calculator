@@ -59,13 +59,51 @@ class BarLayer:
 
 
 @dataclass(frozen=True, slots=True)
+class StirrupZoneSpec:
+    """Stretch of a span with a constant stirrup spacing
+
+    Attributes:
+        start_m: Zone start from the beam start (m).
+        end_m: Zone end from the beam start (m).
+        spacing_cm: Spacing between stirrups in the zone (cm).
+    """
+
+    start_m: float
+    end_m: float
+    spacing_cm: float
+
+
+@dataclass(frozen=True, slots=True)
 class StirrupSpec:
     """Stirrups of a span
 
     Attributes:
         diameter_mm: Stirrup bar diameter (mm).
-        spacing_cm: Spacing between stirrups (cm).
+        spacing_cm: Spacing at the span ends, the densest (cm).
+        zones: Zones along the span, left to right; a single zone (or none)
+            when the spacing is uniform.
     """
 
     diameter_mm: float
     spacing_cm: float
+    zones: tuple[StirrupZoneSpec, ...] = ()
+
+    @property
+    def is_scaled(self) -> bool:
+        """Whether the spacing changes along the span"""
+        return len(self.zones) > 1
+
+    def at(self, position_m: float) -> StirrupSpec:
+        """Return the uniform stirrups of the zone containing a position from the beam start (m)
+
+        Falls back to the span-end spacing when no zone contains the position.
+        """
+        spacing_cm = next(
+            (
+                zone.spacing_cm
+                for zone in self.zones
+                if zone.start_m <= position_m <= zone.end_m
+            ),
+            self.spacing_cm,
+        )
+        return StirrupSpec(self.diameter_mm, spacing_cm)
