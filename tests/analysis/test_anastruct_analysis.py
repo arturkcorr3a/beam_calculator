@@ -239,6 +239,62 @@ class TestPositionsForMoment:
 
 
 # ---------------------------------------------------------------------------
+# TestPositionsForShear
+# ---------------------------------------------------------------------------
+
+
+class TestPositionsForShear:
+    """Tests for ``positions_for_shear``."""
+
+    def test_reachable_targets(
+        self, simply_supported_beam: AnaStructBeamAnalysis
+    ) -> None:
+        """V = ±10 kN solves 25 - 10x = ±10 at x = 1.5 m and 3.5 m (cm)."""
+        positive = simply_supported_beam.positions_for_shear(10.0)
+        negative = simply_supported_beam.positions_for_shear(-10.0)
+        assert len(positive) == 1, "Linear shear reaches V = +10 kN once"
+        assert len(negative) == 1, "Linear shear reaches V = -10 kN once"
+        assert_approx(positive[0], 150.0, "Crossing of V = +10 kN (cm)", abs_tol=0.01)
+        assert_approx(negative[0], 350.0, "Crossing of V = -10 kN (cm)", abs_tol=0.01)
+
+    def test_unreachable_target(
+        self, simply_supported_beam: AnaStructBeamAnalysis
+    ) -> None:
+        """A target above the maximum |V| returns an empty list."""
+        assert simply_supported_beam.positions_for_shear(30.0) == [], (
+            "An unreachable target shear should return []"
+        )
+
+    def test_one_crossing_per_span(self, two_span_beam: AnaStructBeamAnalysis) -> None:
+        """Two spans: V = 0 at 3L/8 from each end support (cm)."""
+        positions = two_span_beam.positions_for_shear(0.0)
+        assert len(positions) == 2, "V = 0 is reached once in each span"
+        assert_approx(positions[0], 112.5, "Left span crossing (cm)", abs_tol=0.01)
+        assert_approx(positions[1], 487.5, "Right span crossing (cm)", abs_tol=0.01)
+
+    def test_jump_over_support_is_not_reached(
+        self, two_span_beam: AnaStructBeamAnalysis
+    ) -> None:
+        """V jumps from -18.75 to +18.75 kN over the central support; V = 15 kN only lies on the right span's line, 18.75 - 10x = 15 (cm)."""
+        positions = two_span_beam.positions_for_shear(15.0)
+        assert len(positions) == 1, (
+            "The jump over the central support should not count as a crossing"
+        )
+        assert_approx(positions[0], 337.5, "Right span crossing (cm)", abs_tol=0.01)
+
+    def test_crossing_on_element_boundary_is_not_duplicated(self) -> None:
+        """A load split at mid-span puts V = 0 on the shared element end (cm)."""
+        analysis = _solve(
+            [BeamSupport(0.0), BeamSupport(500.0)],
+            length=500.0,
+            loads=[DistributedLoad(0.0, 250.0, _Q), DistributedLoad(250.0, 500.0, _Q)],
+        )
+        positions = analysis.positions_for_shear(0.0)
+        assert len(positions) == 1, "Both elements report the shared end only once"
+        assert_approx(positions[0], 250.0, "Mid-span crossing (cm)", abs_tol=0.01)
+
+
+# ---------------------------------------------------------------------------
 # TestPointQueries
 # ---------------------------------------------------------------------------
 

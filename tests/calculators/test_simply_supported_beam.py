@@ -10,6 +10,7 @@ from src.config import APP_CONFIG
 from src.config_options import ExposureClass
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.stirrups import StirrupZone
 from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
 
@@ -65,6 +66,14 @@ class TestSufficientSection:
             "a sagging moment should tension the bottom face"
         )
         assert design.stirrups.diameter is not None, "stirrups should be chosen"
+
+    def test_stirrups_cover_the_beam(self, design: SimplySupportedBeamDesign) -> None:
+        # V_Sd = 1.4 × 6.25 kN is far below V_c: the minimum ratio at s_max governs
+        spacing = design.stirrups.spacing
+        assert spacing is not None, "stirrups should be chosen"
+        assert design.stirrups.zones == [StirrupZone(0.0, _LENGTH_CM, spacing)], (
+            "a lightly sheared beam should keep a single zone over its length"
+        )
 
 
 class TestUndersizedSection:

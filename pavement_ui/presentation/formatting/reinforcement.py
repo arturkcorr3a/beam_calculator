@@ -113,10 +113,24 @@ def fmt_hooks_cell(tension: Sequence[BarLayer], compression: Sequence[BarLayer])
 
 
 def fmt_stirrup(stirrup: StirrupSpec, prefixed: bool = False) -> str:
-    """Format stirrups, e.g. "Φ5 c/15 cm"; with prefixed, "Estribo: Φ5 c/15 cm" """
-    text = s.STIRRUP.format(
-        phi=s.PHI,
-        diameter=fmt_bar_diameter(stirrup.diameter_mm),
-        spacing=fmt_length_cm(stirrup.spacing_cm),
-    )
+    """Format stirrups, e.g. "Φ5 c/15 cm"; with prefixed, "Estribo: Φ5 c/15 cm"
+
+    Scaled stirrups list each zone along the beam, e.g.
+    "Φ8: c/13 cm (0,00–0,56 m) · c/30 cm (0,56–2,44 m) · c/13 cm (2,44–3,00 m)".
+    """
+    diameter = fmt_bar_diameter(stirrup.diameter_mm)
+    if stirrup.is_scaled:
+        zones = s.STIRRUP_ZONE_JOIN.join(
+            s.STIRRUP_ZONE.format(
+                spacing=fmt_length_cm(zone.spacing_cm),
+                start=fmt_number(zone.start_m, 2),
+                end=fmt_number(zone.end_m, 2),
+            )
+            for zone in stirrup.zones
+        )
+        text = s.STIRRUP_SCALED.format(phi=s.PHI, diameter=diameter, zones=zones)
+    else:
+        text = s.STIRRUP.format(
+            phi=s.PHI, diameter=diameter, spacing=fmt_length_cm(stirrup.spacing_cm)
+        )
     return s.STIRRUP_PREFIXED.format(stirrup=text) if prefixed else text

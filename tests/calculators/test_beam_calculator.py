@@ -6,6 +6,7 @@ conservative 20×60 C25/CA50 single-span beam.
 """
 
 import types
+from itertools import pairwise
 
 import pytest
 
@@ -18,7 +19,7 @@ from src.pavement_elements.geometry_utils import Axis
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
-from src.reinforcement.stirrups import Stirrups
+from src.reinforcement.stirrups import Stirrups, StirrupZone
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -582,6 +583,13 @@ class TestRunBySpan:
         ) -> None:
             coordinated.append([calculator.position for calculator in calculators])
 
+        distributed: list[tuple[object, float, float]] = []
+
+        def distribute(
+            self: Stirrups, analysis: object, start: float, end: float
+        ) -> None:
+            distributed.append((analysis, start, end))
+
         monkeypatch.setattr(beam_calculator, "analyse_beam", analyse_beam)
         monkeypatch.setattr(
             BeamCalculator, "_build_rebar_calculator", build_rebar_calculator
@@ -589,6 +597,7 @@ class TestRunBySpan:
         monkeypatch.setattr(BeamCalculator, "_store_reinforcement", store_reinforcement)
         monkeypatch.setattr(BeamCalculator, "_verify_deformation", verify_deformation)
         monkeypatch.setattr(beam_calculator, "coordinate_span", coordinate_span)
+        monkeypatch.setattr(Stirrups, "distribute", distribute)
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         beam = _make_beam_stub(spans=spans)
         bc = BeamCalculator(beam, _make_registry())  # type: ignore[arg-type]
@@ -610,6 +619,9 @@ class TestRunBySpan:
             assert_approx(
                 actual, expected, "second span: support's right and midspan point (cm)"
             )
+        assert distributed == [(analysis, 0.0, 300.0), (analysis, 300.0, 500.0)], (
+            "each span's stirrups should be distributed over its own range (cm)"
+        )
         assert len(stored) == 3, "the support should be stored once"
         for actual, expected in zip(stored, [150.0, 300.01, 420.0], strict=True):
             assert_approx(
@@ -674,6 +686,7 @@ class TestRunBySpan:
         monkeypatch.setattr(BeamCalculator, "_store_reinforcement", store_reinforcement)
         monkeypatch.setattr(BeamCalculator, "_verify_deformation", verify_deformation)
         monkeypatch.setattr(beam_calculator, "coordinate_span", coordinate_span)
+        monkeypatch.setattr(Stirrups, "distribute", verify_deformation)
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
 
@@ -688,7 +701,6 @@ class TestRunBySpan:
             coordinated[1][0], 300.01, "point at the span's greatest moment (cm)"
         )
         assert built[-1][1] == -25.0, "the point keeps the moment's sign (kN.m)"
-
 
     def test_passes_support_moments_to_calculators(
         self, monkeypatch: pytest.MonkeyPatch
@@ -730,6 +742,7 @@ class TestRunBySpan:
         monkeypatch.setattr(BeamCalculator, "_store_reinforcement", do_nothing)
         monkeypatch.setattr(BeamCalculator, "_verify_deformation", do_nothing)
         monkeypatch.setattr(beam_calculator, "coordinate_span", do_nothing)
+        monkeypatch.setattr(Stirrups, "distribute", do_nothing)
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
 
@@ -809,4 +822,46 @@ class TestRunIntegration:
             span.characteristic_shear_force * LOAD_FACTOR,
             span.stirrups.calculator.design_shear_force,
             "Vsd of the stirrups should be Vk times the load factor (kN)",
+        )
+
+    def test_run_scales_stirrups_along_span(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A short, heavily loaded span gets denser stirrups at both ends and s_max in the middle (cm).
+
+        300 cm span, 80 + 40 kN/m: V_k = 180 kN at the ends, so V_Sd = 252 kN exceeds the threshold shear force of the middle spacing near the supports.
+        """
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+        span = _make_span_stub(permanent_load=80.0, variable_load=40.0, length_cm=300.0)
+        beam_stub = _make_beam_stub(spans=[span], beam_id="V_scaled")
+
+        BeamCalculator(beam_stub, _make_registry()).run()  # type: ignore[arg-type]
+
+        stirrups = span.stirrups
+        zones: list[StirrupZone] = stirrups.zones
+        assert [zone.spacing for zone in zones] == [
+            stirrups.spacing,
+            stirrups.middle_spacing,
+            stirrups.spacing,
+        ], "edges should keep the chosen spacing and the middle use the larger one"
+        assert stirrups.middle_spacing > stirrups.spacing, (
+            "the middle spacing should be larger than the edge spacing (cm)"
+        )
+        assert zones[0].start == 0.0, "the first zone should start at the span start"
+        assert zones[-1].end == 300.0, "the last zone should end at the span end"
+        for previous, current in pairwise(zones):
+            assert previous.end == current.start, "zones should leave no gaps"
+        assert_approx(
+            zones[0].end - zones[0].start,
+            zones[2].end - zones[2].start,
+            "a symmetric span should get equal edge zones (cm)",
+            abs_tol=1e-3,
+        )
+        # V_k(x) = 180 - 1.2 x reaches V_lim / 1.4 at the left zone's end
+        assert_approx(
+            zones[0].end,
+            (180.0 - stirrups.threshold_shear_force / LOAD_FACTOR) / 1.2,
+            "the left zone should end where |V_Sd| drops to the threshold (cm)",
+            abs_tol=0.05,
         )

@@ -22,7 +22,7 @@ class SimplySupportedBeamDesign:
         self_weight: Own-weight distributed load (kN/m).
         analysis: Structural analysis of the beam (positions in cm).
         calculator: Longitudinal reinforcement calculator at the greatest moment.
-        stirrups: Stirrups chosen for the whole beam.
+        stirrups: Stirrups chosen for the whole beam, distributed in zones.
         characteristic_shear_force: Greatest |V| along the beam (kN).
     """
 
@@ -39,7 +39,7 @@ def design_simply_supported_beam(section: RectangularBeam) -> SimplySupportedBea
 
     Supports are pinned at both ends; the longitudinal reinforcement is
     dimensioned at the greatest bending moment and coordinated with the
-    stirrups, as a single span.
+    stirrups, as a single span; the stirrups are then distributed in zones.
 
     Args:
         section: Beam section; its length is the span (cm).
@@ -77,6 +77,7 @@ def design_simply_supported_beam(section: RectangularBeam) -> SimplySupportedBea
         moment_zeros=tuple(analysis.moment_zeros()),
     )
     coordinate_span([calculator], stirrups)
+    stirrups.distribute(analysis, 0.0, length)
 
     return SimplySupportedBeamDesign(
         section=section,

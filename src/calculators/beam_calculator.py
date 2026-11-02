@@ -43,7 +43,7 @@ class BeamCalculator:
         return self._beam.id
 
     def run(self) -> None:
-        """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points.
+        """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points and distributes the stirrups in zones along the span.
 
         Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation.
         """
@@ -86,6 +86,7 @@ class BeamCalculator:
                     )
                 )
             coordinate_span(calculators, span.stirrups)
+            span.stirrups.distribute(analysis, start, end)
             results.extend(
                 (position, calculator)
                 for (position, _), calculator in zip(points, calculators, strict=True)

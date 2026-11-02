@@ -27,6 +27,7 @@ from src.pavement_elements.geometry_utils import (
 from src.pavement_elements.pillar import Pillar
 from src.reinforcement.clamps import Clamps
 from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 
@@ -253,12 +254,7 @@ class ContinuousBeam:
         rows: list[list[str]] = []
         for span, start, end in span_ranges:
             stirrups = span.stirrups
-            if stirrups.diameter is None or stirrups.spacing is None:
-                stirrups_description = "—"
-            else:
-                stirrups_description = (
-                    f"φ{stirrups.diameter * 10:g} c/{stirrups.spacing:.1f}"  # mm, cm
-                )
+            stirrups_description = self._describe_stirrups(stirrups)
             required_ratio = (
                 "—"
                 if stirrups.required_ratio is None
@@ -289,6 +285,20 @@ class ContinuousBeam:
             "A_sw/s req (cm²/cm)",
         ]
         return self._format_table(headers, rows, "  ")
+
+    @staticmethod
+    def _describe_stirrups(stirrups: Stirrups) -> str:
+        """Describe a span's stirrups, e.g. "φ8 c/13.0", listing each zone's spacing and x range (cm) when they are scaled."""
+        if stirrups.diameter is None or stirrups.spacing is None:
+            return "—"
+        diameter = f"φ{stirrups.diameter * 10:g}"  # mm
+        if len(stirrups.zones) <= 1:
+            return f"{diameter} c/{stirrups.spacing:.1f}"  # cm
+        zones = " | ".join(
+            f"c/{zone.spacing:.1f} [{zone.start:.1f}–{zone.end:.1f}]"
+            for zone in stirrups.zones
+        )  # cm
+        return f"{diameter} {zones}"
 
     def _report_reinforcement(self, start: float, end: float) -> list[str]:
         """Describe the longitudinal reinforcement centered within [start, end] (cm), left to right."""
