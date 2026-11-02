@@ -18,7 +18,7 @@ from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
 from src.reinforcement.reinforcement import Reinforcement
-from src.reinforcement.stirrups import Stirrups
+from src.reinforcement.stirrups import Stirrups, StirrupZone
 from src.structural_elements.rebar import Rebar
 from tests.helpers import assert_approx
 
@@ -752,9 +752,12 @@ class TestGetMostLoadedSpanForEls:
 
 
 def _set_stirrups(
-    beam: ContinuousBeam, diameter: float | None, spacing: float | None
+    beam: ContinuousBeam,
+    diameter: float | None,
+    spacing: float | None,
+    zones: list[StirrupZone] | None = None,
 ) -> None:
-    """Give every span a stirrups double with the given diameter (cm) and spacing (cm)."""
+    """Give every span a stirrups double with the given diameter (cm), spacing (cm) and zones (none by default)."""
     for span in beam.spans:
         span.set_stirrups(
             cast(
@@ -763,6 +766,7 @@ def _set_stirrups(
                     diameter=diameter,
                     spacing=spacing,
                     required_ratio=None if diameter is None else 0.0412,
+                    zones=[] if zones is None else zones,
                 ),
             )
         )
@@ -858,6 +862,25 @@ class TestReport:
 
         assert "φ6.3 c/15.0" in report, "should state stirrup diameter and spacing"
         assert "0.0412" in report, "should state the required A_sw/s"
+
+    def test_reports_scaled_stirrup_zones(
+        self,
+        dimensioned_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+    ) -> None:
+        zones = [
+            StirrupZone(0.0, 55.5, 15.0),
+            StirrupZone(55.5, 244.5, 30.0),
+            StirrupZone(244.5, 300.0, 15.0),
+        ]
+        _set_stirrups(dimensioned_beam, 0.63, 15.0, zones)
+
+        report = dimensioned_beam.report(registry_horizontal)
+
+        assert (
+            "φ6.3 c/15.0 [0.0–55.5] | c/30.0 [55.5–244.5] | c/15.0 [244.5–300.0]"
+            in report
+        ), "should state each zone's spacing and x range"
 
     def test_reports_undimensioned_stirrups(
         self,
