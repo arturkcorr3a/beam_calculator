@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from src.detailing.builder import build_detailing_beam
+from src.detailing.construction_bars import add_construction_bars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.overlaps import resolve_overlaps
 from src.detailing.rounding import round_detailing
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 _STEPS: tuple[Callable[[DetailingBeam], None], ...] = (
     round_detailing,
     resolve_overlaps,
+    add_construction_bars,
 )
 
 
