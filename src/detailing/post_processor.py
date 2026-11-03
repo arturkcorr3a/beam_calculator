@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING
 
 from src.detailing.builder import build_detailing_beam
 from src.detailing.detailing_beam import DetailingBeam
+from src.detailing.rounding import round_detailing
 from src.logger import log_operation
 
 if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam
 
 # Post-processing steps, in the order they run on a freshly built detailing beam
-_STEPS: tuple[Callable[[DetailingBeam], None], ...] = ()
+_STEPS: tuple[Callable[[DetailingBeam], None], ...] = (round_detailing,)
 
 
 def detail_beam(beam: ContinuousBeam) -> DetailingBeam:
