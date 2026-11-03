@@ -9,6 +9,7 @@ import src.pavement_elements.continuous_beam as _cb_module
 from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
+from src.detailing.detailing_beam import DetailingBeam
 from src.loading.linear_loads import LinearLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment, Axis
@@ -666,6 +667,55 @@ class TestDimension:
             "the calculator's error should be chained as the cause"
         )
 
+    def test_dimension_drops_previous_detailing(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class _FakeCalc:
+            def __init__(
+                self, beam: ContinuousBeam, registry: dict[str, Pillar]
+            ) -> None:
+                pass
+
+            def run(self) -> None:
+                pass
+
+        monkeypatch.setattr(_cb_module, "BeamCalculator", _FakeCalc)
+        horizontal_beam.detailing = cast(DetailingBeam, SimpleNamespace())
+        horizontal_beam.dimension(registry_horizontal)
+        assert horizontal_beam.detailing is None, (
+            "a new dimensioning should drop the stale detailing"
+        )
+
+
+class TestDetail:
+    """detail() keeps the post-processed detailing and names the beam on errors."""
+
+    def test_keeps_detailing(
+        self, horizontal_beam: ContinuousBeam, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        detailing = cast(DetailingBeam, SimpleNamespace(bars=[]))
+
+        def detail_beam(beam: ContinuousBeam) -> DetailingBeam:
+            return detailing
+
+        monkeypatch.setattr(_cb_module, "detail_beam", detail_beam)
+        returned = horizontal_beam.detail()
+        assert returned is detailing, "detail() should return the new detailing"
+        assert horizontal_beam.detailing is detailing, (
+            "detail() should keep the new detailing on the beam"
+        )
+
+    def test_error_names_the_beam(self, horizontal_beam: ContinuousBeam) -> None:
+        expected = rf"^Beam '{horizontal_beam.id}': The beam has not been dimensioned"
+        with pytest.raises(ValueError, match=expected) as raised:
+            horizontal_beam.detail()
+        assert isinstance(raised.value.__cause__, ValueError), (
+            "the builder's error should be chained as the cause"
+        )
+
 
 class TestClearResolved:
     """clear_resolved forgets the results of the last resolution and dimensioning."""
@@ -675,8 +725,10 @@ class TestClearResolved:
     ) -> None:
         horizontal_beam.analysis = cast(BeamAnalysis, SimpleNamespace())
         horizontal_beam.rebar_calculators = [cast(RebarCalculator, SimpleNamespace())]
+        horizontal_beam.detailing = cast(DetailingBeam, SimpleNamespace())
         horizontal_beam.clear_resolved()
         assert horizontal_beam.analysis is None, "analysis should be cleared"
+        assert horizontal_beam.detailing is None, "detailing should be cleared"
         assert horizontal_beam.rebar_calculators == [], (
             "rebar_calculators should be cleared"
         )

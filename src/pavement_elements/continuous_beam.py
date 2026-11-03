@@ -9,6 +9,8 @@ from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.beam_calculator import BeamCalculator
 from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
+from src.detailing.detailing_beam import DetailingBeam
+from src.detailing.post_processor import detail_beam
 from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
 from src.logger import log_element, log_general, log_operation, logger_label
@@ -30,6 +32,7 @@ from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
+from src.text_table import format_table
 
 # PAPER find reference for this value, I think they are not in NBR 6118, but should be in the classical literature - I know it's between 12 and 15
 BEAM_HEIGHT_ESTIMATION_FACTOR = 12  # for pre-dimensioning
@@ -84,6 +87,9 @@ class ContinuousBeam:
     rebar_calculators: list[RebarCalculator] = field(
         default_factory=list[RebarCalculator], init=False
     )  # governing calculator of each interest point, left to right
+    detailing: DetailingBeam | None = field(
+        default=None, init=False
+    )  # bars as built, post-processed from the last dimensioning
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -135,6 +141,7 @@ class ContinuousBeam:
         self.spans = []
         self.analysis = None
         self.rebar_calculators = []
+        self.detailing = None
 
     # PAPER find reference for this method
     def pre_size(self, pillar_registry: dict[str, Pillar]) -> float:
@@ -174,11 +181,30 @@ class ContinuousBeam:
                 the beam id, since the calculators' messages do not name it.
         """
         log_general("Start calculation process...")
+        self.detailing = None
         try:
             BeamCalculator(self, pillar_registry).run()
         except ValueError as error:
             raise ValueError(f"Beam '{self.id}': {error}") from error
         log_element(f"dimensioned {self.width:.0f} x {self.height:.0f} cm")
+
+    def detail(self) -> DetailingBeam:
+        """Post-process the dimensioned beam's bars into its detailing (see ``detail_beam``)
+
+        The design objects (reinforcement, stirrups) are left as they are.
+
+        Returns:
+            The new detailing, also kept in ``detailing``.
+
+        Raises:
+            ValueError: If the beam has not been dimensioned or a post-processing step fails; the message is prefixed with the beam id.
+        """
+        try:
+            self.detailing = detail_beam(self)
+        except ValueError as error:
+            raise ValueError(f"Beam '{self.id}': {error}") from error
+        log_element(f"detailed with {len(self.detailing.bars)} bar run(s)")
+        return self.detailing
 
     def report(self, pillar_registry: dict[str, Pillar]) -> str:
         """Describe the beam's final state after dimensioning
@@ -241,9 +267,7 @@ class ContinuousBeam:
                     f"{pillar.width:g} x {pillar.depth:g}",
                 ]
             )
-        return self._format_table(
-            ["Pillar", "Position (cm)", "Section (cm)"], rows, "  "
-        )
+        return format_table(["Pillar", "Position (cm)", "Section (cm)"], rows, "  ")
 
     def _report_spans(
         self,
@@ -284,7 +308,7 @@ class ContinuousBeam:
             "Stirrups",
             "A_sw/s req (cm²/cm)",
         ]
-        return self._format_table(headers, rows, "  ")
+        return format_table(headers, rows, "  ")
 
     @staticmethod
     def _describe_stirrups(stirrups: Stirrups) -> str:
@@ -364,7 +388,7 @@ class ContinuousBeam:
             "Clamps L",
             "Clamps R",
         ]
-        return [summary, *self._format_table(headers, rows, "    ")]
+        return [summary, *format_table(headers, rows, "    ")]
 
     def _span_ranges(
         self, pillar_registry: dict[str, Pillar]
@@ -402,23 +426,6 @@ class ContinuousBeam:
         if clamps is None:
             return "—"
         return f"{clamps.quantity}φ{clamps.diameter:g} l={clamps.length:.1f}"
-
-    @staticmethod
-    def _format_table(
-        headers: list[str], rows: list[list[str]], indent: str
-    ) -> list[str]:
-        """Lay out rows under headers in left-aligned columns, each padded to its widest cell."""
-        widths = [
-            max(len(cell) for cell in column)
-            for column in zip(headers, *rows, strict=False)
-        ]
-        return [
-            indent
-            + "  ".join(
-                cell.ljust(width) for cell, width in zip(row, widths, strict=True)
-            ).rstrip()
-            for row in [headers, *rows]
-        ]
 
     def resolve_and_validate(self, pillar_registry: dict[str, Pillar]) -> None:
         """

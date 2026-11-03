@@ -88,8 +88,8 @@ class Pavement:
     def resolve(self) -> None:
         """
         Main entry point for sizing the pavement. Validates the structure, then
-        pre-sizes beams and slabs, transfers slab loads onto beams, and finally
-        dimensions all beams.
+        pre-sizes beams and slabs, transfers slab loads onto beams, dimensions
+        all beams and finally post-processes their bars into the detailing.
         """
         self.validate()
         self.pre_size_beams()
@@ -99,6 +99,7 @@ class Pavement:
 
         log_general("Pavement pre-processing complete. Starting beam dimensioning...")
         self.dimension_beams()
+        self.detail_beams()
 
     def pre_size_beams(self) -> None:
         """
@@ -168,8 +169,20 @@ class Pavement:
         for beam in self.beams.values():
             beam.dimension(self.pillars)
 
+    def detail_beams(self) -> None:
+        """Post-process every dimensioned beam's bars into its detailing
+
+        Raises:
+            ValueError: Propagated from ContinuousBeam.detail if a beam has not been dimensioned or its post-processing fails.
+        """
+        log_general("Beams' detailing starting")
+        for beam in self.beams.values():
+            beam.detail()
+
     def print_beam_reports(self) -> None:
         """Print the final-state report of every beam to the console, separated by a blank line
+
+        A detailed beam's report is followed by its detailing report.
 
         Raises:
             ValueError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
@@ -177,3 +190,6 @@ class Pavement:
         for beam in self.beams.values():
             print(beam.report(self.pillars))
             print()
+            if beam.detailing is not None:
+                print(beam.detailing.report())
+                print()

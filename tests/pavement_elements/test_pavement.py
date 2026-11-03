@@ -29,6 +29,7 @@ def _make_beam_double(
         id=beam_id,
         pillar_ids=pillar_ids,
         calls=calls,
+        detailing=None,
     )
     beam.clear_resolved = lambda: calls.append(f"clear_resolved:{beam_id}")
     beam.resolve_and_validate = lambda registry: calls.append(  # pyright: ignore[reportUnknownLambdaType]
@@ -37,6 +38,7 @@ def _make_beam_double(
     beam.pre_size = lambda registry: calls.append(f"pre_size:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
     beam.load_spans = lambda: calls.append(f"load_spans:{beam_id}")
     beam.dimension = lambda registry: calls.append(f"dimension:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
+    beam.detail = lambda: calls.append(f"detail:{beam_id}")
     beam.report = lambda registry: f"report:{beam_id}"  # pyright: ignore[reportUnknownLambdaType]
     return cast(ContinuousBeam, beam)
 
@@ -455,6 +457,22 @@ class TestDimensionBeams:
         assert "dimension:VB" in beam2.calls, "dimension should be called on beam VB"  # type: ignore[attr-defined]
 
 
+class TestDetailBeams:
+    """detail_beams invokes beam.detail on every beam."""
+
+    def test_calls_detail_on_all_beams(self) -> None:
+        p = Pavement()
+        beam1 = _make_beam_double("VA")
+        beam2 = _make_beam_double("VB")
+        p.add_beam(beam1)
+        p.add_beam(beam2)
+
+        p.detail_beams()
+
+        assert "detail:VA" in beam1.calls, "detail should be called on beam VA"  # type: ignore[attr-defined]
+        assert "detail:VB" in beam2.calls, "detail should be called on beam VB"  # type: ignore[attr-defined]
+
+
 # ---------------------------------------------------------------------------
 # TestPrintBeamReports
 # ---------------------------------------------------------------------------
@@ -477,6 +495,22 @@ class TestPrintBeamReports:
         assert "report:VB" in output, "should print beam VB's report"
         assert output.index("report:VA") < output.index("report:VB"), (
             "reports should follow beam insertion order"
+        )
+
+    def test_prints_detailing_report_after_beam_report(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        p = Pavement()
+        beam = _make_beam_double("VA")
+        beam.detailing = types.SimpleNamespace(report=lambda: "detailing:VA")  # type: ignore[assignment]
+        p.add_beam(beam)
+
+        p.print_beam_reports()
+
+        output = capsys.readouterr().out
+        assert "detailing:VA" in output, "should print the beam's detailing report"
+        assert output.index("report:VA") < output.index("detailing:VA"), (
+            "the detailing report should follow the beam report"
         )
 
     def test_prints_nothing_without_beams(
@@ -509,6 +543,7 @@ class TestResolve:
         beam.pre_size = lambda r: log.append("pre_size_beam")  # type: ignore[attr-defined]
         beam.load_spans = lambda: log.append("load_spans")  # type: ignore[attr-defined]
         beam.dimension = lambda r: log.append("dimension")  # type: ignore[attr-defined]
+        beam.detail = lambda: log.append("detail")  # type: ignore[attr-defined]
 
         slab_log: list[str] = []
         slab = _make_slab_double("LA")
@@ -531,6 +566,9 @@ class TestResolve:
         assert "pre_size_beam" in log, "pre_size_beams should call beam.pre_size"
         assert "load_spans" in log, "load_beam_spans should call beam.load_spans"
         assert "dimension" in log, "dimension_beams should call beam.dimension"
+        assert log.index("dimension") < log.index("detail"), (
+            "detail_beams should run after the beams are dimensioned"
+        )
 
         # Slab pipeline: clear → resolve → unload
         assert "clear_resolved" in slab_log, (
@@ -593,6 +631,14 @@ class TestResolveKeepsResults:
             assert positions == sorted(positions), (
                 f"{beam.id} calculators should be ordered left to right"
             )
+
+    def test_beams_keep_detailing(self, resolved_single_panel: Pavement) -> None:
+        for beam in resolved_single_panel.beams.values():
+            assert beam.detailing is not None, f"{beam.id} should keep its detailing"
+            assert beam.detailing.beam_id == beam.id, (
+                f"{beam.id} detailing should name its beam"
+            )
+            assert beam.detailing.bars, f"{beam.id} detailing should have bars"
 
     def test_spans_keep_characteristic_shear(
         self, resolved_single_panel: Pavement
