@@ -50,7 +50,7 @@ def _bar(
         right_hook=_HOOK if right_hook else None,
         left_hook_length=14.74 if left_hook else 0.0,
         right_hook_length=14.74 if right_hook else 0.0,
-        source_position=source_position,
+        source_positions=(source_position,),
         good_adherence=True,
         area_ratio=0.93,
     )

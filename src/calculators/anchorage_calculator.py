@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 END_ZERO_TOLERANCE = 1e-3  # cm, zero-moment points this close to a beam end are ignored
 MIN_SUPPORT_ANCHORAGE_LENGTH = 6.0  # cm, NBR 6118 - Section 18.3.2.4.1
+_MM_PER_CM = 10.0
 
 
 @logger_label("Anchorage Calculator - {logging_info}")
@@ -592,6 +593,76 @@ class AnchorageCalculator:
         log_property(f"Length to zero moment + 10φ = {length:.2f} cm")
         return length
 
+    @staticmethod
+    def adherence_coefficient_for(good_adherence: bool) -> float:
+        """Return the bond zone coefficient η2: 1.0 in a good bond zone, 0.7 in a poor one
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.3.2.1
+        """
+        return 1.0 if good_adherence else 0.7
+
+    @staticmethod
+    def diameter_coefficient_for(diameter_mm: float) -> float:
+        """Return the bar diameter coefficient η3: 1.0 up to 32 mm, (132 − φ)/100 above
+
+        Args:
+            diameter_mm: Bar diameter φ (mm).
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.3.2.1
+        """
+        return min((132 - diameter_mm) / 100, 1.00)
+
+    @staticmethod
+    def design_bond_strength_for(
+        diameter_mm: float, steel: Steel, good_adherence: bool
+    ) -> float:
+        """Return the design bond strength f_bd (kN/cm²) of a bar in the pavement concrete
+
+        Args:
+            diameter_mm: Bar diameter φ (mm).
+            good_adherence: Whether the bar sits in a good bond zone (Section 9.3.1).
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.3.2.1
+        """
+        return (
+            steel.bond_coefficient
+            * AnchorageCalculator.adherence_coefficient_for(good_adherence)
+            * AnchorageCalculator.diameter_coefficient_for(diameter_mm)
+            * APP_CONFIG.pavement_concrete.fctd
+        )
+
+    @staticmethod
+    def basic_anchorage_length_for(
+        diameter_mm: float, steel: Steel, bond_strength: float
+    ) -> float:
+        """Return the basic anchorage length l_b (cm), at least 25 bar diameters
+
+        Args:
+            diameter_mm: Bar diameter φ (mm).
+            bond_strength: Design bond strength f_bd (kN/cm²).
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.4.2.4
+        """
+        diameter_cm = diameter_mm / _MM_PER_CM
+        return max(25 * diameter_cm, (diameter_cm / 4) * (steel.fyd / bond_strength))
+
+    @staticmethod
+    def min_anchorage_length_for(basic_length: float, diameter_mm: float) -> float:
+        """Return the minimum anchorage length l_b,min (cm): the greatest of 0.3 l_b, 10φ and 10 cm
+
+        Args:
+            basic_length: Basic anchorage length l_b (cm).
+            diameter_mm: Bar diameter φ (mm).
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.4.2.5
+        """
+        return max(0.3 * basic_length, 10 * (diameter_mm / _MM_PER_CM), 10)
+
     @property
     def design_bond_strength(self) -> float:
         """Calculate the design bond strength (f_bd) in kN/cm². NBR 6118 - Section 9.3.2.1"""
@@ -606,7 +677,7 @@ class AnchorageCalculator:
     def adherence_coefficient(self) -> float:
         """Calculate the adherence coefficient (eta_2) for the given steel type, based on ABNT NBR 6118 - Section 9.3.1"""
         layer_has_good_adherence = self.layer.has_good_adherence(self.beam_height)
-        eta_2 = 1.0 if layer_has_good_adherence else 0.7
+        eta_2 = self.adherence_coefficient_for(layer_has_good_adherence)
 
         adherence_zone = "good" if layer_has_good_adherence else "poor"
         log_property(f"Adherence Zone: {adherence_zone}")
@@ -621,16 +692,16 @@ class AnchorageCalculator:
     @property
     def diameter_coefficient(self) -> float:
         """Calculate the adherence coefficient (eta_3) for maximum bar diameter in the layer, based on ABNT NBR 6118 - Section 9.3.1"""
-        eta_3 = min((132 - self.max_diameter) / 100, 1.00)
+        eta_3 = self.diameter_coefficient_for(self.max_diameter)
         log_property(f"Diameter Coefficient (eta_3) = {eta_3:.4f}")
         return eta_3
 
     @property
     def basic_anchorage_length(self) -> float:
         """Calculate the basic anchorage length (l_b) in cm, based on NBR 6118 - Section 9.4.2.4"""
-        max_diameter_cm = self.max_diameter / 10  # Convert mm to cm
-        l_b = (max_diameter_cm / 4) * (self.steel.fyd / self.design_bond_strength)
-        l_b = max(25 * max_diameter_cm, l_b)
+        l_b = self.basic_anchorage_length_for(
+            self.max_diameter, self.steel, self.design_bond_strength
+        )
         log_property(f"Basic Anchorage Length (l_b) = {l_b:.2f} cm")
         return l_b
 
@@ -664,8 +735,8 @@ class AnchorageCalculator:
     @property
     def min_anchorage_length(self) -> float:
         """Calculate the minimum anchorage length (l_b,min) in cm, based on NBR 6118 - Section 9.4.2.5"""
-        l_b_min = max(
-            0.3 * self.basic_anchorage_length, 10 * (self.max_diameter / 10), 10
+        l_b_min = self.min_anchorage_length_for(
+            self.basic_anchorage_length, self.max_diameter
         )
         log_property(f"Minimum Anchorage Length (l_b,min) = {l_b_min:.2f} cm")
         return l_b_min

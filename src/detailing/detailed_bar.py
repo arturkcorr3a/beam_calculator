@@ -30,7 +30,7 @@ class DetailedBar:
         right_hook: Geometry of the right hook, or None without one.
         left_hook_length: Extra cut length of the left hook, zero without one (cm).
         right_hook_length: Extra cut length of the right hook, zero without one (cm).
-        source_position: Interest point the bars were designed at (cm), None for bars not designed at one.
+        source_positions: Interest points the bars were designed at, left to right (cm); two or more after a merge, none for construction bars.
         good_adherence: Whether the bars sit in the good bond zone.
         area_ratio: Required over provided steel area of the source reinforcement, used to size laps.
         mark: Bar mark (N1, N2, …), None until marks are assigned.
@@ -50,7 +50,7 @@ class DetailedBar:
     left_hook_length: float = 0.0  # cm
     right_hook_length: float = 0.0  # cm
     role: BarRole = BarRole.MAIN
-    source_position: float | None = None  # cm
+    source_positions: tuple[float, ...] = ()  # cm
     good_adherence: bool = True
     area_ratio: float = 1.0
     mark: str | None = None

@@ -118,6 +118,66 @@ def ac(layer_16mm_good: Layer) -> AnchorageCalculator:
 
 
 # ---------------------------------------------------------------------------
+# TestAnchorageLengthStaticMethods
+# ---------------------------------------------------------------------------
+
+
+class TestAnchorageLengthStaticMethods:
+    """The static methods give the same values as the calculator's properties."""
+
+    def test_design_bond_strength_matches_property(
+        self, ac: AnchorageCalculator
+    ) -> None:
+        assert_approx(
+            AnchorageCalculator.design_bond_strength_for(
+                16.0, Steel.CA50, good_adherence=True
+            ),
+            ac.design_bond_strength,
+            "f_bd of a φ16 in a good zone (kN/cm²)",
+        )
+
+    def test_poor_zone_and_large_bar(self) -> None:
+        expected = 2.25 * 0.7 * 0.92 * Concrete.C25.fctd  # η3 = (132 − 40)/100
+        assert_approx(
+            AnchorageCalculator.design_bond_strength_for(
+                40.0, Steel.CA50, good_adherence=False
+            ),
+            expected,
+            "f_bd of a φ40 in a poor zone (kN/cm²)",
+        )
+
+    def test_basic_length_matches_property(self, ac: AnchorageCalculator) -> None:
+        assert_approx(
+            AnchorageCalculator.basic_anchorage_length_for(
+                16.0, Steel.CA50, ac.design_bond_strength
+            ),
+            ac.basic_anchorage_length,
+            "l_b of a φ16 (cm)",
+        )
+
+    def test_basic_length_floor(self) -> None:
+        assert_approx(
+            AnchorageCalculator.basic_anchorage_length_for(
+                16.0, Steel.CA50, bond_strength=100.0
+            ),
+            40.0,
+            "A very high f_bd leaves the 25φ floor (cm)",
+        )
+
+    def test_minimum_length(self) -> None:
+        assert_approx(
+            AnchorageCalculator.min_anchorage_length_for(50.0, 16.0),
+            16.0,
+            "10φ = 16 cm > 0.3 × 50 cm",
+        )
+        assert_approx(
+            AnchorageCalculator.min_anchorage_length_for(20.0, 6.3),
+            10.0,
+            "10 cm > 0.3 × 20 and 10φ",
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestAdherenceCoefficient
 # ---------------------------------------------------------------------------
 

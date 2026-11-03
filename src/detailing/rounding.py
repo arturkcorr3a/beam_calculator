@@ -127,7 +127,7 @@ def _anchored_bar(clamps: DetailedClamps, bars: list[DetailedBar]) -> DetailedBa
     for bar in bars:
         bar_end = bar.start if clamps.left else bar.end
         if (
-            bar.source_position == clamps.source_position
+            clamps.source_position in bar.source_positions
             and bar.is_bottom == clamps.is_bottom
             and abs(bar_end - clamps.position) <= ROUNDING_TOLERANCE
         ):

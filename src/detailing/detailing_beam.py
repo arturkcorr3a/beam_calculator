@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
 from src.detailing.detailing_report import build_report
+from src.detailing.lap_splice import LapSplice
 from src.detailing.span_stirrups import SpanStirrups
 from src.properties.steel import Steel
 from src.structural_elements.support import Support
@@ -19,6 +20,7 @@ class DetailingBeam:
         height: Section height h (cm).
         nominal_covering: Nominal cover c_nom (cm).
         supports: Extent of each pillar along the beam, left to right.
+        lap_splices: Lap splices between bar runs, in the order they were made.
     """
 
     beam_id: str
@@ -30,6 +32,7 @@ class DetailingBeam:
     bars: list[DetailedBar] = field(default_factory=list[DetailedBar])
     clamps: list[DetailedClamps] = field(default_factory=list[DetailedClamps])
     stirrups: list[SpanStirrups] = field(default_factory=list[SpanStirrups])
+    lap_splices: list[LapSplice] = field(default_factory=list[LapSplice])
 
     def __post_init__(self) -> None:
         """Validate the supports

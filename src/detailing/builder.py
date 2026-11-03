@@ -96,7 +96,7 @@ def _bars(reinforcement: Reinforcement, height: float) -> list[DetailedBar]:
                     right_hook=rebar.hook_geometry(left=False),
                     left_hook_length=rebar.left_hook_length,
                     right_hook_length=rebar.right_hook_length,
-                    source_position=center,
+                    source_positions=(center,),
                     good_adherence=good_adherence,
                     area_ratio=area_ratio,
                 )

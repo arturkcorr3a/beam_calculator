@@ -4,6 +4,7 @@ from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.detailing_report import build_report
+from src.detailing.lap_splice import LapSplice
 from src.detailing.span_stirrups import SpanStirrups
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import StirrupZone
@@ -25,7 +26,7 @@ def _beam() -> DetailingBeam:
         end=235.0,
         right_hook=HookGeometry(pin_diameter=8.0, tip_length=12.8),
         right_hook_length=14.7,
-        source_position=125.0,
+        source_positions=(125.0,),
     )
     clamps = DetailedClamps(
         diameter_mm=12.5,
@@ -93,6 +94,31 @@ class TestBuildReport:
             "The middle zone row should show its extent (cm)"
         )
         assert "c/24.0" in stirrup_rows[1], "The middle zone row shows its spacing"
+
+    def test_lap_splices(self) -> None:
+        beam = _beam()
+        lines = build_report(beam).splitlines()
+        assert lines[lines.index("Lap splices") + 1] == "  none", "No laps says none"
+
+        beam.lap_splices = [
+            LapSplice(
+                is_bottom=True,
+                layer_index=0,
+                start=266,
+                end=333,
+                quantity=2,
+                diameter_mm=10,
+            )
+        ]
+        row = next(line for line in build_report(beam).splitlines() if "2φ10" in line)
+        for cell in ("bottom", "266.0", "333.0", "67.0"):
+            assert cell in row, f"The lap row should show {cell!r}"
+
+    def test_merged_sources_listed(self) -> None:
+        beam = _beam()
+        beam.bars[0].source_positions = (125.0, 400.0)
+        row = next(line for line in build_report(beam).splitlines() if "2φ16" in line)
+        assert "125.00, 400.00" in row, "A merged run lists both sources"
 
     def test_detailing_beam_report_delegates(self) -> None:
         beam = _beam()

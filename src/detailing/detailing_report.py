@@ -26,6 +26,8 @@ def build_report(beam: DetailingBeam) -> str:
         face = "bottom" if is_bottom else "top"
         lines += ["", f"Longitudinal bars — {face}"]
         lines += _bars(beam.bars_on_face(is_bottom))
+    lines += ["", "Lap splices"]
+    lines += _lap_splices(beam)
     lines += ["", "Clamps"]
     lines += _clamps(beam)
     lines += ["", "Stirrups"]
@@ -61,7 +63,7 @@ def _bars(bars: list[DetailedBar]) -> list[str]:
             _hook(bar.right_hook, bar.right_hook_length),
             f"{bar.total_length:.1f}",
             bar.role.value,
-            "—" if bar.source_position is None else f"{bar.source_position:.2f}",
+            ", ".join(f"{x:.2f}" for x in bar.source_positions) or "—",
         ]
         for bar in bars
     ]
@@ -83,6 +85,25 @@ def _bars(bars: list[DetailedBar]) -> list[str]:
 def _hook(hook: HookGeometry | None, length: float) -> str:
     """Summarize a hook as its extra cut length (cm), or 'no' if there is none"""
     return "no" if hook is None else f"{length:.1f}"
+
+
+def _lap_splices(beam: DetailingBeam) -> list[str]:
+    """Tabulate the lap splices: face, layer, bars, extent and length"""
+    if not beam.lap_splices:
+        return ["  none"]
+    rows = [
+        [
+            "bottom" if lap.is_bottom else "top",
+            str(lap.layer_index),
+            f"{lap.quantity}φ{lap.diameter_mm:g}",
+            f"{lap.start:.1f}",
+            f"{lap.end:.1f}",
+            f"{lap.length:.1f}",
+        ]
+        for lap in beam.lap_splices
+    ]
+    headers = ["Face", "Layer", "Bars", "From (cm)", "To (cm)", "Length (cm)"]
+    return format_table(headers, rows, "  ")
 
 
 def _clamps(beam: DetailingBeam) -> list[str]:

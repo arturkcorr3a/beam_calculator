@@ -250,7 +250,9 @@ class TestBuildBars:
         assert bottom_bar.is_tensioned, "The bottom bars were designed tensioned"
         assert not top_bar.is_tensioned, "The top bars were designed compressed"
         assert bottom_bar.role == BarRole.MAIN, "Designed bars are main bars"
-        assert bottom_bar.source_position == 125.0, "Source is the interest point (cm)"
+        assert bottom_bar.source_positions == (125.0,), (
+            "Source is the interest point (cm)"
+        )
         assert bottom_bar.good_adherence, "A layer at 4.5 cm sits in the good bond zone"
         assert_approx(
             bottom_bar.area_ratio,
