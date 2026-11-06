@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from src.detailing.bar_schedule import build_schedule, schedule_table
 from src.text_table import format_table
 
 if TYPE_CHECKING:
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 def build_report(beam: DetailingBeam) -> str:
     """Describe a detailing beam as plain text
 
-    Lists the section, the longitudinal bars of each face (by layer, left to right), the clamps and the stirrups of each span. Positions (x) follow the beam's analysis axis; heights (y) are measured from the bottom face.
+    Lists the section, the longitudinal bars of each face (by layer, left to right), the clamps, the stirrups of each span and the beam's bar schedule. Positions (x) follow the beam's analysis axis; heights (y) are measured from the bottom face.
 
     Returns:
         Multi-line plain-text report.
@@ -32,6 +33,8 @@ def build_report(beam: DetailingBeam) -> str:
     lines += _clamps(beam)
     lines += ["", "Stirrups"]
     lines += _stirrups(beam)
+    lines += ["", "Bar schedule"]
+    lines += schedule_table(build_schedule([beam]))
     return "\n".join(lines)
 
 
@@ -49,11 +52,12 @@ def _section(beam: DetailingBeam) -> list[str]:
 
 
 def _bars(bars: list[DetailedBar]) -> list[str]:
-    """Tabulate bar runs: layer, height, bars, extent, hooks, cut length, role and source"""
+    """Tabulate bar runs: mark, layer, height, bars, extent, hooks, cut length, role and source"""
     if not bars:
         return ["  none"]
     rows = [
         [
+            bar.mark or "—",
             str(bar.layer_index),
             f"{bar.y:.2f}",
             f"{bar.quantity}φ{bar.diameter_mm:g}",
@@ -68,6 +72,7 @@ def _bars(bars: list[DetailedBar]) -> list[str]:
         for bar in bars
     ]
     headers = [
+        "Mark",
         "Layer",
         "y (cm)",
         "Bars",
@@ -107,11 +112,12 @@ def _lap_splices(beam: DetailingBeam) -> list[str]:
 
 
 def _clamps(beam: DetailingBeam) -> list[str]:
-    """Tabulate the clamps: face, side, bars, bend position, leg, width and cut length"""
+    """Tabulate the clamps: mark, face, side, bars, bend position, leg, width and cut length"""
     if not beam.clamps:
         return ["  none"]
     rows = [
         [
+            clamps.mark or "—",
             "bottom" if clamps.is_bottom else "top",
             "left" if clamps.left else "right",
             f"{clamps.quantity}φ{clamps.diameter_mm:g}",
@@ -124,6 +130,7 @@ def _clamps(beam: DetailingBeam) -> list[str]:
         for clamps in beam.clamps
     ]
     headers = [
+        "Mark",
         "Face",
         "Side",
         "Bars",
@@ -140,6 +147,7 @@ def _stirrups(beam: DetailingBeam) -> list[str]:
     """Tabulate each span's stirrup zones, one row per zone, left to right"""
     rows = [
         [
+            stirrups.mark or "—",
             f"{stirrups.start_pillar_id}–{stirrups.end_pillar_id}",
             f"{zone.start:.1f}",
             f"{zone.end:.1f}",
@@ -148,4 +156,5 @@ def _stirrups(beam: DetailingBeam) -> list[str]:
         for stirrups in beam.stirrups
         for zone in stirrups.zones
     ]
-    return format_table(["Span", "From (cm)", "To (cm)", "Stirrups"], rows, "  ")
+    headers = ["Mark", "Span", "From (cm)", "To (cm)", "Stirrups"]
+    return format_table(headers, rows, "  ")

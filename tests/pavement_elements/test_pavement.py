@@ -8,16 +8,49 @@ import pytest
 import src.pavement_elements.pavement as pavement_module
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.detailing.detailed_bar import DetailedBar
+from src.detailing.detailing_beam import DetailingBeam
+from src.detailing.mark_registry import BarKey, MarkRegistry, bar_key
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement, reset_element_id_counters
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
 from src.properties.concrete import Concrete
+from src.properties.steel import Steel
+from src.structural_elements.support import Support
 
 # ---------------------------------------------------------------------------
 # Helpers / doubles
 # ---------------------------------------------------------------------------
+
+
+def _make_detailing(beam_id: str, *bars: DetailedBar) -> DetailingBeam:
+    """Build a 20 x 60 cm detailing beam with the given bars"""
+    return DetailingBeam(
+        beam_id=beam_id,
+        width=20.0,
+        height=60.0,
+        nominal_covering=2.5,
+        steel=Steel.CA50,
+        supports=(Support(0.0, -10.0, 10.0), Support(500.0, 490.0, 510.0)),
+        bars=list(bars),
+    )
+
+
+def _make_bar(end: float) -> DetailedBar:
+    """Build a bottom run of 2 straight φ10 bars from 0 to the given end (cm)"""
+    return DetailedBar(
+        diameter_mm=10,
+        steel=Steel.CA50,
+        quantity=2,
+        is_bottom=True,
+        is_tensioned=True,
+        layer_index=0,
+        y=4.0,
+        start=0,
+        end=end,
+    )
 
 
 def _make_beam_double(
@@ -38,7 +71,12 @@ def _make_beam_double(
     beam.pre_size = lambda registry: calls.append(f"pre_size:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
     beam.load_spans = lambda: calls.append(f"load_spans:{beam_id}")
     beam.dimension = lambda registry: calls.append(f"dimension:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
-    beam.detail = lambda: calls.append(f"detail:{beam_id}")
+
+    def detail() -> DetailingBeam:
+        calls.append(f"detail:{beam_id}")
+        return _make_detailing(beam_id)
+
+    beam.detail = detail
     beam.report = lambda registry: f"report:{beam_id}"  # pyright: ignore[reportUnknownLambdaType]
     return cast(ContinuousBeam, beam)
 
@@ -472,6 +510,43 @@ class TestDetailBeams:
         assert "detail:VA" in beam1.calls, "detail should be called on beam VA"  # type: ignore[attr-defined]
         assert "detail:VB" in beam2.calls, "detail should be called on beam VB"  # type: ignore[attr-defined]
 
+    def test_identical_bars_share_a_mark_across_beams(self) -> None:
+        p = Pavement()
+        first, second = _make_beam_double("VA"), _make_beam_double("VB")
+        detailings = {
+            "VA": _make_detailing("VA", _make_bar(300), _make_bar(400)),
+            "VB": _make_detailing("VB", _make_bar(400), _make_bar(250)),
+        }
+        first.detail = lambda: detailings["VA"]  # type: ignore[method-assign]
+        second.detail = lambda: detailings["VB"]  # type: ignore[method-assign]
+        p.add_beam(first)
+        p.add_beam(second)
+
+        p.detail_beams()
+
+        marks = {
+            beam_id: [bar.mark for bar in detailing.bars]
+            for beam_id, detailing in detailings.items()
+        }
+        assert marks == {"VA": ["N1", "N2"], "VB": ["N2", "N3"]}, (
+            "The 400 cm bar should keep N2 in the second beam"
+        )
+
+    def test_detailing_again_restarts_at_n1(self) -> None:
+        p = Pavement()
+        beam = _make_beam_double("VA")
+        beam.detail = lambda: _make_detailing("VA", _make_bar(300))  # type: ignore[method-assign]
+        p.add_beam(beam)
+
+        p.detail_beams()
+        first_registry = p.mark_registry
+        p.detail_beams()
+
+        assert p.mark_registry is not first_registry, "A new registry is built"
+        assert p.mark_registry.mark_for(bar_key(_make_bar(300))) == "N1", (
+            "Numbering starts over at N1"
+        )
+
 
 # ---------------------------------------------------------------------------
 # TestPrintBeamReports
@@ -502,7 +577,9 @@ class TestPrintBeamReports:
     ) -> None:
         p = Pavement()
         beam = _make_beam_double("VA")
-        beam.detailing = types.SimpleNamespace(report=lambda: "detailing:VA")  # type: ignore[assignment]
+        beam.detailing = types.SimpleNamespace(  # type: ignore[assignment]
+            report=lambda: "detailing:VA", bars=[], clamps=[], stirrups=[]
+        )
         p.add_beam(beam)
 
         p.print_beam_reports()
@@ -511,6 +588,28 @@ class TestPrintBeamReports:
         assert "detailing:VA" in output, "should print the beam's detailing report"
         assert output.index("report:VA") < output.index("detailing:VA"), (
             "the detailing report should follow the beam report"
+        )
+
+    def test_prints_pavement_schedule_last(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        p = Pavement()
+        for beam_id in ("VA", "VB"):
+            beam = _make_beam_double(beam_id)
+            beam.detailing = _make_detailing(beam_id, _make_bar(300))
+            p.add_beam(beam)
+            MarkRegistry().assign(beam.detailing)
+
+        p.print_beam_reports()
+
+        output = capsys.readouterr().out
+        lines = output.splitlines()
+        title = lines.index("Bar schedule — pavement")
+        assert output.index("report:VB") < output.index("Bar schedule — pavement"), (
+            "The pavement schedule comes after the beam reports"
+        )
+        assert lines[title + 2].split() == ["N1", "bar", "φ10", "4", "300", "1200"], (
+            "2 bars in each of the two beams add up under one mark"
         )
 
     def test_prints_nothing_without_beams(
@@ -543,7 +642,12 @@ class TestResolve:
         beam.pre_size = lambda r: log.append("pre_size_beam")  # type: ignore[attr-defined]
         beam.load_spans = lambda: log.append("load_spans")  # type: ignore[attr-defined]
         beam.dimension = lambda r: log.append("dimension")  # type: ignore[attr-defined]
-        beam.detail = lambda: log.append("detail")  # type: ignore[attr-defined]
+
+        def detail() -> DetailingBeam:
+            log.append("detail")
+            return _make_detailing("VA")
+
+        beam.detail = detail  # type: ignore[method-assign]
 
         slab_log: list[str] = []
         slab = _make_slab_double("LA")
@@ -639,6 +743,23 @@ class TestResolveKeepsResults:
                 f"{beam.id} detailing should name its beam"
             )
             assert beam.detailing.bars, f"{beam.id} detailing should have bars"
+
+    def test_every_item_is_marked(self, resolved_single_panel: Pavement) -> None:
+        for beam in resolved_single_panel.beams.values():
+            detailing = cast(DetailingBeam, beam.detailing)
+            items = [*detailing.bars, *detailing.clamps, *detailing.stirrups]
+            assert all(item.mark is not None for item in items), (
+                f"{beam.id} bars, clamps and stirrups should all have a mark"
+            )
+
+    def test_same_mark_means_same_bar(self, resolved_single_panel: Pavement) -> None:
+        keys: dict[str, set[BarKey]] = {}
+        for beam in resolved_single_panel.beams.values():
+            for bar in cast(DetailingBeam, beam.detailing).bars:
+                keys.setdefault(cast(str, bar.mark), set()).add(bar_key(bar))
+        assert all(len(bar_keys) == 1 for bar_keys in keys.values()), (
+            "Each mark should stand for one bar across the pavement"
+        )
 
     def test_spans_keep_characteristic_shear(
         self, resolved_single_panel: Pavement

@@ -120,6 +120,18 @@ class TestBuildReport:
         row = next(line for line in build_report(beam).splitlines() if "2φ16" in line)
         assert "125.00, 400.00" in row, "A merged run lists both sources"
 
+    def test_marks_and_schedule(self) -> None:
+        beam = _beam()
+        lines = build_report(beam).splitlines()
+        assert lines[lines.index("Bar schedule") + 1] == "  none", "No marks yet"
+
+        beam.bars[0].mark = "N7"
+        lines = build_report(beam).splitlines()
+        row = next(line for line in lines if "2φ16" in line)
+        assert row.split()[0] == "N7", "The bar row starts with the mark"
+        schedule = lines[lines.index("Bar schedule") + 2].split()
+        assert schedule[:4] == ["N7", "bar", "φ16", "2"], "The schedule lists the bar"
+
     def test_detailing_beam_report_delegates(self) -> None:
         beam = _beam()
         assert beam.report() == build_report(beam), (
