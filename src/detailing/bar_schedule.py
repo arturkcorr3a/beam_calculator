@@ -17,21 +17,19 @@ class ScheduleRow:
     Attributes:
         kind: "bar", "clamp" or "stirrup".
         diameter_mm: Bar diameter φ (mm).
-        quantity: Number of pieces, None for stirrups (not counted yet).
-        unit_length: Cut length of one piece (cm), None for stirrups (not calculated yet).
+        quantity: Number of pieces.
+        unit_length: Cut length of one piece (cm).
     """
 
     mark: str
     kind: str
     diameter_mm: float
-    quantity: int | None
-    unit_length: float | None  # cm
+    quantity: int
+    unit_length: float  # cm
 
     @property
-    def total_length(self) -> float | None:
-        """Return the cut length of all the pieces (cm), None for stirrups"""
-        if self.quantity is None or self.unit_length is None:
-            return None
+    def total_length(self) -> float:
+        """Return the cut length of all the pieces (cm)"""
         return self.quantity * self.unit_length
 
 
@@ -47,12 +45,11 @@ def build_schedule(beams: Iterable[DetailingBeam]) -> list[ScheduleRow]:
     for beam in beams:
         for row in _beam_rows(beam):
             existing = rows.get(row.mark)
-            if existing is None or existing.quantity is None or row.quantity is None:
-                rows[row.mark] = row
-            else:
-                rows[row.mark] = replace(
-                    existing, quantity=existing.quantity + row.quantity
-                )
+            rows[row.mark] = (
+                row
+                if existing is None
+                else replace(existing, quantity=existing.quantity + row.quantity)
+            )
     return sorted(rows.values(), key=lambda row: int(row.mark[1:]))
 
 
@@ -88,8 +85,8 @@ def _beam_rows(beam: DetailingBeam) -> list[ScheduleRow]:
                     mark=stirrups.mark,
                     kind="stirrup",
                     diameter_mm=stirrups.diameter_mm,
-                    quantity=None,
-                    unit_length=None,
+                    quantity=stirrups.quantity,
+                    unit_length=stirrups.cut_length,
                 )
             )
     return rows
@@ -104,16 +101,11 @@ def schedule_table(rows: list[ScheduleRow]) -> list[str]:
             row.mark,
             row.kind,
             f"φ{row.diameter_mm:g}",
-            "—" if row.quantity is None else str(row.quantity),
-            _length(row.unit_length),
-            _length(row.total_length),
+            str(row.quantity),
+            f"{row.unit_length:.0f}",
+            f"{row.total_length:.0f}",
         ]
         for row in rows
     ]
     headers = ["Mark", "Kind", "φ (mm)", "Quantity", "Unit (cm)", "Total (cm)"]
     return format_table(headers, cells, "  ")
-
-
-def _length(length: float | None) -> str:
-    """Show a length in whole centimeters, or a dash when it is not known"""
-    return "—" if length is None else f"{length:.0f}"

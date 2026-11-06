@@ -80,6 +80,9 @@ def _stirrups(*zones: StirrupZone) -> SpanStirrups:
         zones=zones,
         diameter_mm=6.3,
         steel=Steel.CA50,
+        outer_width=15.0,
+        outer_height=55.0,
+        cut_length=150.0,
     )
 
 
@@ -244,6 +247,19 @@ class TestRoundStirrups:
         assert stirrups.zones == (StirrupZone(10.5, 235.0, 12.0),), (
             "The sparser edge zone ends at 10 cm, before the face, so the c/12 zone takes it"
         )
+
+    def test_dimensions_and_cut_length(self) -> None:
+        source = replace(
+            _stirrups(StirrupZone(10.0, 235.0, 15.0)),
+            outer_width=14.5,
+            outer_height=55.2,
+            cut_length=149.28,
+        )
+        stirrups = round_stirrups(source)
+        assert (stirrups.outer_width, stirrups.outer_height) == (14.0, 55.0), (
+            "The outer dimensions round down, keeping the cover (cm)"
+        )
+        assert stirrups.cut_length == 150.0, "The cut length rounds up (cm)"
 
     def test_spacing_below_minimum_raises(self) -> None:
         with pytest.raises(ValueError, match="below the minimum"):

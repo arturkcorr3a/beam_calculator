@@ -132,6 +132,37 @@ class Steel(Enum, metaclass=_SteelMeta):
                 ratio = 18
         return ratio * diameter_mm / 10
 
+    def stirrup_bend_diameter(self, diameter_mm: float) -> float:
+        """Return the inner bend diameter (D) of a stirrup bar
+
+        Args:
+            diameter_mm: Stirrup bar diameter φ_t (mm).
+
+        Returns:
+            Bend diameter in cm.
+
+        Raises:
+            ValueError: If the norm gives no diameter for the bar (CA-60 with
+                φ_t > 10 mm).
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.4.6.1, Table 9.2
+        """
+        if diameter_mm <= 10:
+            ratio = 3
+        else:
+            is_small = diameter_mm < 20
+            match self:
+                case Steel.CA25:
+                    ratio = 4 if is_small else 5
+                case Steel.CA50:
+                    ratio = 5 if is_small else 8
+                case Steel.CA60:
+                    raise ValueError(
+                        f"No stirrup bend diameter for CA-60 bars with {diameter_mm} mm (φ_t > 10 mm)."
+                    )
+        return ratio * diameter_mm / 10
+
     def is_size_available(self, diameter: float) -> bool:
         """
         Checks if a given rebar diameter (in mm) is available for the steel type.

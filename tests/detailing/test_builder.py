@@ -311,6 +311,14 @@ class TestBuildStirrups:
             "Span P2–P3 stirrups run from P2's right face to P3's left face (cm)"
         )
         assert first.diameter_mm == 6.3, "The diameter should be converted to mm"
+        assert (first.outer_width, first.outer_height) == (15.0, 55.0), (
+            "The stirrup sits on the 2.5 cm cover of a 20 x 60 cm section (cm)"
+        )
+        assert_approx(
+            first.cut_length,
+            149.27522023056943,
+            "Raw cut length of a φ6.3 CA-50 stirrup (cm)",
+        )
         assert (first.start_pillar_id, first.end_pillar_id) == ("P1", "P2"), (
             "The span's pillars should be copied"
         )

@@ -64,6 +64,9 @@ def _stirrups(diameter_mm: float = 6.3) -> SpanStirrups:
         zones=(StirrupZone(10.0, 490.0, 15.0),),
         diameter_mm=diameter_mm,
         steel=Steel.CA50,
+        outer_width=15.0,
+        outer_height=55.0,
+        cut_length=150.0,
     )
 
 
@@ -137,16 +140,13 @@ class TestOtherKeys:
         assert clamp_key(_clamps()) != clamp_key(_clamps(leg_length=52)), "Longer legs"
         assert clamp_key(_clamps()) != clamp_key(_clamps(width=13)), "Wider U"
 
-    def test_stirrup_outer_dimensions(self) -> None:
-        key = stirrup_key(_beam(19.0, 65.0), 6.3, Steel.CA50)
-        assert (key.width, key.height) == (14.0, 60.0), "Section minus both covers (cm)"
-
-    def test_stirrups_of_equal_sections_match(self) -> None:
-        assert stirrup_key(_beam(), 6.3, Steel.CA50) == stirrup_key(
-            _beam(), 6.3, Steel.CA50
-        ), "Same section and diameter"
-        assert stirrup_key(_beam(), 6.3, Steel.CA50) != stirrup_key(
-            _beam(height=70.0), 6.3, Steel.CA50
+    def test_stirrups(self) -> None:
+        assert stirrup_key(_stirrups()) == stirrup_key(_stirrups()), "Same stirrup"
+        assert stirrup_key(_stirrups()) != stirrup_key(_stirrups(diameter_mm=8)), (
+            "Another diameter"
+        )
+        assert stirrup_key(_stirrups()) != stirrup_key(
+            replace(_stirrups(), outer_height=65.0)
         ), "Another section"
 
 
@@ -169,7 +169,7 @@ class TestMarkFor:
         marks = {
             registry.mark_for(bar_key(_bar())),
             registry.mark_for(clamp_key(_clamps())),
-            registry.mark_for(stirrup_key(_beam(), 12.5, Steel.CA50)),
+            registry.mark_for(stirrup_key(_stirrups(diameter_mm=12.5))),
         }
         assert marks == {"N1", "N2", "N3"}, "A bar, a clamp and a stirrup are different"
 

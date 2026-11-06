@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
-from src.detailing.rounding import round_down
+from src.detailing.span_stirrups import SpanStirrups
 from src.properties.steel import Steel
 from src.structural_elements.rebar import HookGeometry
 
@@ -53,8 +53,8 @@ class StirrupKey:
 
     Attributes:
         diameter_mm: Stirrup bar diameter φ_t (mm).
-        width: Outer width of the stirrup: the section width minus both covers (cm).
-        height: Outer height of the stirrup: the section height minus both covers (cm).
+        width: Outer width of the stirrup (cm).
+        height: Outer height of the stirrup (cm).
     """
 
     diameter_mm: float
@@ -97,17 +97,13 @@ def clamp_key(clamps: DetailedClamps) -> ClampKey:
     )
 
 
-def stirrup_key(beam: DetailingBeam, diameter_mm: float, steel: Steel) -> StirrupKey:
-    """Return the identity of a beam's stirrups: diameter, steel and outer dimensions
-
-    The outer dimensions round down, so the stirrup keeps the nominal cover.
-    """
-    cover = 2 * beam.nominal_covering  # cm
+def stirrup_key(stirrups: SpanStirrups) -> StirrupKey:
+    """Return the identity of a span's stirrups: diameter, steel and outer dimensions"""
     return StirrupKey(
-        diameter_mm=diameter_mm,
-        steel=steel,
-        width=round_down(beam.width - cover),
-        height=round_down(beam.height - cover),
+        diameter_mm=stirrups.diameter_mm,
+        steel=stirrups.steel,
+        width=stirrups.outer_width,
+        height=stirrups.outer_height,
     )
 
 
@@ -137,6 +133,4 @@ class MarkRegistry:
         for clamps in beam.clamps:
             clamps.mark = self.mark_for(clamp_key(clamps))
         for stirrups in beam.stirrups:
-            stirrups.mark = self.mark_for(
-                stirrup_key(beam, stirrups.diameter_mm, stirrups.steel)
-            )
+            stirrups.mark = self.mark_for(stirrup_key(stirrups))

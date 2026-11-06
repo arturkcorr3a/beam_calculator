@@ -242,6 +242,34 @@ class TestFrameJointBendDiameter:
         )
 
 
+class TestStirrupBendDiameter:
+    """Tests for the stirrup bend diameter, from Table 9.2 of NBR 6118."""
+
+    @pytest.mark.parametrize(
+        ("steel", "diameter_mm", "expected"),
+        [
+            (Steel.CA25, 10.0, 3.0),
+            (Steel.CA50, 6.3, 1.89),
+            (Steel.CA50, 10.0, 3.0),
+            (Steel.CA60, 10.0, 3.0),
+            (Steel.CA25, 12.5, 5.0),
+            (Steel.CA50, 12.5, 6.25),
+            (Steel.CA25, 20.0, 10.0),
+            (Steel.CA50, 20.0, 16.0),
+        ],
+    )
+    def test_table_9_2(self, steel: Steel, diameter_mm: float, expected: float) -> None:
+        assert_approx(
+            steel.stirrup_bend_diameter(diameter_mm),
+            expected,
+            f"{steel.name} φ{diameter_mm:g} bend diameter (cm)",
+        )
+
+    def test_ca60_above_10_mm_raises(self) -> None:
+        with pytest.raises(ValueError, match="No stirrup bend diameter"):
+            Steel.CA60.stirrup_bend_diameter(12.5)
+
+
 class TestAvailableSizes:
     """Tests for the available rebar diameters (mm)."""
 
@@ -258,7 +286,20 @@ class TestAvailableSizes:
         )
 
     def test_ca60_available_sizes(self, steel_ca60: Steel) -> None:
-        expected_sizes: list[float] = [3.4, 3.8, 4.2, 4.6, 5.0, 5.5, 6.0, 6.4, 7.0, 8.0, 9.5, 10.0]
+        expected_sizes: list[float] = [
+            3.4,
+            3.8,
+            4.2,
+            4.6,
+            5.0,
+            5.5,
+            6.0,
+            6.4,
+            7.0,
+            8.0,
+            9.5,
+            10.0,
+        ]
         assert steel_ca60.available_sizes == expected_sizes, (
             "CA-60 should offer the thin-wire NBR 7480 rebar diameters"
         )

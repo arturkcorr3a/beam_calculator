@@ -52,6 +52,30 @@ class TestCalculateRatio:
             Stirrups.calculate_ratio(0.5, 0.0)
 
 
+class TestClosedLengthFor:
+    """Cut length of a closed stirrup with 135° hooks, along the bar's axis."""
+
+    def test_short_tip_uses_five_centimeters(self) -> None:
+        # D = 1.89, r = 1.26: 140 − 12.6 + 5.94 + 5.94 + 2 × 5 cm
+        assert_approx(
+            Stirrups.closed_length_for(15.0, 55.0, 6.3, Steel.CA50),
+            149.27522023056943,
+            "φ6.3 in a 15 x 55 cm stirrup: 5φ = 3.15 < 5 cm (cm)",
+        )
+
+    def test_long_tip_uses_five_diameters(self) -> None:
+        # D = 6.25, r = 3.75: 140 − 35 + 17.67 + 17.67 + 2 × 6.25 cm
+        assert_approx(
+            Stirrups.closed_length_for(15.0, 55.0, 12.5, Steel.CA50),
+            152.84291735288517,
+            "φ12.5 in a 15 x 55 cm stirrup: 5φ = 6.25 > 5 cm (cm)",
+        )
+
+    def test_bar_without_bend_diameter_raises(self) -> None:
+        with pytest.raises(ValueError, match="No stirrup bend diameter"):
+            Stirrups.closed_length_for(15.0, 55.0, 12.5, Steel.CA60)
+
+
 class TestPickBestOption:
     """Tests for selecting the option with the lowest reinforcement ratio."""
 

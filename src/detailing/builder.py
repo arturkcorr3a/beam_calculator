@@ -48,7 +48,7 @@ def build_detailing_beam(beam: ContinuousBeam) -> DetailingBeam:
     for reinforcement in beam.reinforcement:
         detailing.bars += _bars(reinforcement, structural_beam.height)
         detailing.clamps += _clamps(reinforcement)
-    detailing.stirrups = _stirrups(beam, supports)
+    detailing.stirrups = _stirrups(beam, structural_beam, supports)
     return detailing
 
 
@@ -179,13 +179,20 @@ def _clamps(reinforcement: Reinforcement) -> list[DetailedClamps]:
 
 
 def _stirrups(
-    beam: ContinuousBeam, supports: tuple[Support, ...]
+    beam: ContinuousBeam,
+    structural_beam: RectangularBeam,
+    supports: tuple[Support, ...],
 ) -> list[SpanStirrups]:
     """Copy each span's stirrups and their spacing zones, between the inner faces of its pillars
+
+    The stirrups' outer faces sit on the nominal cover, which sets their outer dimensions and cut length.
 
     Raises:
         ValueError: If a span's stirrups have no diameter or spacing, or their zones do not cover the stretch between the pillars' faces.
     """
+    covers = 2 * RectangularBeam.nominal_covering  # cm
+    outer_width = structural_beam.width - covers  # cm
+    outer_height = structural_beam.height - covers  # cm
     detailed: list[SpanStirrups] = []
     for index, span in enumerate(beam.spans):
         stirrups = span.stirrups
@@ -202,13 +209,19 @@ def _stirrups(
             raise ValueError(
                 f"Span {span_name}: the stirrup zones do not cover the stretch between the pillars' faces ({start:.1f}–{end:.1f} cm)."
             )
+        diameter_mm = round(stirrups.diameter * _MM_PER_CM, 2)
         detailed.append(
             SpanStirrups(
                 start_pillar_id=span.start_pillar_id,
                 end_pillar_id=span.end_pillar_id,
                 zones=zones,
-                diameter_mm=round(stirrups.diameter * _MM_PER_CM, 2),
+                diameter_mm=diameter_mm,
                 steel=stirrups.steel,
+                outer_width=outer_width,
+                outer_height=outer_height,
+                cut_length=Stirrups.closed_length_for(
+                    outer_width, outer_height, diameter_mm, stirrups.steel
+                ),
             )
         )
     return detailed

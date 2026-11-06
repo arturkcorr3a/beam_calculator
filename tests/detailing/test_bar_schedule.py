@@ -83,7 +83,7 @@ class TestBuildSchedule:
             "One clamp of 2 × 51 + 12 cm"
         )
 
-    def test_stirrups_have_no_quantity_or_length_yet(self) -> None:
+    def test_stirrups_add_up_across_spans(self) -> None:
         beam = _beam()
         stirrups = SpanStirrups(
             start_pillar_id="P1",
@@ -91,18 +91,22 @@ class TestBuildSchedule:
             zones=(StirrupZone(10.0, 490.0, 15.0),),
             diameter_mm=6.3,
             steel=Steel.CA50,
+            outer_width=15.0,
+            outer_height=55.0,
+            cut_length=150.0,
             mark="N1",
         )
         beam.stirrups = [stirrups, replace(stirrups, start_pillar_id="P2")]
-        rows = build_schedule([beam])
-        assert len(rows) == 1, "Two spans with the same stirrup share a row"
-        assert rows[0].kind == "stirrup", "The row is a stirrup"
-        assert rows[0].quantity is None, "Stirrups are not counted yet"
-        assert rows[0].total_length is None, "Stirrup lengths are not calculated yet"
+        rows = build_schedule([beam, beam])
+        assert len(rows) == 1, "The same stirrup in every span shares a row"
+        row = rows[0]
+        assert (row.kind, row.unit_length) == ("stirrup", 150.0), "Stirrup, 150 cm"
+        assert row.quantity == 4 * 33, "4 spans of 480 / 15 + 1 = 33 stirrups"
+        assert row.total_length == 19800, "132 × 150 cm"
 
 
 class TestScheduleTable:
-    """The table shows whole centimeters, and a dash for what is not known."""
+    """The table shows whole centimeters."""
 
     def test_empty(self) -> None:
         assert schedule_table([]) == ["  none"], "No rows says none"
@@ -117,16 +121,3 @@ class TestScheduleTable:
             "300",
             "600",
         ], "Mark, kind, diameter, quantity, unit and total lengths"
-
-    def test_stirrup_row(self) -> None:
-        row = ScheduleRow(
-            mark="N2", kind="stirrup", diameter_mm=6.3, quantity=None, unit_length=None
-        )
-        assert schedule_table([row])[1].split() == [
-            "N2",
-            "stirrup",
-            "φ6.3",
-            "—",
-            "—",
-            "—",
-        ], "Unknown values show a dash"

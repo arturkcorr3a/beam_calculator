@@ -138,9 +138,9 @@ def _anchored_bar(clamps: DetailedClamps, bars: list[DetailedBar]) -> DetailedBa
 
 
 def round_stirrups(stirrups: SpanStirrups) -> SpanStirrups:
-    """Return a copy of a span's stirrups with whole-centimeter spacings and zone boundaries
+    """Return a copy of a span's stirrups with whole-centimeter dimensions, spacings and zone boundaries
 
-    Spacings round down. Each boundary between zones moves towards the sparser zone, so the denser stirrups only spread. Neighbors left with the same spacing merge, and a zone squeezed to nothing is absorbed by its denser neighbor. The outer limits stay on the pillars' faces.
+    The outer dimensions round down, so the stirrup keeps the cover, and the cut length rounds up. Spacings round down. Each boundary between zones moves towards the sparser zone, so the denser stirrups only spread. Neighbors left with the same spacing merge, and a zone squeezed to nothing is absorbed by its denser neighbor. The outer limits stay on the pillars' faces.
 
     Raises:
         ValueError: If a spacing rounds below the minimum spacing.
@@ -157,7 +157,13 @@ def round_stirrups(stirrups: SpanStirrups) -> SpanStirrups:
             raise ValueError(
                 f"Stirrup spacing rounds down to {zone.spacing:g} cm, below the minimum of {MIN_SPACING:g} cm."
             )
-    return replace(stirrups, zones=_round_boundaries(_merge_equal(zones)))
+    return replace(
+        stirrups,
+        zones=_round_boundaries(_merge_equal(zones)),
+        outer_width=round_down(stirrups.outer_width),
+        outer_height=round_down(stirrups.outer_height),
+        cut_length=round_up(stirrups.cut_length),
+    )
 
 
 def _round_boundaries(zones: list[StirrupZone]) -> tuple[StirrupZone, ...]:

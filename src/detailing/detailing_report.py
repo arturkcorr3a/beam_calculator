@@ -152,9 +152,19 @@ def _stirrups(beam: DetailingBeam) -> list[str]:
             f"{zone.start:.1f}",
             f"{zone.end:.1f}",
             f"φ{stirrups.diameter_mm:g} c/{zone.spacing:.1f}",
+            str(quantity),
+            f"{stirrups.cut_length:.0f}",
         ]
         for stirrups in beam.stirrups
-        for zone in stirrups.zones
+        for zone, quantity in zip(stirrups.zones, stirrups.zone_quantities, strict=True)
     ]
-    headers = ["Mark", "Span", "From (cm)", "To (cm)", "Stirrups"]
+    headers = [
+        "Mark",
+        "Span",
+        "From (cm)",
+        "To (cm)",
+        "Stirrups",
+        "Quantity",
+        "Length (cm)",
+    ]
     return format_table(headers, rows, "  ")

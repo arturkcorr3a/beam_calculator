@@ -49,6 +49,9 @@ def _beam() -> DetailingBeam:
         ),
         diameter_mm=6.3,
         steel=Steel.CA50,
+        outer_width=15.0,
+        outer_height=55.0,
+        cut_length=150.0,
     )
     return DetailingBeam(
         beam_id="V1",
@@ -94,6 +97,12 @@ class TestBuildReport:
             "The middle zone row should show its extent (cm)"
         )
         assert "c/24.0" in stirrup_rows[1], "The middle zone row shows its spacing"
+        assert stirrup_rows[0].split()[-2:] == ["5", "150"], (
+            "Each zone row shows its stirrups and their cut length"
+        )
+        assert stirrup_rows[2].split()[-2] == "6", (
+            "The last zone holds the stirrup closing the span"
+        )
 
     def test_lap_splices(self) -> None:
         beam = _beam()

@@ -60,6 +60,9 @@ def _stirrups(
         zones=(StirrupZone(start, end, 15.0),),
         diameter_mm=diameter_mm,
         steel=Steel.CA50,
+        outer_width=15.0,
+        outer_height=55.0,
+        cut_length=150.0,
     )
 
 

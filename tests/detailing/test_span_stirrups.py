@@ -15,6 +15,9 @@ def _stirrups(*zones: StirrupZone) -> SpanStirrups:
         zones=zones,
         diameter_mm=6.3,
         steel=Steel.CA50,
+        outer_width=15.0,
+        outer_height=55.0,
+        cut_length=150.0,
     )
 
 
@@ -28,6 +31,34 @@ class TestExtent:
         assert (stirrups.start, stirrups.end) == (10.0, 235.0), (
             "Extent should come from the outer zones (cm)"
         )
+
+
+class TestQuantity:
+    """Each zone takes as many gaps as its spacing asks for; one stirrup closes the span."""
+
+    def test_exact_division(self) -> None:
+        stirrups = _stirrups(StirrupZone(10.0, 235.0, 15.0))
+        assert stirrups.zone_quantities == (16,), "225 / 15 = 15 gaps, 16 stirrups"
+        assert stirrups.quantity == 16, "One zone is the whole span"
+
+    def test_division_rounds_up(self) -> None:
+        stirrups = _stirrups(StirrupZone(10.0, 240.0, 15.0))
+        assert stirrups.quantity == 17, "230 / 15 = 15.3 → 16 gaps, 17 stirrups"
+
+    def test_float_drift_adds_no_stirrup(self) -> None:
+        stirrups = _stirrups(StirrupZone(10.0, 235.00000001, 15.0))
+        assert stirrups.quantity == 16, "225.00000001 cm is still 15 gaps"
+
+    def test_three_zones(self) -> None:
+        stirrups = _stirrups(
+            StirrupZone(10.0, 61.0, 12.0),
+            StirrupZone(61.0, 190.0, 24.0),
+            StirrupZone(190.0, 235.0, 12.0),
+        )
+        assert stirrups.zone_quantities == (5, 6, 5), (
+            "51 / 12 → 5, 129 / 24 → 6, 45 / 12 → 4, plus the closing stirrup"
+        )
+        assert stirrups.quantity == 16, "5 + 6 + 5 stirrups"
 
 
 class TestValidation:
