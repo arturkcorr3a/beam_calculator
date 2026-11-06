@@ -208,7 +208,8 @@ class TestTrim:
             )
         )
         resolve_overlaps(beam)
-        # 4 of 6 bars spliced in the section → α_0t = 2.0 → 67 cm
+        # 8 bars cross the section; the old lap's pair and the new pair count once → 4,
+        # all spliced → α_0t = 2.0 → 67 cm
         assert beam.lap_splices[-1].length == 67, (
             "A lap already in the section raises the share spliced"
         )

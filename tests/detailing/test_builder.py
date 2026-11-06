@@ -143,7 +143,8 @@ class TestBuildSection:
     def test_copies_section_and_supports(
         self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
     ) -> None:
-        detailing = build_detailing_beam(_beam(structural_beam, [bottom_reinforcement]))
+        beam = _beam(structural_beam, [bottom_reinforcement])
+        detailing = build_detailing_beam(beam)
         assert detailing.beam_id == "V9", "The detailing should name its beam"
         assert (detailing.width, detailing.height) == (20.0, 60.0), (
             "The section should be copied (cm)"
@@ -156,6 +157,9 @@ class TestBuildSection:
         )
         assert (detailing.start, detailing.end) == (-10.0, 510.0), (
             "The beam should run between the end pillars' outer faces (cm)"
+        )
+        assert detailing.analysis is beam.analysis, (
+            "The detailing should keep the beam's analysis"
         )
 
 

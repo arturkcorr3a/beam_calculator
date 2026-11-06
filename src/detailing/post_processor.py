@@ -8,6 +8,7 @@ from src.detailing.construction_bars import add_construction_bars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.overlaps import resolve_overlaps
 from src.detailing.rounding import round_detailing
+from src.detailing.splitting import split_long_bars
 from src.logger import log_operation
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ _STEPS: tuple[Callable[[DetailingBeam], None], ...] = (
     round_detailing,
     resolve_overlaps,
     add_construction_bars,
+    split_long_bars,
 )
 
 

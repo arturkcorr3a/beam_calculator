@@ -1,19 +1,17 @@
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 
-from src.calculators.lap_splice_calculator import (
-    MAX_LAP_DIAMETER_MM,
-    compression_lap_length,
-    tension_lap_length,
-)
+from src.calculators.lap_splice_calculator import MAX_LAP_DIAMETER_MM
 from src.detailing.detailed_bar import BarRole, DetailedBar
 from src.detailing.detailing_beam import DetailingBeam
-from src.detailing.lap_splice import LapSplice
+from src.detailing.lap_splice import (
+    LapSplice,
+    exceeds_spliced_share,
+    section_share,
+    splice_length,
+)
 from src.detailing.rounding import round_down, round_up
 from src.logger import log_operation
-
-SAME_SECTION_RATIO = 0.2  # splices closer than this share of the lap are in one section - NBR 6118 - Section 9.5.2.1
-MULTI_LAYER_MAX_SHARE = 0.5  # tensioned bars spliced in one section with more than one layer - NBR 6118 - Table 9.3
 
 
 @dataclass(eq=False)
@@ -172,29 +170,26 @@ def _trim(
 
     quantity = min(a.quantity, b.quantity)
     center = (b.start + a.end) / 2  # cm
-    bars_at_section = [run.bar for run in runs if run.bar.is_bottom == a.is_bottom]
-    bars_at_section = [bar for bar in bars_at_section if bar.start <= center <= bar.end]
-    count = (
-        sum(bar.quantity for bar in bars_at_section) - quantity
-    )  # pairs counted once
-    reach = _lap_length(a, b, share=1.0) / 2  # cm, the longest lap (α_0t = 2.0)
-    spliced = quantity + _spliced_nearby(
-        detailing, a.is_bottom, center - reach, center + reach
+    share, layers = section_share(
+        (run.bar for run in runs),
+        detailing.lap_splices,
+        is_bottom=a.is_bottom,
+        center=center,
+        reach=splice_length(a, b, share=1.0) / 2,  # cm, the longest lap (α_0t = 2.0)
+        quantity=quantity,
+        paired_quantity=quantity,
     )
-    share = min(spliced / count, 1.0)
-    is_tensioned = a.is_tensioned or b.is_tensioned
-    layers = {bar.layer_index for bar in bars_at_section}
-    if is_tensioned and len(layers) > 1 and share > MULTI_LAYER_MAX_SHARE:
+    if exceeds_spliced_share(share, layers, a.is_tensioned or b.is_tensioned):
         log_operation(
             _describe(
-                f"Kept ({share:.0%} spliced in a section with {len(layers)} layers)",
+                f"Kept ({share:.0%} spliced in a section with {layers} layers)",
                 a,
                 b,
             )
         )
         return None
 
-    lap = round_up(_lap_length(a, b, share))  # cm
+    lap = round_up(splice_length(a, b, share))  # cm
     if b.start + lap >= a.end:
         log_operation(_describe(f"Kept (overlap within the {lap:g} cm lap)", a, b))
         return None
@@ -232,42 +227,6 @@ def _trim(
         _Run(trimmed_right, left_locked=True, right_locked=right_paired.right_locked),
         *right_rest,
     ]
-
-
-def _lap_length(a: DetailedBar, b: DetailedBar, share: float) -> float:
-    """Return the lap length of two runs (cm), sized with the smaller diameter
-
-    Tension lap unless both runs are compressed; compression lap when both are. The splice is in a good bond zone only if both runs are, and the larger area ratio is used.
-
-    Args:
-        share: Bars spliced in the same section over all the bars there.
-    """
-    diameter_mm = min(a.diameter_mm, b.diameter_mm)
-    good_adherence = a.good_adherence and b.good_adherence
-    area_ratio = max(a.area_ratio, b.area_ratio)
-    if not (a.is_tensioned or b.is_tensioned):
-        return compression_lap_length(diameter_mm, a.steel, good_adherence, area_ratio)
-    return tension_lap_length(diameter_mm, a.steel, good_adherence, area_ratio, share)
-
-
-def _spliced_nearby(
-    detailing: DetailingBeam, is_bottom: bool, start: float, end: float
-) -> int:
-    """Count the bars of laps on a face that share a section with a lap in [start, end] (cm)
-
-    Two laps share a section when they overlap or their nearest ends are closer than 20 % of the lap length.
-
-    References:
-        ABNT NBR 6118:2026 — Section 9.5.2.1
-    """
-    margin = SAME_SECTION_RATIO * (end - start)  # cm
-    return sum(
-        lap.quantity
-        for lap in detailing.lap_splices
-        if lap.is_bottom == is_bottom
-        and lap.start < end + margin
-        and lap.end > start - margin
-    )
 
 
 def _describe(action: str, a: DetailedBar, b: DetailedBar) -> str:

@@ -43,6 +43,7 @@ def build_detailing_beam(beam: ContinuousBeam) -> DetailingBeam:
         nominal_covering=RectangularBeam.nominal_covering,
         steel=structural_beam.steel,
         supports=supports,
+        analysis=beam.analysis,
     )
     for reinforcement in beam.reinforcement:
         detailing.bars += _bars(reinforcement, structural_beam.height)
