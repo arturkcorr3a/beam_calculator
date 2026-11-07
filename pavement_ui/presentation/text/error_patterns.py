@@ -158,6 +158,38 @@ PATTERNS: tuple[MessagePattern, ...] = (
         r"^Effective depth \(d\) did not converge within .*$",
         "A altura útil (d) não convergiu.",
     ),
+    # --- detailing ----------------------------------------------------------
+    _p(
+        rf"^A (?P<num_l>{_NUM}) cm φ(?P<num_d>{_NUM}) run needs a splice, "
+        rf"but bars above (?P<num_max>{_NUM}) mm cannot be lap spliced\.$",
+        "Uma barra Φ{num_d} de {num_l} cm precisa de emenda, mas barras acima de "
+        "{num_max} mm não podem ser emendadas por traspasse (NBR 6118 §9.5.2).",
+    ),
+    _p(
+        rf"^A (?P<num_l>{_NUM}) cm lap of φ(?P<num_d>{_NUM}) bars does not fit "
+        rf"in a (?P<num_max>{_NUM}) cm bar\.$",
+        "O traspasse de {num_l} cm das barras Φ{num_d} não cabe numa barra de "
+        "{num_max} cm.",
+    ),
+    _p(
+        rf"^No splice position for (?P<n>\d+)φ(?P<num_d>{_NUM}) between "
+        rf"(?P<num_a>{_NUM}) and (?P<num_b>{_NUM}) cm keeps the bars spliced in one "
+        r"section within Table 9\.3\.$",
+        "Não há posição de emenda para {n}Φ{num_d} entre {num_a} e {num_b} cm que "
+        "respeite a proporção de barras emendadas (NBR 6118, Tabela 9.3).",
+    ),
+    _p(
+        rf"^Stirrup spacing rounds down to (?P<num_s>{_NUM}) cm, "
+        rf"below the minimum of (?P<num_min>{_NUM}) cm\.$",
+        "O espaçamento dos estribos arredondado, {num_s} cm, fica abaixo do mínimo "
+        "de {num_min} cm.",
+    ),
+    _p(
+        rf"^No stirrup bend diameter for CA-60 bars with (?P<num_d>{_NUM}) mm "
+        r"\(φ_t > 10 mm\)\.$",
+        "A NBR 6118 (Tabela 9.2) não define o dobramento de estribos CA-60 de "
+        "{num_d} mm.",
+    ),
     # --- NBR 6120 table lookups (KeyError) ----------------------------------
     _p(
         r"^No masonry type matching '(?P<value>[^']*)' was found\.$",
@@ -175,6 +207,6 @@ PATTERNS: tuple[MessagePattern, ...] = (
         r"^No category matching '(?P<value>[^']*)' was found\.$",
         "Categoria “{value}” não encontrada (NBR 6120, Tabela 10).",
     ),
-    # --- prefix added by ContinuousBeam.dimension: must stay last -----------
+    # --- prefix added by dimension and detail: must stay last ---------------
     _p(rf"^Beam {_ID}: (?P<rest>.+)$", "Viga “{id}”: {rest}"),
 )

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from src.config import APP_CONFIG
-from src.detailing.bar_schedule import build_schedule, schedule_table
+from src.detailing.bar_schedule import ScheduleRow, build_schedule, schedule_table
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.mark_registry import MarkRegistry
 from src.detailing.quantities import (
@@ -193,6 +193,10 @@ class Pavement:
         for detailing in detailings:
             self.mark_registry.assign(detailing)
 
+    def bar_schedule(self) -> list[ScheduleRow]:
+        """List the bar schedule of the detailed beams, one row per mark"""
+        return build_schedule(self._detailings())
+
     def quantities(self) -> PavementQuantities:
         """Measure the net steel, concrete and formwork of the detailed beams
 
@@ -220,7 +224,7 @@ class Pavement:
             if beam.detailing is not None:
                 print(beam.detailing.report())
                 print()
-        rows = build_schedule(self._detailings())
+        rows = self.bar_schedule()
         if rows:
             print("Bar schedule — pavement")
             print("\n".join(schedule_table(rows)))

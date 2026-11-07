@@ -619,6 +619,21 @@ class TestPrintBeamReports:
             "4 bars of 3 m of φ10"
         )
 
+    def test_bar_schedule_adds_up_beams(self) -> None:
+        p = Pavement()
+        for beam_id in ("VA", "VB"):
+            beam = _make_beam_double(beam_id)
+            beam.detailing = _make_detailing(beam_id, _make_bar(300))
+            p.add_beam(beam)
+            MarkRegistry().assign(beam.detailing)
+        p.add_beam(_make_beam_double("VC"))
+
+        rows = p.bar_schedule()
+
+        assert [(row.mark, row.quantity) for row in rows] == [("N1", 4)], (
+            "Detailed beams add up under one mark; beams without detailing are skipped"
+        )
+
     def test_prints_nothing_without_beams(
         self, capsys: pytest.CaptureFixture[str]
     ) -> None:
