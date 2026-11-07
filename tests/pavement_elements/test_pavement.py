@@ -8,17 +8,19 @@ import pytest
 import src.pavement_elements.pavement as pavement_module
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.detailing.bar_schedule import build_schedule
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.mark_registry import BarKey, MarkRegistry, bar_key
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
-from src.pavement_elements.geometry_utils import Alignment
+from src.pavement_elements.geometry_utils import Alignment, Axis
 from src.pavement_elements.pavement import Pavement, reset_element_id_counters
 from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.support import Support
+from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
 # Helpers / doubles
@@ -611,6 +613,11 @@ class TestPrintBeamReports:
         assert lines[title + 2].split() == ["N1", "bar", "φ10", "4", "300", "1200"], (
             "2 bars in each of the two beams add up under one mark"
         )
+        quantities = lines.index("Quantities — beams only, net")
+        assert quantities > title, "The quantities close the report"
+        assert lines[quantities + 2].split()[:2] == ["φ10", "12.00"], (
+            "4 bars of 3 m of φ10"
+        )
 
     def test_prints_nothing_without_beams(
         self, capsys: pytest.CaptureFixture[str]
@@ -751,6 +758,47 @@ class TestResolveKeepsResults:
             assert all(item.mark is not None for item in items), (
                 f"{beam.id} bars, clamps and stirrups should all have a mark"
             )
+
+    def test_quantities_match_the_elements(
+        self, resolved_single_panel: Pavement
+    ) -> None:
+        quantities = resolved_single_panel.quantities()
+        assert len(quantities.beams) == 4, "One entry per beam"
+
+        rows = build_schedule(
+            cast(DetailingBeam, beam.detailing)
+            for beam in resolved_single_panel.beams.values()
+        )
+        mass = sum(
+            row.total_length / 100 * Steel.CA50.linear_mass(row.diameter_mm)
+            for row in rows
+        )
+        assert_approx(
+            quantities.steel_mass_kg,
+            mass,
+            "The steel should add up to the pavement's schedule (kg)",
+            abs_tol=1e-6,
+        )
+
+        volume = 0.0
+        for beam in resolved_single_panel.beams.values():
+            axis = cast(Axis, beam.axis)
+            pillars = [resolved_single_panel.pillars[i] for i in beam.pillar_ids]
+            clear_length = (
+                pillars[1].x
+                + pillars[1].y
+                - pillars[0].x
+                - pillars[0].y
+                - pillars[0].get_parallel_extent(axis) / 2
+                - pillars[1].get_parallel_extent(axis) / 2
+            )  # cm, one pillar coordinate is the same on an axis
+            volume += beam.width * beam.height * clear_length / 1e6
+        assert_approx(
+            quantities.concrete_m3,
+            volume,
+            "b_w · h · l of the 4 beams (m³)",
+            abs_tol=1e-9,
+        )
 
     def test_same_mark_means_same_bar(self, resolved_single_panel: Pavement) -> None:
         keys: dict[str, set[BarKey]] = {}

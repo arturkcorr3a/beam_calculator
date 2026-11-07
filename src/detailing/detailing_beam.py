@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from src.analysis.beam_analysis import BeamAnalysis
+from src.detailing.clear_span import ClearSpan
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
 from src.detailing.detailing_report import build_report
@@ -21,6 +22,7 @@ class DetailingBeam:
         height: Section height h (cm).
         nominal_covering: Nominal cover c_nom (cm).
         supports: Extent of each pillar along the beam, left to right.
+        clear_spans: The stretches between the pillars' inner faces, left to right.
         lap_splices: Lap splices between bar runs, in the order they were made.
         analysis: Structural analysis of the dimensioned beam, used to place splices where the bars are least tensioned; None when not built from a dimensioned beam.
     """
@@ -34,6 +36,7 @@ class DetailingBeam:
     bars: list[DetailedBar] = field(default_factory=list[DetailedBar])
     clamps: list[DetailedClamps] = field(default_factory=list[DetailedClamps])
     stirrups: list[SpanStirrups] = field(default_factory=list[SpanStirrups])
+    clear_spans: list[ClearSpan] = field(default_factory=list[ClearSpan])
     lap_splices: list[LapSplice] = field(default_factory=list[LapSplice])
     analysis: BeamAnalysis | None = None
 

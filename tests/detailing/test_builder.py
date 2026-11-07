@@ -94,17 +94,24 @@ def _beam(
     reinforcements: list[Reinforcement],
     spacing: float | None = 15.0,
     zones: tuple[list[StirrupZone], list[StirrupZone]] = ([], []),
+    slab_thicknesses: tuple[float | None, float | None] = (None, None),
 ) -> ContinuousBeam:
     """Build a dimensioned two-span beam double with φ6.3 stirrups
 
     Args:
         spacing: Chosen (edge) stirrup spacing of both spans (cm).
         zones: Design spacing zones of each span, along the beam (cm); empty when the stirrups were not distributed.
+        slab_thicknesses: Thickness of the two slabs on the first span (cm), None for no slab.
     """
+    first_span_slabs = tuple(
+        None if thickness is None else types.SimpleNamespace(thickness=thickness)
+        for thickness in slab_thicknesses
+    )
     spans = [
         types.SimpleNamespace(
             start_pillar_id=start_id,
             end_pillar_id=end_id,
+            supported_slabs=slabs,
             stirrups=types.SimpleNamespace(
                 beam=structural_beam,
                 diameter=0.63,
@@ -113,8 +120,11 @@ def _beam(
                 zones=span_zones,
             ),
         )
-        for (start_id, end_id), span_zones in zip(
-            [("P1", "P2"), ("P2", "P3")], zones, strict=True
+        for (start_id, end_id), span_zones, slabs in zip(
+            [("P1", "P2"), ("P2", "P3")],
+            zones,
+            [first_span_slabs, (None, None)],
+            strict=True,
         )
     ]
     beam = types.SimpleNamespace(
@@ -385,6 +395,48 @@ class TestBuildStirrups:
         )
         with pytest.raises(ValueError, match="do not cover the stretch"):
             build_detailing_beam(beam)
+
+
+class TestBuildClearSpans:
+    """Each span runs between its pillars' inner faces, with the sides the slabs leave."""
+
+    def test_extent_between_inner_faces(
+        self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
+    ) -> None:
+        detailing = build_detailing_beam(_beam(structural_beam, [bottom_reinforcement]))
+        first, second = detailing.clear_spans
+        assert (first.start, first.end) == (10.0, 235.0), "P1's to P2's face (cm)"
+        assert (second.start, second.end) == (265.0, 490.0), "P2's to P3's face (cm)"
+
+    def test_no_slabs_leave_whole_sides(
+        self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
+    ) -> None:
+        detailing = build_detailing_beam(_beam(structural_beam, [bottom_reinforcement]))
+        assert detailing.clear_spans[0].side_heights == (60.0, 60.0), "Whole height"
+
+    def test_one_slab_covers_one_side(
+        self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
+    ) -> None:
+        beam = _beam(
+            structural_beam, [bottom_reinforcement], slab_thicknesses=(10.0, None)
+        )
+        detailing = build_detailing_beam(beam)
+        assert detailing.clear_spans[0].side_heights == (50.0, 60.0), (
+            "The 10 cm slab covers one side"
+        )
+        assert detailing.clear_spans[1].side_heights == (60.0, 60.0), (
+            "The other span has no slabs"
+        )
+
+    def test_two_slabs_cover_both_sides(
+        self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
+    ) -> None:
+        beam = _beam(
+            structural_beam, [bottom_reinforcement], slab_thicknesses=(10.0, 12.0)
+        )
+        assert build_detailing_beam(beam).clear_spans[0].side_heights == (50.0, 48.0), (
+            "Each slab covers its own thickness"
+        )
 
 
 class TestBuildLeavesDesignUntouched:

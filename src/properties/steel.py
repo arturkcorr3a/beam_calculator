@@ -1,9 +1,11 @@
 from enum import Enum, EnumMeta
 from functools import cached_property
+from math import pi
 
 from src.logger import log_property, logger_label
 
 GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
+DENSITY = 7850  # kg/m³ - ABNT NBR 7480 - Section 4.4
 
 
 class _SteelMeta(EnumMeta):
@@ -162,6 +164,20 @@ class Steel(Enum, metaclass=_SteelMeta):
                         f"No stirrup bend diameter for CA-60 bars with {diameter_mm} mm (φ_t > 10 mm)."
                     )
         return ratio * diameter_mm / 10
+
+    def linear_mass(self, diameter_mm: float) -> float:
+        """Return the nominal linear mass of a bar: its section area times the steel density
+
+        Args:
+            diameter_mm: Bar diameter φ (mm).
+
+        Returns:
+            Linear mass in kg/m.
+
+        References:
+            ABNT NBR 7480:2024 — Section 4.4, Tables B.1 and B.2
+        """
+        return pi * ((diameter_mm / 2) / 1000) ** 2 * DENSITY
 
     def is_size_available(self, diameter: float) -> bool:
         """

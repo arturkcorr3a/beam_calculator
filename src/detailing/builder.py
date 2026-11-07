@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from itertools import pairwise
 from typing import TYPE_CHECKING, cast
 
+from src.detailing.clear_span import ClearSpan
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
 from src.detailing.detailing_beam import DetailingBeam
@@ -16,6 +18,7 @@ from src.structural_elements.support import Support
 
 if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam
+    from src.pavement_elements.slab import Slab
 
 _MM_PER_CM = 10.0
 _ZONE_TOLERANCE = 1e-3  # cm, zones shorter than this after clipping are dropped
@@ -49,6 +52,7 @@ def build_detailing_beam(beam: ContinuousBeam) -> DetailingBeam:
         detailing.bars += _bars(reinforcement, structural_beam.height)
         detailing.clamps += _clamps(reinforcement)
     detailing.stirrups = _stirrups(beam, structural_beam, supports)
+    detailing.clear_spans = _clear_spans(beam, structural_beam.height, supports)
     return detailing
 
 
@@ -225,6 +229,34 @@ def _stirrups(
             )
         )
     return detailed
+
+
+def _clear_spans(
+    beam: ContinuousBeam, height: float, supports: tuple[Support, ...]
+) -> list[ClearSpan]:
+    """List each span's stretch between the pillars' inner faces
+
+    A side face stays visible below the slab on that side, whatever its level: a lowered slab still covers its thickness.
+
+    Args:
+        height: Section height h (cm).
+    """
+    return [
+        ClearSpan(
+            start=start.right,
+            end=end.left,
+            side_heights=(
+                _side_height(height, span.supported_slabs[0]),
+                _side_height(height, span.supported_slabs[1]),
+            ),
+        )
+        for span, (start, end) in zip(beam.spans, pairwise(supports), strict=True)
+    ]
+
+
+def _side_height(height: float, slab: Slab | None) -> float:
+    """Return the height of a beam side left visible by the slab on it (cm)"""
+    return height if slab is None else height - slab.thickness
 
 
 def _clipped_zones(

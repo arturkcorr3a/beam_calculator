@@ -270,6 +270,51 @@ class TestStirrupBendDiameter:
             Steel.CA60.stirrup_bend_diameter(12.5)
 
 
+class TestLinearMass:
+    """The nominal linear mass is the section area times 7850 kg/m³ (NBR 7480)."""
+
+    @pytest.mark.parametrize(
+        ("diameter_mm", "table_mass"),
+        [
+            (3.4, 0.071),
+            (3.8, 0.089),
+            (4.2, 0.109),
+            (4.6, 0.130),
+            (5.0, 0.154),
+            (5.5, 0.187),
+            (6.0, 0.222),
+            (6.3, 0.245),
+            (6.4, 0.253),
+            (7.0, 0.302),
+            (8.0, 0.395),
+            (10.0, 0.617),
+            (12.5, 0.963),
+            (16.0, 1.578),
+            (20.0, 2.466),
+            (22.0, 2.984),
+            (25.0, 3.853),
+            (32.0, 6.313),
+            (40.0, 9.865),
+        ],
+    )
+    def test_tables_b1_and_b2(self, diameter_mm: float, table_mass: float) -> None:
+        assert_approx(
+            Steel.CA50.linear_mass(diameter_mm),
+            table_mass,
+            f"φ{diameter_mm:g} matches the table to its three decimals (kg/m)",
+            abs_tol=0.00051,
+        )
+
+    def test_wire_9_5_follows_the_formula(self) -> None:
+        """Table B.2 prints 0.558 kg/m, but its own area of 70.9 mm² gives 0.557 kg/m"""
+        assert_approx(
+            Steel.CA60.linear_mass(9.5),
+            0.5564,
+            "φ9.5 by the table's footnote formula (kg/m)",
+            abs_tol=0.0001,
+        )
+
+
 class TestAvailableSizes:
     """Tests for the available rebar diameters (mm)."""
 

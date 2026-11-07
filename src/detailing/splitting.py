@@ -17,7 +17,9 @@ from src.detailing.lap_splice import (
 from src.detailing.rounding import round_down, round_up
 from src.logger import log_operation
 
-MAX_BAR_LENGTH = 1200.0  # cm, commercial bar length, hooks included
+MAX_BAR_LENGTH = (
+    1200.0  # cm, supply length (ABNT NBR 7480 - Section 4.5.1), hooks included
+)
 _TENSION_TOLERANCE = 1e-9  # kN.m, tensions closer than this are a tie
 
 

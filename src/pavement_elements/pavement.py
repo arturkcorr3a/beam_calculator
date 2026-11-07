@@ -2,7 +2,13 @@ from dataclasses import dataclass, field
 
 from src.config import APP_CONFIG
 from src.detailing.bar_schedule import build_schedule, schedule_table
+from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.mark_registry import MarkRegistry
+from src.detailing.quantities import (
+    PavementQuantities,
+    build_quantities,
+    quantities_table,
+)
 from src.logger import log_element, log_general, log_iteration, logger_label
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -187,10 +193,23 @@ class Pavement:
         for detailing in detailings:
             self.mark_registry.assign(detailing)
 
+    def quantities(self) -> PavementQuantities:
+        """Measure the net steel, concrete and formwork of the detailed beams
+
+        The slabs and pillars are not included.
+        """
+        return build_quantities(self._detailings())
+
+    def _detailings(self) -> list[DetailingBeam]:
+        """Return the detailing of every detailed beam, in pavement order"""
+        return [
+            beam.detailing for beam in self.beams.values() if beam.detailing is not None
+        ]
+
     def print_beam_reports(self) -> None:
         """Print the final-state report of every beam to the console, separated by a blank line
 
-        A detailed beam's report is followed by its detailing report, and the last one by the pavement's bar schedule.
+        A detailed beam's report is followed by its detailing report, and the last one by the pavement's bar schedule and quantities.
 
         Raises:
             ValueError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
@@ -201,11 +220,11 @@ class Pavement:
             if beam.detailing is not None:
                 print(beam.detailing.report())
                 print()
-        detailings = [
-            beam.detailing for beam in self.beams.values() if beam.detailing is not None
-        ]
-        rows = build_schedule(detailings)
+        rows = build_schedule(self._detailings())
         if rows:
             print("Bar schedule — pavement")
             print("\n".join(schedule_table(rows)))
+            print()
+            print("Quantities — beams only, net")
+            print("\n".join(quantities_table(self.quantities())))
             print()
