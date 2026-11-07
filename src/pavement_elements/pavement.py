@@ -1,6 +1,14 @@
 from dataclasses import dataclass, field
 
 from src.config import APP_CONFIG
+from src.detailing.bar_schedule import ScheduleRow, build_schedule, schedule_table
+from src.detailing.detailing_beam import DetailingBeam
+from src.detailing.mark_registry import MarkRegistry
+from src.detailing.quantities import (
+    PavementQuantities,
+    build_quantities,
+    quantities_table,
+)
 from src.logger import log_element, log_general, log_iteration, logger_label
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -30,11 +38,13 @@ class Pavement:
         pillars: Mapping of pillar ID → Pillar
         beams:   Mapping of beam ID → ContinuousBeam
         slabs:   Mapping of slab ID → Slab
+        mark_registry: Bar marks of the last detailing, shared by all the beams
     """
 
     pillars: dict[str, Pillar] = field(default_factory=dict[str, Pillar])
     beams: dict[str, ContinuousBeam] = field(default_factory=dict[str, ContinuousBeam])
     slabs: dict[str, Slab] = field(default_factory=dict[str, Slab])
+    mark_registry: MarkRegistry = field(default_factory=MarkRegistry, init=False)
 
     def __post_init__(self) -> None:
         reset_element_id_counters()
@@ -88,8 +98,8 @@ class Pavement:
     def resolve(self) -> None:
         """
         Main entry point for sizing the pavement. Validates the structure, then
-        pre-sizes beams and slabs, transfers slab loads onto beams, and finally
-        dimensions all beams.
+        pre-sizes beams and slabs, transfers slab loads onto beams, dimensions
+        all beams and finally post-processes their bars into the detailing.
         """
         self.validate()
         self.pre_size_beams()
@@ -99,6 +109,7 @@ class Pavement:
 
         log_general("Pavement pre-processing complete. Starting beam dimensioning...")
         self.dimension_beams()
+        self.detail_beams()
 
     def pre_size_beams(self) -> None:
         """
@@ -168,12 +179,56 @@ class Pavement:
         for beam in self.beams.values():
             beam.dimension(self.pillars)
 
+    def detail_beams(self) -> None:
+        """Post-process every dimensioned beam's bars into its detailing, then mark them
+
+        The marks are numbered from N1 across the whole pavement, beam by beam, once every beam is detailed: identical bars get the same mark in any beam.
+
+        Raises:
+            ValueError: Propagated from ContinuousBeam.detail if a beam has not been dimensioned or its post-processing fails.
+        """
+        log_general("Beams' detailing starting")
+        detailings = [beam.detail() for beam in self.beams.values()]
+        self.mark_registry = MarkRegistry()
+        for detailing in detailings:
+            self.mark_registry.assign(detailing)
+
+    def bar_schedule(self) -> list[ScheduleRow]:
+        """List the bar schedule of the detailed beams, one row per mark"""
+        return build_schedule(self._detailings())
+
+    def quantities(self) -> PavementQuantities:
+        """Measure the net steel, concrete and formwork of the detailed beams
+
+        The slabs and pillars are not included.
+        """
+        return build_quantities(self._detailings())
+
+    def _detailings(self) -> list[DetailingBeam]:
+        """Return the detailing of every detailed beam, in pavement order"""
+        return [
+            beam.detailing for beam in self.beams.values() if beam.detailing is not None
+        ]
+
     def print_beam_reports(self) -> None:
         """Print the final-state report of every beam to the console, separated by a blank line
+
+        A detailed beam's report is followed by its detailing report, and the last one by the pavement's bar schedule and quantities.
 
         Raises:
             ValueError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
         """
         for beam in self.beams.values():
             print(beam.report(self.pillars))
+            print()
+            if beam.detailing is not None:
+                print(beam.detailing.report())
+                print()
+        rows = self.bar_schedule()
+        if rows:
+            print("Bar schedule — pavement")
+            print("\n".join(schedule_table(rows)))
+            print()
+            print("Quantities — beams only, net")
+            print("\n".join(quantities_table(self.quantities())))
             print()

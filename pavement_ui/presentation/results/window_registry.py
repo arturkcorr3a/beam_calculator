@@ -1,10 +1,13 @@
-"""ResultWindows: at most one summary and one detail window per element."""
+"""ResultWindows: at most one summary, one quantities and one detail window per element."""
 
 from PySide6.QtWidgets import QWidget
 
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.results.beam.beam_detail_window import BeamDetailWindow
+from pavement_ui.presentation.results.quantities.quantities_window import (
+    QuantitiesWindow,
+)
 from pavement_ui.presentation.results.slab.slab_detail_window import SlabDetailWindow
 from pavement_ui.presentation.results.summary.results_window import ResultsWindow
 from pavement_ui.presentation.session_bridge import QtSessionBridge
@@ -31,6 +34,7 @@ class ResultWindows:
         self._session = session
         self._parent = parent
         self._summary: ResultsWindow | None = None
+        self._quantities: QuantitiesWindow | None = None
         self._beams: dict[str, BeamDetailWindow] = {}
         self._slabs: dict[str, SlabDetailWindow] = {}
         bridge.design_finished.connect(self._on_design_finished)
@@ -44,9 +48,20 @@ class ResultWindows:
         if success is None:
             return
         if self._summary is None:
-            self._summary = ResultsWindow(self.open_beam, self.open_slab, self._parent)
+            self._summary = ResultsWindow(
+                self.open_beam, self.open_slab, self.open_quantities, self._parent
+            )
         self._summary.set_results(success, self._file_name())
         _show(self._summary)
+
+    def open_quantities(self) -> None:
+        success = self._session.last_success
+        if success is None:
+            return
+        if self._quantities is None:
+            self._quantities = QuantitiesWindow(self._parent)
+        self._quantities.set_results(success.quantities, self._file_name())
+        _show(self._quantities)
 
     def open_beam(self, beam_id: str) -> None:
         success = self._session.last_success
@@ -86,6 +101,8 @@ class ResultWindows:
     def _refresh(self, success: DesignSuccess) -> None:
         if self._summary is not None:
             self._summary.set_results(success, self._file_name())
+        if self._quantities is not None:
+            self._quantities.set_results(success.quantities, self._file_name())
         beams = {b.beam_id: b for b in success.beams}
         for beam_id in list(self._beams):
             if beam_id in beams:
@@ -106,3 +123,5 @@ class ResultWindows:
         self._slabs.clear()
         if self._summary is not None:
             self._summary.close()
+        if self._quantities is not None:
+            self._quantities.close()

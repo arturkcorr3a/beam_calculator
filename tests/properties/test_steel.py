@@ -242,6 +242,79 @@ class TestFrameJointBendDiameter:
         )
 
 
+class TestStirrupBendDiameter:
+    """Tests for the stirrup bend diameter, from Table 9.2 of NBR 6118."""
+
+    @pytest.mark.parametrize(
+        ("steel", "diameter_mm", "expected"),
+        [
+            (Steel.CA25, 10.0, 3.0),
+            (Steel.CA50, 6.3, 1.89),
+            (Steel.CA50, 10.0, 3.0),
+            (Steel.CA60, 10.0, 3.0),
+            (Steel.CA25, 12.5, 5.0),
+            (Steel.CA50, 12.5, 6.25),
+            (Steel.CA25, 20.0, 10.0),
+            (Steel.CA50, 20.0, 16.0),
+        ],
+    )
+    def test_table_9_2(self, steel: Steel, diameter_mm: float, expected: float) -> None:
+        assert_approx(
+            steel.stirrup_bend_diameter(diameter_mm),
+            expected,
+            f"{steel.name} φ{diameter_mm:g} bend diameter (cm)",
+        )
+
+    def test_ca60_above_10_mm_raises(self) -> None:
+        with pytest.raises(ValueError, match="No stirrup bend diameter"):
+            Steel.CA60.stirrup_bend_diameter(12.5)
+
+
+class TestLinearMass:
+    """The nominal linear mass is the section area times 7850 kg/m³ (NBR 7480)."""
+
+    @pytest.mark.parametrize(
+        ("diameter_mm", "table_mass"),
+        [
+            (3.4, 0.071),
+            (3.8, 0.089),
+            (4.2, 0.109),
+            (4.6, 0.130),
+            (5.0, 0.154),
+            (5.5, 0.187),
+            (6.0, 0.222),
+            (6.3, 0.245),
+            (6.4, 0.253),
+            (7.0, 0.302),
+            (8.0, 0.395),
+            (10.0, 0.617),
+            (12.5, 0.963),
+            (16.0, 1.578),
+            (20.0, 2.466),
+            (22.0, 2.984),
+            (25.0, 3.853),
+            (32.0, 6.313),
+            (40.0, 9.865),
+        ],
+    )
+    def test_tables_b1_and_b2(self, diameter_mm: float, table_mass: float) -> None:
+        assert_approx(
+            Steel.CA50.linear_mass(diameter_mm),
+            table_mass,
+            f"φ{diameter_mm:g} matches the table to its three decimals (kg/m)",
+            abs_tol=0.00051,
+        )
+
+    def test_wire_9_5_follows_the_formula(self) -> None:
+        """Table B.2 prints 0.558 kg/m, but its own area of 70.9 mm² gives 0.557 kg/m"""
+        assert_approx(
+            Steel.CA60.linear_mass(9.5),
+            0.5564,
+            "φ9.5 by the table's footnote formula (kg/m)",
+            abs_tol=0.0001,
+        )
+
+
 class TestAvailableSizes:
     """Tests for the available rebar diameters (mm)."""
 
@@ -258,7 +331,20 @@ class TestAvailableSizes:
         )
 
     def test_ca60_available_sizes(self, steel_ca60: Steel) -> None:
-        expected_sizes: list[float] = [3.4, 3.8, 4.2, 4.6, 5.0, 5.5, 6.0, 6.4, 7.0, 8.0, 9.5, 10.0]
+        expected_sizes: list[float] = [
+            3.4,
+            3.8,
+            4.2,
+            4.6,
+            5.0,
+            5.5,
+            6.0,
+            6.4,
+            7.0,
+            8.0,
+            9.5,
+            10.0,
+        ]
         assert steel_ca60.available_sizes == expected_sizes, (
             "CA-60 should offer the thin-wire NBR 7480 rebar diameters"
         )

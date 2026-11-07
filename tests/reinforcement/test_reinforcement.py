@@ -332,6 +332,29 @@ class TestDistributeBars:
             "Only the φ10 that do not fit should open layer 1"
         )
 
+    def test_continued_diameter_gets_own_instance_per_layer(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """A diameter split across layers has one instance per layer, so lengths set on one layer do not leak into the other"""
+        bars = [Rebar(diameter_mm=16, steel=Steel.CA50) for _ in range(2)] + [
+            Rebar(diameter_mm=10, steel=Steel.CA50) for _ in range(3)
+        ]
+        reinforcement.distribute_bars_in_layers(bars)
+        layers = reinforcement.chosen_bars
+        first_layer_bar = next(b for b in layers[0].bars if b.diameter_mm == 10)
+        second_layer_bars = layers[1].bars
+        assert all(bar is not first_layer_bar for bar in second_layer_bars), (
+            "Layer 1 should not reuse the φ10 instance of layer 0"
+        )
+        assert second_layer_bars[0] is second_layer_bars[1], (
+            "Bars of one diameter should still share an instance within a layer"
+        )
+
+        layers[1].set_anchorage_length(80.0, left=True)
+        assert first_layer_bar.left_length == 0.0, (
+            "Setting layer 1's length should leave layer 0's φ10 unchanged"
+        )
+
     def test_three_groups_beyond_max_layers_raise_value_error(
         self, beam_double: RectangularBeam
     ) -> None:

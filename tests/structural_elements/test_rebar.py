@@ -152,6 +152,38 @@ class TestSideHookLength:
         assert rebar.right_hook_length == 0.0, "No right hook, no length"
 
 
+class TestHookGeometry:
+    """Tests for the per-side hook geometry, None when the hook is disabled."""
+
+    def test_disabled_hook_is_none(self, rebar_ca50_10mm: Rebar) -> None:
+        assert rebar_ca50_10mm.hook_geometry(left=True) is None, "No left hook"
+
+    def test_enabled_hook_without_geometry_is_standard(
+        self, rebar_ca50_10mm: Rebar
+    ) -> None:
+        rebar_ca50_10mm.right_hook_enabled = True
+        expected = HookGeometry(pin_diameter=5.0, tip_length=8.0)  # cm (5φ, 8φ)
+        assert rebar_ca50_10mm.hook_geometry(left=False) == expected, (
+            "A plain hook is the standard CA-50 φ10 hook"
+        )
+
+    def test_enabled_hook_keeps_side_geometry(self) -> None:
+        rebar = Rebar(diameter_mm=16, steel=Steel.CA50)
+        geometry = HookGeometry(pin_diameter=24.0, tip_length=40.0)
+        rebar.left_hook_enabled = True
+        rebar.left_hook_geometry = geometry
+        assert rebar.hook_geometry(left=True) == geometry, (
+            "The left side keeps its own frame-joint geometry"
+        )
+
+    def test_disabled_hook_ignores_side_geometry(self) -> None:
+        rebar = Rebar(diameter_mm=16, steel=Steel.CA50)
+        rebar.left_hook_geometry = HookGeometry(pin_diameter=24.0, tip_length=40.0)
+        assert rebar.hook_geometry(left=True) is None, (
+            "Geometry without an enabled hook is not a hook"
+        )
+
+
 class TestTotalLength:
     """Tests for the bar's cut length: straight lengths plus enabled hooks."""
 

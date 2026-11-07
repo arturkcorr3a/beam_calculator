@@ -27,8 +27,23 @@ class Layer:
 
         Reference: ABNT NBR 6118 - Section 9.3.1
         """
+        return self.is_good_adherence_position(self.y_centroid_position, beam_height)
+
+    @staticmethod
+    def is_good_adherence_position(y: float, beam_height: float) -> bool:
+        """Check whether a height in the section lies in the good bond zone
+
+        Up to 30 cm from the bottom face in beams under 60 cm; otherwise, at least 30 cm below the top face.
+
+        Args:
+            y: Height from the bottom face of the section (cm).
+            beam_height: Section height h (cm).
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.3.1
+        """
         good_adherence_threshold = 30 if beam_height < 60 else beam_height - 30
-        return self.y_centroid_position <= good_adherence_threshold
+        return y <= good_adherence_threshold
 
     def set_anchorage_length(
         self, necessary_anchorage_length: float, left: bool

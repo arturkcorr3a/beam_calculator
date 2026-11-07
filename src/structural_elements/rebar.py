@@ -116,6 +116,20 @@ class Rebar:
         geometry = self.left_hook_geometry if left else self.right_hook_geometry
         return geometry if geometry is not None else self._standard_hook
 
+    def hook_geometry(self, left: bool) -> HookGeometry | None:
+        """Return the hook on one side, or None when that side has no hook
+
+        A side without its own geometry gets the standard hook (Table 9.1 pin, 8φ tip).
+
+        Args:
+            left: Whether to read the left side; otherwise the right.
+
+        Raises:
+            ValueError: Propagated from the bending pin if the norm gives none for the bar.
+        """
+        enabled = self.left_hook_enabled if left else self.right_hook_enabled
+        return self._side_hook(left) if enabled else None
+
     @property
     def left_hook_length(self) -> float:
         """Return the left hook length (cm), zero when the hook is disabled"""

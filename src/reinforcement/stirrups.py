@@ -12,9 +12,12 @@ from src.calculators.stirrup_calculator import (
 )
 from src.loading.forces import LOAD_FACTOR, design_effort_elu
 from src.logger import log_element, log_operation, log_property, logger_label
+from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
 
 MIN_DIAMETER = 0.5  # cm, minimum diameter of stirrup bars (NBR 6118 - Section 18.3.3.2)
+HOOK_TIP_RATIO = 5  # 135° hook tip, in bar diameters (NBR 6118 - Section 9.4.6.1)
+MIN_HOOK_TIP = 5.0  # cm, shortest 135° hook tip (NBR 6118 - Section 9.4.6.1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,6 +227,35 @@ class Stirrups:
             else:
                 zones.append(StirrupZone(zone_start, zone_end, spacing))
         return zones
+
+    @staticmethod
+    def closed_length_for(
+        width: float, height: float, diameter_mm: float, steel: Steel
+    ) -> float:
+        """Return the cut length of a closed two-leg stirrup with 135° hooks (cm)
+
+        Measured along the bar's axis: the four straight sides, three 90° corners, and the closing corner, where each end bends 135° and carries a straight tip.
+
+        Args:
+            width: Outer width of the stirrup (cm).
+            height: Outer height of the stirrup (cm).
+            diameter_mm: Stirrup bar diameter φ_t (mm).
+            steel: Steel of the bar, for the bend diameter.
+
+        Raises:
+            ValueError: Propagated from the bend diameter if the norm gives none for the bar.
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.4.6.1, Table 9.2
+        """
+        diameter = diameter_mm / 10  # cm
+        bend_diameter = steel.stirrup_bend_diameter(diameter_mm)  # cm
+        axis_radius = (bend_diameter + diameter) / 2  # cm
+        sides = 2 * (width + height) - 8 * (bend_diameter / 2 + diameter)  # cm
+        corners = 3 * (pi / 2) * axis_radius  # cm
+        hook_arcs = 2 * (3 * pi / 4) * axis_radius  # cm
+        tips = 2 * max(HOOK_TIP_RATIO * diameter, MIN_HOOK_TIP)  # cm
+        return sides + corners + hook_arcs + tips
 
     @staticmethod
     def calculate_ratio(diameter: float, spacing: float) -> float:

@@ -20,6 +20,30 @@ COL_SPAN_COUNT: Final = "Nº de vãos"
 COL_DIMENSIONS: Final = "Dimensões (cm)"
 COL_TYPE: Final = "Tipo"
 COL_USAGE: Final = "Uso"
+SUMMARY_QUANTITIES: Final = "Quantitativos…"
+
+# --- quantities ---------------------------------------------------------------
+QUANTITIES_TITLE: Final = "Quantitativos das vigas — {file}"
+QUANTITIES_STEEL: Final = "Aço por bitola — {length} m · {mass} kg"
+QUANTITIES_BEAMS: Final = "Por viga — {mass} kg · {concrete} m³ · {formwork} m²"
+QUANTITIES_SCHEDULE: Final = "Quadro de ferros ({n} posições)"
+QUANTITIES_HINT: Final = (
+    "Só as vigas, em valores líquidos: sem perdas, lajes e pilares."
+)
+COL_DIAMETER: Final = "Φ (mm)"
+COL_LENGTH_M: Final = "Comprimento (m)"
+COL_MASS: Final = "Massa (kg)"
+COL_STEEL: Final = "Aço (kg)"
+COL_CONCRETE: Final = "Concreto (m³)"
+COL_FORMWORK: Final = "Fôrma (m²)"
+COL_MARK: Final = "Posição"
+COL_KIND: Final = "Peça"
+COL_QUANTITY: Final = "Quantidade"
+COL_UNIT: Final = "Unitário (cm)"
+COL_TOTAL: Final = "Total (cm)"
+KIND_BAR: Final = "Barra"
+KIND_CLAMP: Final = "Grampo"
+KIND_STIRRUP: Final = "Estribo"
 
 # --- beam detail (A7) ---------------------------------------------------------
 BEAM_TITLE: Final = "Viga {id} — resultado detalhado"

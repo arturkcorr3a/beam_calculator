@@ -58,6 +58,20 @@ class TestHasGoodAdherence:
         )
 
 
+class TestIsGoodAdherencePosition:
+    """The bond zone rule works on a height alone, without a layer."""
+
+    def test_short_beam(self) -> None:
+        assert Layer.is_good_adherence_position(30.0, 50.0), "30 cm is on the limit"
+        assert not Layer.is_good_adherence_position(30.5, 50.0), "Past 30 cm is poor"
+
+    def test_tall_beam(self) -> None:
+        assert Layer.is_good_adherence_position(50.0, 80.0), "h − 30 = 50 cm"
+        assert not Layer.is_good_adherence_position(56.5, 80.0), (
+            "Top bars of an 80 cm beam sit in the poor zone"
+        )
+
+
 class TestSetAnchorageLength:
     """Tests for propagating the anchorage length onto each bar."""
 

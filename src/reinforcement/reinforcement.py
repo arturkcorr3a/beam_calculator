@@ -1,4 +1,5 @@
 from collections import Counter
+from copy import copy
 from typing import cast
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
@@ -493,6 +494,8 @@ class Reinforcement:
     def _add_rebar_to_layers(self, rebar: Rebar, count: int, current_layer: int) -> int:
         """Place bars first-fit, advancing a layer only when the next bar doesn't fit
 
+        Bars of one diameter share a single Rebar instance within a layer. A diameter that continues into the next layer gets a copy there, because the anchorage lengths and hooks are set on the bars layer by layer.
+
         Args:
             rebar: Bar to place, repeated count times.
             count: Number of bars to place.
@@ -518,6 +521,7 @@ class Reinforcement:
                 count -= 1
             else:
                 current_layer += 1
+                rebar = copy(rebar)  # the next layer owns its bars' lengths
 
         log_property(
             f"Distributed {rebar.diameter_mm}mm bars up to layer {current_layer} ({current_layer + 1} layers in use)."

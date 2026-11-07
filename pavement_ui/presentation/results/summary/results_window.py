@@ -63,12 +63,13 @@ def _table[T](
 
 
 class ResultsWindow(QWidget):
-    """Success band, beams and slabs tables (each row opens its detail), Fechar"""
+    """Success band, beams and slabs tables (each row opens its detail), Quantitativos…, Fechar"""
 
     def __init__(
         self,
         open_beam: OpenDetail,
         open_slab: OpenDetail,
+        open_quantities: Callable[[], None],
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent, Qt.WindowType.Window)
@@ -87,10 +88,14 @@ class ResultsWindow(QWidget):
         QVBoxLayout(self._slabs_group).addWidget(slabs)
         hint = QLabel(s.SUMMARY_HINT)
         hint.setObjectName("hint")
+        quantities = QPushButton(s.SUMMARY_QUANTITIES)
+        quantities.setObjectName("resultsQuantitiesButton")
+        quantities.clicked.connect(open_quantities)
         close = QPushButton(s.CLOSE)
         close.clicked.connect(self.close)
         footer = QHBoxLayout()
         footer.addWidget(hint, 1)
+        footer.addWidget(quantities)
         footer.addWidget(close)
         layout = QVBoxLayout(self)
         margin = tokens.MARGIN_PX * 2
