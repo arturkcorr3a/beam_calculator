@@ -208,6 +208,7 @@ __marimo__/
 
 # Generated files
 /results/
+/out/
 
 # MACOS
 .DS_Store

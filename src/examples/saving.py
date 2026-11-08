@@ -170,7 +170,7 @@ def build_pavement():
 class SavingExample(SimpleExample):
     """Size the Carvalho pavement and save it to YAML"""
 
-    def run(self) -> None:
+    def run(self) -> Pavement:
         pavement = build_pavement()
         pavement.resolve()
 
@@ -178,3 +178,4 @@ class SavingExample(SimpleExample):
             print(f"{slab.id}: {slab.thickness} cm")
 
         save_pavement(pavement, PATH)
+        return pavement
