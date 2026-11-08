@@ -150,9 +150,10 @@ def build_pavement() -> Pavement:
 class TConcreto2Example(SimpleExample):
     """Save, size and report the t_concreto2 pavement"""
 
-    def run(self) -> None:
+    def run(self) -> Pavement:
         pavement = build_pavement()
         save_pavement(pavement, "saved/t_concreto2.yaml")
 
         pavement.resolve()
         pavement.print_beam_reports()
+        return pavement

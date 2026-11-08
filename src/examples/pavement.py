@@ -316,7 +316,7 @@ def print_parameters(pavement: Pavement) -> None:
 class PavementExample(SimpleExample):
     """Build the sample pavement, plot its layout and dimension its beams"""
 
-    def run(self) -> None:
+    def run(self) -> Pavement:
         pavement = build_pavement()
 
         # Resolve geometry and derive spans / centerlines.
@@ -352,3 +352,4 @@ class PavementExample(SimpleExample):
                 "[DIMENSIONING SKIPPED] Beam reinforcement could not be computed:\n"
                 f"    {exc}"
             )
+        return pavement

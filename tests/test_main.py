@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from typing import Any
 
 import pytest
 
 import src.main as runner
 from src.config import APP_CONFIG
+from src.drawing.api import DrawingError
 from src.examples.simple_example import SimpleExample
 from src.logger import LogLevel, LogOutput
 
@@ -18,10 +21,12 @@ class _Recorder:
 
     def __init__(self, result: object = None) -> None:
         self.calls: list[tuple[object, ...]] = []
+        self.keywords: list[dict[str, object]] = []
         self._result = result
 
-    def __call__(self, *args: object) -> object:
+    def __call__(self, *args: object, **kwargs: object) -> object:
         self.calls.append(args)
+        self.keywords.append(kwargs)
         return self._result
 
 
@@ -214,3 +219,144 @@ class TestMain:
         with pytest.raises(SystemExit):
             runner.main(["--example", "nope"])
         assert logger_calls.calls == [], "Nothing should run on a bad name"
+
+
+@pytest.fixture
+def drawing_calls(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> tuple[_Recorder, _Recorder]:
+    """Replace the drawing entry points and send the results folder to a temp dir"""
+    saver = _Recorder([])
+    shower = _Recorder()
+    monkeypatch.setattr(runner, "save_pavement", saver)
+    monkeypatch.setattr(runner, "show_pavement", shower)
+    monkeypatch.setattr(runner, "RESULTS_DIR", tmp_path / "results")
+
+    def keep_backend(name: str) -> None:
+        """Leave the test backend alone"""
+
+    monkeypatch.setattr(runner.plt, "switch_backend", keep_backend)
+    return saver, shower
+
+
+class TestDisplay:
+    """Tests for --display: drawing the resolved pavement."""
+
+    def test_display_is_case_insensitive(self) -> None:
+        args = runner.build_parser().parse_args(["--load", "x", "--display", "save"])
+        assert args.display == "SAVE", "Display mode should be upper-cased"
+
+    def test_display_defaults_to_none(self) -> None:
+        args = runner.build_parser().parse_args(["--load", "x"])
+        assert args.display is None, "No drawing unless asked"
+
+    def test_invalid_display_is_rejected(self) -> None:
+        with pytest.raises(SystemExit):
+            runner.build_parser().parse_args(["--load", "x", "--display", "print"])
+
+    def test_drawing_folder(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.setattr(runner, "RESULTS_DIR", tmp_path)
+        folder = runner.drawing_folder("t_concreto2", date(2026, 11, 7))
+        assert folder == tmp_path / "nov-07" / "drawing" / "t_concreto2", (
+            "results/<mmm-dd>/drawing/<name>/"
+        )
+
+    @pytest.mark.parametrize(
+        ("mode", "saves", "shows"),
+        [("SAVE", 1, 0), ("SHOW", 0, 1), ("BOTH", 1, 1)],
+    )
+    def test_load_and_display(
+        self,
+        mode: str,
+        saves: int,
+        shows: int,
+        saved_dir: Path,
+        logger_calls: _Recorder,
+        drawing_calls: tuple[_Recorder, _Recorder],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        pavement = SimpleNamespace(resolve=lambda: None)
+        monkeypatch.setattr(runner, "load_pavement", _Recorder(pavement))
+        saver, shower = drawing_calls
+
+        runner.main(["--load", "demo", "--display", mode])
+
+        assert len(saver.calls) == saves, f"{mode}: saves {saves} time(s)"
+        assert len(shower.calls) == shows, f"{mode}: shows {shows} time(s)"
+        if saves:
+            drawn, folder = saver.calls[0]
+            assert drawn is pavement, "The resolved pavement is drawn"
+            assert isinstance(folder, Path) and folder.name == "demo", (
+                "Saved under the file's name"
+            )
+            assert saver.keywords[0] == {"pavement_name": "demo"}, (
+                "The title block names the pavement after the file"
+            )
+
+    def test_no_display_draws_nothing(
+        self,
+        saved_dir: Path,
+        logger_calls: _Recorder,
+        drawing_calls: tuple[_Recorder, _Recorder],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            runner, "load_pavement", _Recorder(SimpleNamespace(resolve=lambda: None))
+        )
+        runner.main(["--load", "demo"])
+        assert drawing_calls[0].calls == drawing_calls[1].calls == [], "No drawing"
+
+    def test_example_without_pavement_exits(
+        self,
+        logger_calls: _Recorder,
+        drawing_calls: tuple[_Recorder, _Recorder],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        module_name = "src.examples.t_concreto2"
+        module = _module_with(module_name, Demo=_example_class(module_name, []))
+        monkeypatch.setattr(runner, "import_module", _Recorder(module))
+        with pytest.raises(SystemExit):
+            runner.main(["--example", "t_concreto2", "--display", "SHOW"])
+        assert drawing_calls[1].calls == [], "Nothing to show"
+
+    def test_example_pavement_is_drawn(
+        self,
+        logger_calls: _Recorder,
+        drawing_calls: tuple[_Recorder, _Recorder],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        module_name = "src.examples.t_concreto2"
+        pavement = SimpleNamespace()
+
+        class _Example(SimpleExample):
+            def run(self) -> Any:
+                return pavement
+
+        _Example.__module__ = module_name
+        module = _module_with(module_name, Demo=_Example)
+        monkeypatch.setattr(runner, "import_module", _Recorder(module))
+
+        runner.main(["--example", "t_concreto2", "--display", "SHOW"])
+
+        assert drawing_calls[1].calls == [(pavement,)], (
+            "The example's pavement is shown"
+        )
+
+    def test_drawing_error_exits(
+        self,
+        saved_dir: Path,
+        logger_calls: _Recorder,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def fail(*args: object, **kwargs: object) -> None:
+            raise DrawingError("V1: no marks")
+
+        monkeypatch.setattr(
+            runner, "load_pavement", _Recorder(SimpleNamespace(resolve=lambda: None))
+        )
+        monkeypatch.setattr(runner, "show_pavement", fail)
+        with pytest.raises(SystemExit) as raised:
+            runner.main(["--load", "demo", "--display", "SHOW"])
+        assert raised.value.code == 1, "A drawing error exits with status 1"
