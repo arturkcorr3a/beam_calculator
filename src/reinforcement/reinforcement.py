@@ -11,6 +11,7 @@ from src.logger import (
     log_property,
     logger_label,
 )
+from src.reinforcement.anchorage_summary import AnchorageSummary
 from src.reinforcement.layer import Layer
 from src.reinforcement.rebar_chooser import RebarChooser
 from src.structural_elements.rebar import Rebar
@@ -75,6 +76,8 @@ class Reinforcement:
         self.effective_depth: float | None = None  # cm, d, used by clamps
         self.stress_block_depth: float | None = None  # cm, y, used by supports
         self.design_shear: float | None = None  # kN, V_d, used by clamps
+        self.anchorages: tuple[AnchorageSummary, ...] = ()  # of the chosen bars
+        self._layout_anchorages: tuple[AnchorageSummary, ...] = ()  # last layout
         self.id = id
 
     def support_moment(self, support_index: int) -> float:
@@ -146,6 +149,8 @@ class Reinforcement:
     def _select_best_layers(self, allow_clamp: bool) -> tuple[Layer, ...] | None:
         """Pick the best buildable option among the ranked choices
 
+        The best option's anchorage summaries are kept in ``anchorages``.
+
         Args:
             allow_clamp: Whether clamps may complete the anchorage at the
                 extremity supports.
@@ -156,6 +161,7 @@ class Reinforcement:
         # Options come sorted by area: the first buildable one sets the band, and within it fewer layers, then fewer bars, win
         best_layers: tuple[Layer, ...] | None = None
         best_key: tuple[int, int, float] | None = None
+        best_anchorages: tuple[AnchorageSummary, ...] = ()
         threshold_area = float("inf")  # cm², set by the first buildable option
         for option in self.rebar_choice_options:
             option_area = sum(bar.area_cm2 for bar in option)  # cm²
@@ -174,6 +180,8 @@ class Reinforcement:
             key = (layers_used, len(option), option_area)
             if best_key is None or key < best_key:
                 best_layers, best_key = self.chosen_bars, key
+                best_anchorages = self._layout_anchorages
+        self.anchorages = best_anchorages
         return best_layers
 
     def _try_layout(self, option: tuple[Rebar, ...], allow_clamp: bool) -> bool:
@@ -228,6 +236,8 @@ class Reinforcement:
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
         moment_shift = cast(float, self.moment_shift)
+        self._layout_anchorages = ()
+        summaries: list[AnchorageSummary] = []
         for layer_index, layer in enumerate(self.chosen_bars):
             if len(layer.bars) == 0:
                 continue
@@ -258,6 +268,8 @@ class Reinforcement:
                 anchorage_calculator.run(
                     right_available_space, left=False, allow_clamp=allow_clamp
                 )
+            summaries.extend(anchorage_calculator.summaries)
+        self._layout_anchorages = tuple(summaries)
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """

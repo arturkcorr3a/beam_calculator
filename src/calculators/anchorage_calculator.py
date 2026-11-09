@@ -8,6 +8,7 @@ from src.config import APP_CONFIG
 from src.loading.forces import design_effort_elu
 from src.logger import log_operation, log_property, logger_label
 from src.properties.steel import Steel
+from src.reinforcement.anchorage_summary import AnchorageSummary
 from src.reinforcement.clamps import Clamps
 from src.structural_elements.rectangular_beam import RectangularBeam
 from src.structural_elements.support import Support
@@ -37,6 +38,7 @@ class AnchorageCalculator:
         self.reinforcement = reinforcement
         self.beam_height = self.reinforcement.beam.height  # cm
         self.id = id
+        self.summaries: list[AnchorageSummary] = []  # one per anchored side
 
     def run(
         self, available_space: float, left: bool, allow_clamp: bool = False
@@ -94,7 +96,11 @@ class AnchorageCalculator:
 
         log_operation("Not enough space for anchorage with hooks; Adding clamps...")
         self.layer.set_anchorage_length(hooked_available_space, self.left)
-        return self._add_clamps(clamp_available_length, self.necessary_anchorage_length)
+        clamps = self._add_clamps(
+            clamp_available_length, self.necessary_anchorage_length
+        )
+        self._record()
+        return clamps
 
     def run_end_support(self, left: bool) -> None:
         """Anchor the layer bars into the end support they are centered on
@@ -121,6 +127,7 @@ class AnchorageCalculator:
             self.check_hook_fits()
             self.layer.set_hooks(self.left, True)
             self.layer.set_anchorage_length(0.0, self.left)
+            self._record()
             return
 
         self.layer.set_hooks(self.left, True)  # l_b,nec with α = 0.7
@@ -145,6 +152,18 @@ class AnchorageCalculator:
         )
         log_operation(
             f"Anchorage length of {horizontal_length:.2f} cm set over the end support, bent into it as a frame joint."
+        )
+        self._record()
+
+    def _record(self) -> None:
+        """Keep the anchorage lengths of the side just anchored, with its final hooks"""
+        self.summaries.append(
+            AnchorageSummary(
+                layer_index=self.layer.layer_index,
+                side="left" if self.left else "right",
+                basic_length=self.basic_anchorage_length,
+                necessary_length=self.necessary_anchorage_length,
+            )
         )
 
     def _add_clamps(
@@ -351,6 +370,7 @@ class AnchorageCalculator:
         if length <= available_space:
             self.layer.set_anchorage_length(length, self.left)
             log_operation(f"Anchorage length of {length:.2f} cm set (10φ past face).")
+            self._record()
             return None
 
         # NOTE the code should not reach this normally
@@ -372,7 +392,9 @@ class AnchorageCalculator:
 
         log_operation("Not enough space for 10φ past the face; Adding clamps...")
         self.layer.set_anchorage_length(hooked_space, self.left)
-        return self._add_clamps(clamp_available_length, past_face)
+        clamps = self._add_clamps(clamp_available_length, past_face)
+        self._record()
+        return clamps
 
     def _run_outer_support_anchorage(
         self, support: Support, face_distance: float, allow_clamp: bool
@@ -415,6 +437,7 @@ class AnchorageCalculator:
                 log_operation(
                     f"Anchorage length of {face_distance + past_face:.2f} cm set {hooks_state} ({past_face:.2f} cm past face)."
                 )
+                self._record()
                 return None
 
         error_message = f"Not enough space inside the support - even with hooks. Available: {room:.2f} cm, Required: {past_face:.2f} cm."
@@ -430,7 +453,9 @@ class AnchorageCalculator:
             "Not enough space inside the support with hooks; Adding clamps..."
         )
         self.layer.set_anchorage_length(face_distance + space, self.left)
-        return self._add_clamps(room, past_face)
+        clamps = self._add_clamps(room, past_face)
+        self._record()
+        return clamps
 
     def _check_support_area(self, support_index: int) -> None:
         """Check that the bars carried to the support cover part of the span's area
@@ -542,6 +567,7 @@ class AnchorageCalculator:
             log_operation(
                 f"Anchorage length of {total_length:.2f} cm set {hooks_state}."
             )
+            self._record()
             return True
         return False
 

@@ -5,6 +5,7 @@ from typing import cast
 
 import pytest
 
+from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.geometry_utils import Axis
@@ -324,3 +325,38 @@ class TestAddLoad:
     def test_variable_load_without_psi_2_raises(self, x_span: Span) -> None:
         with pytest.raises(ValueError, match="psi_2"):
             x_span.add_load(5.0, permanent=False)
+
+
+# ---------------------------------------------------------------------------
+# TestAddComponent
+# ---------------------------------------------------------------------------
+
+
+class TestAddComponent:
+    """add_component keeps each load source and adds it to the span totals."""
+
+    def test_components_are_kept_in_order(self, x_span: Span) -> None:
+        own = LoadComponent(LoadKind.OWN_WEIGHT, None, 2.0)
+        slab = LoadComponent(LoadKind.SLAB, "L1", 4.0, 1.5)
+        x_span.add_component(own)
+        x_span.add_component(slab, psi_2=0.3)
+        assert x_span.load_components == [own, slab], (
+            "components should be kept in the order they were added"
+        )
+
+    def test_totals_match_add_load(self, x_span: Span) -> None:
+        x_span.add_component(LoadComponent(LoadKind.WALL, None, 3.0))
+        x_span.add_component(LoadComponent(LoadKind.SLAB, "L1", 4.0, 1.5), psi_2=0.4)
+        assert_approx(x_span.permanent_load, 7.0, "permanent total (kN/m)")
+        assert_approx(x_span.variable_load, 1.5, "variable total (kN/m)")
+        assert_approx(x_span.psi_2, 0.4, "psi_2 of the slab load")
+
+    def test_zero_variable_part_still_sets_psi_2(self, x_span: Span) -> None:
+        """A slab without live load sets psi_2 just as add_load(0, ...) did"""
+        x_span.add_component(LoadComponent(LoadKind.SLAB, "L1", 4.0, 0.0), psi_2=0.3)
+        assert_approx(x_span.psi_2, 0.3, "psi_2 should be set even for q = 0")
+
+    def test_variable_part_without_psi_2_raises(self, x_span: Span) -> None:
+        with pytest.raises(ValueError, match="psi_2"):
+            x_span.add_component(LoadComponent(LoadKind.SLAB, "L1", 4.0, 1.5))
+        assert x_span.load_components == [], "a rejected component is not kept"

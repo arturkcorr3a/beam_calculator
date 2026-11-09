@@ -1,4 +1,4 @@
-"""Columns of the summary tables; the last column holds the "Ver detalhes…" button."""
+"""Columns of the summary tables; the last columns hold the buttons ("Ver detalhamento", "Ver detalhes…")."""
 
 from pavement_ui.core.results.beam_result import BeamResult
 from pavement_ui.core.results.slab_result import SlabResult
@@ -15,6 +15,7 @@ BEAM_SUMMARY: tuple[ColumnSpec[BeamResult], ...] = (
     ColumnSpec(s.COL_H, lambda b: fmt_length_cm(b.height_cm), numeric=True),
     ColumnSpec(s.COL_PILLARS, lambda b: fmt_pillar_chain(b.pillar_ids)),
     ColumnSpec(s.COL_SPAN_COUNT, lambda b: str(len(b.spans)), numeric=True),
+    ColumnSpec("", lambda b: s.VIEW_DETAILING),
     ColumnSpec("", lambda b: s.DETAILS),
 )
 

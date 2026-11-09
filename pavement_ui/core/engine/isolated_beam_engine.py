@@ -36,9 +36,10 @@ def _result(design: SimplySupportedBeamDesign) -> BeamResult:
     """Read the facade's result into the same model as a pavement beam."""
     section = design.section
     length_m = m_from_cm(section.length)
+    analysis = design.analysis
     supports = (
-        SupportMark(0.0, _SUPPORT_LABELS[0]),
-        SupportMark(length_m, _SUPPORT_LABELS[1]),
+        SupportMark(0.0, _SUPPORT_LABELS[0], analysis.reaction(0.0)),
+        SupportMark(length_m, _SUPPORT_LABELS[1], analysis.reaction(section.length)),
     )
     span = SpanResult(
         index=1,
@@ -54,7 +55,7 @@ def _result(design: SimplySupportedBeamDesign) -> BeamResult:
         vsd_kn=design.stirrups.calculator.design_shear_force,
         stirrup=read_stirrup(design.stirrups),
     )
-    moment, shear = sample(design.analysis, (0.0, section.length))
+    moment, shear = sample(analysis, (0.0, section.length))
     return BeamResult(
         beam_id="",
         width_cm=section.width,
@@ -62,7 +63,7 @@ def _result(design: SimplySupportedBeamDesign) -> BeamResult:
         cover_cm=RectangularBeam.nominal_covering,
         supports=supports,
         spans=(span,),
-        points=(read_point(design.calculator, supports),),
+        points=(read_point(design.calculator, supports, analysis),),
         moment=moment,
         shear=shear,
     )

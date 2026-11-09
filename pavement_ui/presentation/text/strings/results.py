@@ -4,6 +4,18 @@ from typing import Final
 
 CLOSE: Final = "Fechar"
 DETAILS: Final = "Ver detalhes…"
+VIEW_DETAILING: Final = "Ver detalhamento"
+
+# --- detailing sheet ----------------------------------------------------------
+DRAWING_TITLE: Final = "Viga {id} — detalhamento"
+DRAWING_HINT: Final = "Roda do mouse: zoom · arrastar: mover"
+DRAWING_FIT: Final = "Ajustar"
+DRAWING_ZOOM_IN: Final = "Zoom +"
+DRAWING_ZOOM_OUT: Final = "Zoom −"
+DRAWING_PDF: Final = "Baixar PDF…"
+DRAWING_DXF: Final = "Baixar DXF…"
+DRAWING_FILE_NAME: Final = "{id}_detalhamento"
+DRAWING_PDF_TITLE: Final = "Detalhamento da viga {id}"
 
 # --- summary (A6) -------------------------------------------------------------
 SUMMARY_TITLE: Final = "Resultados do dimensionamento — {file}"

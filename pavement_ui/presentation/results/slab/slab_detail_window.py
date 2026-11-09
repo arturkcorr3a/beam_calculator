@@ -1,4 +1,4 @@
-"""SlabDetailWindow: everything about one dimensioned slab (mockup A8)."""
+"""SlabDetailWindow: the design report of one dimensioned slab."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
@@ -6,22 +6,24 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWi
 from pavement_ui.core.results.slab_result import SlabResult
 from pavement_ui.presentation.formatting.elements import fmt_dims_cm
 from pavement_ui.presentation.formatting.numbers import fmt_number
-from pavement_ui.presentation.results.slab.deflection_group import DeflectionGroup
-from pavement_ui.presentation.results.slab.slab_data_group import SlabDataGroup
-from pavement_ui.presentation.results.slab.slab_loads_group import SlabLoadsGroup
+from pavement_ui.presentation.report.report_builder import ReportBuilder
+from pavement_ui.presentation.report.report_exporter import export_report
+from pavement_ui.presentation.report.report_view import ReportView
+from pavement_ui.presentation.report.slab_report import write_slab_report
 from pavement_ui.presentation.results.slab.slab_texts import cm, slab_type
 from pavement_ui.presentation.text.option_labels import OptionKind, label
+from pavement_ui.presentation.text.strings import report as rs
 from pavement_ui.presentation.text.strings import results as s
 from pavement_ui.presentation.theme import tokens
 from pavement_ui.presentation.widgets.banner import Banner
 from pavement_ui.presentation.widgets.value_chip import ValueChip
 
-_SIZE_PX = (960, 820)
+_SIZE_PX = (1040, 880)
 _TITLE_STYLE = "font-size: 20px; font-weight: 600;"
 
 
 class SlabDetailWindow(QWidget):
-    """Header chips, verdict band, data and edges | loads and deflection, Fechar"""
+    """Header chips, verdict band, the slab's report, Exportar PDF… and Fechar"""
 
     def __init__(self, result: SlabResult, parent: QWidget | None = None) -> None:
         super().__init__(parent, Qt.WindowType.Window)
@@ -32,9 +34,11 @@ class SlabDetailWindow(QWidget):
         self._chips = [ValueChip("", "") for _ in range(4)]
         self.verdict = Banner()
         self.verdict.setObjectName("slabVerdict")
-        self._data = SlabDataGroup()
-        self._loads = SlabLoadsGroup()
-        self._deflection = DeflectionGroup()
+        self.view = ReportView()
+        self._result = result
+        export = QPushButton(rs.EXPORT_PDF)
+        export.setObjectName("slabExportButton")
+        export.clicked.connect(self._export)
         close = QPushButton(s.CLOSE)
         close.clicked.connect(self.close)
         header = QHBoxLayout()
@@ -42,25 +46,21 @@ class SlabDetailWindow(QWidget):
         for chip in self._chips:
             header.addWidget(chip)
         header.addStretch(1)
-        right = QVBoxLayout()
-        right.addWidget(self._loads)
-        right.addWidget(self._deflection, 1)
-        columns = QHBoxLayout()
-        columns.addWidget(self._data, 1)
-        columns.addLayout(right, 1)
         footer = QHBoxLayout()
         footer.addStretch(1)
+        footer.addWidget(export)
         footer.addWidget(close)
         layout = QVBoxLayout(self)
         margin = tokens.MARGIN_PX * 2
         layout.setContentsMargins(margin, margin, margin, margin)
         layout.addLayout(header)
         layout.addWidget(self.verdict)
-        layout.addLayout(columns, 1)
+        layout.addWidget(self.view, 1)
         layout.addLayout(footer)
         self.set_result(result)
 
     def set_result(self, result: SlabResult) -> None:
+        self._result = result
         self.setWindowTitle(s.SLAB_TITLE.format(id=result.slab_id))
         self._title.setText(result.slab_id)
         values = (
@@ -87,6 +87,19 @@ class SlabDetailWindow(QWidget):
             self.verdict.show_message(
                 "error", s.VERDICT_FAIL, s.VERDICT_FAIL_TEXT.format(**numbers)
             )
-        self._data.set_result(result)
-        self._loads.set_result(result)
-        self._deflection.set_check(check)
+        builder = ReportBuilder()
+        write_slab_report(builder, result)
+        self.view.set_document(builder.document())
+
+    def _export(self) -> None:
+        result = self._result
+
+        def write(builder: ReportBuilder) -> None:
+            write_slab_report(builder, result)
+
+        export_report(
+            self,
+            write,
+            rs.SLAB_FILE_NAME.format(id=result.slab_id),
+            rs.SLAB_REPORT_TITLE.format(id=result.slab_id),
+        )

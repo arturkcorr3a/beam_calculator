@@ -56,9 +56,9 @@ class PavementGateway:
             return read_plan(records, assemble(records))
 
     def make_design_job(
-        self, records: PavementRecords, config: ConfigValues
+        self, records: PavementRecords, config: ConfigValues, name: str | None = None
     ) -> Job[DesignOutcome]:
-        return DesignJob(records, config, self._log)
+        return DesignJob(records, config, self._log, name)
 
     def apply_log_settings(self, log: LogValues) -> None:
         self._log = log

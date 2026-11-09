@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from pavement_ui.core.results.beam_result import BeamResult
+from pavement_ui.core.results.materials import MaterialsInfo
 from pavement_ui.core.results.quantities import QuantitiesResult
 from pavement_ui.core.results.slab_result import SlabResult
 
@@ -14,6 +15,7 @@ class DesignSuccess:
     beams: tuple[BeamResult, ...]
     slabs: tuple[SlabResult, ...]
     quantities: QuantitiesResult
+    materials: MaterialsInfo
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,8 +2,11 @@
 
 from pavement_ui.core.engine.keys import m_from_cm
 from pavement_ui.core.engine.readers.reinforcement_reader import read_layers
+from pavement_ui.core.results.beam_design import AnchorageEntry
 from pavement_ui.core.results.beam_result import DesignPoint, PointKind, SupportMark
+from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.rebar_calculator import RebarCalculator
+from src.reinforcement.reinforcement import Reinforcement
 
 _SUPPORT_TOLERANCE_M = 0.01  # a point within 1 cm of a support is on it
 
@@ -26,14 +29,30 @@ def _support_at(
     return None
 
 
+def _anchorages(reinforcement: Reinforcement) -> tuple[AnchorageEntry, ...]:
+    """Return the chosen layers' anchorage lengths, layers numbered from 1"""
+    return tuple(
+        AnchorageEntry(
+            layer=summary.layer_index + 1,
+            left=summary.side == "left",
+            lb_cm=summary.basic_length,
+            lb_nec_cm=summary.necessary_length,
+        )
+        for summary in reinforcement.anchorages
+    )
+
+
 def read_point(
-    calculator: RebarCalculator, supports: tuple[SupportMark, ...]
+    calculator: RebarCalculator,
+    supports: tuple[SupportMark, ...],
+    analysis: BeamAnalysis,
 ) -> DesignPoint:
     """Build the design point of one governing calculator
 
     Args:
         calculator: The point's calculator, after dimensioning.
         supports: Supports along the beam, first to last.
+        analysis: The beam's analysis, for the shear at the point.
     """
     position_m = m_from_cm(calculator.bending_moment_position)
     span_ends_m = tuple(s.position_m for s in supports[1:])
@@ -58,4 +77,8 @@ def read_point(
         tension_layers=read_layers(tensioned),
         compression_layers=compression,
         moment_shift_cm=tensioned.moment_shift or 0.0,
+        vk_kn=analysis.shear_force(calculator.bending_moment_position),
+        y_cm=calculator.actual_y,
+        y_max_cm=calculator.max_y,
+        anchorages=_anchorages(tensioned),
     )

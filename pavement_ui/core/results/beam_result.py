@@ -7,7 +7,14 @@ The engine dimensions stirrups per span and longitudinal bars per design point
 from dataclasses import dataclass
 from enum import Enum
 
+from pavement_ui.core.results.beam_design import (
+    AnchorageEntry,
+    BarEntry,
+    LoadEntry,
+    StirrupDesign,
+)
 from pavement_ui.core.results.reinforcement import BarLayer, StirrupSpec
+from pavement_ui.core.results.vector_drawing import VectorDrawing
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,10 +24,12 @@ class SupportMark:
     Attributes:
         position_m: Position from the beam start (m).
         label: Pillar ID, or "A"/"B" for the isolated beam.
+        reaction_kn: Characteristic vertical reaction, upward positive (kN).
     """
 
     position_m: float
     label: str
+    reaction_kn: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +48,8 @@ class SpanResult:
         q_kn_m: Variable load (kN/m).
         vk_kn: Greatest characteristic shear in the span (kN).
         vsd_kn: Design shear the stirrups were dimensioned for (kN).
+        loads: The loads making up g and q, by source.
+        stirrup_design: Shear design of the stirrups; None when not read.
     """
 
     index: int
@@ -53,6 +64,8 @@ class SpanResult:
     vk_kn: float
     vsd_kn: float
     stirrup: StirrupSpec
+    loads: tuple[LoadEntry, ...] = ()
+    stirrup_design: StirrupDesign | None = None
 
 
 class PointKind(Enum):
@@ -78,6 +91,10 @@ class DesignPoint:
         tension_layers: Tensioned bar layers, layer 1 first.
         compression_layers: Compressed bar layers; empty when singly reinforced.
         moment_shift_cm: Moment diagram shift a_l (cm).
+        vk_kn: Characteristic shear force at the point (kN).
+        y_cm: Depth of the equivalent stress block y (cm).
+        y_max_cm: Largest y allowed by the ductility limit (cm).
+        anchorages: Anchorage lengths of each tensioned layer, both sides.
     """
 
     kind: PointKind
@@ -92,6 +109,10 @@ class DesignPoint:
     tension_layers: tuple[BarLayer, ...]
     compression_layers: tuple[BarLayer, ...]
     moment_shift_cm: float
+    vk_kn: float = 0.0
+    y_cm: float = 0.0
+    y_max_cm: float = 0.0
+    anchorages: tuple[AnchorageEntry, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +138,13 @@ class BeamResult:
         cover_cm: Nominal concrete cover (cm).
         moment: Bending moment diagram, positive when sagging (kN·m).
         shear: Shear force diagram (kN).
+        as_min_cm2: Minimum tensioned steel area of the section (cm²).
+        as_max_cm2: Maximum total steel area of the section (cm²).
+        outline: Elevation without reinforcement; None when not drawn.
+        section: Cross section without reinforcement; None when not drawn.
+        bars: Detailed longitudinal bar runs, in mark order; empty before detailing.
+        sheet: Detailing sheet at 1:50 (elevation, bar rows, sections, bar
+            schedule, notes and title block); None before detailing.
     """
 
     beam_id: str
@@ -128,6 +156,12 @@ class BeamResult:
     points: tuple[DesignPoint, ...]
     moment: DiagramSeries
     shear: DiagramSeries
+    as_min_cm2: float = 0.0
+    as_max_cm2: float = 0.0
+    outline: VectorDrawing | None = None
+    section: VectorDrawing | None = None
+    bars: tuple[BarEntry, ...] = ()
+    sheet: VectorDrawing | None = None
 
     @property
     def pillar_ids(self) -> tuple[str, ...]:

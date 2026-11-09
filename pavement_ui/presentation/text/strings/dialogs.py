@@ -74,6 +74,28 @@ ABOUT_TEXT: Final = (
 FILE_FILTER: Final = "Pavimento (*.yaml *.yml)"
 FILE_EXTENSION: Final = ".yaml"
 
+# --- report export ------------------------------------------------------------
+EXPORT_PDF_TITLE: Final = "Exportar relatório em PDF"
+PDF_FILTER: Final = "PDF (*.pdf)"
+PDF_EXTENSION: Final = ".pdf"
+EXPORT_FAILED: Final = "Não foi possível exportar o relatório."
+EXPORT_DXF_TITLE: Final = "Baixar desenho em DXF"
+EXPORT_DRAWING_PDF_TITLE: Final = "Baixar desenho em PDF"
+DXF_FILTER: Final = "DXF (*.dxf)"
+DXF_EXTENSION: Final = ".dxf"
+EXPORT_DRAWING_FAILED: Final = "Não foi possível gravar o desenho."
+BUNDLE_TITLE: Final = "Baixar tudo"
+BUNDLE_FOLDER_TITLE: Final = "Escolher a pasta do arquivo ZIP"
+BUNDLE_FILE_NAME: Final = "{name}_resultados.zip"
+BUNDLE_FAILED: Final = "Não foi possível gravar o arquivo ZIP."
+BUNDLE_OVERWRITE_QUESTION: Final = "Substituir o arquivo existente?"
+BUNDLE_OVERWRITE_DETAIL: Final = "{path} já existe e será substituído."
+BUNDLE_REPLACE: Final = "Substituir"
+BUNDLE_DONE: Final = "Arquivo ZIP gravado."
+BUNDLE_DONE_DETAIL: Final = (
+    "{path}\n\n{reports} relatórios e {sheets} folhas de detalhamento (PDF e DXF)."
+)
+
 # --- configuration dialog (docs/UI_SPEC.md §9.1) ------------------------------
 CONFIG_TITLE: Final = "Configurações gerais do projeto"
 CONFIG_RESTORE: Final = "Restaurar padrões"

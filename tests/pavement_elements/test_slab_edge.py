@@ -8,6 +8,7 @@ import pytest
 import src.pavement_elements.slab_edge as slab_edge_module
 from src.config import APP_CONFIG
 from src.config_options import OccupancyCategory
+from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.geometry_utils import Axis
@@ -349,6 +350,28 @@ class TestUnloadOnSpans:
         )
         # variable = 2.0 * 6.25 / 5.0 = 2.5 kN/m
         assert_approx(span.variable_load, 2.5, "variable load should be 2.5 kN/m")
+
+    def test_keeps_transferred_loads(
+        self,
+        slab_double: Slab,
+        beam_double: ContinuousBeam,
+        pillar_registry: dict[str, Pillar],
+        pillars: tuple[Pillar, Pillar],
+    ) -> None:
+        """The edge and the span keep the slab reaction (8.125 / 2.5 kN/m)"""
+        edge = SlabEdge(Edges.BOTTOM, slab_double)
+        edge.resolve_beam(beam_double)
+        edge.influence_area = 6.25  # m²
+        span = _make_span(*pillars)
+        edge.spans = [span]
+
+        edge.unload_on_spans(pillar_registry)
+
+        assert_approx(edge.permanent_linear_load, 8.125, "edge permanent (kN/m)")
+        assert_approx(edge.variable_linear_load, 2.5, "edge variable (kN/m)")
+        assert span.load_components == [
+            LoadComponent(LoadKind.SLAB, "L_edge_test", 8.125, 2.5)
+        ], "the span should keep the slab reaction as one component"
 
     def test_sets_span_psi_2_from_slab_local(
         self,

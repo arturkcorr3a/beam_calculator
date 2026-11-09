@@ -5,7 +5,7 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget
 
 from pavement_ui.core.model.element_kind import ElementKind
-from pavement_ui.core.ports import IsolatedBeamEngine
+from pavement_ui.core.ports import DrawingExporter, IsolatedBeamEngine
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.dialogs import messages
@@ -58,6 +58,7 @@ class MainWindow(QMainWindow):
         bridge: QtSessionBridge,
         executor: EngineExecutor,
         isolated_engine: IsolatedBeamEngine,
+        drawing_exporter: DrawingExporter,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -89,7 +90,7 @@ class MainWindow(QMainWindow):
             session, executor, self, self._on_design_success
         )
         self._overlay = BusyOverlay(self)
-        self._results = ResultWindows(session, bridge, self)
+        self._results = ResultWindows(session, bridge, drawing_exporter, self)
         self._connect_actions()
         self._connect_state(bridge)
         self._refresh()

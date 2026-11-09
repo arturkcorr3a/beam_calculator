@@ -3,6 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from src.pavement_elements.continuous_beam import ContinuousBeam
+from src.pavement_elements.geometry_utils import calculate_polygon_area
 from src.pavement_elements.slab import Slab
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 from tests.helpers import assert_approx, centroid_preserving_beam_width
@@ -306,3 +307,86 @@ class TestVerticalSlabRatio25:
         slab = make_slab(500, 1250, bottom, left, top, right)
         slab.resolve_influence_areas()
         _assert_areas(slab, exp_bottom, exp_left, exp_top, exp_right)
+
+
+_EDGE_ENDS = {
+    Edges.BOTTOM: ((0.0, 0.0), (1.0, 0.0)),
+    Edges.TOP: ((1.0, 1.0), (0.0, 1.0)),
+    Edges.LEFT: ((0.0, 1.0), (0.0, 0.0)),
+    Edges.RIGHT: ((1.0, 0.0), (1.0, 1.0)),
+}  # edge corners as fractions of (lx, ly), in polygon order
+
+_POLYGON_CASES = [
+    # (lx, ly, bottom, left, top, right)
+    (500, 500, "fixed", "fixed", "pinned", "fixed"),
+    (750, 500, "fixed", "pinned", "pinned", "pinned"),
+    (500, 750, "pinned", "fixed", "fixed", "pinned"),
+    (1250, 500, "fixed", "pinned", "pinned", "pinned"),
+    (500, 1250, "pinned", "pinned", "pinned", "fixed"),
+]
+
+
+class TestInfluencePolygons:
+    """Each edge keeps the yield-line region whose area it carries"""
+
+    @pytest.mark.parametrize(
+        "lx_cm,ly_cm,bottom,left,top,right",
+        _POLYGON_CASES,
+        ids=["square", "rect_x15", "rect_y15", "one_way_x", "one_way_y"],
+    )
+    def test_polygons_match_areas(
+        self,
+        lx_cm: float,
+        ly_cm: float,
+        bottom: SupportCondition,
+        left: SupportCondition,
+        top: SupportCondition,
+        right: SupportCondition,
+    ) -> None:
+        slab = make_slab(lx_cm, ly_cm, bottom, left, top, right)
+        slab.resolve_influence_areas()
+        lx, ly = (d / 100 for d in slab.effective_dimensions)
+        total = 0.0
+        for edge in Edges:
+            slab_edge = slab.edges[edge]
+            polygon = list(slab_edge.influence_polygon)
+            area = calculate_polygon_area(polygon) if polygon else 0.0
+            assert_approx(
+                area,
+                slab_edge.influence_area,
+                f"{edge.value} polygon area should equal its influence area (m²)",
+            )
+            total += area
+        assert_approx(total, lx * ly, "regions should cover the whole slab (m²)")
+
+    @pytest.mark.parametrize(
+        "lx_cm,ly_cm,bottom,left,top,right",
+        _POLYGON_CASES,
+        ids=["square", "rect_x15", "rect_y15", "one_way_x", "one_way_y"],
+    )
+    def test_polygons_start_on_their_edge(
+        self,
+        lx_cm: float,
+        ly_cm: float,
+        bottom: SupportCondition,
+        left: SupportCondition,
+        top: SupportCondition,
+        right: SupportCondition,
+    ) -> None:
+        """Loaded regions start with their edge's two corners, so the edge is known"""
+        slab = make_slab(lx_cm, ly_cm, bottom, left, top, right)
+        slab.resolve_influence_areas()
+        lx, ly = (d / 100 for d in slab.effective_dimensions)
+        for edge in Edges:
+            polygon = slab.edges[edge].influence_polygon
+            if not polygon:
+                continue
+            for point, (fx, fy) in zip(polygon[:2], _EDGE_ENDS[edge], strict=True):
+                assert_approx(point.x, fx * lx, f"{edge.value} corner x (m)")
+                assert_approx(point.y, fy * ly, f"{edge.value} corner y (m)")
+
+    def test_one_way_short_edges_have_no_region(self) -> None:
+        slab = make_slab(1250, 500, "fixed", "pinned", "pinned", "pinned")
+        slab.resolve_influence_areas()
+        assert slab.edges[Edges.LEFT].influence_polygon == ()
+        assert slab.edges[Edges.RIGHT].influence_polygon == ()

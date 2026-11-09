@@ -2,9 +2,11 @@
 
 from PySide6.QtWidgets import QWidget
 
+from pavement_ui.core.ports import DrawingExporter
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.results.beam.beam_detail_window import BeamDetailWindow
+from pavement_ui.presentation.results.drawing.drawing_window import DrawingWindow
 from pavement_ui.presentation.results.quantities.quantities_window import (
     QuantitiesWindow,
 )
@@ -29,14 +31,20 @@ class ResultWindows:
     """
 
     def __init__(
-        self, session: ProjectSession, bridge: QtSessionBridge, parent: QWidget
+        self,
+        session: ProjectSession,
+        bridge: QtSessionBridge,
+        drawing_exporter: DrawingExporter,
+        parent: QWidget,
     ) -> None:
         self._session = session
+        self._drawing_exporter = drawing_exporter
         self._parent = parent
         self._summary: ResultsWindow | None = None
         self._quantities: QuantitiesWindow | None = None
         self._beams: dict[str, BeamDetailWindow] = {}
         self._slabs: dict[str, SlabDetailWindow] = {}
+        self._drawings: dict[str, DrawingWindow] = {}
         bridge.design_finished.connect(self._on_design_finished)
 
     def _file_name(self) -> str:
@@ -49,7 +57,12 @@ class ResultWindows:
             return
         if self._summary is None:
             self._summary = ResultsWindow(
-                self.open_beam, self.open_slab, self.open_quantities, self._parent
+                self.open_beam,
+                self.open_slab,
+                self.open_quantities,
+                self.open_drawing,
+                self._drawing_exporter,
+                self._parent,
             )
         self._summary.set_results(success, self._file_name())
         _show(self._summary)
@@ -70,11 +83,29 @@ class ResultWindows:
             if success
             else None
         )
-        if result is None:
+        if success is None or result is None:
             return
         window = self._beams.get(beam_id)
         if window is None:
-            window = self._beams[beam_id] = BeamDetailWindow(result, self._parent)
+            window = self._beams[beam_id] = BeamDetailWindow(
+                result, success, self._parent
+            )
+        _show(window)
+
+    def open_drawing(self, beam_id: str) -> None:
+        success = self._session.last_success
+        result = (
+            next((b for b in success.beams if b.beam_id == beam_id), None)
+            if success
+            else None
+        )
+        if result is None or result.sheet is None:
+            return
+        window = self._drawings.get(beam_id)
+        if window is None:
+            window = self._drawings[beam_id] = DrawingWindow(
+                result, result.sheet, self._drawing_exporter, self._parent
+            )
         _show(window)
 
     def open_slab(self, slab_id: str) -> None:
@@ -106,9 +137,15 @@ class ResultWindows:
         beams = {b.beam_id: b for b in success.beams}
         for beam_id in list(self._beams):
             if beam_id in beams:
-                self._beams[beam_id].set_result(beams[beam_id])
+                self._beams[beam_id].set_result(beams[beam_id], success)
             else:
                 self._beams.pop(beam_id).close()
+        for beam_id in list(self._drawings):
+            sheet = beams[beam_id].sheet if beam_id in beams else None
+            if sheet is not None:
+                self._drawings[beam_id].set_sheet(beams[beam_id], sheet)
+            else:
+                self._drawings.pop(beam_id).close()
         slabs = {r.slab_id: r for r in success.slabs}
         for slab_id in list(self._slabs):
             if slab_id in slabs:
@@ -117,10 +154,15 @@ class ResultWindows:
                 self._slabs.pop(slab_id).close()
 
     def close_all(self) -> None:
-        for window in (*self._beams.values(), *self._slabs.values()):
+        for window in (
+            *self._beams.values(),
+            *self._slabs.values(),
+            *self._drawings.values(),
+        ):
             window.close()
         self._beams.clear()
         self._slabs.clear()
+        self._drawings.clear()
         if self._summary is not None:
             self._summary.close()
         if self._quantities is not None:

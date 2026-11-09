@@ -177,7 +177,8 @@ class ProjectSession:
         """
         if self.validate().status is not ValidationStatus.VALID:
             return None
-        job = self._engine.make_design_job(self.records, self.config)
+        name = self.current_path.stem if self.current_path is not None else None
+        job = self._engine.make_design_job(self.records, self.config, name)
         self.design = DesignState(running=True, last_outcome=self.design.last_outcome)
         self._bus.publish(SessionEvent.DESIGN_STARTED)
         return job

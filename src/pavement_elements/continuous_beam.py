@@ -13,6 +13,7 @@ from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.post_processor import detail_beam
 from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
+from src.loading.load_component import LoadComponent, LoadKind
 from src.logger import log_element, log_general, log_operation, logger_label
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.geometry_utils import (
@@ -489,8 +490,8 @@ class ContinuousBeam:
             f"Loads: self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m"
         )
         for span in self.spans:
-            span.add_load(own_weight, permanent=True)
-            span.add_load(wall_weight, permanent=True)
+            span.add_component(LoadComponent(LoadKind.OWN_WEIGHT, None, own_weight))
+            span.add_component(LoadComponent(LoadKind.WALL, None, wall_weight))
 
     def get_most_loaded_span_for_els(self) -> Span:
         """Returns the span with the highest total load (permanent + variable)."""
