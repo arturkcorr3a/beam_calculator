@@ -1,113 +1,146 @@
-"""Scheme of the simply supported beam: supports, distributed load, span."""
+"""Scheme of the continuous beam: pillars, loads per span and span lengths."""
+
+from collections.abc import Sequence
+from itertools import accumulate
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QPainter, QPaintEvent, QPen, QPolygonF
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 from pavement_ui.presentation.formatting.numbers import fmt_number
+from pavement_ui.presentation.isolated.load_rows import LoadValues
 from pavement_ui.presentation.text.strings import isolated as s
 from pavement_ui.presentation.theme import tokens
 
-_MARGIN_PX = 60.0
+_MARGIN_PX = 40.0
 _BEAM_PX = 14.0
-_SUPPORT_PX = 16.0
-_ROLLER_PX = 4.0
-_LOAD_PX = 36.0
-_ARROWS = 11
+_PILLAR_ABOVE_PX = 10.0
+_PILLAR_BELOW_PX = 34.0
+_MIN_PILLAR_PX = 6.0
+_LOAD_MAX_PX = 40.0
+_LOAD_MIN_PX = 10.0
+_ARROW_GAP_PX = 24.0
 _HEAD_PX = 5.0
-
-
-def _triangle(apex: QPointF) -> QPolygonF:
-    return QPolygonF(
-        [
-            apex,
-            QPointF(apex.x() - _SUPPORT_PX / 1.4, apex.y() + _SUPPORT_PX),
-            QPointF(apex.x() + _SUPPORT_PX / 1.4, apex.y() + _SUPPORT_PX),
-        ]
-    )
+_TEXT_PX = 20.0
+_CM_PER_M = 100.0
 
 
 class BeamSchemeWidget(QWidget):
-    """Fixed support at the left, roller at the right, uniform load g over L"""
+    """The beam to scale over its pillars, each span's g and q and its length"""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setMinimumHeight(170)
+        self.setMinimumHeight(250)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self._length_m = 0.0
-        self._load_kn_m = 0.0
+        self._lengths: tuple[float, ...] = ()
+        self._pillar_widths_cm: tuple[float, ...] = ()
+        self._loads: tuple[LoadValues, ...] = ()
 
-    def set_values(self, length_m: float, load_kn_m: float) -> None:
-        self._length_m, self._load_kn_m = length_m, load_kn_m
+    def set_values(
+        self,
+        span_lengths_m: Sequence[float],
+        pillar_widths_cm: Sequence[float],
+        span_loads: Sequence[LoadValues],
+    ) -> None:
+        """Show spans (m), pillar widths along the beam (cm) and the loads per span"""
+        self._lengths = tuple(span_lengths_m)
+        self._pillar_widths_cm = tuple(pillar_widths_cm)
+        self._loads = tuple(span_loads)
         self.update()
 
     def paintEvent(self, event: QPaintEvent) -> None:
+        total = sum(self._lengths)
+        if total <= 0:
+            return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        left, right = _MARGIN_PX, self.width() - _MARGIN_PX
-        beam_top = self.height() / 2 - _BEAM_PX / 2
-        beam = QRectF(left, beam_top, right - left, _BEAM_PX)
+        scale = (self.width() - 2 * _MARGIN_PX) / total  # px per m
+        axes = [_MARGIN_PX + x * scale for x in (0.0, *accumulate(self._lengths))]
+        beam_top = self.height() / 2 - _BEAM_PX / 2 + 10
+        halves = [
+            max(w / _CM_PER_M * scale, _MIN_PILLAR_PX) / 2
+            for w in self._pillar_widths_cm
+        ]
+        beam = QRectF(
+            axes[0] - halves[0],
+            beam_top,
+            axes[-1] + halves[-1] - axes[0] + halves[0],
+            _BEAM_PX,
+        )
+        self._draw_pillars(painter, axes, halves, beam)
         painter.setPen(QPen(QColor(tokens.PLAN_BEAM_OUTLINE), 1.2))
         painter.setBrush(QBrush(QColor(tokens.PLAN_BEAM_FILL)))
         painter.drawRect(beam)
-        self._draw_supports(painter, beam)
-        self._draw_load(painter, beam)
-        self._draw_length(painter, beam)
+        self._draw_loads(painter, axes, beam)
+        self._draw_lengths(
+            painter, axes, beam.bottom() + _PILLAR_BELOW_PX + _TEXT_PX + 12
+        )
         painter.end()
 
-    def _draw_supports(self, painter: QPainter, beam: QRectF) -> None:
-        painter.setPen(QPen(QColor(tokens.TEXT), 1.2))
-        painter.setBrush(QBrush(QColor(tokens.SURFACE)))
-        left_apex, right_apex = (
-            QPointF(beam.left(), beam.bottom()),
-            QPointF(beam.right(), beam.bottom()),
-        )
-        painter.drawPolygon(_triangle(left_apex))
-        ground = left_apex.y() + _SUPPORT_PX
-        painter.drawLine(
-            QPointF(beam.left() - 14, ground), QPointF(beam.left() + 14, ground)
-        )
-        painter.drawPolygon(_triangle(right_apex))
-        for dx in (-6.0, 0.0, 6.0):  # rollers of the moving support
-            painter.drawEllipse(
-                QPointF(beam.right() + dx, ground + _ROLLER_PX), _ROLLER_PX, _ROLLER_PX
+    def _draw_pillars(
+        self,
+        painter: QPainter,
+        axes: list[float],
+        halves: list[float],
+        beam: QRectF,
+    ) -> None:
+        painter.setPen(QPen(QColor(tokens.PLAN_PILLAR), 1.0))
+        painter.setBrush(QBrush(QColor(tokens.PLAN_PILLAR)))
+        top = beam.top() - _PILLAR_ABOVE_PX
+        height = _PILLAR_ABOVE_PX + _BEAM_PX + _PILLAR_BELOW_PX
+        for index, (x, half) in enumerate(zip(axes, halves, strict=False)):
+            painter.drawRect(QRectF(x - half, top, 2 * half, height))
+            painter.drawText(
+                QRectF(x - 30, top + height + 2, 60, _TEXT_PX),
+                Qt.AlignmentFlag.AlignHCenter,
+                s.PILLAR_NAME.format(n=index + 1),
             )
 
-    def _draw_load(self, painter: QPainter, beam: QRectF) -> None:
+    def _draw_loads(self, painter: QPainter, axes: list[float], beam: QRectF) -> None:
+        peak = max((v.g_kn_m + v.q_kn_m for v in self._loads), default=0.0)
         color = QColor(tokens.DIAGRAM_SHEAR_LINE)
-        painter.setPen(QPen(color, 1.2))
-        painter.setBrush(QBrush(color))
-        top = beam.top() - _LOAD_PX
-        painter.drawLine(QPointF(beam.left(), top), QPointF(beam.right(), top))
-        for i in range(_ARROWS):
-            x = beam.left() + i * beam.width() / (_ARROWS - 1)
-            tip = QPointF(x, beam.top() - 1)
-            painter.drawLine(QPointF(x, top), tip)
-            painter.drawPolygon(
-                QPolygonF(
-                    [
-                        tip,
-                        QPointF(x - _HEAD_PX / 2, tip.y() - _HEAD_PX),
-                        QPointF(x + _HEAD_PX / 2, tip.y() - _HEAD_PX),
-                    ]
+        metrics = painter.fontMetrics()
+        for start, end, value in zip(axes, axes[1:], self._loads, strict=False):
+            load = value.g_kn_m + value.q_kn_m
+            if load <= 0 or peak <= 0:
+                continue
+            height = _LOAD_MIN_PX + (_LOAD_MAX_PX - _LOAD_MIN_PX) * load / peak
+            top = beam.top() - _PILLAR_ABOVE_PX - height
+            painter.setPen(QPen(color, 1.2))
+            painter.setBrush(QBrush(color))
+            painter.drawLine(QPointF(start, top), QPointF(end, top))
+            arrows = max(2, int((end - start) / _ARROW_GAP_PX) + 1)
+            for i in range(arrows):
+                x = start + i * (end - start) / (arrows - 1)
+                tip = QPointF(x, beam.top() - _PILLAR_ABOVE_PX - 1)
+                painter.drawLine(QPointF(x, top), tip)
+                painter.drawPolygon(
+                    QPolygonF(
+                        [
+                            tip,
+                            QPointF(x - _HEAD_PX / 2, tip.y() - _HEAD_PX),
+                            QPointF(x + _HEAD_PX / 2, tip.y() - _HEAD_PX),
+                        ]
+                    )
                 )
+            text = s.SCHEME_LOAD.format(
+                g=fmt_number(value.g_kn_m, 2), q=fmt_number(value.q_kn_m, 2)
             )
-        text = s.SCHEME_LOAD.format(value=fmt_number(self._load_kn_m, 2))
-        painter.drawText(
-            QRectF(beam.left(), top - 22, beam.width(), 18),
-            Qt.AlignmentFlag.AlignHCenter,
-            text,
-        )
+            width = end - start
+            painter.drawText(
+                QRectF(start, top - _TEXT_PX - 2, width, _TEXT_PX),
+                Qt.AlignmentFlag.AlignHCenter,
+                metrics.elidedText(text, Qt.TextElideMode.ElideRight, int(width)),
+            )
 
-    def _draw_length(self, painter: QPainter, beam: QRectF) -> None:
+    def _draw_lengths(self, painter: QPainter, axes: list[float], y: float) -> None:
         painter.setPen(QPen(QColor(tokens.TEXT_MUTED), 1.0))
-        y = beam.bottom() + _SUPPORT_PX + 30
-        painter.drawLine(QPointF(beam.left(), y), QPointF(beam.right(), y))
-        for x in (beam.left(), beam.right()):
+        painter.drawLine(QPointF(axes[0], y), QPointF(axes[-1], y))
+        for x in axes:
             painter.drawLine(QPointF(x, y - 5), QPointF(x, y + 5))
-        text = s.SCHEME_LENGTH.format(value=fmt_number(self._length_m, 2))
-        painter.drawText(
-            QRectF(beam.left(), y + 4, beam.width(), 18),
-            Qt.AlignmentFlag.AlignHCenter,
-            text,
-        )
+        for start, end, length in zip(axes, axes[1:], self._lengths, strict=False):
+            painter.drawText(
+                QRectF(start, y + 4, end - start, _TEXT_PX),
+                Qt.AlignmentFlag.AlignHCenter,
+                s.SCHEME_LENGTH.format(value=fmt_number(length, 2)),
+            )

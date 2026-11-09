@@ -97,6 +97,13 @@ class WallForm(FormSection):
                 s.WALL_HEIGHT_HINT.format(height=fmt_number(height_m, 2))
             )
 
+    def set_record(self, record: WallRecord) -> None:
+        """Show a wall; values missing from the catalogue keep the current item"""
+        self._structural.setChecked(record.structural)
+        select_key(self._masonry, record.masonry_key)
+        select_key(self._thickness, str(record.nominal_thickness_cm))
+        select_key(self._coating, str(record.coating_cm))
+
     def record(self) -> WallRecord:
         """The wall as selected (all values come from the engine's catalogue)"""
         thickness = self._thickness_option()

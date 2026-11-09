@@ -13,7 +13,10 @@ from pavement_ui.presentation.dialogs.messages import (
     confirm_overwrite,
     show_bundle_done,
 )
-from pavement_ui.presentation.report.beam_report import write_beam_report
+from pavement_ui.presentation.report.beam_report import (
+    beam_quantity,
+    write_beam_report,
+)
 from pavement_ui.presentation.report.drawing_pdf import export_drawing_pdf
 from pavement_ui.presentation.report.pavement_report import write_pavement_report
 from pavement_ui.presentation.report.pdf_export import export_pdf
@@ -38,7 +41,12 @@ def _write_reports(folder: Path, success: DesignSuccess, name: str) -> int:
     export_pdf(builder.document(), folder / _REPORTS / "pavimento.pdf", title)
     for beam in success.beams:
         builder = ReportBuilder(PRINT_DPI)
-        write_beam_report(builder, beam, success)
+        write_beam_report(
+            builder,
+            beam,
+            success.materials,
+            beam_quantity(success, beam.beam_id),
+        )
         path = folder / _REPORTS / "vigas" / f"{beam.beam_id}.pdf"
         export_pdf(
             builder.document(), path, rs.BEAM_REPORT_TITLE.format(id=beam.beam_id)

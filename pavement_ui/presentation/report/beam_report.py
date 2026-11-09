@@ -7,6 +7,7 @@ from pavement_ui.core.results.beam_design import LoadEntry, LoadSource
 from pavement_ui.core.results.beam_result import BeamResult
 from pavement_ui.core.results.materials import MaterialsInfo
 from pavement_ui.core.results.outcomes import DesignSuccess
+from pavement_ui.core.results.quantities import BeamQuantity
 from pavement_ui.presentation.formatting.elements import fmt_pillar_chain
 from pavement_ui.presentation.formatting.numbers import fmt_length_cm, fmt_number
 from pavement_ui.presentation.report.beam_design_section import write_design
@@ -55,7 +56,9 @@ def _source(entry: LoadEntry) -> str:
         case LoadSource.WALL:
             return s.SOURCE_WALL
         case LoadSource.SLAB:
-            return s.SOURCE_SLAB.format(id=entry.slab_id or "")
+            return s.SOURCE_SLAB.format(id=entry.source_id or "")
+        case LoadSource.CUSTOM:
+            return entry.source_id or s.SOURCE_CUSTOM
 
 
 def _materials(materials: MaterialsInfo) -> list[tuple[str, str]]:
@@ -78,7 +81,7 @@ def _materials(materials: MaterialsInfo) -> list[tuple[str, str]]:
 
 
 def _write_geometry(
-    builder: ReportBuilder, result: BeamResult, success: DesignSuccess
+    builder: ReportBuilder, result: BeamResult, materials: MaterialsInfo
 ) -> None:
     builder.heading(s.GEOMETRY, 2)
     figures = [
@@ -97,7 +100,7 @@ def _write_geometry(
             (s.ROW_SECTION, section),
             (s.ROW_PILLARS, fmt_pillar_chain(result.pillar_ids)),
             (s.ROW_COVER, f"{fmt_number(result.cover_cm, 1)} cm"),
-            *_materials(success.materials),
+            *_materials(materials),
         ]
     )
 
@@ -149,14 +152,7 @@ def _write_analysis(builder: ReportBuilder, result: BeamResult) -> None:
     builder.figure(_diagram(result, DiagramKind.MOMENT), _DIAGRAM_MM, s.FIG_MOMENT)
 
 
-def _write_consumption(
-    builder: ReportBuilder, result: BeamResult, success: DesignSuccess
-) -> None:
-    quantity = next(
-        (q for q in success.quantities.beams if q.beam_id == result.beam_id), None
-    )
-    if quantity is None:
-        return
+def _write_consumption(builder: ReportBuilder, quantity: BeamQuantity) -> None:
     builder.heading(s.CONSUMPTION, 2)
     builder.paragraph(s.CONSUMPTION_TEXT, muted=True)
     builder.key_values(
@@ -171,17 +167,26 @@ def _write_consumption(
 def write_beam_report(
     builder: ReportBuilder,
     result: BeamResult,
-    success: DesignSuccess,
+    materials: MaterialsInfo,
+    quantity: BeamQuantity | None,
     page_break: bool = False,
 ) -> None:
     """Append a beam's report to the builder
 
     Args:
+        quantity: The beam's net quantities; the consumption section is left
+            out when None.
         page_break: Whether the report starts on a new page.
     """
     builder.heading(s.BEAM_REPORT_TITLE.format(id=result.beam_id), 1, page_break)
-    _write_geometry(builder, result, success)
+    _write_geometry(builder, result, materials)
     _write_loads(builder, result)
     _write_analysis(builder, result)
-    write_design(builder, result, success.materials)
-    _write_consumption(builder, result, success)
+    write_design(builder, result, materials)
+    if quantity is not None:
+        _write_consumption(builder, quantity)
+
+
+def beam_quantity(success: DesignSuccess, beam_id: str) -> BeamQuantity | None:
+    """Return a pavement beam's net quantities, if it was detailed"""
+    return next((q for q in success.quantities.beams if q.beam_id == beam_id), None)

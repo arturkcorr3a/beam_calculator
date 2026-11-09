@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import accumulate
 
+from src.detailing.detailing_beam import DetailingBeam
+from src.detailing.mark_registry import MarkRegistry
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
 from src.logger import log_general, log_operation
@@ -97,7 +99,8 @@ def build_isolated_beam(
     The pillars ("P1", "P2", …) are laid along the x axis at the cumulative span
     lengths, and the beam is centered on them. The section is the one given (no
     pre-sizing). Each load is added to the span it names, or to every span.
-    The caller dimensions and details the beam (``dimension`` and ``detail``).
+    The caller dimensions it (``ContinuousBeam.dimension``) and then details
+    it with ``detail_isolated_beam``.
 
     Args:
         span_lengths: Distance between consecutive pillar axes (cm), > 0.
@@ -130,6 +133,20 @@ def build_isolated_beam(
     for load in loads:
         _apply(beam, load)
     return beam, registry
+
+
+def detail_isolated_beam(beam: ContinuousBeam) -> DetailingBeam:
+    """Detail a dimensioned isolated beam and mark its bars from N1
+
+    Marks are what the bar schedule and the quantities count, as in a pavement
+    with this beam alone.
+
+    Raises:
+        ValueError: Propagated from ``ContinuousBeam.detail``.
+    """
+    detailing = beam.detail()
+    MarkRegistry().assign(detailing)
+    return detailing
 
 
 def _validate(

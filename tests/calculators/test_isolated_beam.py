@@ -8,6 +8,7 @@ from src.calculators.isolated_beam import (
     OwnWeightLoad,
     WallLoad,
     build_isolated_beam,
+    detail_isolated_beam,
 )
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
@@ -150,12 +151,24 @@ class TestDimensioning:
             [OwnWeightLoad(), CustomLoad("uso", 3.0, variable=True, psi_2=0.3)]
         )
         beam.dimension(pillars)
-        beam.detail()
+        detail_isolated_beam(beam)
         return beam, pillars
 
     def test_is_detailed(self, beam: tuple[ContinuousBeam, dict[str, Pillar]]) -> None:
         assert beam[0].detailing is not None, "the beam should be detailed"
         assert beam[0].detailing.bars, "the detailing should have bar runs"
+
+    def test_bars_are_marked(
+        self, beam: tuple[ContinuousBeam, dict[str, Pillar]]
+    ) -> None:
+        detailing = beam[0].detailing
+        assert detailing is not None, "the beam should be detailed"
+        assert all(bar.mark is not None for bar in detailing.bars), (
+            "every bar run should get a mark"
+        )
+        assert detailing.bars_on_face(True)[0].mark == "N1", (
+            "marks should start at N1 on the bottom face"
+        )
 
     def test_hogging_at_the_interior_pillar(
         self, beam: tuple[ContinuousBeam, dict[str, Pillar]]

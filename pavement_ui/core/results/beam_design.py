@@ -10,6 +10,7 @@ class LoadSource(Enum):
     OWN_WEIGHT = "own_weight"
     WALL = "wall"
     SLAB = "slab"
+    CUSTOM = "custom"
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,13 +19,14 @@ class LoadEntry:
 
     Attributes:
         source: Where the load comes from.
-        slab_id: Slab reacting on the span; None for own weight and wall.
+        source_id: Slab reacting on the span (SLAB) or the label of a custom
+            load (CUSTOM); None for own weight and wall.
         g_kn_m: Permanent part (kN/m).
         q_kn_m: Variable part (kN/m).
     """
 
     source: LoadSource
-    slab_id: str | None
+    source_id: str | None
     g_kn_m: float
     q_kn_m: float
 
