@@ -10,6 +10,7 @@ class LoadKind(StrEnum):
     OWN_WEIGHT = "own_weight"
     WALL = "wall"
     SLAB = "slab"
+    CUSTOM = "custom"
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,8 +19,9 @@ class LoadComponent:
 
     Attributes:
         kind: Source of the load.
-        source_id: ID of the slab that reacts on the span; None for the beam's
-            own weight and wall.
+        source_id: ID of the slab that reacts on the span (SLAB), or the
+            user's label of a custom load (CUSTOM); None for the beam's own
+            weight and wall.
         permanent: Permanent part of the load (kN/m).
         variable: Variable part of the load (kN/m).
     """
