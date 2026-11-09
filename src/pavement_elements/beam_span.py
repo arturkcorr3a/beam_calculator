@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
+from src.loading.load_component import LoadComponent
 from src.pavement_elements.geometry_utils import Axis, effective_span
 from src.pavement_elements.pillar import Pillar
 from src.reinforcement.stirrups import Stirrups
@@ -36,6 +37,9 @@ class Span:
         default=0.0, init=False
     )  # kN, greatest |V| inside the span, set when stirrups are dimensioned
     stirrups: Stirrups = field(init=False)
+    load_components: list[LoadComponent] = field(
+        default_factory=list[LoadComponent], init=False
+    )
 
     def get_length(self, pillar_registry: dict[str, Pillar]) -> float:
         """Returns the span's length (cm) from the supporting pillars."""
@@ -120,6 +124,30 @@ class Span:
             raise ValueError("A variable load needs its quasi-permanent factor psi_2.")
         self.variable_load += load
         self.psi_2 = max(self.psi_2, psi_2)
+
+    def add_component(
+        self, component: LoadComponent, psi_2: float | None = None
+    ) -> None:
+        """Add a load component to the span, keeping it for the report
+
+        The component's permanent and variable parts are added to the span
+        totals exactly as ``add_load`` does; the variable part (even zero) is
+        added whenever psi_2 is given.
+
+        Args:
+            component: Load to add.
+            psi_2: Quasi-permanent reduction factor of the variable part;
+                required when the component has a variable part.
+
+        Raises:
+            ValueError: If the component has a variable part but no psi_2.
+        """
+        if component.variable and psi_2 is None:
+            raise ValueError("A variable load needs its quasi-permanent factor psi_2.")
+        self.load_components.append(component)
+        self.add_load(component.permanent, permanent=True)
+        if psi_2 is not None:
+            self.add_load(component.variable, permanent=False, psi_2=psi_2)
 
     def set_stirrups(self, stirrups: Stirrups) -> None:
         """Sets the stirrups for this span."""

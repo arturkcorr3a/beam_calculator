@@ -64,8 +64,8 @@ AXIS_ROW_MM = 19.0
 TITLE_MM = 27.0
 _EXTENSION_GAP_MM = 1.0
 _EXTENSION_TOP_MM = 15.5
-_AXIS_OVERRUN_MM = 3.0
-_PILLAR_NAME_DROP_MM = 5.0
+AXIS_OVERRUN_MM = 3.0
+PILLAR_NAME_DROP_MM = 5.0
 _PILLAR_NAME_SHIFT_MM = 1.0
 _BREAK_ZIGZAG_MM = 1.0
 _BREAK_STOPS = (
@@ -105,7 +105,7 @@ def build_beam_drawing(
     drawing = Drawing()
     y_bot = pillar_bottom(detailing, config)
     rows = bar_rows(detailing, y_bot, config)
-    axis_bottom = rows.lowest - config.paper(_AXIS_OVERRUN_MM)
+    axis_bottom = rows.lowest - config.paper(AXIS_OVERRUN_MM)
     drawing.extend(pillars(detailing, config, y_bot, axis_bottom))
     drawing.extend(beam_faces(detailing))
     drawing.extend(bars(detailing))
@@ -282,7 +282,7 @@ def pillars(
     """
     drawing = Drawing()
     y_top = beam.height + config.pillar_above
-    axis_top = beam.height + config.paper(AXIS_ROW_MM + _AXIS_OVERRUN_MM)
+    axis_top = beam.height + config.paper(AXIS_ROW_MM + AXIS_OVERRUN_MM)
     name_height = config.paper(config.text_heights_mm.pillar)
     for support, name in zip(beam.supports, pillar_ids(beam), strict=True):
         drawing.add(
@@ -294,7 +294,7 @@ def pillars(
             Text(
                 (
                     support.center + config.paper(_PILLAR_NAME_SHIFT_MM),
-                    y_bot - config.paper(_PILLAR_NAME_DROP_MM),
+                    y_bot - config.paper(PILLAR_NAME_DROP_MM),
                 ),
                 name,
                 name_height,
@@ -379,6 +379,13 @@ def dimension_rows(beam: DetailingBeam, config: DrawingConfig) -> Drawing:
 
     Also the extension lines from the pillars' inner faces up to the clear-span row.
     """
+    drawing = stirrup_zone_row(beam, config)
+    drawing.extend(geometry_dimension_rows(beam, config))
+    return drawing
+
+
+def stirrup_zone_row(beam: DetailingBeam, config: DrawingConfig) -> Drawing:
+    """Return the dimension row of the stirrup zones, with their spacing and quantity"""
     drawing = Drawing()
     zone_y = beam.height + config.paper(ZONE_ROW_MM)
     for stirrups in beam.stirrups:
@@ -396,6 +403,15 @@ def dimension_rows(beam: DetailingBeam, config: DrawingConfig) -> Drawing:
                     zone_quantity_label(quantity, stirrups.diameter_mm),
                 )
             )
+    return drawing
+
+
+def geometry_dimension_rows(beam: DetailingBeam, config: DrawingConfig) -> Drawing:
+    """Return the clear-span and axis dimension rows over the beam
+
+    Also the extension lines from the pillars' inner faces up to the clear-span row.
+    """
+    drawing = Drawing()
     span_y = beam.height + config.paper(CLEAR_SPAN_ROW_MM)
     extension_bottom = (
         beam.height + config.pillar_above + config.paper(_EXTENSION_GAP_MM)

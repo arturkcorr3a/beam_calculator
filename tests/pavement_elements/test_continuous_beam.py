@@ -11,6 +11,7 @@ from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.detailing.detailing_beam import DetailingBeam
 from src.loading.linear_loads import LinearLoads
+from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment, Axis
 from src.pavement_elements.pillar import Pillar
@@ -609,6 +610,31 @@ class TestLoadSpans:
             assert_approx(
                 span.permanent_load, 5.0, "load should be own_weight + wall = 5.0 kN/m"
             )
+
+    def test_load_spans_keeps_own_weight_and_wall_components(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+        horizontal_beam.pre_size(registry_horizontal)
+
+        monkeypatch.setattr(
+            LinearLoads,
+            "get_concrete_element_own_weight",
+            lambda area: 2.0,  # type: ignore
+        )
+        monkeypatch.setattr(LinearLoads, "get_wall_load", lambda *a, **kw: 3.0)  # type: ignore
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+
+        horizontal_beam.load_spans()
+
+        for span in horizontal_beam.spans:
+            assert span.load_components == [
+                LoadComponent(LoadKind.OWN_WEIGHT, None, 2.0),
+                LoadComponent(LoadKind.WALL, None, 3.0),
+            ], "each span should keep its own weight and wall loads apart"
 
 
 # ---------------------------------------------------------------------------

@@ -261,6 +261,60 @@ def draw_section(
     label_x = sx + m * b + config.paper(_LABEL_GAP_MM)
     drawing.extend(_stacked_labels(labels, label_x, small, sy + m * h, config))
     drawing.extend(
+        _section_annotations(
+            origin,
+            b,
+            h,
+            config,
+            section_title(letter),
+            scale_label(config.section_scale),
+        )
+    )
+    return drawing
+
+
+def draw_plain_section(
+    width: float,
+    height: float,
+    origin: Point,
+    config: DrawingConfig,
+    title: str | None = None,
+) -> Drawing:
+    """Return a cross section without reinforcement: outline, b and h dimensions and an optional title
+
+    Args:
+        width: Section width b (cm).
+        height: Section height h (cm).
+        origin: Where the section's bottom left corner goes on the sheet (cm).
+    """
+    m = config.section_magnification
+    sx, sy = origin
+    drawing = Drawing(
+        [_rectangle(sx, sy, sx + m * width, sy + m * height, BEAM_OUTLINE)]
+    )
+    drawing.extend(_section_annotations(origin, width, height, config, title))
+    return drawing
+
+
+def _section_annotations(
+    origin: Point,
+    b: float,
+    h: float,
+    config: DrawingConfig,
+    title: str | None,
+    subtitle: str | None = None,
+) -> Drawing:
+    """Return a section's b and h dimensions and its title, if any, with an optional line under it
+
+    Args:
+        origin: The section's bottom left corner on the sheet (cm).
+        b: Section width (cm).
+        h: Section height (cm).
+    """
+    m = config.section_magnification
+    sx, sy = origin
+    drawing = Drawing()
+    drawing.extend(
         dimension(
             sx,
             sx + m * b,
@@ -280,24 +334,29 @@ def draw_section(
             fmt_len(h),
         )
     )
+    if title is None:
+        return drawing
     title_y = sy + m * h + config.paper(_TITLE_ABOVE_MM)
     middle = sx + m * b / 2
     drawing.add(
         Text(
             (middle, title_y),
-            section_title(letter),
+            title,
             config.paper(config.text_heights_mm.label),
             TEXT,
             HAlign.CENTER,
-        ),
-        Text(
-            (middle, title_y - config.paper(_SCALE_BELOW_TITLE_MM)),
-            scale_label(config.section_scale),
-            small,
-            TEXT,
-            HAlign.CENTER,
-        ),
+        )
     )
+    if subtitle is not None:
+        drawing.add(
+            Text(
+                (middle, title_y - config.paper(_SCALE_BELOW_TITLE_MM)),
+                subtitle,
+                config.paper(config.text_heights_mm.small),
+                TEXT,
+                HAlign.CENTER,
+            )
+        )
     return drawing
 
 

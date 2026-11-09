@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from pavement_ui.core.results.vector_drawing import VectorDrawing
+
 
 @dataclass(frozen=True, slots=True)
 class EdgeSupport:
@@ -12,12 +14,33 @@ class EdgeSupport:
         fixed: Whether the edge is fixed (otherwise pinned).
         beam_id: Supporting beam.
         neighbor_slab_id: Slab on the other side of the edge, if any.
+        influence_area_m2: Area carried by the edge, from the yield lines (m²).
+        g_kn_m: Permanent load passed on to the beam (kN/m).
+        q_kn_m: Variable load passed on to the beam (kN/m).
     """
 
     edge_key: str
     fixed: bool
     beam_id: str
     neighbor_slab_id: str | None
+    influence_area_m2: float = 0.0
+    g_kn_m: float = 0.0
+    q_kn_m: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class FinishLoad:
+    """A permanent load on the slab besides its own weight
+
+    Attributes:
+        kind: "top" (floor finish), "ceiling" or "infill".
+        description: Engine description of the material.
+        kn_m2: Load (kN/m²).
+    """
+
+    kind: str
+    description: str
+    kn_m2: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +95,10 @@ class SlabResult:
         g_kn_m2: Permanent load, including own weight (kN/m²).
         q_kn_m2: Variable load (kN/m²).
         service_kn_m2: Quasi-permanent service load (kN/m²).
+        own_weight_kn_m2: Own weight at the final thickness (kN/m²).
+        finishes: Permanent loads besides the own weight; empty ones left out.
+        plan: Plan with the edge beams and pillars; None when not drawn.
+        supports: Supports and yield lines; None when not drawn.
     """
 
     slab_id: str
@@ -89,3 +116,7 @@ class SlabResult:
     q_kn_m2: float
     service_kn_m2: float
     deflection: DeflectionCheck
+    own_weight_kn_m2: float = 0.0
+    finishes: tuple[FinishLoad, ...] = ()
+    plan: VectorDrawing | None = None
+    supports: VectorDrawing | None = None

@@ -1,4 +1,4 @@
-"""Choose project files to open or save (*.yaml / *.yml)."""
+"""Choose project files to open or save (*.yaml / *.yml) and report files to export (*.pdf)."""
 
 from pathlib import Path
 
@@ -23,3 +23,18 @@ def ask_save_path(parent: QWidget | None, current: Path | None) -> Path | None:
         return None
     path = Path(name)
     return path if path.suffix else path.with_suffix(s.FILE_EXTENSION)
+
+
+def ask_pdf_path(parent: QWidget | None, suggested_name: str) -> Path | None:
+    """Ask where to export a report; ".pdf" is added when missing. None if cancelled"""
+    name, _ = QFileDialog.getSaveFileName(
+        parent, s.EXPORT_PDF_TITLE, suggested_name, s.PDF_FILTER
+    )
+    if not name:
+        return None
+    path = Path(name)
+    return (
+        path
+        if path.suffix.lower() == s.PDF_EXTENSION
+        else path.with_name(path.name + s.PDF_EXTENSION)
+    )

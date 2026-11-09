@@ -1,6 +1,7 @@
 """ResultsWindow: summary of a successful design (mockup A6)."""
 
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
 from PySide6.QtCore import QModelIndex, Qt
 from PySide6.QtWidgets import (
@@ -16,6 +17,9 @@ from pavement_ui.core.results.beam_result import BeamResult
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.results.slab_result import SlabResult
 from pavement_ui.presentation.formatting.elements import fmt_count
+from pavement_ui.presentation.report.pavement_report import write_pavement_report
+from pavement_ui.presentation.report.report_builder import ReportBuilder
+from pavement_ui.presentation.report.report_exporter import export_report
 from pavement_ui.presentation.results.summary.details_button_delegate import (
     DetailsButtonDelegate,
 )
@@ -24,6 +28,7 @@ from pavement_ui.presentation.results.summary.summary_columns import (
     SLAB_SUMMARY,
 )
 from pavement_ui.presentation.text.strings import formatting as fs
+from pavement_ui.presentation.text.strings import report as rs
 from pavement_ui.presentation.text.strings import results as s
 from pavement_ui.presentation.theme import tokens
 from pavement_ui.presentation.widgets.banner import Banner
@@ -88,6 +93,11 @@ class ResultsWindow(QWidget):
         QVBoxLayout(self._slabs_group).addWidget(slabs)
         hint = QLabel(s.SUMMARY_HINT)
         hint.setObjectName("hint")
+        self._success: DesignSuccess | None = None
+        self._file_name = ""
+        export = QPushButton(rs.EXPORT_PAVEMENT)
+        export.setObjectName("resultsExportButton")
+        export.clicked.connect(self._export)
         quantities = QPushButton(s.SUMMARY_QUANTITIES)
         quantities.setObjectName("resultsQuantitiesButton")
         quantities.clicked.connect(open_quantities)
@@ -95,6 +105,7 @@ class ResultsWindow(QWidget):
         close.clicked.connect(self.close)
         footer = QHBoxLayout()
         footer.addWidget(hint, 1)
+        footer.addWidget(export)
         footer.addWidget(quantities)
         footer.addWidget(close)
         layout = QVBoxLayout(self)
@@ -106,6 +117,7 @@ class ResultsWindow(QWidget):
         layout.addLayout(footer)
 
     def set_results(self, success: DesignSuccess, file_name: str) -> None:
+        self._success, self._file_name = success, file_name
         self.setWindowTitle(s.SUMMARY_TITLE.format(file=file_name))
         beams = fmt_count(len(success.beams), fs.BEAM_SINGULAR, fs.BEAM_PLURAL)
         slabs = fmt_count(len(success.slabs), fs.SLAB_SINGULAR, fs.SLAB_PLURAL)
@@ -118,3 +130,19 @@ class ResultsWindow(QWidget):
         rows_slabs: Sequence[SlabResult] = success.slabs
         self._beams.set_rows(rows_beams)
         self._slabs.set_rows(rows_slabs)
+
+    def _export(self) -> None:
+        success = self._success
+        if success is None:
+            return
+        name = Path(self._file_name).stem
+
+        def write(builder: ReportBuilder) -> None:
+            write_pavement_report(builder, success, name)
+
+        export_report(
+            self,
+            write,
+            rs.PAVEMENT_FILE_NAME.format(name=name),
+            rs.PDF_TITLE_PAVEMENT.format(name=name),
+        )

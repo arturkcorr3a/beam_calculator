@@ -5,7 +5,9 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
 from src.loading.combination_factors import almost_permanent_reduction_factor
+from src.loading.load_component import LoadComponent, LoadKind
 from src.logger import log_interaction, log_property, logger_label
+from src.pavement_elements.geometry_utils import Point
 
 if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam, Span
@@ -34,7 +36,10 @@ class SlabEdge:
     slab: Slab
     spans: list[Span] = field(default_factory=list, init=False)  # type: ignore
     support_condition: SupportCondition = field(default="pinned", init=False)
-    influence_area: float = field(default=0.0, init=False)
+    influence_area: float = field(default=0.0, init=False)  # m²
+    influence_polygon: tuple[Point, ...] = field(default=(), init=False)
+    permanent_linear_load: float = field(default=0.0, init=False)  # kN/m
+    variable_linear_load: float = field(default=0.0, init=False)  # kN/m
 
     @property
     def label(self) -> str:
@@ -120,17 +125,22 @@ class SlabEdge:
             ValueError: If the edge has no supporting spans.
         """
         edge_length_m = self._length(pillar_registry) / 100
-        permanent_linear_load = (
+        self.permanent_linear_load = (
             self.slab.total_permanent_load * self.influence_area / edge_length_m
         )  # kN/m
-        variable_linear_load = (
+        self.variable_linear_load = (
             self.slab.variable_load * self.influence_area / edge_length_m
         )  # kN/m
         psi_2 = almost_permanent_reduction_factor(self.slab.local)
         log_interaction(
-            f"Unloading on {len(self.spans)} spans: permanent {permanent_linear_load:.2f} kN/m, variable {variable_linear_load:.2f} kN/m",
+            f"Unloading on {len(self.spans)} spans: permanent {self.permanent_linear_load:.2f} kN/m, variable {self.variable_linear_load:.2f} kN/m",
             f"{self.label} → {self.beam.id}",
         )
+        component = LoadComponent(
+            LoadKind.SLAB,
+            self.slab.id,
+            self.permanent_linear_load,
+            self.variable_linear_load,
+        )
         for span in self.spans:
-            span.add_load(permanent_linear_load, permanent=True)
-            span.add_load(variable_linear_load, permanent=False, psi_2=psi_2)
+            span.add_component(component, psi_2=psi_2)

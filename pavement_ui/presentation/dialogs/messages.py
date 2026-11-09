@@ -140,6 +140,11 @@ def show_file_error(
     _box(parent, _Icon.Critical, title, text, file_error_text(error)).exec()
 
 
+def show_export_error(parent: QWidget | None, detail: str) -> None:
+    """The report could not be written"""
+    _box(parent, _Icon.Critical, s.EXPORT_PDF_TITLE, s.EXPORT_FAILED, detail).exec()
+
+
 def show_isolated_not_verified(
     parent: QWidget | None, message: str, width_cm: float, height_cm: float
 ) -> None:

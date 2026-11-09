@@ -706,3 +706,48 @@ class TestClampPass:
         )
         with pytest.raises(ValueError, match="Effective depth and design shear"):
             reinforcement.set_required_area(2.0)
+
+
+class TestAnchorageSummaries:
+    """The chosen bars keep their final l_b and l_b,nec per layer and side (cm)."""
+
+    def test_one_summary_per_layer_and_side(self, reinforcement: Reinforcement) -> None:
+        reinforcement.set_required_area(4.02)  # 2φ16 in layer 0
+        sides = [(a.layer_index, a.side) for a in reinforcement.anchorages]
+        assert sides == [(0, "left"), (0, "right")], (
+            "only the non-empty layer 0 should be summarized, left then right"
+        )
+
+    def test_lengths_are_within_bounds(self, reinforcement: Reinforcement) -> None:
+        """25φ ≤ l_b; 0.3·l_b ≤ l_b,nec ≤ l_b for a straight bar with As,ef ≥ As,req"""
+        reinforcement.set_required_area(4.02)
+        for summary in reinforcement.anchorages:
+            assert summary.basic_length >= 25 * 1.6, "l_b of a 16 mm bar ≥ 25φ"
+            assert summary.necessary_length <= summary.basic_length + 1e-9, (
+                "l_b,nec should not exceed l_b with As,ef ≥ As,req and α ≤ 1"
+            )
+            assert summary.necessary_length >= 0.3 * summary.basic_length - 1e-9, (
+                "l_b,nec should respect l_b,min"
+            )
+
+    def test_hooked_side_uses_reduced_length(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        """At x = 0 the left bars are hooked (α = 0.7); the right ones straight"""
+        reinforcement = _make_reinforcement(beam_double, center_position=0.0)
+        reinforcement.set_required_area(4.02)
+        left, right = reinforcement.anchorages
+        assert left.necessary_length < right.necessary_length, (
+            "the hooked side should need a shorter anchorage"
+        )
+
+    def test_empty_before_choosing(self, reinforcement: Reinforcement) -> None:
+        assert reinforcement.anchorages == ()
+
+    def test_only_the_chosen_option_is_kept(self, reinforcement: Reinforcement) -> None:
+        """Options tried and discarded leave no summaries behind"""
+        reinforcement.set_required_area(18.0)  # several options tried, 2 layers
+        used = [i for i, layer in enumerate(reinforcement.chosen_bars) if layer.bars]
+        expected = [(i, side) for i in used for side in ("left", "right")]
+        sides = [(a.layer_index, a.side) for a in reinforcement.anchorages]
+        assert sides == expected, "one summary per used layer and side of the choice"

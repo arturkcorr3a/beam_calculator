@@ -453,9 +453,39 @@ class Slab(metaclass=_SlabMeta):
 
         self.edges[edge_a].influence_area = total_area * fraction_a
         self.edges[edge_b].influence_area = total_area * fraction_b
+        # each region starts with its edge's two corners, counter-clockwise
+        if edge_a is Edges.BOTTOM:
+            split = fraction_a * ly
+            self.edges[edge_a].influence_polygon = (
+                Point(0, 0),
+                Point(lx, 0),
+                Point(lx, split),
+                Point(0, split),
+            )
+            self.edges[edge_b].influence_polygon = (
+                Point(lx, ly),
+                Point(0, ly),
+                Point(0, split),
+                Point(lx, split),
+            )
+        else:
+            split = fraction_a * lx
+            self.edges[edge_a].influence_polygon = (
+                Point(0, ly),
+                Point(0, 0),
+                Point(split, 0),
+                Point(split, ly),
+            )
+            self.edges[edge_b].influence_polygon = (
+                Point(lx, 0),
+                Point(lx, ly),
+                Point(split, ly),
+                Point(split, 0),
+            )
 
         for edge in unsupported:
             self.edges[edge].influence_area = 0.0
+            self.edges[edge].influence_polygon = ()
 
     def _resolve_two_way_influence_areas(self, lx: float, ly: float) -> None:
         """Calculates each edge's influence area (m²) using the Yield Line Theory, based on ABNT NBR 6118 - Section 14.7.6.1."""
@@ -501,34 +531,26 @@ class Slab(metaclass=_SlabMeta):
             lx - ly / (slope_br + slope_tr), slope_br * ly / (slope_br + slope_tr)
         )
 
+        # each region starts with its edge's two corners, counter-clockwise
         if p_bottom.y < p_left.y:
             # Vertical pattern: BOTTOM/TOP → triangles; LEFT/RIGHT → quadrilaterals
-            self.edges[Edges.BOTTOM].influence_area = calculate_polygon_area(
-                [p_bl, p_br, p_bottom]
-            )
-            self.edges[Edges.TOP].influence_area = calculate_polygon_area(
-                [p_tl, p_tr, p_top]
-            )
-            self.edges[Edges.LEFT].influence_area = calculate_polygon_area(
-                [p_bl, p_bottom, p_top, p_tl]
-            )
-            self.edges[Edges.RIGHT].influence_area = calculate_polygon_area(
-                [p_br, p_tr, p_top, p_bottom]
-            )
+            polygons = {
+                Edges.BOTTOM: (p_bl, p_br, p_bottom),
+                Edges.TOP: (p_tr, p_tl, p_top),
+                Edges.LEFT: (p_tl, p_bl, p_bottom, p_top),
+                Edges.RIGHT: (p_br, p_tr, p_top, p_bottom),
+            }
         else:
             # Horizontal pattern: LEFT/RIGHT → triangles; BOTTOM/TOP → quadrilaterals
-            self.edges[Edges.LEFT].influence_area = calculate_polygon_area(
-                [p_bl, p_tl, p_left]
-            )
-            self.edges[Edges.RIGHT].influence_area = calculate_polygon_area(
-                [p_br, p_tr, p_right]
-            )
-            self.edges[Edges.BOTTOM].influence_area = calculate_polygon_area(
-                [p_bl, p_br, p_right, p_left]
-            )
-            self.edges[Edges.TOP].influence_area = calculate_polygon_area(
-                [p_tl, p_tr, p_right, p_left]
-            )
+            polygons = {
+                Edges.LEFT: (p_tl, p_bl, p_left),
+                Edges.RIGHT: (p_br, p_tr, p_right),
+                Edges.BOTTOM: (p_bl, p_br, p_right, p_left),
+                Edges.TOP: (p_tr, p_tl, p_left, p_right),
+            }
+        for edge, polygon in polygons.items():
+            self.edges[edge].influence_polygon = polygon
+            self.edges[edge].influence_area = calculate_polygon_area(list(polygon))
 
     @property
     def max_thickness(self) -> int:

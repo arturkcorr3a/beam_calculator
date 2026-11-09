@@ -70,11 +70,13 @@ class ResultWindows:
             if success
             else None
         )
-        if result is None:
+        if success is None or result is None:
             return
         window = self._beams.get(beam_id)
         if window is None:
-            window = self._beams[beam_id] = BeamDetailWindow(result, self._parent)
+            window = self._beams[beam_id] = BeamDetailWindow(
+                result, success, self._parent
+            )
         _show(window)
 
     def open_slab(self, slab_id: str) -> None:
@@ -106,7 +108,7 @@ class ResultWindows:
         beams = {b.beam_id: b for b in success.beams}
         for beam_id in list(self._beams):
             if beam_id in beams:
-                self._beams[beam_id].set_result(beams[beam_id])
+                self._beams[beam_id].set_result(beams[beam_id], success)
             else:
                 self._beams.pop(beam_id).close()
         slabs = {r.slab_id: r for r in success.slabs}

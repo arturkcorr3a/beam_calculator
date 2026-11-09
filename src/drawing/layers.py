@@ -19,6 +19,9 @@ LAP = "COTA-TRASPASSE"
 TEXT = "TEXTO"
 CUT = "CORTE"
 TABLE = "QUADRO"
+SLAB_OUTLINE = "LAJE-CONTORNO"
+SLAB_SUPPORT = "LAJE-APOIO"
+YIELD_LINE = "LAJE-CHARNEIRA"
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,16 @@ LAYERS: dict[str, LayerStyle] = {
         LayerStyle(TEXT, 7, CONTINUOUS, 0.18, "#1a1a1a", "Texto"),
         LayerStyle(CUT, 6, CONTINUOUS, 0.50, "#6a1b9a", "Marca de corte"),
         LayerStyle(TABLE, 7, CONTINUOUS, 0.18, "#1a1a1a", "Quadro"),
+        LayerStyle(SLAB_OUTLINE, 7, CONTINUOUS, 0.25, "#363636", "Contorno da laje"),
+        LayerStyle(
+            SLAB_SUPPORT,
+            4,
+            CONTINUOUS,
+            0.35,
+            "#00838f",
+            "Apoio da laje",
+        ),
+        LayerStyle(YIELD_LINE, 30, DASHED_LINETYPE, 0.18, "#e65100", "Charneira"),
     )
 }
 

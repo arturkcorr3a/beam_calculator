@@ -74,6 +74,12 @@ ABOUT_TEXT: Final = (
 FILE_FILTER: Final = "Pavimento (*.yaml *.yml)"
 FILE_EXTENSION: Final = ".yaml"
 
+# --- report export ------------------------------------------------------------
+EXPORT_PDF_TITLE: Final = "Exportar relatório em PDF"
+PDF_FILTER: Final = "PDF (*.pdf)"
+PDF_EXTENSION: Final = ".pdf"
+EXPORT_FAILED: Final = "Não foi possível exportar o relatório."
+
 # --- configuration dialog (docs/UI_SPEC.md §9.1) ------------------------------
 CONFIG_TITLE: Final = "Configurações gerais do projeto"
 CONFIG_RESTORE: Final = "Restaurar padrões"
