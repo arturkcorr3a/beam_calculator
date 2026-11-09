@@ -45,12 +45,12 @@ class _Frame:
         )
 
 
-def _frame(drawing: VectorDrawing, rect: QRectF) -> _Frame:
+def _frame(drawing: VectorDrawing, rect: QRectF, margin: float) -> _Frame:
     x0, y0, x1, y1 = drawing.bounds
     width, height = max(x1 - x0, 1e-9), max(y1 - y0, 1e-9)
     scale = min(
-        (rect.width() - 2 * _MARGIN_PX) / width,
-        (rect.height() - 2 * _MARGIN_PX) / height,
+        (rect.width() - 2 * margin) / width,
+        (rect.height() - 2 * margin) / height,
     )
     return _Frame(
         scale,
@@ -59,8 +59,28 @@ def _frame(drawing: VectorDrawing, rect: QRectF) -> _Frame:
     )
 
 
-def _pen(look: LayerLook) -> QPen:
-    pen = QPen(QColor(look.color), _PEN_BASE_PX + look.width_mm * _PEN_PX_PER_MM)
+@dataclass(frozen=True, slots=True)
+class _PenStyle:
+    """How layer weights become pens
+
+    Attributes:
+        cosmetic: Whether pens keep their width when the painter zooms.
+        px_per_mm: Painter units per plotted mm, for the real line weights;
+            None for the screen widths of the report figures.
+    """
+
+    cosmetic: bool
+    px_per_mm: float | None
+
+
+def _pen(look: LayerLook, style: _PenStyle) -> QPen:
+    width = (
+        _PEN_BASE_PX + look.width_mm * _PEN_PX_PER_MM
+        if style.px_per_mm is None
+        else look.width_mm * style.px_per_mm
+    )
+    pen = QPen(QColor(look.color), width)
+    pen.setCosmetic(style.cosmetic)
     if look.dashed:
         pen.setStyle(Qt.PenStyle.DashLine)
     return pen
@@ -88,17 +108,33 @@ def _paint_text(painter: QPainter, text: TextShape, frame: _Frame, color: str) -
     painter.restore()
 
 
-def paint_vector(painter: QPainter, drawing: VectorDrawing, rect: QRectF) -> None:
-    """Paint the drawing as large as fits in rect, keeping its proportions"""
-    frame = _frame(drawing, rect)
+def paint_vector(
+    painter: QPainter,
+    drawing: VectorDrawing,
+    rect: QRectF,
+    *,
+    margin: float = _MARGIN_PX,
+    cosmetic: bool = False,
+    px_per_mm: float | None = None,
+) -> None:
+    """Paint the drawing as large as fits in rect, keeping its proportions
+
+    Args:
+        margin: Room left on every side of rect (painter units).
+        cosmetic: Whether lines keep their width when the view zooms.
+        px_per_mm: Painter units per plotted mm, to draw the layers' real line
+            weights; None keeps the fixed screen widths of the report figures.
+    """
+    frame = _frame(drawing, rect, margin)
+    style = _PenStyle(cosmetic, px_per_mm)
     looks = {look.name: look for look in drawing.layers}
     painter.save()
     painter.setBrush(Qt.BrushStyle.NoBrush)
     for line in drawing.lines:
-        painter.setPen(_pen(looks.get(line.layer, _FALLBACK)))
+        painter.setPen(_pen(looks.get(line.layer, _FALLBACK), style))
         painter.drawLine(frame.point(line.start), frame.point(line.end))
     for polyline in drawing.polylines:
-        painter.setPen(_pen(looks.get(polyline.layer, _FALLBACK)))
+        painter.setPen(_pen(looks.get(polyline.layer, _FALLBACK), style))
         polygon = QPolygonF([frame.point(p) for p in polyline.points])
         if polyline.closed:
             painter.drawPolygon(polygon)
@@ -106,7 +142,7 @@ def paint_vector(painter: QPainter, drawing: VectorDrawing, rect: QRectF) -> Non
             painter.drawPolyline(polygon)
     for circle in drawing.circles:
         look = looks.get(circle.layer, _FALLBACK)
-        painter.setPen(_pen(look))
+        painter.setPen(_pen(look, style))
         painter.setBrush(
             QBrush(QColor(look.color)) if circle.filled else Qt.BrushStyle.NoBrush
         )

@@ -143,6 +143,8 @@ class BeamResult:
         outline: Elevation without reinforcement; None when not drawn.
         section: Cross section without reinforcement; None when not drawn.
         bars: Detailed longitudinal bar runs, in mark order; empty before detailing.
+        sheet: Detailing sheet at 1:50 (elevation, bar rows, sections, bar
+            schedule, notes and title block); None before detailing.
     """
 
     beam_id: str
@@ -159,6 +161,7 @@ class BeamResult:
     outline: VectorDrawing | None = None
     section: VectorDrawing | None = None
     bars: tuple[BarEntry, ...] = ()
+    sheet: VectorDrawing | None = None
 
     @property
     def pillar_ids(self) -> tuple[str, ...]:

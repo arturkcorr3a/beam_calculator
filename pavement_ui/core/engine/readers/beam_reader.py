@@ -13,7 +13,9 @@ from pavement_ui.core.results.beam_design import LoadEntry, LoadSource
 from pavement_ui.core.results.beam_result import BeamResult, SpanResult, SupportMark
 from pavement_ui.core.results.vector_drawing import VectorDrawing
 from src.analysis.beam_analysis import BeamAnalysis
+from src.drawing.layout import build_beam_drawing
 from src.drawing.outline import build_beam_outline, build_beam_section
+from src.drawing.sheet_info import read_sheet_info
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -55,9 +57,16 @@ def _drawings(
         detailing.end - detailing.start, detailing.height, *ELEVATION_FIGURE_MM
     )
     return (
-        read_drawing(build_beam_outline(detailing, config)),
+        read_drawing(build_beam_outline(detailing, config), config.sheet_scale),
         read_drawing(build_beam_section(detailing)),
     )
+
+
+def _sheet(beam: ContinuousBeam, name: str | None) -> VectorDrawing | None:
+    """Return the beam's detailing sheet at 1:50; None before detailing."""
+    if beam.detailing is None:
+        return None
+    return read_drawing(build_beam_drawing(beam.detailing, sheet=read_sheet_info(name)))
 
 
 def _spans(
@@ -84,10 +93,16 @@ def _spans(
     )
 
 
-def read_beam(beam: ContinuousBeam, pillars: dict[str, Pillar]) -> BeamResult:
+def read_beam(
+    beam: ContinuousBeam, pillars: dict[str, Pillar], name: str | None = None
+) -> BeamResult:
     """Build the read model of a beam after ``Pavement.resolve``
 
-    Must run while APP_CONFIG holds the design settings (the cover reads it).
+    Must run while APP_CONFIG holds the design settings (the cover and the
+    sheet's notes read it).
+
+    Args:
+        name: Pavement name for the detailing sheet's title block.
     """
     supports_cm = _supports_cm(beam, pillars)
     labels = [beam.spans[0].start_pillar_id, *(s.end_pillar_id for s in beam.spans)]
@@ -114,4 +129,5 @@ def read_beam(beam: ContinuousBeam, pillars: dict[str, Pillar]) -> BeamResult:
         outline=outline,
         section=section,
         bars=read_bars(beam.detailing) if beam.detailing is not None else (),
+        sheet=_sheet(beam, name),
     )

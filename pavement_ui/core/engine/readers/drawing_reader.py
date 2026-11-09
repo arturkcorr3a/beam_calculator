@@ -58,8 +58,13 @@ def _text(item: Text) -> TextShape:
     )
 
 
-def read_drawing(drawing: Drawing) -> VectorDrawing:
+def read_drawing(
+    drawing: Drawing, scale: float = DEFAULT_CONFIG.sheet_scale
+) -> VectorDrawing:
     """Return the drawing's items by kind, arcs flattened, with their layers' looks
+
+    Args:
+        scale: Sheet scale the drawing was built with (its config's sheet_scale).
 
     Raises:
         ValueError: If the drawing is empty (it has no bounds).
@@ -74,7 +79,15 @@ def read_drawing(drawing: Drawing) -> VectorDrawing:
                 lines.append(LineShape(item.start, item.end, item.layer))
             case Polyline():
                 points = item.flattened(DEFAULT_CONFIG.arc_segments)
-                polylines.append(PolylineShape(tuple(points), item.closed, item.layer))
+                polylines.append(
+                    PolylineShape(
+                        tuple(points),
+                        item.closed,
+                        item.layer,
+                        item.points,
+                        item.bulges,
+                    )
+                )
             case Circle():
                 circles.append(
                     CircleShape(item.center, item.radius, item.filled, item.layer)
@@ -88,4 +101,5 @@ def read_drawing(drawing: Drawing) -> VectorDrawing:
         texts=tuple(texts),
         layers=tuple(_look(name) for name in drawing.layers()),
         bounds=drawing.bounds(),
+        scale=scale,
     )

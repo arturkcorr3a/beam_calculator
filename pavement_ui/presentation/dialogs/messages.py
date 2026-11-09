@@ -140,9 +140,35 @@ def show_file_error(
     _box(parent, _Icon.Critical, title, text, file_error_text(error)).exec()
 
 
-def show_export_error(parent: QWidget | None, detail: str) -> None:
-    """The report could not be written"""
-    _box(parent, _Icon.Critical, s.EXPORT_PDF_TITLE, s.EXPORT_FAILED, detail).exec()
+def show_export_error(
+    parent: QWidget | None,
+    detail: str,
+    title: str = s.EXPORT_PDF_TITLE,
+    text: str = s.EXPORT_FAILED,
+) -> None:
+    """A report or drawing could not be written"""
+    _box(parent, _Icon.Critical, title, text, detail).exec()
+
+
+def confirm_overwrite(parent: QWidget | None, path: str) -> bool:
+    """Ask before replacing an existing results bundle"""
+    return _confirm(
+        parent,
+        _Icon.Warning,
+        s.BUNDLE_TITLE,
+        s.BUNDLE_OVERWRITE_QUESTION,
+        s.BUNDLE_OVERWRITE_DETAIL.format(path=path),
+        s.BUNDLE_REPLACE,
+        True,
+    )
+
+
+def show_bundle_done(
+    parent: QWidget | None, path: str, reports: int, sheets: int
+) -> None:
+    """The results bundle was written"""
+    detail = s.BUNDLE_DONE_DETAIL.format(path=path, reports=reports, sheets=sheets)
+    _box(parent, _Icon.Information, s.BUNDLE_TITLE, s.BUNDLE_DONE, detail).exec()
 
 
 def show_isolated_not_verified(

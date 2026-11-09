@@ -28,6 +28,7 @@ class DesignJob:
     records: PavementRecords
     config: ConfigValues
     log: LogValues = LogValues()
+    name: str | None = None  # pavement name for the detailing sheets
 
     def run(self) -> DesignOutcome:
         """Build a fresh pavement, resolve it and read the results
@@ -41,7 +42,7 @@ class DesignJob:
             pavement = build_pavement(self.records, self.config)
             pavement.resolve()
             # read inside the job: the cover depends on APP_CONFIG
-            return pavement_reader.read(pavement)
+            return pavement_reader.read(pavement, self.name)
         except (ValueError, KeyError) as error:
             return RuleFailure(rule_message(error))
         except Exception as error:  # noqa: BLE001 — every other failure is reported, not raised

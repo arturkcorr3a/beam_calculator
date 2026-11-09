@@ -50,11 +50,21 @@ class LineShape:
 
 @dataclass(frozen=True, slots=True)
 class PolylineShape:
-    """A chain of straight segments (cm), arcs already flattened"""
+    """A chain of segments and circular arcs (cm)
+
+    Attributes:
+        points: Vertices with every arc flattened into straight pieces, to paint.
+        closed: Whether the last vertex joins the first.
+        vertices: The original vertices, to export.
+        bulges: One per original vertex: the bulge of the segment leaving it,
+            zero for a straight one (tangent of a quarter of the arc's angle).
+    """
 
     points: tuple[Point, ...]
     closed: bool
     layer: str
+    vertices: tuple[Point, ...] = ()
+    bulges: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +102,8 @@ class VectorDrawing:
 
     Attributes:
         bounds: (x_min, y_min, x_max, y_max) of every item, texts included (cm).
+        scale: Scale denominator the drawing's texts and offsets were laid out
+            for (50 for 1:50); printing at it gives the texts their paper size.
     """
 
     lines: tuple[LineShape, ...]
@@ -100,3 +112,4 @@ class VectorDrawing:
     texts: tuple[TextShape, ...]
     layers: tuple[LayerLook, ...]
     bounds: tuple[float, float, float, float]
+    scale: float = 50.0

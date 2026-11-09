@@ -8,13 +8,18 @@ from pavement_ui.core.results.outcomes import DesignSuccess
 from src.pavement_elements.pavement import Pavement
 
 
-def read(pavement: Pavement) -> DesignSuccess:
+def read(pavement: Pavement, name: str | None = None) -> DesignSuccess:
     """Read every beam and slab, in registration order, the beams' quantities and the materials
 
     Must run while APP_CONFIG holds the design settings.
+
+    Args:
+        name: Pavement name for the detailing sheets' title blocks.
     """
     return DesignSuccess(
-        beams=tuple(read_beam(b, pavement.pillars) for b in pavement.beams.values()),
+        beams=tuple(
+            read_beam(b, pavement.pillars, name) for b in pavement.beams.values()
+        ),
         slabs=tuple(read_slab(s, pavement.pillars) for s in pavement.slabs.values()),
         quantities=read_quantities(pavement),
         materials=read_materials(),

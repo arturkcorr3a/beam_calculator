@@ -16,6 +16,7 @@ from pavement_ui.core.model.settings import ConfigValues, LogValues
 from pavement_ui.core.options import EngineOptions
 from pavement_ui.core.results.outcomes import DesignOutcome, IsolatedBeamOutcome
 from pavement_ui.core.results.plan_geometry import PlanGeometry
+from pavement_ui.core.results.vector_drawing import VectorDrawing
 
 
 class Job[T](Protocol):
@@ -48,8 +49,10 @@ class PavementEngine(Protocol):
     def plan_geometry(self, records: PavementRecords) -> PlanGeometry: ...
 
     def make_design_job(
-        self, records: PavementRecords, config: ConfigValues
-    ) -> Job[DesignOutcome]: ...
+        self, records: PavementRecords, config: ConfigValues, name: str | None = None
+    ) -> Job[DesignOutcome]:
+        """Return the design job; name is the pavement's, for the sheets' title blocks."""
+        ...
 
     def apply_log_settings(self, log: LogValues) -> None: ...
 
@@ -70,6 +73,18 @@ class ProjectStore(Protocol):
     ) -> None: ...
 
     def open(self, path: Path) -> LoadedProject: ...
+
+
+class DrawingExporter(Protocol):
+    """Write the engine's drawings in CAD formats"""
+
+    def write_dxf(self, drawing: VectorDrawing, path: Path) -> None:
+        """Write the drawing to a DXF file (cm, one layer per drawing layer)
+
+        Raises:
+            OSError: If the file cannot be written.
+        """
+        ...
 
 
 class IsolatedBeamEngine(Protocol):

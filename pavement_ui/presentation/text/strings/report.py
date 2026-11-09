@@ -157,6 +157,7 @@ SLAB_DEFLECTION: Final = "4. Verificação de deformação (ELS-DEF)"
 # --- export -------------------------------------------------------------------
 EXPORT_PDF: Final = "Exportar PDF…"
 EXPORT_PAVEMENT: Final = "Exportar relatório (PDF)…"
+EXPORT_BUNDLE: Final = "Baixar tudo (ZIP)…"
 BEAM_FILE_NAME: Final = "relatorio_{id}.pdf"
 SLAB_FILE_NAME: Final = "relatorio_{id}.pdf"
 PAVEMENT_FILE_NAME: Final = "relatorio_{name}.pdf"
