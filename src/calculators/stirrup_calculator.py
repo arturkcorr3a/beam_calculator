@@ -1,4 +1,4 @@
-from math import cos, pi, sin
+from math import ceil, cos, floor, pi, sin
 
 from src.calculators.utils import cotan
 from src.config import APP_CONFIG
@@ -10,9 +10,9 @@ STIRRUP_ANGLE = (
 )  # 90 degrees, angle of stirrups with respect to beam axis (Model 1 from NBR 6118)
 
 REFERENCE_VIBRATOR_DIAMETER = 45  # mm, based on SINAPI (code 90585)
-MIN_SPACING = (
-    REFERENCE_VIBRATOR_DIAMETER / 10.0
-)  # cm, minimum stirrup spacing to ensure passage of the vibrator - NBR 6118 - Section 18.3.3.2
+MIN_SPACING = float(
+    ceil(REFERENCE_VIBRATOR_DIAMETER / 10.0)
+)  # cm, minimum stirrup spacing to ensure passage of the vibrator, rounded up to whole cm - NBR 6118 - Section 18.3.3.2
 REDUCED_SPACING_SHEAR_RATIO = (
     0.67  # V_Sd / V_Rd2 above which s_max drops to 0.3 d - NBR 6118 - Section 18.3.3.2
 )
@@ -134,16 +134,16 @@ class StirrupCalculator:
         return self.max_spacing_for(self.design_shear_force)
 
     def max_spacing_for(self, design_shear_force: float) -> float:
-        """Calculate maximum stirrup spacing (s_max) in cm for a given design shear force (kN). NBR 6118 - Section 18.3.3.2"""
+        """Calculate maximum stirrup spacing (s_max) in cm for a given design shear force (kN), rounded down to whole cm. NBR 6118 - Section 18.3.3.2"""
         if (
             design_shear_force
             <= REDUCED_SPACING_SHEAR_RATIO * self.compressed_strut_resistance
         ):
-            max_spacing = min(0.6 * self.effective_depth, 30.0)  # cm
+            max_spacing = float(floor(min(0.6 * self.effective_depth, 30.0)))  # cm
         else:
-            max_spacing = min(0.3 * self.effective_depth, 20.0)  # cm
+            max_spacing = float(floor(min(0.3 * self.effective_depth, 20.0)))  # cm
         log_operation(f"Maximum stirrup spacing s_max = {max_spacing:.2f} cm")
-        return max_spacing
+        return floor(max_spacing)
 
     def calculate_moment_shift(self) -> float:
         """Calculate the moment shift length a_l of the tension force diagram (model I)

@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 
 from src.analysis.beam_analysis import BeamAnalysis
-from src.calculators.stirrup_calculator import StirrupCalculator
+from src.calculators.stirrup_calculator import MIN_SPACING, StirrupCalculator
 from src.config import APP_CONFIG
 from src.loading.forces import LOAD_FACTOR
 from src.properties.concrete import Concrete
@@ -133,9 +133,19 @@ class TestChoose:
         stirrups.required_ratio = 0.01
         stirrups.calculator = cast(
             StirrupCalculator, types.SimpleNamespace(max_spacing=4.0)
-        )  # below MIN_SPACING (4.5 cm): the spacing loop never runs
+        )  # below MIN_SPACING (5 cm): the spacing loop never runs
         with pytest.raises(ValueError, match="No stirrup meets"):
             stirrups.choose()
+
+    def test_accepts_minimum_spacing(self, stirrups: Stirrups) -> None:
+        stirrups.calculator = cast(
+            StirrupCalculator, types.SimpleNamespace(max_spacing=MIN_SPACING)
+        )
+        stirrups.required_ratio = 0.01
+        stirrups.choose()
+        assert stirrups.spacing == MIN_SPACING, (
+            "choose should allow a spacing equal to MIN_SPACING (cm)"
+        )
 
 
 # Real calculator for the scaling tests: C25, CA50, 20 cm wide, d = 56 cm.
