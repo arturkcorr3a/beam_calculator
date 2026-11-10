@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
             session, executor, self, self._on_design_success
         )
         self._overlay = BusyOverlay(self)
+        self._drawing_exporter = drawing_exporter
         self._results = ResultWindows(session, bridge, drawing_exporter, self)
         self._connect_actions()
         self._connect_state(bridge)
@@ -154,7 +155,12 @@ class MainWindow(QMainWindow):
         """Show the isolated beam calculator, created on first use"""
         if self._isolated is None:
             self._isolated = IsolatedBeamWindow(
-                self._session, self._bridge, self._executor, self._isolated_engine, self
+                self._session,
+                self._bridge,
+                self._executor,
+                self._isolated_engine,
+                self._drawing_exporter,
+                self,
             )
         self._isolated.show()
         self._isolated.raise_()

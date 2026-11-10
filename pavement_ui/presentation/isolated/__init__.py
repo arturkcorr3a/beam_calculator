@@ -1,1 +1,1 @@
-"""Isolated (simply supported) beam calculator window (F11, mockup A9)."""
+"""Isolated continuous beam calculator window (F11, docs/UI_SPEC.md §11)."""

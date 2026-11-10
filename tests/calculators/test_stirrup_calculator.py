@@ -137,12 +137,20 @@ class TestMaxSpacing:
         )
 
     def test_high_shear_branch(self, beam: types.SimpleNamespace) -> None:
-        """max_spacing = 0.3*d when V_Sd > 0.67*V_Rd2 (cm)."""
-        # V_Sd=400 > 0.67*486=325.62 → branch 0.3*d; d=56 → 0.3*56=16.8
+        """max_spacing = 0.3*d rounded down when V_Sd > 0.67*V_Rd2 (cm)."""
+        # V_Sd=400 > 0.67*486=325.62 → branch 0.3*d; d=56 → 0.3*56=16.8 → 16
         sc_high = StirrupCalculator(beam, design_shear_force=400.0)  # pyright: ignore[reportArgumentType]
         sc_high.effective_depth = 56.0
-        assert_approx(
-            sc_high.max_spacing, 16.8, "max_spacing=0.3*d=16.8 cm for high shear (cm)"
+        assert sc_high.max_spacing == 16.0, (
+            "max_spacing=0.3*d=16.8 rounds down to 16 cm for high shear (cm)"
+        )
+
+    def test_low_shear_rounds_down(self, beam: types.SimpleNamespace) -> None:
+        """max_spacing = 0.6*d rounded down to whole cm: d=21 → 12.6 → 12 (cm)."""
+        sc_small_d = StirrupCalculator(beam, design_shear_force=10.0)  # pyright: ignore[reportArgumentType]
+        sc_small_d.effective_depth = 21.0
+        assert sc_small_d.max_spacing == 12.0, (
+            "max_spacing = 0.6*d=12.6 rounds down to 12 cm (cm)"
         )
 
     def test_high_shear_capped_at_20(self, beam: types.SimpleNamespace) -> None:
@@ -168,11 +176,9 @@ class TestMaxSpacingFor:
     def test_above_reduced_spacing_limit_uses_high_shear_branch(
         self, sc: StirrupCalculator
     ) -> None:
-        """V_Sd > 0.67*V_Rd2 uses min(0.3*d, 20) = 16.8 cm for d=56 (cm)."""
-        assert_approx(
-            sc.max_spacing_for(326.0),
-            16.8,
-            "max_spacing_for should use 0.3*d above 0.67*V_Rd2 (cm)",
+        """V_Sd > 0.67*V_Rd2 uses min(0.3*d, 20) = 16.8 → 16 cm for d=56 (cm)."""
+        assert sc.max_spacing_for(326.0) == 16.0, (
+            "max_spacing_for should use 0.3*d rounded down above 0.67*V_Rd2 (cm)"
         )
 
     def test_ignores_calculator_shear(self, sc: StirrupCalculator) -> None:

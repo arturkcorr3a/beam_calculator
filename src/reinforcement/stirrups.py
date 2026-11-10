@@ -91,7 +91,7 @@ class Stirrups:
 
         spacing = self.calculator.max_spacing
 
-        while spacing > MIN_SPACING:
+        while spacing >= MIN_SPACING:
             diameter = self.pick_diameter_for_spacing(spacing)
             if diameter is not None:
                 options.append((spacing, diameter))
@@ -101,7 +101,7 @@ class Stirrups:
             raise ValueError(
                 f"No stirrup meets A_sw/s = {cast(float, self.required_ratio):.4f} cm²/cm "
                 f"with diameters from {MIN_DIAMETER * 10:.1f} to {self.max_diameter * 10:.1f} mm "
-                f"and spacings above {MIN_SPACING:.1f} cm up to s_max = {self.calculator.max_spacing:.1f} cm."
+                f"and spacings from {MIN_SPACING:.1f} cm up to s_max = {self.calculator.max_spacing:.1f} cm."
             )
 
         best_option = self._pick_best_option(options)
@@ -179,7 +179,7 @@ class Stirrups:
         spacing = self.calculator.max_spacing_for(
             0.0
         )  # cm, any shear below the reduced-spacing limit gives the low-shear s_max
-        while spacing > MIN_SPACING:
+        while spacing >= MIN_SPACING:
             if Stirrups.calculate_ratio(diameter, spacing) >= minimum_ratio:
                 log_operation(f"Middle stirrup spacing = {spacing:.1f} cm")
                 return spacing

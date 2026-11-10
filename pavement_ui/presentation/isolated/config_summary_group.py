@@ -10,7 +10,10 @@ from pavement_ui.presentation.widgets.key_value_table import KeyValueTable
 
 
 class ConfigSummaryGroup(QGroupBox):
-    """Concrete, steel, aggregate size, bar types and layers of the current project"""
+    """Concrete, steel, aggregate size, bar types, layers and ceiling height of the project
+
+    The ceiling height sets the pillars' rotational stiffness and a new wall's height.
+    """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(s.FROM_CONFIG, parent)
@@ -31,6 +34,10 @@ class ConfigSummaryGroup(QGroupBox):
                 ),
                 (s.MAX_BAR_TYPES, str(config.max_bar_types)),
                 (s.MAX_LAYERS, str(config.max_layers)),
+                (
+                    s.CEILING_HEIGHT,
+                    s.M_VALUE.format(value=fmt_number(config.ceiling_height_m, 2)),
+                ),
             ]
         )
         self._fit_height()

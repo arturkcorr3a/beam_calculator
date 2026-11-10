@@ -1,14 +1,17 @@
-"""Isolated beam calculator window (F11, mockup A9, docs/UI_SPEC.md §11)."""
+"""Isolated beam calculator window (F11, docs/UI_SPEC.md §11)."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
-from pavement_ui.core.ports import IsolatedBeamEngine
+from pavement_ui.core.model.isolated_beam_input import IsolatedBeamInput
+from pavement_ui.core.ports import DrawingExporter, IsolatedBeamEngine
 from pavement_ui.core.results.outcomes import (
     IsolatedBeamOutcome,
     IsolatedBeamSuccess,
@@ -23,7 +26,8 @@ from pavement_ui.presentation.isolated.beam_scheme_widget import BeamSchemeWidge
 from pavement_ui.presentation.isolated.config_summary_group import ConfigSummaryGroup
 from pavement_ui.presentation.isolated.isolated_inputs_group import IsolatedInputsGroup
 from pavement_ui.presentation.isolated.isolated_results_tabs import IsolatedResultsTabs
-from pavement_ui.presentation.isolated.self_weight_card import SelfWeightCard
+from pavement_ui.presentation.isolated.loads_group import LoadsGroup
+from pavement_ui.presentation.isolated.spans_pillars_group import SpansPillarsGroup
 from pavement_ui.presentation.session_bridge import QtSessionBridge
 from pavement_ui.presentation.text.strings import isolated as s
 from pavement_ui.presentation.text.strings import results as rs
@@ -33,11 +37,11 @@ from pavement_ui.presentation.widgets.titled_panel import TitledPanel
 from pavement_ui.presentation.widgets.variants import set_variant
 
 _SIZE_PX = (1280, 840)
-_LEFT_WIDTH_PX = 340
+_LEFT_WIDTH_PX = 460
 
 
 class IsolatedBeamWindow(QWidget):
-    """Non-modal window: inputs on the left, scheme and results on the right
+    """Non-modal window: inputs on the left (scrolling), scheme and results on the right
 
     Any edit clears the results, so they always match the inputs [Decisão].
     The job runs on the shared engine executor: "Dimensionar" waits while any
@@ -50,6 +54,7 @@ class IsolatedBeamWindow(QWidget):
         bridge: QtSessionBridge,
         executor: EngineExecutor,
         engine: IsolatedBeamEngine,
+        exporter: DrawingExporter,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent, Qt.WindowType.Window)
@@ -58,16 +63,19 @@ class IsolatedBeamWindow(QWidget):
         self.resize(*_SIZE_PX)
         self._session, self._executor, self._engine = session, executor, engine
         self._inputs = IsolatedInputsGroup()
+        self._spans = SpansPillarsGroup()
+        self._loads = LoadsGroup(engine, session.options)
         self._summary = ConfigSummaryGroup()
-        self._weight = SelfWeightCard()
         self._scheme = BeamSchemeWidget()
-        self._results = IsolatedResultsTabs()
+        self._results = IsolatedResultsTabs(exporter)
         self._design = QPushButton(s.DESIGN)
         self._design.setObjectName("isoDesignButton")
         set_variant(self._design, "primary")
         self._build_layout()
         self._overlay = BusyOverlay(self)
-        self._inputs.changed.connect(self._on_inputs_changed)
+        self._spans.span_count_changed.connect(self._loads.set_span_count)
+        for group in (self._inputs, self._spans, self._loads):
+            group.changed.connect(self._on_inputs_changed)
         self._design.clicked.connect(self._run)
         bridge.config_changed.connect(self._refresh_config)
         executor.busy_changed.connect(self._on_busy)
@@ -76,10 +84,21 @@ class IsolatedBeamWindow(QWidget):
         self._on_busy(executor.busy)
 
     def _build_layout(self) -> None:
+        inputs = QWidget()
+        column = QVBoxLayout(inputs)
+        column.setContentsMargins(0, 0, tokens.SPACING_PX, 0)
+        for widget in (self._inputs, self._spans, self._loads, self._summary):
+            column.addWidget(widget)
+        column.addStretch(1)
+        scroll = QScrollArea()
+        scroll.setObjectName("isoInputsScroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(inputs)
         left = QVBoxLayout()
-        for widget in (self._inputs, self._summary, self._weight):
-            left.addWidget(widget)
-        left.addStretch(1)
+        left.setContentsMargins(0, 0, 0, 0)
+        left.addWidget(scroll, 1)
         left.addWidget(self._design)
         left_widget = QWidget()
         left_widget.setLayout(left)
@@ -103,13 +122,26 @@ class IsolatedBeamWindow(QWidget):
         layout.addLayout(footer)
 
     def _refresh_config(self) -> None:
-        self._summary.set_config(self._session.config)
+        config = self._session.config
+        self._summary.set_config(config)
+        self._loads.set_wall_height(config.ceiling_height_m)
+
+    def _values(self) -> IsolatedBeamInput:
+        return IsolatedBeamInput(
+            width_cm=self._inputs.width_cm,
+            height_cm=self._inputs.height_cm,
+            span_lengths_m=self._spans.span_lengths_m(),
+            pillars=self._spans.pillars(),
+            loads=self._loads.loads(),
+        )
 
     def _on_inputs_changed(self) -> None:
-        data = self._inputs.values()
-        weight = self._engine.self_weight_kn_m(data.width_cm, data.height_cm)
-        self._weight.set_values(weight, data.width_cm, data.height_cm)
-        self._scheme.set_values(data.length_m, weight)
+        self._loads.set_section(self._inputs.width_cm, self._inputs.height_cm)
+        self._scheme.set_values(
+            self._spans.span_lengths_m(),
+            [pillar.width_cm for pillar in self._spans.pillars()],
+            self._loads.span_totals(),
+        )
         self._results.clear()
 
     def _on_busy(self, busy: bool) -> None:
@@ -119,7 +151,7 @@ class IsolatedBeamWindow(QWidget):
         if self._executor.busy:
             return
         job = self._engine.make_job(
-            self._inputs.values(), self._session.config, self._session.log
+            self._values(), self._session.config, self._session.log
         )
         self._overlay.show_busy(s.DESIGNING)
         self._executor.submit(job, self._on_done, self._on_error)
@@ -127,13 +159,12 @@ class IsolatedBeamWindow(QWidget):
     def _on_done(self, outcome: IsolatedBeamOutcome) -> None:
         self._overlay.hide_busy()
         match outcome:
-            case IsolatedBeamSuccess(result=result):
-                self._results.set_result(result)
+            case IsolatedBeamSuccess():
+                self._results.set_result(outcome)
             case IsolatedNotVerified(message=message):
                 self._results.clear()
-                data = self._inputs.values()
                 messages.show_isolated_not_verified(
-                    self, message, data.width_cm, data.height_cm
+                    self, message, self._inputs.width_cm, self._inputs.height_cm
                 )
             case IsolatedInvalidInput(message=message):
                 self._results.clear()

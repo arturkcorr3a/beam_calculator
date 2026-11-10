@@ -1,9 +1,8 @@
-"""Entradas: length and section of the isolated beam."""
+"""Seção: width and height of the isolated beam."""
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
 
-from pavement_ui.core.model.isolated_beam_input import IsolatedBeamInput
 from pavement_ui.presentation.text.strings import isolated as s
 from pavement_ui.presentation.text.strings import panels as units
 from pavement_ui.presentation.widgets.form_section import FormSection
@@ -23,26 +22,25 @@ def _spin(
 
 class IsolatedInputsGroup(FormSection):
     """Signals:
-    changed: Any input was edited.
+    changed: b or h was edited.
     """
 
     changed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(s.INPUTS, _LABEL_WIDTH_PX, parent)
+        super().__init__(s.SECTION, _LABEL_WIDTH_PX, parent)
         # the engine refuses b < 12 cm with its own message; the field allows less
-        self._length = _spin("isoLength", 2, (0.01, 50.0), units.UNIT_M, 5.0)
         self._width = _spin("isoWidth", 1, (1.0, 200.0), units.UNIT_CM, 14.0)
         self._height = _spin("isoHeight", 1, (0.1, 300.0), units.UNIT_CM, 40.0)
-        self.add_row(s.LENGTH, self._length)
         self.add_row(s.WIDTH, self._width)
         self.add_row(s.HEIGHT, self._height)
-        for box in (self._length, self._width, self._height):
+        for box in (self._width, self._height):
             box.valueChanged.connect(self.changed)
 
-    def values(self) -> IsolatedBeamInput:
-        return IsolatedBeamInput(
-            length_m=self._length.value(),
-            width_cm=self._width.value(),
-            height_cm=self._height.value(),
-        )
+    @property
+    def width_cm(self) -> float:
+        return self._width.value()
+
+    @property
+    def height_cm(self) -> float:
+        return self._height.value()

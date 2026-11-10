@@ -11,7 +11,12 @@ from typing import Protocol
 
 from pavement_ui.core.model.isolated_beam_input import IsolatedBeamInput
 from pavement_ui.core.model.pavement_records import PavementRecords
-from pavement_ui.core.model.records import BeamRecord, PillarRecord, SlabRecord
+from pavement_ui.core.model.records import (
+    BeamRecord,
+    PillarRecord,
+    SlabRecord,
+    WallRecord,
+)
 from pavement_ui.core.model.settings import ConfigValues, LogValues
 from pavement_ui.core.options import EngineOptions
 from pavement_ui.core.results.outcomes import DesignOutcome, IsolatedBeamOutcome
@@ -88,10 +93,18 @@ class DrawingExporter(Protocol):
 
 
 class IsolatedBeamEngine(Protocol):
-    """The isolated (simply supported) beam calculator"""
+    """The isolated beam calculator: a continuous beam on pillars"""
 
     def self_weight_kn_m(self, width_cm: float, height_cm: float) -> float:
         """Return the own-weight load of a b × h section (kN/m)."""
+        ...
+
+    def wall_load_kn_m(self, wall: WallRecord, height_m: float) -> float:
+        """Return the load of a wall of the given height (kN/m)
+
+        Raises:
+            KeyError: If the masonry, thickness or coating is not tabulated.
+        """
         ...
 
     def make_job(

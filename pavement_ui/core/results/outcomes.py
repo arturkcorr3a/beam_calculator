@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from pavement_ui.core.results.beam_result import BeamResult
 from pavement_ui.core.results.materials import MaterialsInfo
-from pavement_ui.core.results.quantities import QuantitiesResult
+from pavement_ui.core.results.quantities import BeamQuantity, QuantitiesResult
 from pavement_ui.core.results.slab_result import SlabResult
 
 
@@ -40,14 +40,15 @@ class UnexpectedFailure:
 
 @dataclass(frozen=True, slots=True)
 class IsolatedBeamSuccess:
-    """The isolated beam was dimensioned
+    """The isolated beam was dimensioned and detailed
 
     Attributes:
-        self_weight_kn_m: Own-weight load used (kN/m).
+        quantity: Net quantities of the beam; None when it has no detailing.
     """
 
     result: BeamResult
-    self_weight_kn_m: float
+    materials: MaterialsInfo
+    quantity: BeamQuantity | None
 
 
 @dataclass(frozen=True, slots=True)

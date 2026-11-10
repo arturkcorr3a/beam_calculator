@@ -7,7 +7,10 @@ from pavement_ui.core.results.beam_result import BeamResult
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.presentation.formatting.elements import fmt_pillar_chain
 from pavement_ui.presentation.formatting.numbers import fmt_length_cm
-from pavement_ui.presentation.report.beam_report import write_beam_report
+from pavement_ui.presentation.report.beam_report import (
+    beam_quantity,
+    write_beam_report,
+)
 from pavement_ui.presentation.report.report_builder import ReportBuilder
 from pavement_ui.presentation.report.report_exporter import export_report
 from pavement_ui.presentation.report.report_view import ReportView
@@ -73,14 +76,16 @@ class BeamDetailWindow(QWidget):
         for chip, (key, value) in zip(self._chips, values, strict=True):
             chip.set_value(key, value)
         builder = ReportBuilder()
-        write_beam_report(builder, result, success)
+        quantity = beam_quantity(success, result.beam_id)
+        write_beam_report(builder, result, success.materials, quantity)
         self.view.set_document(builder.document())
 
     def _export(self) -> None:
         result, success = self._result, self._success
+        quantity = beam_quantity(success, result.beam_id)
 
         def write(builder: ReportBuilder) -> None:
-            write_beam_report(builder, result, success)
+            write_beam_report(builder, result, success.materials, quantity)
 
         export_report(
             self,

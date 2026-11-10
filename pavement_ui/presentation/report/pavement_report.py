@@ -3,7 +3,10 @@
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.presentation.formatting.numbers import fmt_number
 from pavement_ui.presentation.formatting.reinforcement import fmt_bar_diameter
-from pavement_ui.presentation.report.beam_report import write_beam_report
+from pavement_ui.presentation.report.beam_report import (
+    beam_quantity,
+    write_beam_report,
+)
 from pavement_ui.presentation.report.report_builder import ReportBuilder
 from pavement_ui.presentation.report.slab_report import write_slab_report
 from pavement_ui.presentation.text.strings import report as s
@@ -71,7 +74,13 @@ def write_pavement_report(
         )
     )
     for beam in success.beams:
-        write_beam_report(builder, beam, success, page_break=True)
+        write_beam_report(
+            builder,
+            beam,
+            success.materials,
+            beam_quantity(success, beam.beam_id),
+            page_break=True,
+        )
     for slab in success.slabs:
         write_slab_report(builder, slab, page_break=True)
     _write_quantities(builder, success)
