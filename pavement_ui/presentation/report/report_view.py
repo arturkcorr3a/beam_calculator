@@ -3,6 +3,12 @@
 from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QTextBrowser, QVBoxLayout, QWidget
 
+from pavement_ui.presentation.widgets.corner_logo import CornerLogo
+
+_LOGO_HEIGHT_PX = 32
+_LOGO_MARGIN_X_PX = 24  # clears the vertical scroll bar
+_LOGO_MARGIN_Y_PX = 8
+
 
 class ReportView(QWidget):
     """Read-only view of a report document"""
@@ -16,6 +22,9 @@ class ReportView(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.browser)
+        self._logo = CornerLogo(
+            self, _LOGO_HEIGHT_PX, _LOGO_MARGIN_X_PX, _LOGO_MARGIN_Y_PX, bottom=False
+        )
 
     @property
     def document(self) -> QTextDocument | None:
