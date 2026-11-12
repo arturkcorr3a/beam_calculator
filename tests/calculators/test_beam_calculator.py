@@ -530,6 +530,11 @@ class TestKeepGoverningSupportResults:
 # ---------------------------------------------------------------------------
 
 
+def _no_outer_supports(*args: object) -> list[object]:
+    """Skip the end support step, which needs real calculators"""
+    return []
+
+
 class TestRunBySpan:
     """run() coordinates each span's stirrups with the interest points inside it."""
 
@@ -597,6 +602,7 @@ class TestRunBySpan:
         monkeypatch.setattr(BeamCalculator, "_store_reinforcement", store_reinforcement)
         monkeypatch.setattr(BeamCalculator, "_verify_deformation", verify_deformation)
         monkeypatch.setattr(beam_calculator, "coordinate_span", coordinate_span)
+        monkeypatch.setattr(BeamCalculator, "_outer_supports", _no_outer_supports)
         monkeypatch.setattr(Stirrups, "distribute", distribute)
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         beam = _make_beam_stub(spans=spans)
@@ -686,6 +692,7 @@ class TestRunBySpan:
         monkeypatch.setattr(BeamCalculator, "_store_reinforcement", store_reinforcement)
         monkeypatch.setattr(BeamCalculator, "_verify_deformation", verify_deformation)
         monkeypatch.setattr(beam_calculator, "coordinate_span", coordinate_span)
+        monkeypatch.setattr(BeamCalculator, "_outer_supports", _no_outer_supports)
         monkeypatch.setattr(Stirrups, "distribute", verify_deformation)
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]
@@ -742,6 +749,7 @@ class TestRunBySpan:
         monkeypatch.setattr(BeamCalculator, "_store_reinforcement", do_nothing)
         monkeypatch.setattr(BeamCalculator, "_verify_deformation", do_nothing)
         monkeypatch.setattr(beam_calculator, "coordinate_span", do_nothing)
+        monkeypatch.setattr(BeamCalculator, "_outer_supports", _no_outer_supports)
         monkeypatch.setattr(Stirrups, "distribute", do_nothing)
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         bc = BeamCalculator(_make_beam_stub(spans=spans), _make_registry())  # type: ignore[arg-type]

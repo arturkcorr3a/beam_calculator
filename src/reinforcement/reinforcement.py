@@ -42,6 +42,8 @@ class Reinforcement:
         support_moments: tuple[float, ...] = (),
         span_moment: float | None = None,
         is_tensioned: bool = True,
+        anchored_support: int | None = None,
+        stacked_on: Reinforcement | None = None,
     ):
         """Initialize an empty longitudinal reinforcement
 
@@ -59,9 +61,26 @@ class Reinforcement:
                 support anchorage checks.
             is_tensioned: Whether the bars are tensioned; False for the
                 compressed reinforcement.
+            anchored_support: Index in ``beam.supports`` of the support whose
+                inner face the point sits on; the bars are anchored inside it
+                from the face on that side. None for an ordinary point.
+            stacked_on: Reinforcement whose layers come first on the same face;
+                this one's layers are stacked after its last non-empty layer.
+
+        Raises:
+            ValueError: If ``stacked_on`` already fills every layer.
         """
         self.beam = beam
         self.steel = beam.steel
+        self.anchored_support = anchored_support
+        self.stacked_on = stacked_on
+        self.first_layer_index = (
+            stacked_on.used_layers_top_index if stacked_on is not None else 0
+        )
+        if self.first_layer_index >= APP_CONFIG.max_layers:
+            raise ValueError(
+                f"No layer left to stack bars on: {self.first_layer_index} of {APP_CONFIG.max_layers} layers already used."
+            )
         self.chosen_bars: tuple[Layer, ...] = self._build_empty_layers()
         self.is_chosen = False
         self.rebar_choice_options: tuple[tuple[Rebar, ...], ...] = ()
@@ -86,10 +105,22 @@ class Reinforcement:
             return self.support_moments[support_index]
         return 0.0
 
+    @property
+    def used_layers_top_index(self) -> int:
+        """Return the face's layer index just after this reinforcement's last non-empty layer
+
+        Counts the layers of the reinforcement it is stacked on, if any.
+        """
+        used = sum(1 for layer in self.chosen_bars if layer.bars)
+        return self.first_layer_index + used
+
     def _build_empty_layers(self) -> tuple[Layer, ...]:
-        """Builds a tuple of empty layers for the reinforcement, based on the maximum number of layers defined in the configuration."""
+        """Build the empty layers, up to the configured maximum on the face
+
+        A stacked reinforcement gets only the layers left after its base's.
+        """
         return tuple(
-            Layer([], i) for i in range(APP_CONFIG.max_layers)
+            Layer([], i) for i in range(APP_CONFIG.max_layers - self.first_layer_index)
         )  # list of chosen rebar sizes per layer
 
     def set_required_area(self, required_area: float) -> None:
@@ -250,7 +281,14 @@ class Reinforcement:
                 id=f"{self.id} | Layer {layer_index}",
             )
 
-            if self._is_at_beam_start:
+            if self._anchored_support_is_on(left=True):
+                anchorage_calculator.anchor_into_support(
+                    cast(int, self.anchored_support),
+                    self._available_space(left=True),
+                    left=True,
+                    allow_clamp=allow_clamp,
+                )
+            elif self._is_at_beam_start:
                 anchorage_calculator.run_end_support(left=True)
             else:
                 anchorage_calculator.run(
@@ -259,7 +297,14 @@ class Reinforcement:
                     allow_clamp=allow_clamp,
                 )
 
-            if self._is_at_beam_end:
+            if self._anchored_support_is_on(left=False):
+                anchorage_calculator.anchor_into_support(
+                    cast(int, self.anchored_support),
+                    self._available_space(left=False),
+                    left=False,
+                    allow_clamp=allow_clamp,
+                )
+            elif self._is_at_beam_end:
                 anchorage_calculator.run_end_support(left=False)
             else:
                 anchorage_calculator.run(
@@ -269,6 +314,13 @@ class Reinforcement:
                 )
             summaries.extend(anchorage_calculator.summaries)
         self._layout_anchorages = tuple(summaries)
+
+    def _anchored_support_is_on(self, left: bool) -> bool:
+        """Whether the support the point sits on lies on the given side of it"""
+        if self.anchored_support is None:
+            return False
+        support = self.beam.supports[self.anchored_support]
+        return (support.center < self.center_position) == left
 
     def _available_space(self, left: bool) -> float:
         """Return the length from the section to the beam's end minus the nominal covering (cm)
@@ -436,6 +488,8 @@ class Reinforcement:
         Returns:
             Effective covering (cm).
         """
+        if self.stacked_on is not None:
+            return self.stacked_on.effective_covering()
         covering = RectangularBeam.nominal_covering  # cm
         first_layer_bars = self.chosen_bars[0].bars
         if not first_layer_bars:
@@ -479,13 +533,41 @@ class Reinforcement:
     def _layer_offset(self, layer_index: int) -> float:
         """Return the distance from the stirrup's inner face to the near edge of a layer (cm)
 
-        Each previous layer adds its largest bar diameter and the minimum vertical spacing for that diameter.
+        Each previous layer adds its largest bar diameter and the minimum vertical spacing for that diameter. A stacked reinforcement starts after its base's last layer, with the minimum vertical spacing for the larger of the two diameters across the gap.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.2
         """
         offset = 0.0
+        if self.stacked_on is not None:
+            base_edge, base_diameter = self.stacked_on.stack_top()  # cm
+            first_diameter = (
+                max(b.diameter_mm for b in self.chosen_bars[0].bars) / 10
+            )  # cm
+            offset = base_edge + self.get_vertical_spacing(
+                max(base_diameter, first_diameter)
+            )
         for i in range(layer_index):
             max_dia = max(b.diameter_mm for b in self.chosen_bars[i].bars) / 10
             offset += self.get_vertical_spacing(max_dia) + max_dia
         return offset
+
+    def stack_top(self) -> tuple[float, float]:
+        """Return the far edge of the last non-empty layer and its largest bar diameter
+
+        Returns:
+            Distance from the stirrup's inner face to the far edge of the last
+            non-empty layer (cm), and that layer's largest bar diameter (cm).
+
+        Raises:
+            ValueError: If no layer has bars.
+        """
+        used = [i for i, layer in enumerate(self.chosen_bars) if layer.bars]
+        if not used:
+            raise ValueError("No bars chosen to stack on.")
+        last = used[-1]
+        diameter = max(b.diameter_mm for b in self.chosen_bars[last].bars) / 10  # cm
+        return self._layer_offset(last) + diameter, diameter
 
     def _clamps_stack_height(self, diameter_mm: float, quantity: int) -> float:
         """Return the height from the stirrup's inner face to the far edge of the clamp rows (cm)
@@ -615,7 +697,7 @@ class Reinforcement:
             ValueError: If the bars need more than the maximum number of layers.
         """
         while count > 0:
-            if current_layer >= APP_CONFIG.max_layers:
+            if current_layer >= len(self.chosen_bars):
                 self.clear_chosen_bars()
                 raise ValueError(
                     "Cannot distribute bars within the maximum number of layers."

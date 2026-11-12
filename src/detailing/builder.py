@@ -75,13 +75,15 @@ def _structural_beam(beam: ContinuousBeam) -> RectangularBeam:
 def _bars(reinforcement: Reinforcement, height: float) -> list[DetailedBar]:
     """Build one bar run per diameter of each non-empty layer, layer by layer
 
+    A reinforcement stacked on another one numbers its layers after its base's.
+
     Args:
         height: Section height h (cm), for the bond zone.
     """
     center = reinforcement.center_position  # cm
     area_ratio = _area_ratio(reinforcement)
     bars: list[DetailedBar] = []
-    for layer in reinforcement.chosen_bars:
+    for position, layer in enumerate(reinforcement.chosen_bars):
         if not layer.bars:
             continue
         good_adherence = layer.has_good_adherence(height)
@@ -93,8 +95,8 @@ def _bars(reinforcement: Reinforcement, height: float) -> list[DetailedBar]:
                     quantity=quantity,
                     is_bottom=reinforcement.is_bottom_reinforcement,
                     is_tensioned=reinforcement.is_tensioned,
-                    layer_index=layer.layer_index,
-                    y=_bar_height(reinforcement, layer, rebar),
+                    layer_index=reinforcement.first_layer_index + position,
+                    y=_bar_height(reinforcement, position, rebar),
                     start=center - rebar.left_length,
                     end=center + rebar.right_length,
                     left_hook=rebar.hook_geometry(left=True),
@@ -120,13 +122,17 @@ def _runs(layer: Layer) -> list[tuple[Rebar, int]]:
     ]
 
 
-def _bar_height(reinforcement: Reinforcement, layer: Layer, rebar: Rebar) -> float:
+def _bar_height(reinforcement: Reinforcement, position: int, rebar: Rebar) -> float:
     """Return the height of a bar's axis from the bottom face (cm)
 
     Every bar of a layer touches the same edge line, so a bar's axis sits half its diameter from that edge. The edge is the layer's centroid moved back by the area-weighted mean half diameter.
+
+    Args:
+        position: Index of the layer in ``reinforcement.chosen_bars``.
     """
+    layer = reinforcement.chosen_bars[position]
     mean_half_diameter, _ = reinforcement.get_layer_relative_centroid_with_weight(
-        layer.layer_index
+        position
     )  # cm
     half_diameter = rebar.diameter_mm / _MM_PER_CM / 2  # cm
     shift = half_diameter - mean_half_diameter  # cm, from the centroid to the axis

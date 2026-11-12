@@ -5,7 +5,6 @@ from src.calculators.anchorage_clamp_calculator import (
     AnchorageClampCalculatorLabel,
 )
 from src.config import APP_CONFIG
-from src.loading.forces import design_effort_elu
 from src.logger import log_operation, log_property, logger_label
 from src.properties.steel import Steel
 from src.reinforcement.anchorage_summary import AnchorageSummary
@@ -187,7 +186,7 @@ class AnchorageCalculator:
     ) -> Clamps | None:
         """Anchor the layer bars inside a support, from its inner face
 
-        Uses the same anchorage rules as a shifted point that reaches the support (see ``_run_inner_support_anchorage`` and ``_run_outer_support_anchorage``), whether or not it does. The force check of an outer support is not run here.
+        Uses the same anchorage rules as a shifted point that reaches the support (see ``_run_inner_support_anchorage`` and ``_run_outer_support_anchorage``), whether or not it does.
 
         Args:
             support_index: Index of the support in ``beam.supports``.
@@ -209,18 +208,7 @@ class AnchorageCalculator:
         """
         self.left = left
         self.logging_info = f"{self.id} ({'Left' if self.left else 'Right'})"
-        support = self.reinforcement.beam.supports[support_index]
-        log_operation(
-            f"Anchoring into the support at {support.center:.2f} cm from its inner face."
-        )
-        face_distance = self._inner_face_distance(support)  # cm
-        if support.is_extremity(self.reinforcement.beam.length):
-            return self._run_outer_support_anchorage(
-                support, face_distance, allow_clamp
-            )
-        return self._run_inner_support_anchorage(
-            face_distance, available_space, allow_clamp
-        )
+        return self._run_support_anchorage(support_index, available_space, allow_clamp)
 
     def _record(self) -> None:
         """Keep the anchorage lengths of the side just anchored, with its final hooks"""
@@ -371,9 +359,9 @@ class AnchorageCalculator:
     def _run_support_anchorage(
         self, support_index: int, available_space: float, allow_clamp: bool
     ) -> Clamps | None:
-        """Check a reached support and anchor the layer bars from its inner face
+        """Anchor the layer bars from a reached support's inner face
 
-        Outer supports first check the force to anchor; both support types then anchor the bars past the inner face (see ``_run_inner_support_anchorage`` and ``_run_outer_support_anchorage``). The share of the span's area carried to each support is checked after the reinforcement is chosen (see ``carry_span_bars_to_supports``).
+        Both support types anchor the bars past the inner face (see ``_run_inner_support_anchorage`` and ``_run_outer_support_anchorage``). The areas carried to the supports are checked after the reinforcement is chosen (see ``carry_span_bars_to_supports`` and ``anchor_outer_supports``).
 
         Args:
             support_index: Index of the reached support in ``beam.supports``.
@@ -386,11 +374,10 @@ class AnchorageCalculator:
             The clamps set on the layer, or None if the bars anchor without them.
 
         Raises:
-            ValueError: If a check fails, or if the bars do not fit (even with
-                clamps, when allowed).
+            ValueError: If the bars do not fit (even with clamps, when allowed).
 
         References:
-            ABNT NBR 6118:2026 — Sections 18.3.2.4-b and 18.3.2.4.1
+            ABNT NBR 6118:2026 — Section 18.3.2.4.1
         """
         support = self.reinforcement.beam.supports[support_index]
         log_operation(
@@ -399,7 +386,6 @@ class AnchorageCalculator:
         face_distance = self._inner_face_distance(support)  # cm
 
         if support.is_extremity(self.reinforcement.beam.length):
-            self._check_outer_support_force(support_index)
             return self._run_outer_support_anchorage(
                 support, face_distance, allow_clamp
             )
@@ -522,47 +508,6 @@ class AnchorageCalculator:
         clamps = self._add_clamps(room, past_face)
         self._record()
         return clamps
-
-    def _check_outer_support_force(self, support_index: int) -> None:
-        """Check that the bars resist the force to anchor at an outer support
-
-        F_sd = M_Sd / z + (a_l / d) V_Sd >= (a_l / d) V_Sd, with z = d - y/2 and M_Sd positive when it tensions the bars; A_s >= F_sd / f_yd.
-
-        Args:
-            support_index: Index of the reached support in ``beam.supports``.
-
-        Raises:
-            ValueError: If d, y or V_Sd is not set, or if the reinforcement
-                area is below F_sd / f_yd.
-
-        References:
-            ABNT NBR 6118:2026 — Section 18.3.2.4-b
-        """
-        effective_depth = self.reinforcement.effective_depth  # cm
-        stress_block_depth = self.reinforcement.stress_block_depth  # cm
-        design_shear = self.reinforcement.design_shear  # kN
-        if (
-            effective_depth is None
-            or stress_block_depth is None
-            or design_shear is None
-        ):
-            raise ValueError(
-                "Effective depth, stress block depth and design shear must be set before the outer support check."
-            )
-        support_moment = self.reinforcement.support_moment(support_index)  # kN.m
-        design_moment = design_effort_elu(support_moment * 100)  # kN.cm
-        lever_arm = effective_depth - stress_block_depth / 2  # cm
-        shear_force = (self.moment_shift / effective_depth) * design_shear  # kN
-        force = max(design_moment / lever_arm, 0.0) + shear_force  # kN
-        required = force / self.steel.fyd  # cm²
-        provided = self.reinforcement.area  # cm²
-        log_property(
-            f"Outer support force (F_sd = M_Sd / z + (a_l / d) V_Sd) = {force:.2f} kN; A_s = {provided:.3f} cm² >= {required:.3f} cm²"
-        )
-        if provided < required:
-            error_message = f"Reinforcement at the outer support ({provided:.3f} cm²) is below F_sd / f_yd ({required:.3f} cm²)."
-            log_operation(error_message)
-            raise ValueError(error_message)
 
     @property
     def outer_support_anchorage_length(self) -> float:

@@ -91,7 +91,6 @@ class TestSupportAreaShare:
             (0.0, 1 / 3),  # null → 1/3
             (-25.0, 1 / 3),  # |M| = 0.5 M_vão → 1/3
             (-30.0, 1 / 4),  # |M| > 0.5 M_vão → 1/4
-            (10.0, 1 / 3),  # positive → 1/3 (conservative)
         ],
     )
     def test_share(self, support_moment: float, share: float) -> None:
@@ -146,6 +145,26 @@ class TestCarrySpanBarsToSupports:
         _run(reinforcement)
         assert reinforcement.extended == [(0, 0, True), (1, 0, True), (0, 1, False)], (
             "the right support (1/4) only needs layer 0; the left (1/3) needs both"
+        )
+
+    def test_positive_support_moment_is_skipped(self) -> None:
+        """M_apoio > 0 on the right support: its bars come from the section's design"""
+        reinforcement = _reinforcement(
+            [_layer(0, 1), _layer(1, 2)], 4.0, support_moments=(0.0, 10.0)
+        )
+        _run(reinforcement)
+        assert reinforcement.extended == [(0, 0, True), (1, 0, True)], (
+            "only the left support (null moment) gets extended layers"
+        )
+
+    def test_numerically_null_support_moment_is_checked(self) -> None:
+        """A support moment within the tolerance reads as null (1/3)"""
+        reinforcement = _reinforcement(
+            [_layer(0, 2)], 4.0, support_moments=(1e-6, 1e-6)
+        )
+        _run(reinforcement)
+        assert reinforcement.extended == [(0, 0, True), (0, 1, False)], (
+            "a null moment still carries the bars to both supports"
         )
 
     def test_reaching_layers_count(self) -> None:

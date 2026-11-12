@@ -274,6 +274,27 @@ class TestBuildBars:
             "Area ratio should be the required over the provided area",
         )
 
+    def test_stacked_reinforcement_numbers_layers_after_its_base(
+        self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
+    ) -> None:
+        """A 1φ10 stacked on the two-layer base becomes layer 2, at its own height"""
+        stacked = Reinforcement(
+            structural_beam,
+            is_bottom_reinforcement=True,
+            center_position=20.0,
+            stacked_on=bottom_reinforcement,
+        )
+        stacked.required_area = 0.5  # cm²
+        layer = stacked.chosen_bars[0]
+        layer.bars = [_bar(10, 10.0, 60.0)]
+        layer.y_centroid_position = 12.5  # cm
+        detailing = build_detailing_beam(
+            _beam(structural_beam, [bottom_reinforcement, stacked])
+        )
+        bar = _run(detailing.bars, 2, 10)
+        assert (bar.start, bar.end) == (10.0, 80.0), "20 − 10 to 20 + 60 cm"
+        assert_approx(bar.y, 12.5, "a single bar's axis is the layer centroid (cm)")
+
 
 class TestBuildClamps:
     """One clamp set per side, even when several layers share it."""

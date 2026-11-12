@@ -845,7 +845,9 @@ class TestExtendLayerToSupport:
         self, two_span_reinforcement: Reinforcement
     ) -> None:
         layer = two_span_reinforcement.chosen_bars[0]
-        layer.set_clamps(True, Clamps(diameter=6.3, quantity=1, length=10.0, width=10.0))
+        layer.set_clamps(
+            True, Clamps(diameter=6.3, quantity=1, length=10.0, width=10.0)
+        )
         assert two_span_reinforcement.layer_reaches_support(0, 0, left=True), (
             "clamps on a side mean the bars are anchored in its support"
         )
@@ -867,6 +869,103 @@ class TestExtendLayerToSupport:
         self, two_span_reinforcement: Reinforcement
     ) -> None:
         layer = two_span_reinforcement.chosen_bars[0]
-        layer.set_clamps(False, Clamps(diameter=6.3, quantity=1, length=10.0, width=10.0))
+        layer.set_clamps(
+            False, Clamps(diameter=6.3, quantity=1, length=10.0, width=10.0)
+        )
         two_span_reinforcement.extend_layer_to_support(0, 1, left=False)
         assert layer.right_clamps is None, "10φ past the face needs no clamps"
+
+
+def _support_point(
+    base: Reinforcement, stacked: bool, required_area: float = 1.0
+) -> Reinforcement:
+    """Size bars at the left end support's inner face (10 cm) of the base's beam"""
+    reinforcement = Reinforcement(
+        base.beam,
+        is_bottom_reinforcement=True,
+        center_position=10.0,
+        id="S",
+        anchored_support=0,
+        stacked_on=base if stacked else None,
+    )
+    reinforcement.moment_shift = 28.0  # cm
+    reinforcement.effective_depth = 55.0  # cm
+    reinforcement.design_shear = 100.0  # kN
+    reinforcement.set_required_area(required_area)
+    return reinforcement
+
+
+class TestAnchoredSupportPoint:
+    """A point on a support's inner face anchors inside it and runs into the span."""
+
+    def test_anchored_inside_the_support(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        point = _support_point(two_span_reinforcement, stacked=False)
+        for bar in _bars(point):
+            assert bar.left_length > 0, "the bars enter the support past its face"
+            assert point.center_position - bar.left_length >= -10.0, (
+                "the bars stay inside the pillar (-10..10 cm)"
+            )
+        assert point.layer_reaches_support(0, 0, left=True), (
+            "the bars are anchored inside the support (18.3.2.4.1)"
+        )
+
+    def test_runs_into_the_span(self, two_span_reinforcement: Reinforcement) -> None:
+        """Towards the span: at least a_l = 28 cm plus l_b,nec"""
+        point = _support_point(two_span_reinforcement, stacked=False)
+        right_summary = next(a for a in point.anchorages if a.side == "right")
+        for bar in _bars(point):
+            assert bar.right_length >= 28.0 + right_summary.necessary_length - 1e-9, (
+                "the span side is anchored like an interest point"
+            )
+
+
+class TestStackedReinforcement:
+    """A reinforcement stacked on another one starts after the base's last layer."""
+
+    def test_first_layer_index(self, two_span_reinforcement: Reinforcement) -> None:
+        point = _support_point(two_span_reinforcement, stacked=True)
+        assert point.first_layer_index == 1, "the base fills layer 0"
+        assert len(point.chosen_bars) == APP_CONFIG.max_layers - 1, (
+            "only the layers left after the base's are available"
+        )
+
+    def test_unstacked_starts_at_zero(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        point = _support_point(two_span_reinforcement, stacked=False)
+        assert point.first_layer_index == 0, "no base: the first layer is 0"
+
+    def test_layer_sits_above_the_base(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        """Base edge (1.6 cm) + spacing for the larger φ + half the new φ"""
+        point = _support_point(two_span_reinforcement, stacked=True)
+        base_layer = two_span_reinforcement.chosen_bars[0]
+        new_diameter = max(b.diameter_mm for b in point.chosen_bars[0].bars) / 10
+        spacing = Reinforcement.get_vertical_spacing(max(1.6, new_diameter))
+        expected = base_layer.y_centroid_position - 0.8 + 1.6 + spacing
+        expected += new_diameter / 2
+        assert_approx(
+            point.chosen_bars[0].y_centroid_position,
+            expected,
+            "y of the stacked layer from the bottom face (cm)",
+        )
+
+    def test_same_covering_as_the_base(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        point = _support_point(two_span_reinforcement, stacked=True)
+        assert_approx(
+            point.effective_covering(),
+            two_span_reinforcement.effective_covering(),
+            "the stacked bars sit inside the same stirrup (cm)",
+        )
+
+    def test_no_layer_left_raises(
+        self, two_span_reinforcement: Reinforcement, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "max_layers", 1)
+        with pytest.raises(ValueError, match="No layer left"):
+            _support_point(two_span_reinforcement, stacked=True)

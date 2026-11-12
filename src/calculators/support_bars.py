@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from src.logger import log_operation, log_property
 from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE, Reinforcement
 
+ZERO_MOMENT_TOLERANCE = 1e-3  # kN.m, support moments up to this are read as null
 LARGE_NEGATIVE_SUPPORT_RATIO = 0.5  # |M_apoio| / M_vão above which 1/4 applies
 SHARE_SMALL_SUPPORT_MOMENT = 1 / 3
 SHARE_LARGE_NEGATIVE_SUPPORT_MOMENT = 1 / 4
@@ -31,10 +32,11 @@ class SpanRange:
 def support_area_share(support_moment: float, span_moment: float) -> float:
     """Return the share of the span's area the bars carried to a support must reach
 
-    One quarter when the support moment is negative and its absolute value exceeds half the span moment; one third otherwise (a positive support moment keeps one third, the stricter share).
+    One quarter when the support moment is negative and its absolute value exceeds half the span moment; one third when it is null or a smaller negative one.
 
     Args:
-        support_moment: Characteristic moment on the support (kN.m), signed.
+        support_moment: Characteristic moment on the support (kN.m), null or
+            negative; a positive one is not covered by this rule.
         span_moment: Characteristic maximum positive moment of the span (kN.m).
 
     References:
@@ -54,7 +56,7 @@ def carry_span_bars_to_supports(
 ) -> None:
     """Extend each span's bottom layers into its supports until they carry the required share
 
-    For each span, the bottom reinforcement of its greatest positive moment is checked at both supports. The layers already anchored inside a support count towards the share; while the share is not met, the next layer that does not reach the support (layer 0 first) is extended into it.
+    For each span, the bottom reinforcement of its greatest positive moment is checked at both supports. A support with a positive moment is skipped: its bars come from that section's own design. Otherwise, the layers already anchored inside a support count towards the share; while the share is not met, the next layer that does not reach the support (layer 0 first) is extended into it.
 
     Args:
         reinforcements: The beam's chosen reinforcements, of every interest point.
@@ -67,14 +69,14 @@ def carry_span_bars_to_supports(
         ABNT NBR 6118:2026 — Sections 18.3.2.4-c and 18.3.2.4.1
     """
     for span in spans:
-        reinforcement = _span_reinforcement(reinforcements, span)
+        reinforcement = span_reinforcement(reinforcements, span)
         if reinforcement is None:
             continue
         _carry_to_support(reinforcement, span.start_support_index, left=True)
         _carry_to_support(reinforcement, span.end_support_index, left=False)
 
 
-def _span_reinforcement(
+def span_reinforcement(
     reinforcements: Sequence[Reinforcement], span: SpanRange
 ) -> Reinforcement | None:
     """Return the span's positive bottom reinforcement with the greatest span moment, or None"""
@@ -106,6 +108,11 @@ def _carry_to_support(
             f"Reinforcement at {reinforcement.center_position:.2f} cm has no required area or span moment."
         )
     support_moment = reinforcement.support_moment(support_index)  # kN.m
+    if support_moment > ZERO_MOMENT_TOLERANCE:
+        log_operation(
+            f"Support {support_index} has a positive moment ({support_moment:.2f} kN.m); its bars come from the section's own design, none are extended."
+        )
+        return
     share = support_area_share(support_moment, reinforcement.span_moment)
     required = share * reinforcement.required_area  # cm²
 

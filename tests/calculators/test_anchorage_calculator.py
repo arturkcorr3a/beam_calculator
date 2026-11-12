@@ -9,7 +9,6 @@ import pytest
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.config import APP_CONFIG
-from src.loading.forces import LOAD_FACTOR
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
@@ -986,40 +985,6 @@ class TestReachedSupport:
         )
 
 
-class TestOuterSupportForce:
-    """Tests for A_s >= F_sd / f_yd, F_sd = M_Sd / z + (a_l / d) V_Sd (kN)."""
-
-    def test_negative_moment_keeps_shear_term(self, layer_16mm_good: Layer) -> None:
-        """F_sd = (28 / 40) · 100 = 70 kN → 1.61 cm² <= 2.0 cm²"""
-        ac = _make_support_ac(layer_16mm_good, 30.0, support_moments=(-30.0, 0.0, 0.0))
-        ac.left = True
-        ac._check_outer_support_force(0)  # pyright: ignore[reportPrivateUsage]
-
-    def test_negative_moment_low_area_raises(self, layer_16mm_good: Layer) -> None:
-        """70 kN / 43.48 kN/cm² = 1.61 cm² > 1.5 cm²"""
-        ac = _make_support_ac(
-            layer_16mm_good, 30.0, support_moments=(-30.0, 0.0, 0.0), area=1.5
-        )
-        ac.left = True
-        with pytest.raises(ValueError, match="F_sd"):
-            ac._check_outer_support_force(0)  # pyright: ignore[reportPrivateUsage]
-
-    def test_positive_moment_adds_to_force(self, layer_16mm_good: Layer) -> None:
-        """M_Sd = 10 · 100 · γ_f kN.cm over z = 40 - 8/2 = 36 cm adds to 70 kN"""
-        lever_arm = _SUPPORT_EFFECTIVE_DEPTH - _SUPPORT_STRESS_BLOCK_DEPTH / 2  # cm
-        force = 10.0 * 100 * LOAD_FACTOR / lever_arm + 70.0  # kN
-        required = force / Steel.CA50.fyd  # cm²
-        ac = _make_support_ac(
-            layer_16mm_good,
-            30.0,
-            support_moments=(10.0, 0.0, 0.0),
-            area=required - 0.01,
-        )
-        ac.left = True
-        with pytest.raises(ValueError, match="F_sd"):
-            ac._check_outer_support_force(0)  # pyright: ignore[reportPrivateUsage]
-
-
 class TestOuterSupportAnchorageLength:
     """Tests for max(l_b,nec, r + 5.5φ, 6 cm) past the inner face (cm)."""
 
@@ -1271,16 +1236,6 @@ class TestAnchorIntoSupport:
         expected = 110.0 + ac.outer_support_anchorage_length  # cm
         for bar in layer_16mm_good.bars:
             assert_approx(bar.left_length, expected, "Face distance + past face (cm)")
-
-    def test_outer_support_skips_force_check(self, layer_16mm_good: Layer) -> None:
-        ac = _make_support_ac(
-            layer_16mm_good, 150.0, left_support=Support(0.0, -40.0, 40.0)
-        )
-        with patch.object(
-            AnchorageCalculator, "_check_outer_support_force"
-        ) as force_check:
-            ac.anchor_into_support(0, 147.0, left=True, allow_clamp=False)
-        force_check.assert_not_called()
 
     def test_outer_support_clamps(self, layer_16mm_good: Layer) -> None:
         """Support -10..10: room 17.5 cm, 15.7 cm with the hook cover"""

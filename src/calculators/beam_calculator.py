@@ -5,17 +5,22 @@ from typing import TYPE_CHECKING, cast
 from src.analysis.beam_analysis import BeamAnalysis
 from src.analysis.model import BeamSupport, DistributedLoad
 from src.analysis.solver import analyse_beam
+from src.calculators.outer_support_bars import OuterSupport, anchor_outer_supports
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.calculators.stirrup_rebar_coordinator import coordinate_span
-from src.calculators.support_bars import SpanRange, carry_span_bars_to_supports
+from src.calculators.support_bars import (
+    SpanRange,
+    carry_span_bars_to_supports,
+    span_reinforcement,
+)
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
 from src.loading.forces import design_effort_elu
 from src.logger import log_operation, logger_label
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.geometry_utils import Axis
-from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE
+from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE, Reinforcement
 from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rectangular_beam import RectangularBeam
 from src.structural_elements.support import Support
@@ -24,6 +29,7 @@ if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam
     from src.pavement_elements.pillar import Pillar
 
+SHEAR_SAMPLE_OFFSET = 0.1  # cm, inside the span, away from the support discontinuity
 SUPPORT_SPLIT_OFFSET = (
     0.01  # cm, shift of an interior-support point into each adjacent span
 )
@@ -46,7 +52,7 @@ class BeamCalculator:
     def run(self) -> None:
         """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points and distributes the stirrups in zones along the span.
 
-        Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation. Once chosen, each span's bottom bars are extended into its supports where needed (see ``carry_span_bars_to_supports``).
+        Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation. Once chosen, each span's bottom bars are extended into its supports where needed (see ``carry_span_bars_to_supports``), and then the end supports get the bars they lack to anchor the compression strut (see ``anchor_outer_supports``).
         """
         supports = self._build_supports()
         loads = self._build_loads()
@@ -62,6 +68,7 @@ class BeamCalculator:
         self._build_stirrups(structural_beam, analysis)
 
         results: list[tuple[float, RebarCalculator]] = []
+        span_calculators: list[list[RebarCalculator]] = []
         for span, start, end in self._span_ranges():
             points = [
                 (position, moment)
@@ -87,6 +94,7 @@ class BeamCalculator:
                     )
                 )
             coordinate_span(calculators, span.stirrups)
+            span_calculators.append(calculators)
             span.stirrups.distribute(analysis, start, end)
             results.extend(
                 (position, calculator)
@@ -101,6 +109,75 @@ class BeamCalculator:
             self._beam.rebar_calculators.append(calculator)
             self._verify_deformation(structural_beam, analysis, calculator, position)
         carry_span_bars_to_supports(self._beam.reinforcement, self._support_spans())
+        self._beam.reinforcement += anchor_outer_supports(
+            structural_beam,
+            self._beam.reinforcement,
+            self._outer_supports(
+                structural_beam,
+                analysis,
+                span_calculators,
+                moment_zeros,
+                support_moments,
+            ),
+        )
+
+    def _outer_supports(
+        self,
+        structural_beam: RectangularBeam,
+        analysis: BeamAnalysis,
+        span_calculators: list[list[RebarCalculator]],
+        moment_zeros: tuple[float, ...],
+        support_moments: tuple[float, ...],
+    ) -> list[OuterSupport]:
+        """Collect the efforts and section data at the beam's end supports
+
+        V_Sd is the design shear just inside the span (SHEAR_SAMPLE_OFFSET from the support). The section data come from the span's positive bars or, without them, from the span's point with the smallest d (the one its stirrups were sized for).
+
+        Args:
+            span_calculators: Each span's coordinated calculators, left to right.
+            moment_zeros: Positions along the beam where the moment is zero (cm).
+            support_moments: Characteristic moment on each support (kN.m).
+        """
+        spans = self._support_spans()
+        candidates = [(spans[0], 0, 1.0), (spans[-1], len(spans), -1.0)]
+        outer: list[OuterSupport] = []
+        for span, support_index, direction in candidates:
+            support = structural_beam.supports[support_index]
+            if not support.is_extremity(structural_beam.length):
+                continue
+            if any(o.support_index == support_index for o in outer):
+                continue
+            source = self._section_source(span, span_calculators[spans.index(span)])
+            shear = analysis.shear_force(
+                support.center + direction * SHEAR_SAMPLE_OFFSET
+            )  # kN
+            outer.append(
+                OuterSupport(
+                    support_index=support_index,
+                    span=span,
+                    support_moment=support_moments[support_index],
+                    design_shear=design_effort_elu(abs(shear)),
+                    effective_depth=cast(float, source.effective_depth),
+                    stress_block_depth=cast(float, source.stress_block_depth),
+                    moment_shift=cast(float, source.moment_shift),
+                    stirrup_diameter=cast(float, source.stirrup_diameter),
+                    moment_zeros=moment_zeros,
+                )
+            )
+        return outer
+
+    def _section_source(
+        self, span: SpanRange, calculators: list[RebarCalculator]
+    ) -> Reinforcement:
+        """Return the reinforcement whose d, y, a_l and stirrup diameter describe the span at its end support
+
+        The span's positive bars, if stored; otherwise the tensioned bars of the span's point with the smallest d.
+        """
+        positive = span_reinforcement(self._beam.reinforcement, span)
+        if positive is not None:
+            return positive
+        smallest = min(calculators, key=lambda calculator: calculator.d)
+        return smallest.tensioned_reinforcement
 
     def _support_spans(self) -> list[SpanRange]:
         """Returns each span's extent with the indices of its supports, left to right; span i rests on supports i and i + 1."""
