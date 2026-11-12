@@ -117,8 +117,9 @@ class Reinforcement:
         if self.moment_shift is None:
             raise ValueError("Moment shift must be set before choosing reinforcement.")
 
-        rebar_chooser = RebarChooser(self.steel, self.required_area)
-        self.rebar_choice_options = rebar_chooser.ranked_solutions
+        self.rebar_choice_options = RebarChooser.instance().ranked_solutions(
+            self.steel, self.required_area
+        )
 
         best_layers = self._select_best_layers(allow_clamp=False)
         if best_layers is None:

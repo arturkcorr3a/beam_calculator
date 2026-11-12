@@ -50,8 +50,10 @@ def span_calculator(beam: RectangularBeam) -> RebarCalculator:
 
 def _bar_count(required_area: float) -> int:
     """Number of phi 12.5 mm bars the engine chooses for an area (cm²)"""
-    chooser = RebarChooser(Steel.CA50, required_area)
-    return len(chooser.get_best_solution_for_combo((BAR_DIAMETER,)))
+    chooser = RebarChooser.instance()
+    return len(
+        chooser.get_best_solution_for_combo(Steel.CA50, required_area, (BAR_DIAMETER,))
+    )
 
 
 class TestSupportSection:
