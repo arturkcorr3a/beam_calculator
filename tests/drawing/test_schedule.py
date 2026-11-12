@@ -1,4 +1,4 @@
-"""Tests for the schedule, summary, notes and title block, and their place on the sheets."""
+"""Tests for the summary, legend and title block, and their place on the sheets."""
 
 import datetime
 from pathlib import Path
@@ -16,8 +16,6 @@ from src.drawing.layers import LAYERS
 from src.drawing.layout import build_beam_drawing, build_pavement_drawing
 from src.drawing.primitives import Drawing, Text
 from src.drawing.schedule_layout import (
-    note_lines,
-    schedule_table,
     summary_table,
     title_block,
 )
@@ -35,29 +33,7 @@ def _texts(drawing: Drawing) -> list[str]:
 
 
 class TestTables:
-    """Bar schedule and materials summary (§6.9)."""
-
-    def test_schedule(self, v5: DetailingBeam) -> None:
-        texts = _texts(schedule_table(build_schedule([v5]), CONFIG))
-        assert texts[:6] == [
-            "QUADRO DE FERROS",
-            "POS",
-            "φ (mm)",
-            "QUANT",
-            "C. UNIT (cm)",
-            "C. TOTAL (cm)",
-        ], "Title and headers"
-        assert texts[6:11] == ["N1", "10", "2", "136", "272"], "First row"
-        assert "10400" in texts, "80 N9 stirrups × 130 cm"
-        marks = [text for text in texts if text.startswith("N")]
-        assert marks == [f"N{n}" for n in range(1, 15)], "One row per mark, in order"
-
-    def test_schedule_width(self, v5: DetailingBeam) -> None:
-        drawing = schedule_table(build_schedule([v5]), CONFIG)
-        x_min, _, x_max, _ = drawing.bounds()
-        assert x_max - x_min >= CONFIG.paper(13 + 13 + 15 + 24 + 26) - 1e-9, (
-            "At least the spec's column widths"
-        )
+    """Materials summary (§6.9)."""
 
     def test_summary(self, v5: DetailingBeam) -> None:
         quantities = build_quantities([v5])
@@ -90,32 +66,6 @@ class TestTables:
         assert corners[1][0] - corners[0][0] < CONFIG.paper(20.0), (
             "Header fits its column"
         )
-
-
-class TestNotes:
-    """Notes of §6.10."""
-
-    def test_full(self) -> None:
-        assert note_lines("CA-50", "C30", "II", [2.5]) == [
-            "1. Medidas em cm; bitolas (φ) em mm.",
-            "2. Aço CA-50; concreto C30, classe de agressividade II.",
-            "3. Cobrimento nominal c = 2,5 cm.",
-            "4. Comprimentos de corte líquidos, sem perdas.",
-            "5. Estribos fechados de 2 ramos, ganchos a 135°.",
-        ], "The five notes"
-
-    def test_missing_data_left_out(self) -> None:
-        assert note_lines("CA-50", None, None, [2.5])[1] == "2. Aço CA-50.", (
-            "Only the steel"
-        )
-        assert note_lines("CA-50", None, "II", [2.5])[1] == (
-            "2. Aço CA-50; classe de agressividade II."
-        ), "Steel and exposure class"
-
-    def test_distinct_covers(self) -> None:
-        assert note_lines("CA-50", "C30", "II", [3.0, 2.5, 2.5, 4.0])[2] == (
-            "3. Cobrimentos nominais c = 2,5, 3 e 4 cm."
-        ), "Each distinct cover once"
 
 
 class TestSheetInfo:
@@ -176,13 +126,13 @@ class TestSheets:
     def test_beam_sheet(self, v5: DetailingBeam) -> None:
         texts = _texts(build_beam_drawing(v5, CONFIG, sheet=SHEET))
         for expected in (
-            "QUADRO DE FERROS",
             "RESUMO CA-50",
-            "NOTAS",
             "LEGENDA",
             "VIGA V5",
         ):
             assert expected in texts, f"The beam sheet has {expected}"
+        assert "QUADRO DE FERROS" not in texts, "No bar schedule"
+        assert "NOTAS" not in texts, "No numbered notes"
         assert "19 × 50 cm · CA-50 · c 2,5" in texts, "Section field"
         assert "V5.dxf" in texts, "File name"
         assert "07/11/2026" in texts, "Date"
@@ -196,7 +146,9 @@ class TestSheets:
     def test_pavement_sheet(self, v5: DetailingBeam) -> None:
         drawing = build_pavement_drawing(fake_pavement(v5), CONFIG, sheet=SHEET)
         texts = _texts(drawing)
-        assert texts.count("QUADRO DE FERROS") == 1, "One general schedule"
+        assert "QUADRO DE FERROS" not in texts, "No bar schedule"
+        assert "NOTAS" not in texts, "No numbered notes"
+        assert texts.count("RESUMO CA-50") == 1, "One general summary"
         for expected in ("VIGAS DO PAVIMENTO", "FOLHA 1/1", "t_demo", "CA-50 · c 2,5"):
             assert expected in texts, f"The pavement sheet has {expected}"
 
@@ -217,8 +169,9 @@ class TestDxfRoundTrip:
         texts = {
             entity.dxf.text for entity in doc.modelspace() if entity.dxftype() == "TEXT"
         }
+        words = {word for text in texts for word in text.split()}
         marks = {row.mark for row in t_concreto2.bar_schedule()}
-        assert marks <= texts, "Every mark of the schedule is a TEXT"
+        assert marks <= words, "Every mark of the schedule is in a TEXT"
         assert "t_concreto2.dxf" in texts, "The title block names the file"
 
     def test_beams(self, t_concreto2: Pavement, tmp_path: Path) -> None:
@@ -230,7 +183,8 @@ class TestDxfRoundTrip:
                 for entity in doc.modelspace()
                 if entity.dxftype() == "TEXT"
             }
+            words = {word for text in texts for word in text.split()}
             marks = {row.mark for row in build_schedule([beam])}
-            assert marks <= texts, f"{beam.beam_id}: every mark of its schedule"
+            assert marks <= words, f"{beam.beam_id}: every mark is labelled"
             layers = {entity.dxf.layer for entity in doc.modelspace()}
             assert layers <= set(LAYERS), f"{beam.beam_id}: only the table's layers"

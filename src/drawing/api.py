@@ -142,7 +142,7 @@ def export_beam_dxf(
     *,
     pavement_name: str | None = None,
 ) -> Path:
-    """Write one beam's sheet, with its schedule, summary, notes and title block, to a DXF file
+    """Write one beam's sheet, with its summary, legend and title block, to a DXF file
 
     Returns:
         The path written.

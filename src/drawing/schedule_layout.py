@@ -1,4 +1,4 @@
-"""Tables and texts of the sheet: bar schedule, materials summary, notes, line legend and title block
+"""Tables and texts of the sheet: materials summary, line legend and title block
 
 Every block is drawn with its top left corner at the origin; the layout moves it into
 place. See docs/especificacao_desenho.md, §6.9 to §6.11.
@@ -6,14 +6,12 @@ place. See docs/especificacao_desenho.md, §6.9 to §6.11.
 
 from collections.abc import Sequence
 
-from src.detailing.bar_schedule import ScheduleRow
 from src.detailing.quantities import SteelQuantity
 from src.drawing.config import DrawingConfig
 from src.drawing.formatting import (
     PHI,
     fmt_dec,
     fmt_diam,
-    fmt_len,
     text_width,
 )
 from src.drawing.layers import (
@@ -29,13 +27,6 @@ from src.drawing.layers import (
 )
 from src.drawing.primitives import Drawing, HAlign, Line, Polyline, Text, VAlign
 
-SCHEDULE_COLUMNS_MM: tuple[tuple[str, float], ...] = (
-    ("POS", 13.0),
-    (f"{PHI} (mm)", 13.0),
-    ("QUANT", 15.0),
-    ("C. UNIT (cm)", 24.0),
-    ("C. TOTAL (cm)", 26.0),
-)
 SUMMARY_COLUMNS_MM: tuple[tuple[str, float], ...] = (
     (PHI, 10.0),
     ("COMPR. (m)", 15.0),
@@ -52,7 +43,6 @@ _LINE_PITCH = 1.6  # between text lines, in text heights
 _BLOCK_GAP_MM = 4.0  # from a table to the texts under it
 _SAMPLE_MM = 12.0  # length of a line sample in the legend
 _SAMPLE_GAP_MM = 3.0
-_LEGEND_GAP_MM = 15.0  # from the notes to the legend
 _TITLE_BLOCK_WIDTH_MM = 44.0
 _TITLE_BAND_MM = 7.0
 _FIELD_BAND_MM = 7.0
@@ -138,21 +128,6 @@ def table(
     return drawing
 
 
-def schedule_table(rows: Sequence[ScheduleRow], config: DrawingConfig) -> Drawing:
-    """Return the bar schedule: mark, diameter, quantity, unit and total cut lengths"""
-    cells = [
-        [
-            row.mark,
-            fmt_diam(row.diameter_mm),
-            str(row.quantity),
-            fmt_len(row.unit_length),
-            fmt_len(row.total_length),
-        ]
-        for row in rows
-    ]
-    return table("QUADRO DE FERROS", SCHEDULE_COLUMNS_MM, cells, config)
-
-
 def summary_table(
     steel_name: str,
     steel: Sequence[SteelQuantity],
@@ -191,61 +166,17 @@ def summary_table(
     return drawing
 
 
-def note_lines(
-    steel_name: str,
-    concrete: str | None,
-    exposure_class: str | None,
-    covers: Sequence[float],
-) -> list[str]:
-    """Return the sheet's notes, numbered; the parts without data are left out
+def legend_block(layers_in_use: Sequence[str], config: DrawingConfig) -> Drawing:
+    """Return the legend of the line types in use
 
     Args:
-        steel_name: Name of the steel as written on the sheet (CA-50).
-        covers: The distinct nominal covers of the beams (cm).
-    """
-    material = f"Aço {steel_name}"
-    if concrete is not None:
-        material += f"; concreto {concrete}"
-        if exposure_class is not None:
-            material += f", classe de agressividade {exposure_class}"
-    elif exposure_class is not None:
-        material += f"; classe de agressividade {exposure_class}"
-    distinct = sorted(set(covers))
-    if len(distinct) == 1:
-        cover = f"Cobrimento nominal c = {fmt_len(distinct[0])} cm."
-    else:
-        values = " e ".join(
-            [", ".join(fmt_len(c) for c in distinct[:-1]), fmt_len(distinct[-1])]
-        )
-        cover = f"Cobrimentos nominais c = {values} cm."
-    notes = [
-        f"Medidas em cm; bitolas ({PHI}) em mm.",
-        f"{material}.",
-        cover,
-        "Comprimentos de corte líquidos, sem perdas.",
-        "Estribos fechados de 2 ramos, ganchos a 135°.",
-    ]
-    return [f"{index}. {note}" for index, note in enumerate(notes, start=1)]
-
-
-def notes_block(
-    notes: Sequence[str], layers_in_use: Sequence[str], config: DrawingConfig
-) -> Drawing:
-    """Return the notes and, on their right, the legend of the line types in use
-
-    Args:
-        notes: The numbered notes.
         layers_in_use: The drawing's layers; the legend shows the ones in ``LEGEND_LAYERS``.
     """
     paper = config.paper
     label = paper(config.text_heights_mm.label)
     pitch = _LINE_PITCH * label
-    drawing = Drawing([Text((0.0, 0.0), "NOTAS", label, TABLE)])
-    for index, note in enumerate(notes, start=1):
-        drawing.add(Text((0.0, -index * pitch), note, label, TABLE))
-    widest = max((text_width(note, label) for note in notes), default=0.0)
-    x = widest + paper(_LEGEND_GAP_MM)
-    drawing.add(Text((x, 0.0), "LEGENDA", label, TABLE))
+    drawing = Drawing([Text((0.0, 0.0), "LEGENDA", label, TABLE)])
+    x = 0.0
     sample = paper(_SAMPLE_MM)
     shown = [name for name in LEGEND_LAYERS if name in layers_in_use]
     for index, name in enumerate(shown, start=1):

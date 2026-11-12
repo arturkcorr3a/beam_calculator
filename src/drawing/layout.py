@@ -5,7 +5,6 @@ from the beam's bottom face. Paper lengths (mm) go through ``DrawingConfig.paper
 See docs/especificacao_desenho.md, §6 and §7.
 """
 
-from src.detailing.bar_schedule import build_schedule
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.quantities import build_quantities
 from src.drawing.annotations import (
@@ -47,9 +46,7 @@ from src.drawing.primitives import (
     Text,
 )
 from src.drawing.schedule_layout import (
-    note_lines,
-    notes_block,
-    schedule_table,
+    legend_block,
     summary_table,
     title_block,
 )
@@ -85,7 +82,7 @@ _CUT_LETTER_ABOVE_MM = 1.2
 _CUT_LETTER_BELOW_MM = 3.5
 _PAVEMENT_GAP_MM = 30.0
 _PAVEMENT_BLOCK_GAP_MM = 15.0  # between the pavement's closing blocks
-_NOTES_BELOW_MM = 20.0  # from the bar rows to the notes
+_LEGEND_BELOW_MM = 20.0  # from the bar rows to the legend
 _COLUMN_GAP_MM = 12.0  # between the blocks of the right column
 
 
@@ -99,8 +96,8 @@ def build_beam_drawing(
     """Return the drawing of one beam
 
     Args:
-        standalone: Whether the sheet has its own schedule, summary, notes and title block; the pavement sheet leaves them out.
-        sheet: Data for the notes and the title block; None reads it from APP_CONFIG.
+        standalone: Whether the sheet has its own summary, legend and title block; the pavement sheet leaves them out.
+        sheet: Data for the title block; None reads it from APP_CONFIG.
     """
     drawing = Drawing()
     y_bot = pillar_bottom(detailing, config)
@@ -120,17 +117,13 @@ def build_beam_drawing(
         return drawing
     info = sheet or read_sheet_info()
     steel_name = fmt_steel(detailing.steel.name)
-    notes = note_lines(
-        steel_name, info.concrete, info.exposure_class, [detailing.nominal_covering]
-    )
     drawing.extend(
-        notes_block(notes, drawing.layers(), config).translated(
-            detailing.start, axis_bottom - config.paper(_NOTES_BELOW_MM)
+        legend_block(drawing.layers(), config).translated(
+            detailing.start, axis_bottom - config.paper(_LEGEND_BELOW_MM)
         )
     )
     quantities = build_quantities([detailing])
     column = [
-        schedule_table(build_schedule([detailing]), config),
         summary_table(
             steel_name,
             quantities.steel,
@@ -160,12 +153,12 @@ def build_pavement_drawing(
     *,
     sheet: SheetInfo | None = None,
 ) -> Drawing:
-    """Return the drawing of every detailed beam of a pavement, then its schedule, summary, notes and title block
+    """Return the drawing of every detailed beam of a pavement, then its summary, legend and title block
 
     Every beam starts at x = 0, and the top of each beam's drawing sits 30 mm of paper below the lowest item of the previous one. The closing blocks go side by side, 30 mm under the last beam.
 
     Args:
-        sheet: Data for the notes and the title block; None reads it from APP_CONFIG.
+        sheet: Data for the title block; None reads it from APP_CONFIG.
     """
     drawing = Drawing()
     bottom: float | None = None
@@ -186,7 +179,6 @@ def build_pavement_drawing(
     covers = [detailing.nominal_covering for detailing in detailings]
     quantities = pavement.quantities()
     blocks = [
-        schedule_table(pavement.bar_schedule(), config),
         summary_table(
             steel_name,
             quantities.steel,
@@ -194,11 +186,7 @@ def build_pavement_drawing(
             quantities.formwork_m2,
             config,
         ),
-        notes_block(
-            note_lines(steel_name, info.concrete, info.exposure_class, covers),
-            drawing.layers(),
-            config,
-        ),
+        legend_block(drawing.layers(), config),
         title_block(
             "VIGAS DO PAVIMENTO",
             sheet_fields(info, f"{steel_name} · c {_covers_text(covers)}", config),
