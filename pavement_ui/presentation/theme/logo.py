@@ -1,11 +1,11 @@
-"""Logo assets from ``resources/beam_calculator_logo``; missing files give null images."""
+"""Logo assets from ``resources/logo``; missing files give null images."""
 
 from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QImage, QPixmap
 
-_LOGO_DIR = Path(__file__).parents[3] / "resources" / "beam_calculator_logo" / "png"
+_LOGO_DIR = Path(__file__).parents[3] / "resources" / "logo" / "png"
 _HORIZONTAL_FILE = "horizontal/beam-horizontal-color@2x.png"
 _SYMBOL_FILE = "symbol/beam-symbol-color-512.png"
 _ICON_FILES = (

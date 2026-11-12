@@ -55,7 +55,7 @@ UNITS_TEXT = "Cotas em cm"
 WARNING = "DOCUMENTO ACADÊMICO — NÃO VÁLIDO PARA EXECUÇÃO"
 LOGO_PATH = (
     Path(__file__).resolve().parents[2]
-    / "resources/beam_calculator_logo/png/vertical/beam-vertical-color@4x.png"
+    / "resources/logo/png/vertical/beam-vertical-color@4x.png"
 )
 
 FYK_MPA = {"CA-25": 250, "CA-50": 500, "CA-60": 600}
