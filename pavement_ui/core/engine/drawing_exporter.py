@@ -14,6 +14,7 @@ from src.drawing.primitives import (
     Drawing,
     DrawingItem,
     HAlign,
+    Image,
     Line,
     Polyline,
     Text,
@@ -42,7 +43,7 @@ def _text(shape: TextShape) -> Text:
 
 
 def to_engine_drawing(drawing: VectorDrawing) -> Drawing:
-    """Rebuild the engine's drawing: lines, polylines, circles, then texts"""
+    """Rebuild the engine's drawing: lines, polylines, circles, texts, then images"""
     items: list[DrawingItem] = [
         *(Line(line.start, line.end, line.layer) for line in drawing.lines),
         *(_polyline(shape) for shape in drawing.polylines),
@@ -52,7 +53,10 @@ def to_engine_drawing(drawing: VectorDrawing) -> Drawing:
         ),
         *(_text(shape) for shape in drawing.texts),
     ]
-    return Drawing(items)
+    items.extend(
+        Image(i.position, i.width, i.height, i.path, i.layer) for i in drawing.images
+    )
+    return Drawing(items, drawing.paper_mm)
 
 
 class DxfDrawingExporter:

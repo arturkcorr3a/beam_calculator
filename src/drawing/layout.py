@@ -5,6 +5,8 @@ from the beam's bottom face. Paper lengths (mm) go through ``DrawingConfig.paper
 See docs/especificacao_desenho.md, §6 and §7.
 """
 
+import logging
+
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.quantities import build_quantities
 from src.drawing.annotations import (
@@ -48,11 +50,22 @@ from src.drawing.primitives import (
 from src.drawing.schedule_layout import (
     legend_block,
     summary_table,
-    title_block,
 )
 from src.drawing.sections import section_cuts, sections_block
+from src.drawing.sheet import (
+    FORMATS,
+    BlockContent,
+    SheetFitError,
+    SheetPlacement,
+    build_sheet,
+    check_materials,
+    general_notes,
+    sheet_number,
+    sheet_title,
+)
 from src.drawing.sheet_info import SheetInfo, read_sheet_info
-from src.pavement_elements.pavement import Pavement
+
+logger = logging.getLogger(__name__)
 
 # Heights above the beam's top face of the dimension rows (mm of paper)
 ZONE_ROW_MM = 9.0
@@ -80,8 +93,6 @@ _CUT_HEAD_MM = 0.9
 _CUT_LETTER_SHIFT_MM = 1.0
 _CUT_LETTER_ABOVE_MM = 1.2
 _CUT_LETTER_BELOW_MM = 3.5
-_PAVEMENT_GAP_MM = 30.0
-_PAVEMENT_BLOCK_GAP_MM = 15.0  # between the pavement's closing blocks
 _LEGEND_BELOW_MM = 20.0  # from the bar rows to the legend
 _COLUMN_GAP_MM = 12.0  # between the blocks of the right column
 
@@ -90,14 +101,56 @@ def build_beam_drawing(
     detailing: DetailingBeam,
     config: DrawingConfig = DEFAULT_CONFIG,
     *,
-    standalone: bool = True,
     sheet: SheetInfo | None = None,
 ) -> Drawing:
-    """Return the drawing of one beam
+    """Return the sheet of one beam: its drawing on a paper with frame, notes and title block
+
+    The paper comes from ``config.sheet_format``.
 
     Args:
-        standalone: Whether the sheet has its own summary, legend and title block; the pavement sheet leaves them out.
-        sheet: Data for the title block; None reads it from APP_CONFIG.
+        sheet: Data for the notes and the title block; None reads it from APP_CONFIG.
+
+    Raises:
+        SheetFitError: If a fixed format does not hold the drawing.
+    """
+    info = sheet or read_sheet_info()
+    block = _block_content(detailing, info)
+    summary = beam_summary(detailing, config)
+    sheets: list[tuple[Drawing, SheetPlacement]] = []
+    error: SheetFitError | None = None
+    for below in (False, True):
+        try:
+            sheets.append(
+                build_sheet(
+                    beam_content(detailing, config, below=below), block, config, summary
+                )
+            )
+        except SheetFitError as caught:
+            error = error or caught
+    if not sheets:
+        raise error or SheetFitError("O desenho não cabe na folha.")
+    # The smallest paper wins; on a tie the first layout, with the sections on the right
+    best = min(
+        sheets,
+        key=lambda item: (item[1].overflow, FORMATS.index(item[1].format)),
+    )
+    return best[0]
+
+
+def beam_content(
+    detailing: DetailingBeam,
+    config: DrawingConfig = DEFAULT_CONFIG,
+    *,
+    tables: bool = True,
+    below: bool = False,
+) -> Drawing:
+    """Return the drawing of one beam, off the sheet: elevation, bar rows, sections and legend
+
+    The consumption summary is not part of it: see ``beam_summary``.
+
+    Args:
+        tables: Whether to add the legend.
+        below: Whether the sections go under the bar rows, beside the legend, instead of to the right of the elevation; narrower and taller.
     """
     drawing = Drawing()
     y_bot = pillar_bottom(detailing, config)
@@ -112,125 +165,65 @@ def build_beam_drawing(
     drawing.extend(title(detailing, config))
     drawing.extend(rows.drawing)
     block = sections_block(detailing, config)
-    drawing.extend(block.drawing)
-    if not standalone:
+    if not tables:
+        drawing.extend(block.drawing)
         return drawing
-    info = sheet or read_sheet_info()
-    steel_name = fmt_steel(detailing.steel.name)
-    drawing.extend(
-        legend_block(drawing.layers(), config).translated(
-            detailing.start, axis_bottom - config.paper(_LEGEND_BELOW_MM)
+    legend = legend_block([*drawing.layers(), *block.drawing.layers()], config)
+    legend_top = axis_bottom - config.paper(_LEGEND_BELOW_MM)
+    drawing.extend(legend.translated(detailing.start, legend_top))
+    gap = config.paper(_COLUMN_GAP_MM)
+    if below:
+        drawing.extend(
+            block.drawing.translated(
+                detailing.start + legend.bounds()[2] + gap - block.drawing.bounds()[0],
+                legend_top - block.drawing.bounds()[3],
+            )
         )
-    )
-    quantities = build_quantities([detailing])
-    column = [
-        summary_table(
-            steel_name,
-            quantities.steel,
-            quantities.concrete_m3,
-            quantities.formwork_m2,
-            config,
-        ),
-        title_block(
-            f"VIGA {detailing.beam_id}",
-            sheet_fields(info, _section_text(detailing, steel_name), config),
-            fmt_date(info.date),
-            "",
-            config,
-        ),
-    ]
-    top = block.drawing.bounds()[1] - config.paper(_COLUMN_GAP_MM)
-    for piece in column:
-        top -= piece.bounds()[3]  # room for the piece's title over its origin
-        drawing.extend(piece.translated(block.left, top))
-        top += piece.bounds()[1] - config.paper(_COLUMN_GAP_MM)
+    else:
+        drawing.extend(block.drawing)
     return drawing
 
 
-def build_pavement_drawing(
-    pavement: Pavement,
-    config: DrawingConfig = DEFAULT_CONFIG,
-    *,
-    sheet: SheetInfo | None = None,
+def beam_summary(
+    detailing: DetailingBeam, config: DrawingConfig = DEFAULT_CONFIG
 ) -> Drawing:
-    """Return the drawing of every detailed beam of a pavement, then its summary, legend and title block
+    """Return the consumption summary of one beam: steel by diameter, concrete, formwork and steel ratio
 
-    Every beam starts at x = 0, and the top of each beam's drawing sits 30 mm of paper below the lowest item of the previous one. The closing blocks go side by side, 30 mm under the last beam.
-
-    Args:
-        sheet: Data for the title block; None reads it from APP_CONFIG.
+    The sheet puts it on the right, above the title block.
     """
-    drawing = Drawing()
-    bottom: float | None = None
-    detailings: list[DetailingBeam] = []
-    for beam in pavement.beams.values():
-        if beam.detailing is None:
-            continue
-        detailings.append(beam.detailing)
-        sheet_part = build_beam_drawing(beam.detailing, config, standalone=False)
-        _, y_min, _, y_max = sheet_part.bounds()
-        dy = 0.0 if bottom is None else bottom - config.paper(_PAVEMENT_GAP_MM) - y_max
-        drawing.extend(sheet_part.translated(-beam.detailing.start, dy))
-        bottom = y_min + dy
-    if not detailings or bottom is None:
-        return drawing
-    info = sheet or read_sheet_info()
-    steel_name = fmt_steel(detailings[0].steel.name)
-    covers = [detailing.nominal_covering for detailing in detailings]
-    quantities = pavement.quantities()
-    blocks = [
-        summary_table(
-            steel_name,
-            quantities.steel,
-            quantities.concrete_m3,
-            quantities.formwork_m2,
-            config,
-        ),
-        legend_block(drawing.layers(), config),
-        title_block(
-            "VIGAS DO PAVIMENTO",
-            sheet_fields(info, f"{steel_name} · c {_covers_text(covers)}", config),
-            fmt_date(info.date),
-            "FOLHA 1/1",
-            config,
-        ),
-    ]
-    tallest = max(block.bounds()[3] for block in blocks)
-    top = bottom - config.paper(_PAVEMENT_GAP_MM) - tallest
-    x = 0.0
-    for block in blocks:
-        drawing.extend(block.translated(x, top))
-        x += block.bounds()[2] + config.paper(_PAVEMENT_BLOCK_GAP_MM)
-    return drawing
-
-
-def _covers_text(covers: list[float]) -> str:
-    """Return the distinct nominal covers, such as 2,5 or 2,5/3"""
-    return "/".join(fmt_len(cover) for cover in sorted(set(covers)))
-
-
-def _section_text(detailing: DetailingBeam, steel_name: str) -> str:
-    """Return the section field of a beam's title block, such as 19 × 50 cm · CA-50 · c 2,5"""
-    return (
-        f"{fmt_len(detailing.width)} × {fmt_len(detailing.height)} cm · "
-        f"{steel_name} · c {fmt_len(detailing.nominal_covering)}"
+    quantities = build_quantities([detailing])
+    return summary_table(
+        fmt_steel(detailing.steel.name),
+        quantities.steel,
+        quantities.concrete_m3,
+        quantities.formwork_m2,
+        config,
     )
 
 
-def sheet_fields(
-    info: SheetInfo, section: str, config: DrawingConfig
-) -> list[tuple[str, str]]:
-    """Return the field bands of a title block: pavement, section, scales and file"""
-    return [
-        ("PAVIMENTO", info.pavement_name or "—"),
-        ("SEÇÃO", section),
-        (
-            "ESCALAS",
-            f"Elevação 1:{fmt_len(config.sheet_scale)} · "
-            f"Cortes 1:{fmt_len(config.section_scale)}",
+def _block_content(detailing: DetailingBeam, info: SheetInfo) -> BlockContent:
+    """Return what the block of notes and title block says for a beam"""
+    stirrup_steel = (
+        detailing.stirrups[0].steel if detailing.stirrups else detailing.steel
+    )
+    fck = int(info.concrete.removeprefix("C"))
+    for warning in check_materials(
+        fck, info.exposure_class, detailing.nominal_covering
+    ):
+        logger.warning("%s: %s", detailing.beam_id, warning)
+    return BlockContent(
+        project=info.pavement_name or "",
+        title=sheet_title(detailing.beam_id, detailing.width, detailing.height),
+        date=fmt_date(info.date),
+        sheet=sheet_number(info.sheet_number, info.sheet_total),
+        notes=general_notes(
+            fck,
+            fmt_steel(detailing.steel.name),
+            fmt_steel(stirrup_steel.name),
+            info.exposure_class,
+            detailing.nominal_covering,
         ),
-        ("ARQUIVO", info.file_name),
-    ]
+    )
 
 
 def pillar_bottom(beam: DetailingBeam, config: DrawingConfig) -> float:

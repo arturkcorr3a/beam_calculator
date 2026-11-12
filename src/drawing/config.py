@@ -56,6 +56,8 @@ class DrawingConfig:
         section_search_step: Step of the search for a cut position outside the laps (cm).
         section_edge_margin: Smallest distance between a cut and a pillar face (cm).
         arc_segments: Segments per quarter circle when an arc is drawn on screen.
+        sheet_format: Paper format: "auto" picks the smallest that fits the drawing, or "A4", "A3", "A2", "A1", "A0".
+        sheet_orientation: "paisagem" or "retrato"; "retrato" exists only for A4 (and makes "auto" try A4 portrait first).
         text_heights_mm: Cap heights of the texts (mm).
     """
 
@@ -69,12 +71,18 @@ class DrawingConfig:
     section_search_step: float = 1.0  # cm
     section_edge_margin: float = 10.0  # cm
     arc_segments: int = 8
+    sheet_format: str = "auto"
+    sheet_orientation: str = "paisagem"
     text_heights_mm: TextHeights = TextHeights()
 
     @property
     def section_magnification(self) -> float:
         """Return the factor applied to the cross sections' geometry on the sheet"""
         return self.sheet_scale / self.section_scale
+
+    def on_paper(self, length: float) -> float:
+        """Return the paper length (mm) of a model length (cm) at this sheet's scale"""
+        return length * MM_PER_CM / self.sheet_scale
 
     def paper(self, mm: float) -> float:
         """Return the model length (cm) of a paper length (mm) at this sheet's scale"""

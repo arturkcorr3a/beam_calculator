@@ -30,6 +30,7 @@ from src.drawing.primitives import (
     Drawing,
     HAlign,
     HoverInfo,
+    Image,
     Line,
     Point,
     Polyline,
@@ -39,7 +40,8 @@ from src.drawing.primitives import (
 
 FONT_FAMILY = "DejaVu Sans"
 FIGURE_SIZE = (16.0, 9.0)  # in
-_POINTS_PER_MM = 72 / 25.4
+MM_PER_INCH = 25.4
+_POINTS_PER_MM = 72 / MM_PER_INCH
 _CAP_HEIGHT_RATIO = 0.72  # cap height over font size, DejaVu Sans
 _DOT_MM = 0.2  # length of a linetype's dot on screen (mm)
 _MARGIN_MM = 10.0  # paper margin around the drawing (mm)
@@ -131,6 +133,8 @@ def draw(drawing: Drawing, ax: Axes, config: DrawingConfig = DEFAULT_CONFIG) -> 
             case Text():
                 if item.text.strip():
                     texts.setdefault(item.layer, []).append(text_outline(item))
+            case Image():
+                _draw_image(item, ax)
     for layer, segments in lines.items():
         style = layer_style(layer)
         ax.add_collection(
@@ -168,8 +172,29 @@ def draw(drawing: Drawing, ax: Axes, config: DrawingConfig = DEFAULT_CONFIG) -> 
                 zorder=_Z_TEXTS,
             )
         )
-    _add_legend(drawing, ax)
+    if drawing.paper_mm is None:
+        _add_legend(drawing, ax)  # a sheet has its own legend block
     ax.format_coord = format_coord  # type: ignore[method-assign]
+
+
+def _draw_image(item: Image, ax: Axes) -> None:
+    """Draw an image fitted inside its rectangle, centered and undistorted; skipped when the file is unreadable"""
+    try:
+        picture = plt.imread(item.path)
+    except OSError:
+        return
+    rows, columns = picture.shape[:2]
+    scale = min(item.width / columns, item.height / rows)
+    width, height = columns * scale, rows * scale
+    left = item.position[0] + (item.width - width) / 2
+    bottom = item.position[1] + (item.height - height) / 2
+    ax.imshow(
+        picture,
+        extent=(left, left + width, bottom, bottom + height),
+        aspect="auto",
+        interpolation="antialiased",
+        zorder=_Z_TEXTS,
+    )
 
 
 def format_coord(x: float, y: float) -> str:
@@ -205,8 +230,10 @@ def _add_legend(drawing: Drawing, ax: Axes) -> None:
 def make_figure(drawing: Drawing, config: DrawingConfig = DEFAULT_CONFIG) -> Figure:
     """Return a pyplot figure showing the drawing, white, with equal axes and no frame
 
-    The view spans the drawing's bounds plus a 10 mm paper margin.
+    A drawing on a sheet gives a figure of the sheet's size in true scale, the axes filling it, so a PDF or a PNG prints at the sheet's scale. Any other drawing is shown with a 10 mm paper margin around its bounds.
     """
+    if drawing.paper_mm is not None:
+        return _sheet_figure(drawing, drawing.paper_mm, config)
     figure = plt.figure(figsize=FIGURE_SIZE, facecolor="white")
     ax = figure.add_subplot()
     figure.subplots_adjust(left=0.01, right=_AXES_RIGHT, bottom=0.01, top=0.99)
@@ -226,6 +253,25 @@ def make_figure(drawing: Drawing, config: DrawingConfig = DEFAULT_CONFIG) -> Fig
         )
         ax.margins(0.0)
         ax.autoscale_view()
+    attach_tooltip(figure, ax, drawing, config)
+    return figure
+
+
+def _sheet_figure(
+    drawing: Drawing, paper_mm: tuple[float, float], config: DrawingConfig
+) -> Figure:
+    """Return the figure of a sheet: its paper size in inches, the axes covering the whole of it"""
+    width_mm, height_mm = paper_mm
+    figure = plt.figure(
+        figsize=(width_mm / MM_PER_INCH, height_mm / MM_PER_INCH), facecolor="white"
+    )
+    ax = figure.add_axes((0.0, 0.0, 1.0, 1.0))
+    ax.set_facecolor("white")
+    ax.axis("off")
+    draw(drawing, ax, config)
+    ax.set_xlim(0.0, config.paper(width_mm))
+    ax.set_ylim(0.0, config.paper(height_mm))
+    ax.set_aspect("equal")
     attach_tooltip(figure, ax, drawing, config)
     return figure
 

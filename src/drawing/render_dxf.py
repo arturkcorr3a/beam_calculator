@@ -23,6 +23,7 @@ from src.drawing.primitives import (
     Drawing,
     DrawingItem,
     HAlign,
+    Image,
     Line,
     Polyline,
     Text,
@@ -114,6 +115,19 @@ def add_item(msp: Modelspace, item: DrawingItem) -> None:
             )
             text.set_placement(
                 item.position, align=_ALIGNMENTS[item.valign, item.halign]
+            )
+        case Image():
+            # A DXF holds no image here; its rectangle marks where the logo goes
+            x, y = item.position
+            msp.add_lwpolyline(
+                [
+                    (x, y),
+                    (x + item.width, y),
+                    (x + item.width, y + item.height),
+                    (x, y + item.height),
+                ],
+                close=True,
+                dxfattribs=attribs,
             )
 
 

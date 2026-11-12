@@ -44,7 +44,7 @@ _INITIAL_SIZE_PX = (1280, 800)
 _MINIMUM_SIZE_PX = (1024, 640)
 _SIDE_WIDTH_PX = 440
 _SIDE_MIN_WIDTH_PX = 420
-_LOGO_HEIGHT_PX = 56
+_LOGO_HEIGHT_PX = 48
 _LOGO_MARGIN_PX = 20
 
 
@@ -81,7 +81,12 @@ class MainWindow(QMainWindow):
         self._plan = PlanPanel()
         self.setCentralWidget(self._build_body())
         self._logo = CornerLogo(
-            self._plan, _LOGO_HEIGHT_PX, _LOGO_MARGIN_PX, _LOGO_MARGIN_PX, bottom=True
+            self._plan,
+            _LOGO_HEIGHT_PX,
+            _LOGO_MARGIN_PX,
+            _LOGO_MARGIN_PX,
+            bottom=True,
+            symbol=True,
         )
         self._actions = AppActions(self)
         build_menus(self, self._actions)

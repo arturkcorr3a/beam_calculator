@@ -5,6 +5,7 @@ from dataclasses import replace
 from pavement_ui.core.results.vector_drawing import (
     CircleShape,
     HAlign,
+    ImageShape,
     LayerLook,
     LineShape,
     PolylineShape,
@@ -14,7 +15,7 @@ from pavement_ui.core.results.vector_drawing import (
 )
 from src.drawing.config import DEFAULT_CONFIG, DrawingConfig
 from src.drawing.layers import CONTINUOUS, layer_style
-from src.drawing.primitives import Circle, Drawing, Line, Polyline, Text
+from src.drawing.primitives import Circle, Drawing, Image, Line, Polyline, Text
 
 _SCALES = (50, 75, 100, 125, 150, 200, 250, 300, 400, 500)
 _ROOM = 1.3  # extra room for the dimensions and names around the geometry
@@ -73,6 +74,7 @@ def read_drawing(
     polylines: list[PolylineShape] = []
     circles: list[CircleShape] = []
     texts: list[TextShape] = []
+    images: list[ImageShape] = []
     for item in drawing.items:
         match item:
             case Line():
@@ -94,12 +96,28 @@ def read_drawing(
                 )
             case Text():
                 texts.append(_text(item))
+            case Image():
+                images.append(
+                    ImageShape(
+                        item.position, item.width, item.height, item.path, item.layer
+                    )
+                )
     return VectorDrawing(
         lines=tuple(lines),
         polylines=tuple(polylines),
         circles=tuple(circles),
         texts=tuple(texts),
         layers=tuple(_look(name) for name in drawing.layers()),
-        bounds=drawing.bounds(),
+        bounds=_bounds(drawing, scale),
         scale=scale,
+        images=tuple(images),
+        paper_mm=drawing.paper_mm,
     )
+
+
+def _bounds(drawing: Drawing, scale: float) -> tuple[float, float, float, float]:
+    """Return the bounds of the items, or the whole paper for a sheet (cm)"""
+    if drawing.paper_mm is None:
+        return drawing.bounds()
+    width_mm, height_mm = drawing.paper_mm
+    return 0.0, 0.0, width_mm * scale / 10, height_mm * scale / 10

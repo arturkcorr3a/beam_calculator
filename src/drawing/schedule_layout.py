@@ -1,7 +1,7 @@
-"""Tables and texts of the sheet: materials summary, line legend and title block
+"""Tables and texts of the sheet: materials summary and line legend
 
 Every block is drawn with its top left corner at the origin; the layout moves it into
-place. See docs/especificacao_desenho.md, §6.9 to §6.11.
+place. See docs/especificacao_desenho.md, §6.9 and §6.10.
 """
 
 from collections.abc import Sequence
@@ -43,13 +43,6 @@ _LINE_PITCH = 1.6  # between text lines, in text heights
 _BLOCK_GAP_MM = 4.0  # from a table to the texts under it
 _SAMPLE_MM = 12.0  # length of a line sample in the legend
 _SAMPLE_GAP_MM = 3.0
-_TITLE_BLOCK_WIDTH_MM = 44.0
-_TITLE_BAND_MM = 7.0
-_FIELD_BAND_MM = 7.0
-_FOOTER_BAND_MM = 5.0
-_BLOCK_MARGIN_MM = 1.5
-_FIELD_LABEL_MM = 2.6  # from a band's top to its label's baseline
-_FIELD_VALUE_MM = 5.6  # from a band's top to its value's baseline
 
 
 def _rectangle(left: float, top: float, right: float, bottom: float) -> Polyline:
@@ -189,70 +182,5 @@ def legend_block(layers_in_use: Sequence[str], config: DrawingConfig) -> Drawing
                 label,
                 TABLE,
             ),
-        )
-    return drawing
-
-
-def title_block(
-    title: str,
-    fields: Sequence[tuple[str, str]],
-    footer_left: str,
-    footer_right: str,
-    config: DrawingConfig,
-) -> Drawing:
-    """Return the title block: a title band, one band per field and a footer, its top left at the origin
-
-    The block is 44 mm of paper wide, or wider when a text needs it.
-
-    Args:
-        fields: Label and value of each field band.
-        footer_left: Text on the footer's left, such as the date.
-        footer_right: Text on the footer's right, such as the sheet number; may be empty.
-    """
-    paper = config.paper
-    heights = config.text_heights_mm
-    small = paper(heights.small)
-    big = paper(heights.title_block)
-    margin = paper(_BLOCK_MARGIN_MM)
-    needed = max(
-        [text_width(title, big)]
-        + [text_width(text, small) for field in fields for text in field]
-        + [text_width(f"{footer_left}  {footer_right}", small)]
-    )
-    width = max(paper(_TITLE_BLOCK_WIDTH_MM), needed + 2 * margin)
-    band = paper(_FIELD_BAND_MM)
-    title_band = paper(_TITLE_BAND_MM)
-    footer = paper(_FOOTER_BAND_MM)
-    bottom = -(title_band + band * len(fields) + footer)
-    drawing = Drawing(
-        [
-            _rectangle(0.0, 0.0, width, bottom),
-            Text((margin, -title_band / 2), title, big, TABLE, valign=VAlign.MIDDLE),
-        ]
-    )
-    top = -title_band
-    for label, value in fields:
-        drawing.add(
-            Line((0.0, top), (width, top), TABLE),
-            Text((margin, top - paper(_FIELD_LABEL_MM)), label, small, TABLE),
-            Text((margin, top - paper(_FIELD_VALUE_MM)), value, small, TABLE),
-        )
-        top -= band
-    drawing.add(
-        Line((0.0, top), (width, top), TABLE),
-        Text(
-            (margin, top - footer / 2), footer_left, small, TABLE, valign=VAlign.MIDDLE
-        ),
-    )
-    if footer_right:
-        drawing.add(
-            Text(
-                (width - margin, top - footer / 2),
-                footer_right,
-                small,
-                TABLE,
-                HAlign.RIGHT,
-                VAlign.MIDDLE,
-            )
         )
     return drawing

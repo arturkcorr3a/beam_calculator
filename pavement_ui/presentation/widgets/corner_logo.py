@@ -7,7 +7,7 @@ from pavement_ui.presentation.theme.logo import logo_pixmap
 
 
 class CornerLogo(QLabel):
-    """Horizontal logo anchored to the top-right or bottom-right of the parent"""
+    """Logo anchored to the top-right or bottom-right of the parent: horizontal, or the symbol alone"""
 
     def __init__(
         self,
@@ -16,13 +16,14 @@ class CornerLogo(QLabel):
         margin_x_px: int,
         margin_y_px: int,
         bottom: bool,
+        symbol: bool = False,
     ) -> None:
         super().__init__(parent)
         self._margins = (margin_x_px, margin_y_px)
         self._bottom = bottom
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setPixmap(logo_pixmap(height_px, self.devicePixelRatioF()))
+        self.setPixmap(logo_pixmap(height_px, self.devicePixelRatioF(), symbol=symbol))
         self.adjustSize()
         parent.installEventFilter(self)
         self._place()

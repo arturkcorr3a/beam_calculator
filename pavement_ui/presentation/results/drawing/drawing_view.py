@@ -1,9 +1,18 @@
 """DrawingView: a vector drawing in a graphics view, with wheel zoom and drag pan."""
 
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPicture, QResizeEvent, QWheelEvent
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QPainter,
+    QPen,
+    QPicture,
+    QResizeEvent,
+    QWheelEvent,
+)
 from PySide6.QtWidgets import (
     QGraphicsItem,
+    QGraphicsRectItem,
     QGraphicsScene,
     QGraphicsView,
     QStyleOptionGraphicsItem,
@@ -19,6 +28,8 @@ _WHEEL_NOTCH = 120.0
 _MAX_PX_PER_CM = 60.0  # the deepest zoom
 _MIN_FIT_RATIO = 0.25  # the widest zoom, as a fraction of the fitted one
 _SCENE_MARGIN = 0.03  # room around the sheet, as a fraction of its size
+_SHADOW_OFFSET_CM = 8.0  # of the paper's drop shadow, in model cm
+_SHADOW_COLOR = "#B4BAC0"
 
 
 class _DrawingItem(QGraphicsItem):
@@ -45,6 +56,23 @@ class _DrawingItem(QGraphicsItem):
         self._picture.play(painter)
 
 
+def _add_paper(scene: QGraphicsScene, rect: QRectF) -> None:
+    """Add the sheet's white paper with a thin edge and a shadow, under the drawing
+
+    The margins of the frame (20 mm on the left, 10 mm elsewhere) show as the white strip between the paper's edge and the frame.
+    """
+    shadow = scene.addRect(
+        rect.translated(_SHADOW_OFFSET_CM, _SHADOW_OFFSET_CM),
+        QPen(Qt.PenStyle.NoPen),
+        QBrush(QColor(_SHADOW_COLOR)),
+    )
+    pen = QPen(QColor(tokens.BORDER_INPUT), 1.0)
+    pen.setCosmetic(True)
+    paper: QGraphicsRectItem = scene.addRect(rect, pen, QBrush(QColor(tokens.SURFACE)))
+    shadow.setZValue(-2)
+    paper.setZValue(-1)
+
+
 class DrawingView(QGraphicsView):
     """Shows one drawing; the wheel zooms under the cursor and dragging pans"""
 
@@ -67,8 +95,14 @@ class DrawingView(QGraphicsView):
         scene = self.scene()
         scene.clear()
         item = _DrawingItem(drawing)
-        scene.addItem(item)
         rect = item.boundingRect()
+        on_paper = drawing.paper_mm is not None
+        self.setBackgroundBrush(
+            QColor(tokens.STATUS_BG if on_paper else tokens.SURFACE)
+        )
+        if on_paper:
+            _add_paper(scene, rect)
+        scene.addItem(item)
         scene.setSceneRect(
             rect.adjusted(
                 -rect.width() * _SCENE_MARGIN,

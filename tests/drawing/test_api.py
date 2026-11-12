@@ -12,8 +12,7 @@ from src.drawing.api import (
     DrawingError,
     beam_figure,
     export_beam_dxf,
-    export_pavement_dxf,
-    pavement_figure,
+    pavement_figures,
     save_pavement,
     show_beam,
 )
@@ -48,7 +47,7 @@ class TestPreconditions:
         pavement = fake_pavement(v5)
         pavement.beams["V5"].detailing = None
         with pytest.raises(DrawingError, match="V5"):
-            pavement_figure(pavement)
+            pavement_figures(pavement)
 
     def test_is_a_value_error(self) -> None:
         assert issubclass(DrawingError, ValueError), "Spec §10"
@@ -75,13 +74,27 @@ class TestOutputs:
         }
         assert {"V5", "P10", "411", "N9 c/17"} <= texts, "Title, pillars, dimensions"
 
-    def test_export_pavement_dxf(self, v5: DetailingBeam, tmp_path: Path) -> None:
-        pavement = fake_pavement(v5, replace(v5, beam_id="V6"))
-        doc = read_dxf(export_pavement_dxf(pavement, tmp_path / "pavement.dxf"))
-        texts = [
+    def test_export_dxf_has_sheet(self, v5: DetailingBeam, tmp_path: Path) -> None:
+        doc = read_dxf(export_beam_dxf(v5, tmp_path / "V5.dxf"))
+        layers = {entity.dxf.layer for entity in doc.modelspace()}
+        assert {"FOLHA-QUADRO", "SELO-GROSSO", "SELO-FINO", "SELO-LOGO"} <= layers, (
+            "Frame, block lines and the logo's rectangle"
+        )
+        texts = {
             entity.dxf.text for entity in doc.modelspace() if entity.dxftype() == "TEXT"
-        ]
-        assert "V5" in texts and "V6" in texts, "Both beams on the sheet"
+        }
+        assert "NOTAS GERAIS" in texts and "01/01" in texts, "Notes and sheet number"
+
+    def test_sheet_numbers(self, v5: DetailingBeam, tmp_path: Path) -> None:
+        pavement = fake_pavement(v5, replace(v5, beam_id="V6"))
+        save_pavement(pavement, tmp_path)
+        texts = {
+            entity.dxf.text
+            for name in ("V5", "V6")
+            for entity in read_dxf(tmp_path / f"{name}.dxf").modelspace()
+            if entity.dxftype() == "TEXT"
+        }
+        assert {"01/02", "02/02"} <= texts, "Numbered in pavement order"
 
     def test_save_pavement(self, v5: DetailingBeam, tmp_path: Path) -> None:
         folder = tmp_path / "drawing"
@@ -90,8 +103,7 @@ class TestOutputs:
             "V5.dxf",
             "V5.pdf",
             "V5.png",
-            "pavement.dxf",
             "pavement.pdf",
-        ], "DXF, PNG and PDF per beam; DXF and PDF of the pavement"
+        ], "DXF, PNG and PDF per beam; one PDF with every sheet"
         assert all(path.parent == folder and path.stat().st_size > 0 for path in paths)
         assert not plt.get_fignums(), "Every saved figure is closed"
