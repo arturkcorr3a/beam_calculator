@@ -80,7 +80,7 @@ class _SlabMeta(type):
 
 
 @logger_label("{id}")
-@dataclass(eq=False)
+@dataclass(eq=False, repr=False)
 class Slab(metaclass=_SlabMeta):
     """Representation of a rectangular concrete slab bounded by four corner pillars.
 
@@ -126,6 +126,11 @@ class Slab(metaclass=_SlabMeta):
     def reset_id_counter(cls) -> None:
         """Restart auto-generated ids at 1 (L1)"""
         cls._counter = count(1)
+
+    def __repr__(self) -> str:
+        """Identity only: the edges reference the supporting beams, whose full repr
+        would pull in their whole dimensioning"""
+        return f"Slab(id={self.id!r}, corner_pillar_ids={self.corner_pillar_ids!r})"
 
     def __post_init__(self):
         if not self.id:

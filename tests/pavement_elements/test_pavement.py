@@ -747,6 +747,19 @@ def resolved_single_panel() -> Pavement:
 class TestResolveKeepsResults:
     """resolve() leaves the results the GUI reads on the elements."""
 
+    def test_reprs_stay_short(self, resolved_single_panel: Pavement) -> None:
+        """pytest prints test arguments in long tracebacks; a full dataclass repr of
+        a resolved pavement runs into gigabytes"""
+        assert repr(resolved_single_panel) == "Pavement(pillars=4, beams=4, slabs=1)"
+        beam = next(iter(resolved_single_panel.beams.values()))
+        assert repr(beam) == (
+            f"ContinuousBeam(id={beam.id!r}, pillar_ids={beam.pillar_ids!r})"
+        ), "A beam should show only its identity"
+        slab = next(iter(resolved_single_panel.slabs.values()))
+        assert repr(slab) == (
+            f"Slab(id={slab.id!r}, corner_pillar_ids={slab.corner_pillar_ids!r})"
+        ), "A slab should show only its identity"
+
     def test_beams_keep_analysis_and_calculators(
         self, resolved_single_panel: Pavement
     ) -> None:

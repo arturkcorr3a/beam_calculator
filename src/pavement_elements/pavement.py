@@ -25,7 +25,7 @@ def reset_element_id_counters() -> None:
 
 
 @logger_label("Pavement")
-@dataclass
+@dataclass(repr=False)
 class Pavement:
     """
     Top-level container for a floor pavement structure.
@@ -45,6 +45,14 @@ class Pavement:
     beams: dict[str, ContinuousBeam] = field(default_factory=dict[str, ContinuousBeam])
     slabs: dict[str, Slab] = field(default_factory=dict[str, Slab])
     mark_registry: MarkRegistry = field(default_factory=MarkRegistry, init=False)
+
+    def __repr__(self) -> str:
+        """Counts only: the elements reference each other and their results, so the
+        full dataclass repr of a resolved pavement runs into gigabytes"""
+        return (
+            f"Pavement(pillars={len(self.pillars)}, beams={len(self.beams)}, "
+            f"slabs={len(self.slabs)})"
+        )
 
     def __post_init__(self) -> None:
         reset_element_id_counters()

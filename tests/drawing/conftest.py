@@ -9,6 +9,7 @@ import pytest  # noqa: E402
 
 from src.config import APP_CONFIG  # noqa: E402
 from src.detailing.detailing_beam import DetailingBeam  # noqa: E402
+from src.logger import suppress_logging  # noqa: E402
 from src.pavement_elements.pavement import Pavement  # noqa: E402
 from tests.drawing.v5 import build_v5  # noqa: E402
 
@@ -24,14 +25,17 @@ def t_concreto2() -> Pavement:
     """The t_concreto2 pavement, resolved once per session (about a minute)
 
     Building it sets fields of the global APP_CONFIG; they are restored right after
-    the resolve, so the other tests keep the defaults.
+    the resolve, so the other tests keep the defaults. The log is silenced: pytest
+    captures it, and a failing slow test would carry the whole resolve log (hundreds
+    of thousands of lines) in its report.
     """
     from src.examples.t_concreto2 import build_pavement
 
     saved = {item.name: getattr(APP_CONFIG, item.name) for item in fields(APP_CONFIG)}
     try:
-        pavement = build_pavement()
-        pavement.resolve()
+        with suppress_logging():
+            pavement = build_pavement()
+            pavement.resolve()
     finally:
         for name, value in saved.items():
             setattr(APP_CONFIG, name, value)

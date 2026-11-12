@@ -8,6 +8,7 @@ from src.analysis.solver import analyse_beam
 from src.calculators.rebar_calculator import RebarCalculator
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.calculators.stirrup_rebar_coordinator import coordinate_span
+from src.calculators.support_bars import SpanRange, carry_span_bars_to_supports
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
 from src.loading.forces import design_effort_elu
@@ -45,7 +46,7 @@ class BeamCalculator:
     def run(self) -> None:
         """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points and distributes the stirrups in zones along the span.
 
-        Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation.
+        Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation. Once chosen, each span's bottom bars are extended into its supports where needed (see ``carry_span_bars_to_supports``).
         """
         supports = self._build_supports()
         loads = self._build_loads()
@@ -99,6 +100,14 @@ class BeamCalculator:
             self._store_reinforcement(calculator)
             self._beam.rebar_calculators.append(calculator)
             self._verify_deformation(structural_beam, analysis, calculator, position)
+        carry_span_bars_to_supports(self._beam.reinforcement, self._support_spans())
+
+    def _support_spans(self) -> list[SpanRange]:
+        """Returns each span's extent with the indices of its supports, left to right; span i rests on supports i and i + 1."""
+        return [
+            SpanRange(start, end, index, index + 1)
+            for index, (_, start, end) in enumerate(self._span_ranges())
+        ]
 
     def _interest_points(self, analysis: BeamAnalysis) -> list[tuple[float, float]]:
         """Finds the dominant bending-moment extreme per segment along the beam.

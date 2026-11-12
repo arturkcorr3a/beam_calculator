@@ -161,7 +161,10 @@ class TestBarPath:
                 assert difference < count, (
                     f"{run.mark}: drawn {difference:.2f} cm off the cut length"
                 )
-        assert hooks == 66, "t_concreto2 has 66 hooks (ED §9)"
+        assert hooks == 72, (
+            "t_concreto2 has 72 hooks (66 in ED §9, before the span bars were "
+            "carried to the supports)"
+        )
 
 
 class TestOverlaps:

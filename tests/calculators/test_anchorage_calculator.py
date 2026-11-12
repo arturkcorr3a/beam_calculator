@@ -986,51 +986,6 @@ class TestReachedSupport:
         )
 
 
-class TestSupportArea:
-    """Tests for A_s >= A_s,vão / 3 or / 4 (cm²), with M_vão = 50 kN.m."""
-
-    @pytest.mark.parametrize(
-        ("support_moment", "required_area"),
-        [
-            (0.0, 6.0),  # null → 1/3
-            (-25.0, 6.0),  # |M| = 0.5 M_vão → 1/3
-            (-30.0, 8.0),  # |M| > 0.5 M_vão → 1/4
-            (10.0, 6.0),  # positive → 1/3 (conservative)
-        ],
-    )
-    def test_share_met_exactly(
-        self, layer_16mm_good: Layer, support_moment: float, required_area: float
-    ) -> None:
-        """A_s = 2.0 cm² equals the required share of the span's area"""
-        ac = _make_support_ac(
-            layer_16mm_good,
-            30.0,
-            support_moments=(support_moment, 0.0, 0.0),
-            required_area=required_area,
-        )
-        ac.left = True
-        ac._check_support_area(0)  # pyright: ignore[reportPrivateUsage]
-
-    @pytest.mark.parametrize(
-        ("support_moment", "required_area"),
-        [(0.0, 6.0), (-25.0, 6.0), (-30.0, 8.0)],
-    )
-    def test_share_missed_raises(
-        self, layer_16mm_good: Layer, support_moment: float, required_area: float
-    ) -> None:
-        """A_s = 1.9 cm² is below the required share of 2.0 cm²"""
-        ac = _make_support_ac(
-            layer_16mm_good,
-            30.0,
-            support_moments=(support_moment, 0.0, 0.0),
-            required_area=required_area,
-            area=1.9,
-        )
-        ac.left = True
-        with pytest.raises(ValueError, match="below"):
-            ac._check_support_area(0)  # pyright: ignore[reportPrivateUsage]
-
-
 class TestOuterSupportForce:
     """Tests for A_s >= F_sd / f_yd, F_sd = M_Sd / z + (a_l / d) V_Sd (kN)."""
 
@@ -1180,17 +1135,6 @@ class TestRunOuterSupport:
         with pytest.raises(ValueError, match="No length inside the support"):
             ac.run(available_space=17.0, left=True, allow_clamp=True)
 
-    def test_area_check_runs_first(self, layer_16mm_good: Layer) -> None:
-        ac = _make_support_ac(
-            layer_16mm_good,
-            50.0,
-            left_support=Support(0.0, -40.0, 40.0),
-            required_area=6.0,
-            area=1.9,
-        )
-        with pytest.raises(ValueError, match="below"):
-            ac.run(available_space=47.0, left=True)
-
     def test_right_outer_support(self, layer_16mm_good: Layer) -> None:
         """A = 570 + 28 = 598 cm reaches the right support (590-610)"""
         ac = _make_support_ac(layer_16mm_good, 570.0)
@@ -1264,17 +1208,87 @@ class TestRunInnerSupport:
         with pytest.raises(ValueError, match="No length past the support's face"):
             ac.run(available_space=21.0, left=False, allow_clamp=True)
 
-    def test_area_check(self, layer_16mm_good: Layer) -> None:
-        """M_apoio = -30 > 0.5 · 50 kN.m → 1/4 of 8 cm² = 2.0 cm² > 1.9 cm²"""
-        ac = _make_support_ac(
-            layer_16mm_good,
-            270.0,
-            support_moments=(0.0, -30.0, 0.0),
-            required_area=8.0,
-            area=1.9,
+
+@pytest.mark.usefixtures("nominal_covering_3cm")
+class TestSupportAnchorageLength:
+    """Tests for the length past the section that anchors inside a support (cm)."""
+
+    def test_inner_support_ten_diameters(self, layer_16mm_good: Layer) -> None:
+        """Face at 290 cm, 100 cm from the section at 190 cm; 10φ = 16 cm"""
+        ac = _make_support_ac(layer_16mm_good, 190.0)
+        assert_approx(
+            ac.support_anchorage_length(1, left=False),
+            116.0,
+            "Face distance + 10φ (cm)",
         )
-        with pytest.raises(ValueError, match="below"):
-            ac.run(available_space=327.0, left=False)
+
+    def test_inner_support_from_the_right(self, layer_16mm_good: Layer) -> None:
+        """Face at 310 cm, 100 cm from the section at 410 cm"""
+        ac = _make_support_ac(layer_16mm_good, 410.0)
+        assert_approx(
+            ac.support_anchorage_length(1, left=True),
+            116.0,
+            "Face distance + 10φ (cm)",
+        )
+
+    def test_outer_support(self, layer_16mm_good: Layer) -> None:
+        """Face at 10 cm, 140 cm from the section at 150 cm"""
+        ac = _make_support_ac(layer_16mm_good, 150.0)
+        length = ac.support_anchorage_length(0, left=True)
+        assert_approx(
+            length,
+            140.0 + ac.outer_support_anchorage_length,
+            "Face distance + max(l_b,nec, r + 5.5φ, 6 cm) (cm)",
+        )
+
+    def test_does_not_change_the_bars(self, layer_16mm_good: Layer) -> None:
+        ac = _make_support_ac(layer_16mm_good, 150.0)
+        ac.support_anchorage_length(0, left=True)
+        for bar in layer_16mm_good.bars:
+            assert bar.left_length == 0.0, "Only measures; the bars keep their length"
+
+
+@pytest.mark.usefixtures("nominal_covering_3cm")
+class TestAnchorIntoSupport:
+    """Tests for anchoring a layer inside a support its shifted point does not reach."""
+
+    def test_inner_support(self, layer_16mm_good: Layer) -> None:
+        """A = 190 + 28 = 218 cm stays short of the face at 290 cm"""
+        ac = _make_support_ac(layer_16mm_good, 190.0)
+        clamps = ac.anchor_into_support(1, 407.0, left=False, allow_clamp=False)
+        assert clamps is None, "Inner supports anchor straight"
+        for bar in layer_16mm_good.bars:
+            assert not bar.right_hook_enabled, "Straight bars past the face"
+            assert_approx(bar.right_length, 116.0, "Face distance + 10φ (cm)")
+        assert len(ac.summaries) == 1, "One summary for the anchored side"
+
+    def test_outer_support(self, layer_16mm_good: Layer) -> None:
+        """Support -40..40: straight bars fit; face 110 cm from the section"""
+        ac = _make_support_ac(
+            layer_16mm_good, 150.0, left_support=Support(0.0, -40.0, 40.0)
+        )
+        ac.anchor_into_support(0, 147.0, left=True, allow_clamp=False)
+        expected = 110.0 + ac.outer_support_anchorage_length  # cm
+        for bar in layer_16mm_good.bars:
+            assert_approx(bar.left_length, expected, "Face distance + past face (cm)")
+
+    def test_outer_support_skips_force_check(self, layer_16mm_good: Layer) -> None:
+        ac = _make_support_ac(
+            layer_16mm_good, 150.0, left_support=Support(0.0, -40.0, 40.0)
+        )
+        with patch.object(
+            AnchorageCalculator, "_check_outer_support_force"
+        ) as force_check:
+            ac.anchor_into_support(0, 147.0, left=True, allow_clamp=False)
+        force_check.assert_not_called()
+
+    def test_outer_support_clamps(self, layer_16mm_good: Layer) -> None:
+        """Support -10..10: room 17.5 cm, 15.7 cm with the hook cover"""
+        ac = _make_support_ac(layer_16mm_good, 150.0)
+        clamps = ac.anchor_into_support(0, 147.0, left=True, allow_clamp=True)
+        assert isinstance(clamps, Clamps), "Clamps complete the anchorage"
+        for bar in layer_16mm_good.bars:
+            assert_approx(bar.left_length, 140.0 + 15.7, "Face distance + room (cm)")
 
 
 # ---------------------------------------------------------------------------

@@ -155,6 +155,73 @@ class AnchorageCalculator:
         )
         self._record()
 
+    def support_anchorage_length(self, support_index: int, left: bool) -> float:
+        """Calculate the bar length past the section needed to anchor inside a support
+
+        The distance to the support's inner face plus the anchorage past it: 10φ at an intermediate support; at an end support, the greatest of l_b,nec, r + 5.5φ and 6 cm, with the layer's current hooks.
+
+        Args:
+            support_index: Index of the support in ``beam.supports``.
+            left: Whether the support is on the left of the section; otherwise on the right.
+
+        Returns:
+            Length in cm.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.4.1
+        """
+        self.left = left
+        self.logging_info = f"{self.id} ({'Left' if self.left else 'Right'})"
+        support = self.reinforcement.beam.supports[support_index]
+        face_distance = self._inner_face_distance(support)  # cm
+        if support.is_extremity(self.reinforcement.beam.length):
+            return face_distance + self.outer_support_anchorage_length
+        return face_distance + 10 * (self.max_diameter / 10)
+
+    def anchor_into_support(
+        self,
+        support_index: int,
+        available_space: float,
+        left: bool,
+        allow_clamp: bool,
+    ) -> Clamps | None:
+        """Anchor the layer bars inside a support, from its inner face
+
+        Uses the same anchorage rules as a shifted point that reaches the support (see ``_run_inner_support_anchorage`` and ``_run_outer_support_anchorage``), whether or not it does. The force check of an outer support is not run here.
+
+        Args:
+            support_index: Index of the support in ``beam.supports``.
+            available_space: Length from the section to the bar's end (cm),
+                used for intermediate supports.
+            left: Whether the support is on the left of the section; otherwise on the right.
+            allow_clamp: Whether clamps may complete the anchorage when the
+                bars do not fit.
+
+        Returns:
+            The clamps set on the layer, or None if the bars anchor without them.
+
+        Raises:
+            ValueError: If the bars do not fit inside the support, even with
+                clamps when allowed.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.4.1
+        """
+        self.left = left
+        self.logging_info = f"{self.id} ({'Left' if self.left else 'Right'})"
+        support = self.reinforcement.beam.supports[support_index]
+        log_operation(
+            f"Anchoring into the support at {support.center:.2f} cm from its inner face."
+        )
+        face_distance = self._inner_face_distance(support)  # cm
+        if support.is_extremity(self.reinforcement.beam.length):
+            return self._run_outer_support_anchorage(
+                support, face_distance, allow_clamp
+            )
+        return self._run_inner_support_anchorage(
+            face_distance, available_space, allow_clamp
+        )
+
     def _record(self) -> None:
         """Keep the anchorage lengths of the side just anchored, with its final hooks"""
         self.summaries.append(
@@ -306,7 +373,7 @@ class AnchorageCalculator:
     ) -> Clamps | None:
         """Check a reached support and anchor the layer bars from its inner face
 
-        Both support types check the area carried to the support, then anchor the bars past its inner face (see ``_run_inner_support_anchorage`` and ``_run_outer_support_anchorage``).
+        Outer supports first check the force to anchor; both support types then anchor the bars past the inner face (see ``_run_inner_support_anchorage`` and ``_run_outer_support_anchorage``). The share of the span's area carried to each support is checked after the reinforcement is chosen (see ``carry_span_bars_to_supports``).
 
         Args:
             support_index: Index of the reached support in ``beam.supports``.
@@ -323,13 +390,12 @@ class AnchorageCalculator:
                 clamps, when allowed).
 
         References:
-            ABNT NBR 6118:2026 — Sections 18.3.2.4 and 18.3.2.4.1
+            ABNT NBR 6118:2026 — Sections 18.3.2.4-b and 18.3.2.4.1
         """
         support = self.reinforcement.beam.supports[support_index]
         log_operation(
-            f"Shifted point reaches the support at {support.center:.2f} cm; anchoring from its inner face."
+            f"Anchoring into the support at {support.center:.2f} cm from its inner face."
         )
-        self._check_support_area(support_index)
         face_distance = self._inner_face_distance(support)  # cm
 
         if support.is_extremity(self.reinforcement.beam.length):
@@ -456,37 +522,6 @@ class AnchorageCalculator:
         clamps = self._add_clamps(room, past_face)
         self._record()
         return clamps
-
-    def _check_support_area(self, support_index: int) -> None:
-        """Check that the bars carried to the support cover part of the span's area
-
-        A_s >= A_s,vão / 4 when the support moment is negative and |M_apoio| > 0.5 M_vão; otherwise A_s >= A_s,vão / 3.
-
-        Args:
-            support_index: Index of the reached support in ``beam.supports``.
-
-        Raises:
-            ValueError: If the reinforcement area is below that share.
-
-        References:
-            ABNT NBR 6118:2026 — Section 18.3.2.4-c
-        """
-        span_moment = cast(float, self.reinforcement.span_moment)  # kN.m
-        support_moment = self.reinforcement.support_moment(support_index)  # kN.m
-        is_large_negative = (
-            support_moment < 0 and abs(support_moment) > 0.5 * span_moment
-        )
-        share = 1 / 4 if is_large_negative else 1 / 3
-        span_area = cast(float, self.reinforcement.required_area)  # cm²
-        required = share * span_area  # cm²
-        provided = self.reinforcement.area  # cm²
-        log_property(
-            f"Support area check (M_apoio = {support_moment:.2f} kN.m, M_vão = {span_moment:.2f} kN.m): A_s = {provided:.3f} cm² >= {share:.3f} A_s,vão = {required:.3f} cm²"
-        )
-        if provided < required:
-            error_message = f"Reinforcement at the support ({provided:.3f} cm²) is below {share:.3f} of the span's ({span_area:.3f} cm²)."
-            log_operation(error_message)
-            raise ValueError(error_message)
 
     def _check_outer_support_force(self, support_index: int) -> None:
         """Check that the bars resist the force to anchor at an outer support
