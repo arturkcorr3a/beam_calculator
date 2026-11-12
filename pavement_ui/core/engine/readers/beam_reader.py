@@ -62,11 +62,14 @@ def _drawings(
     )
 
 
-def _sheet(beam: ContinuousBeam, name: str | None) -> VectorDrawing | None:
-    """Return the beam's detailing sheet at 1:50; None before detailing."""
+def _sheet(
+    beam: ContinuousBeam, name: str | None, number: int, total: int
+) -> VectorDrawing | None:
+    """Return the beam's detailing sheet at 1:50 on its paper; None before detailing."""
     if beam.detailing is None:
         return None
-    return read_drawing(build_beam_drawing(beam.detailing, sheet=read_sheet_info(name)))
+    info = read_sheet_info(name, number, total)
+    return read_drawing(build_beam_drawing(beam.detailing, sheet=info))
 
 
 def _spans(
@@ -94,7 +97,11 @@ def _spans(
 
 
 def read_beam(
-    beam: ContinuousBeam, pillars: dict[str, Pillar], name: str | None = None
+    beam: ContinuousBeam,
+    pillars: dict[str, Pillar],
+    name: str | None = None,
+    sheet_number: int = 1,
+    sheet_total: int = 1,
 ) -> BeamResult:
     """Build the read model of a beam after ``Pavement.resolve``
 
@@ -103,6 +110,8 @@ def read_beam(
 
     Args:
         name: Pavement name for the detailing sheet's title block.
+        sheet_number: Number of the beam's sheet among the pavement's, from 1.
+        sheet_total: Number of sheets of the pavement.
     """
     supports_cm = _supports_cm(beam, pillars)
     labels = [beam.spans[0].start_pillar_id, *(s.end_pillar_id for s in beam.spans)]
@@ -129,5 +138,5 @@ def read_beam(
         outline=outline,
         section=section,
         bars=read_bars(beam.detailing) if beam.detailing is not None else (),
-        sheet=_sheet(beam, name),
+        sheet=_sheet(beam, name, sheet_number, sheet_total),
     )

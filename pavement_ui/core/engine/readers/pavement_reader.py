@@ -16,9 +16,18 @@ def read(pavement: Pavement, name: str | None = None) -> DesignSuccess:
     Args:
         name: Pavement name for the detailing sheets' title blocks.
     """
+    total = sum(beam.detailing is not None for beam in pavement.beams.values())
+    numbers = iter(range(1, total + 1))
     return DesignSuccess(
         beams=tuple(
-            read_beam(b, pavement.pillars, name) for b in pavement.beams.values()
+            read_beam(
+                b,
+                pavement.pillars,
+                name,
+                next(numbers) if b.detailing is not None else 1,
+                total,
+            )
+            for b in pavement.beams.values()
         ),
         slabs=tuple(read_slab(s, pavement.pillars) for s in pavement.slabs.values()),
         quantities=read_quantities(pavement),

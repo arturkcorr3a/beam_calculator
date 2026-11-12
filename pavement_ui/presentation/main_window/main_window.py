@@ -38,11 +38,14 @@ from pavement_ui.presentation.session_bridge import QtSessionBridge
 from pavement_ui.presentation.text.strings import main_window as s
 from pavement_ui.presentation.theme import tokens
 from pavement_ui.presentation.widgets.busy_overlay import BusyOverlay
+from pavement_ui.presentation.widgets.corner_logo import CornerLogo
 
 _INITIAL_SIZE_PX = (1280, 800)
 _MINIMUM_SIZE_PX = (1024, 640)
 _SIDE_WIDTH_PX = 440
 _SIDE_MIN_WIDTH_PX = 420
+_LOGO_HEIGHT_PX = 48
+_LOGO_MARGIN_PX = 20
 
 
 class MainWindow(QMainWindow):
@@ -77,6 +80,14 @@ class MainWindow(QMainWindow):
         self._tabs.setMinimumWidth(_SIDE_MIN_WIDTH_PX)
         self._plan = PlanPanel()
         self.setCentralWidget(self._build_body())
+        self._logo = CornerLogo(
+            self._plan,
+            _LOGO_HEIGHT_PX,
+            _LOGO_MARGIN_PX,
+            _LOGO_MARGIN_PX,
+            bottom=True,
+            symbol=True,
+        )
         self._actions = AppActions(self)
         build_menus(self, self._actions)
         build_toolbar(self, self._actions)

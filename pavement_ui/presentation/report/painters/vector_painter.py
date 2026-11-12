@@ -9,6 +9,7 @@ from PySide6.QtGui import (
     QColor,
     QFont,
     QFontMetricsF,
+    QImage,
     QPainter,
     QPen,
     QPolygonF,
@@ -16,6 +17,7 @@ from PySide6.QtGui import (
 
 from pavement_ui.core.results.vector_drawing import (
     HAlign,
+    ImageShape,
     LayerLook,
     TextShape,
     VAlign,
@@ -108,6 +110,21 @@ def _paint_text(painter: QPainter, text: TextShape, frame: _Frame, color: str) -
     painter.restore()
 
 
+def _paint_image(painter: QPainter, image: ImageShape, frame: _Frame) -> None:
+    """Paint an image centered in its rectangle, undistorted; skipped when unreadable"""
+    picture = QImage(image.path)
+    if picture.isNull():
+        return
+    scale = min(image.width / picture.width(), image.height / picture.height())
+    width, height = picture.width() * scale, picture.height() * scale
+    left = image.position[0] + (image.width - width) / 2
+    top = image.position[1] + (image.height + height) / 2  # y up in the model
+    corner = frame.point((left, top))
+    target = QRectF(corner.x(), corner.y(), width * frame.scale, height * frame.scale)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    painter.drawImage(target, picture)
+
+
 def paint_vector(
     painter: QPainter,
     drawing: VectorDrawing,
@@ -149,6 +166,8 @@ def paint_vector(
         radius = circle.radius * frame.scale
         painter.drawEllipse(frame.point(circle.center), radius, radius)
     painter.setBrush(Qt.BrushStyle.NoBrush)
+    for image in drawing.images:
+        _paint_image(painter, image, frame)
     for text in drawing.texts:
         _paint_text(painter, text, frame, looks.get(text.layer, _FALLBACK).color)
     painter.restore()

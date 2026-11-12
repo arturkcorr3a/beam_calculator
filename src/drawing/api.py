@@ -3,15 +3,15 @@
 # matplotlib leaves **kwargs unannotated, so show and savefig are partially unknown
 # pyright: reportUnknownMemberType=false
 
-from dataclasses import replace
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 
 from src.detailing.detailing_beam import DetailingBeam
 from src.drawing.config import DEFAULT_CONFIG, DrawingConfig
-from src.drawing.layout import build_beam_drawing, build_pavement_drawing
+from src.drawing.layout import build_beam_drawing
 from src.drawing.render_dxf import write_dxf
 from src.drawing.render_mpl import make_figure
 from src.drawing.sheet_info import read_sheet_info
@@ -58,47 +58,54 @@ def beam_figure(
     config: DrawingConfig | None = None,
     *,
     pavement_name: str | None = None,
+    sheet_number: int = 1,
+    sheet_total: int = 1,
 ) -> Figure:
     """Return the figure of one beam's sheet
 
     Args:
-        pavement_name: Name shown in the title block.
+        pavement_name: Name shown in the title block as the project's.
+        sheet_number: Number of the sheet among the exported ones, from 1.
+        sheet_total: Number of sheets exported together.
 
     Raises:
         DrawingError: If the detailing has items without marks.
+        SheetFitError: If a fixed sheet format does not hold the drawing.
     """
     config = config or DEFAULT_CONFIG
     check_detailing(detailing)
     drawing = build_beam_drawing(
-        detailing, config, sheet=read_sheet_info(pavement_name)
+        detailing,
+        config,
+        sheet=read_sheet_info(pavement_name, sheet_number, sheet_total),
     )
     figure = make_figure(drawing, config)
     _set_window_title(figure, f"Viga {detailing.beam_id}")
     return figure
 
 
-def pavement_figure(
+def pavement_figures(
     pavement: Pavement,
     config: DrawingConfig | None = None,
     *,
     pavement_name: str | None = None,
-) -> Figure:
-    """Return the figure of a pavement's sheet: every beam, stacked, then the closing blocks
-
-    Args:
-        pavement_name: Name shown in the title block.
+) -> list[Figure]:
+    """Return the figure of each beam's sheet, in pavement order, numbered n/total
 
     Raises:
         DrawingError: If a beam is not detailed or has items without marks.
     """
-    config = config or DEFAULT_CONFIG
-    pavement_detailings(pavement)
-    drawing = build_pavement_drawing(
-        pavement, config, sheet=read_sheet_info(pavement_name)
-    )
-    figure = make_figure(drawing, config)
-    _set_window_title(figure, "Vigas do pavimento")
-    return figure
+    detailings = pavement_detailings(pavement)
+    return [
+        beam_figure(
+            detailing,
+            config,
+            pavement_name=pavement_name,
+            sheet_number=number,
+            sheet_total=len(detailings),
+        )
+        for number, detailing in enumerate(detailings, start=1)
+    ]
 
 
 def show_beam(
@@ -124,15 +131,15 @@ def show_pavement(
     *,
     block: bool = True,
     pavement_name: str | None = None,
-) -> Figure:
-    """Show a pavement's sheet in a window and return its figure
+) -> list[Figure]:
+    """Show the sheet of every beam of a pavement, one window each, and return the figures
 
     Raises:
         DrawingError: If a beam is not detailed or has items without marks.
     """
-    figure = pavement_figure(pavement, config, pavement_name=pavement_name)
+    figures = pavement_figures(pavement, config, pavement_name=pavement_name)
     plt.show(block=block)
-    return figure
+    return figures
 
 
 def export_beam_dxf(
@@ -141,44 +148,23 @@ def export_beam_dxf(
     config: DrawingConfig | None = None,
     *,
     pavement_name: str | None = None,
+    sheet_number: int = 1,
+    sheet_total: int = 1,
 ) -> Path:
-    """Write one beam's sheet, with its schedule, summary, notes and title block, to a DXF file
+    """Write one beam's sheet, with its frame, notes and title block, to a DXF file
 
     Returns:
         The path written.
 
     Raises:
         DrawingError: If the detailing has items without marks.
+        SheetFitError: If a fixed sheet format does not hold the drawing.
     """
     config = config or DEFAULT_CONFIG
     path = Path(path)
     check_detailing(detailing)
-    sheet = replace(read_sheet_info(pavement_name), file_name=path.name)
+    sheet = read_sheet_info(pavement_name, sheet_number, sheet_total)
     return write_dxf(build_beam_drawing(detailing, config, sheet=sheet), path, config)
-
-
-def export_pavement_dxf(
-    pavement: Pavement,
-    path: str | Path,
-    config: DrawingConfig | None = None,
-    *,
-    pavement_name: str | None = None,
-) -> Path:
-    """Write a pavement's sheet to a DXF file
-
-    Returns:
-        The path written.
-
-    Raises:
-        DrawingError: If a beam is not detailed or has items without marks.
-    """
-    config = config or DEFAULT_CONFIG
-    path = Path(path)
-    pavement_detailings(pavement)
-    sheet = replace(read_sheet_info(pavement_name), file_name=path.name)
-    return write_dxf(
-        build_pavement_drawing(pavement, config, sheet=sheet), path, config
-    )
 
 
 def save_pavement(
@@ -190,7 +176,7 @@ def save_pavement(
 ) -> list[Path]:
     """Write every drawing of a pavement to a folder and return the files
 
-    Each beam gets a DXF, a PNG and a PDF named after it (V1.dxf, …), and the whole pavement a ``pavement.dxf`` and a ``pavement.pdf``. Figures are closed once saved.
+    Each beam gets a DXF, a PNG and a PDF named after it (V1.dxf, …), numbered n/total in pavement order, and ``pavement.pdf`` holds all the sheets, one per page. Figures are closed once saved.
 
     Args:
         pavement_name: Name shown in the title blocks.
@@ -200,32 +186,47 @@ def save_pavement(
     """
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
+    detailings = pavement_detailings(pavement)
     paths: list[Path] = []
-    for detailing in pavement_detailings(pavement):
+    figures: list[Figure] = []
+    for number, detailing in enumerate(detailings, start=1):
         stem = folder / detailing.beam_id
         paths.append(
             export_beam_dxf(
-                detailing, stem.with_suffix(".dxf"), config, pavement_name=pavement_name
+                detailing,
+                stem.with_suffix(".dxf"),
+                config,
+                pavement_name=pavement_name,
+                sheet_number=number,
+                sheet_total=len(detailings),
             )
         )
-        figure = beam_figure(detailing, config, pavement_name=pavement_name)
-        paths += _save_figure(figure, stem, (".png", ".pdf"))
-    paths.append(
-        export_pavement_dxf(
-            pavement, folder / "pavement.dxf", config, pavement_name=pavement_name
+        figure = beam_figure(
+            detailing,
+            config,
+            pavement_name=pavement_name,
+            sheet_number=number,
+            sheet_total=len(detailings),
         )
-    )
-    figure = pavement_figure(pavement, config, pavement_name=pavement_name)
-    paths += _save_figure(figure, folder / "pavement", (".pdf",))
-    return paths
+        paths += _save_figure(figure, stem, (".png", ".pdf"), close=False)
+        figures.append(figure)
+    all_sheets = folder / "pavement.pdf"
+    with PdfPages(all_sheets) as pdf:
+        for figure in figures:
+            pdf.savefig(figure)
+            plt.close(figure)
+    return [*paths, all_sheets]
 
 
-def _save_figure(figure: Figure, stem: Path, suffixes: tuple[str, ...]) -> list[Path]:
-    """Save a figure in some formats next to each other, close it, and return the files"""
+def _save_figure(
+    figure: Figure, stem: Path, suffixes: tuple[str, ...], *, close: bool = True
+) -> list[Path]:
+    """Save a figure in some formats next to each other, optionally close it, and return the files"""
     paths = [stem.with_suffix(suffix) for suffix in suffixes]
     for path in paths:
         figure.savefig(path, dpi=PNG_DPI)
-    plt.close(figure)
+    if close:
+        plt.close(figure)
     return paths
 
 

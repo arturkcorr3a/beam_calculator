@@ -32,11 +32,13 @@ from src.drawing.primitives import (
     Circle,
     Drawing,
     HAlign,
+    Image,
     Line,
     Polyline,
     Text,
     VAlign,
     arc_points,
+    item_points,
 )
 
 Box = tuple[float, float, float, float]  # x min, y min, x max, y max (cm)
@@ -358,6 +360,8 @@ def item_boxes(drawing: Drawing, config: DrawingConfig) -> tuple[Box, ...]:
                 )
             case Text():
                 boxes.append(_box(item.corners()))
+            case Image():
+                boxes.append(_box(item_points(item)))
     return tuple(boxes)
 
 

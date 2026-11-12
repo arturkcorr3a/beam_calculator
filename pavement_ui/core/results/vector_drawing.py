@@ -97,6 +97,22 @@ class TextShape:
 
 
 @dataclass(frozen=True, slots=True)
+class ImageShape:
+    """A raster image fitted inside a rectangle (cm)
+
+    Attributes:
+        position: Lower left corner of the rectangle.
+        path: Image file; unreadable files are skipped when painting.
+    """
+
+    position: Point
+    width: float
+    height: float
+    path: str
+    layer: str
+
+
+@dataclass(frozen=True, slots=True)
 class VectorDrawing:
     """A drawing to paint: items by kind, the looks of their layers and the bounds
 
@@ -104,6 +120,9 @@ class VectorDrawing:
         bounds: (x_min, y_min, x_max, y_max) of every item, texts included (cm).
         scale: Scale denominator the drawing's texts and offsets were laid out
             for (50 for 1:50); printing at it gives the texts their paper size.
+        images: Raster images, such as the logo.
+        paper_mm: Width and height of the sheet of paper when the drawing is a
+            sheet; its lower left corner is the origin and ``bounds`` is the paper.
     """
 
     lines: tuple[LineShape, ...]
@@ -113,3 +132,5 @@ class VectorDrawing:
     layers: tuple[LayerLook, ...]
     bounds: tuple[float, float, float, float]
     scale: float = 50.0
+    images: tuple[ImageShape, ...] = ()
+    paper_mm: tuple[float, float] | None = None

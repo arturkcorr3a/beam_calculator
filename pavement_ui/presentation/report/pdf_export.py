@@ -15,11 +15,14 @@ from PySide6.QtGui import (
 
 from pavement_ui.presentation.report.report_builder import PX_PER_MM
 from pavement_ui.presentation.theme import tokens
+from pavement_ui.presentation.theme.logo import report_logo
 
 _DPI = 300
 _MARGIN_MM = 15.0
 _FOOTER_MM = 8.0  # room under the text for the page number
 _A4_MM = (210.0, 297.0)
+_LOGO_HEIGHT_MM = 10.0  # drawn in the top margin, right-aligned with the text
+_LOGO_TOP_MM = 3.0
 _FOOTER_FONT_PX = 11
 
 
@@ -52,6 +55,7 @@ def export_pdf(document: QTextDocument, path: Path, title: str) -> None:
     scale = _DPI / 96
     footer_font = QFont(tokens.UI_FONT_FAMILY)
     footer_font.setPixelSize(_FOOTER_FONT_PX)  # layout pixels, under the scale
+    logo = report_logo()
     painter = QPainter()
     if not painter.begin(writer):
         raise OSError(str(path))
@@ -61,6 +65,18 @@ def export_pdf(document: QTextDocument, path: Path, title: str) -> None:
                 writer.newPage()
             painter.save()
             painter.scale(scale, scale)
+            if not logo.isNull():
+                logo_h = _LOGO_HEIGHT_MM * PX_PER_MM
+                logo_w = logo_h * logo.width() / logo.height()
+                painter.drawImage(
+                    QRectF(
+                        (_A4_MM[0] - _MARGIN_MM) * PX_PER_MM - logo_w,
+                        _LOGO_TOP_MM * PX_PER_MM,
+                        logo_w,
+                        logo_h,
+                    ),
+                    logo,
+                )
             painter.translate(_MARGIN_MM * PX_PER_MM, _MARGIN_MM * PX_PER_MM)
             painter.save()
             painter.translate(0, -index * height_px)

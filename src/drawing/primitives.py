@@ -170,7 +170,25 @@ class Text:
         )
 
 
-DrawingItem = Line | Polyline | Circle | Text
+@dataclass(frozen=True)
+class Image:
+    """A raster image placed in a rectangle, fitted inside it without distortion
+
+    Attributes:
+        position: Lower left corner of the rectangle (cm).
+        width: Width of the rectangle (cm).
+        height: Height of the rectangle (cm).
+        path: Image file; renderers that cannot draw it show the rectangle only.
+    """
+
+    position: Point
+    width: float
+    height: float
+    path: str
+    layer: str
+
+
+DrawingItem = Line | Polyline | Circle | Text | Image
 
 
 def arc_points(
@@ -230,7 +248,7 @@ def translate(item: DrawingItem, dx: float, dy: float) -> DrawingItem:
             return replace(item, points=tuple((x + dx, y + dy) for x, y in item.points))
         case Circle():
             return replace(item, center=(item.center[0] + dx, item.center[1] + dy))
-        case Text():
+        case Text() | Image():
             return replace(
                 item, position=(item.position[0] + dx, item.position[1] + dy)
             )
@@ -252,13 +270,21 @@ def item_points(item: DrawingItem, segments_per_quarter: int = 8) -> list[Point]
             return [(x - r, y - r), (x + r, y + r)]
         case Text():
             return list(item.corners())
+        case Image():
+            x, y = item.position
+            return [(x, y), (x + item.width, y + item.height)]
 
 
 @dataclass
 class Drawing:
-    """A set of primitives in model space (cm)"""
+    """A set of primitives in model space (cm)
+
+    Attributes:
+        paper_mm: Width and height of the sheet of paper, its lower left corner at the origin; None when the drawing is not on a sheet.
+    """
 
     items: list[DrawingItem] = field(default_factory=list[DrawingItem])
+    paper_mm: tuple[float, float] | None = None
 
     def add(self, *items: DrawingItem) -> None:
         """Append primitives"""
@@ -270,7 +296,7 @@ class Drawing:
 
     def translated(self, dx: float, dy: float) -> Drawing:
         """Return a copy moved by (dx, dy) (cm)"""
-        return Drawing([translate(item, dx, dy) for item in self.items])
+        return Drawing([translate(item, dx, dy) for item in self.items], self.paper_mm)
 
     def bounds(self) -> tuple[float, float, float, float]:
         """Return the bounding box as x min, y min, x max, y max (cm)

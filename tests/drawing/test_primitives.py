@@ -121,8 +121,8 @@ class TestDrawing:
 class TestLayers:
     """The layer table of spec §3."""
 
-    def test_sixteen_layers(self) -> None:
-        assert len(LAYERS) == 16, "Spec §3 lists 16 layers"
+    def test_layer_count(self) -> None:
+        assert len(LAYERS) == 21, "16 drawing layers plus 5 of the frame and the block"
 
     def test_linetypes_defined(self) -> None:
         for style in LAYERS.values():

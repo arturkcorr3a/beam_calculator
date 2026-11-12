@@ -15,7 +15,9 @@ _MM_PER_CM = 10.0
 
 
 def drawing_page_mm(drawing: VectorDrawing) -> tuple[float, float]:
-    """Return the page size (mm): the drawing at 1:scale plus the margins"""
+    """Return the page size (mm): the sheet's paper, or the drawing at 1:scale plus the margins"""
+    if drawing.paper_mm is not None:
+        return drawing.paper_mm
     x0, y0, x1, y1 = drawing.bounds
     paper_per_model = _MM_PER_CM / drawing.scale  # paper mm per model cm
     return (
@@ -52,7 +54,7 @@ def export_drawing_pdf(drawing: VectorDrawing, path: Path, title: str) -> None:
             painter,
             drawing,
             QRectF(0, 0, width_mm * PX_PER_MM, height_mm * PX_PER_MM),
-            margin=_MARGIN_MM * PX_PER_MM,
+            margin=0.0 if drawing.paper_mm else _MARGIN_MM * PX_PER_MM,
             px_per_mm=PX_PER_MM,
         )
     finally:

@@ -22,6 +22,11 @@ TABLE = "QUADRO"
 SLAB_OUTLINE = "LAJE-CONTORNO"
 SLAB_SUPPORT = "LAJE-APOIO"
 YIELD_LINE = "LAJE-CHARNEIRA"
+SHEET_FRAME = "FOLHA-QUADRO"
+SHEET_FRAME_HEAVY = "FOLHA-QUADRO-GROSSO"
+BLOCK_HEAVY = "SELO-GROSSO"
+BLOCK_LIGHT = "SELO-FINO"
+BLOCK_LOGO = "SELO-LOGO"
 
 
 @dataclass(frozen=True)
@@ -74,6 +79,13 @@ LAYERS: dict[str, LayerStyle] = {
             "Apoio da laje",
         ),
         LayerStyle(YIELD_LINE, 30, DASHED_LINETYPE, 0.18, "#e65100", "Charneira"),
+        LayerStyle(SHEET_FRAME, 7, CONTINUOUS, 0.70, "#111111", "Quadro da folha"),
+        LayerStyle(
+            SHEET_FRAME_HEAVY, 7, CONTINUOUS, 1.00, "#111111", "Quadro da folha"
+        ),
+        LayerStyle(BLOCK_HEAVY, 7, CONTINUOUS, 0.50, "#111111", "Selo, linha grossa"),
+        LayerStyle(BLOCK_LIGHT, 7, CONTINUOUS, 0.25, "#111111", "Selo, linha fina"),
+        LayerStyle(BLOCK_LOGO, 8, DASHED_LINETYPE, 0.25, "#6b6b6b", "Área do logo"),
     )
 }
 

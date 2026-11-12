@@ -17,6 +17,7 @@ from pavement_ui.presentation.main_window.main_window import MainWindow
 from pavement_ui.presentation.session_bridge import QtSessionBridge
 from pavement_ui.presentation.text.strings.common import APP_NAME
 from pavement_ui.presentation.theme.fonts import register_fonts, ui_font
+from pavement_ui.presentation.theme.logo import app_icon
 from pavement_ui.presentation.theme.stylesheet import build_stylesheet
 
 _STYLE = "Fusion"
@@ -27,6 +28,7 @@ def _configure_application(app: QApplication) -> None:
     QLocale.setDefault(QLocale(QLocale.Language.Portuguese, QLocale.Country.Brazil))
     app.setApplicationName(APP_NAME)
     app.setStyle(_STYLE)
+    app.setWindowIcon(app_icon())
     register_fonts()
     app.setFont(ui_font())
     app.setStyleSheet(build_stylesheet())

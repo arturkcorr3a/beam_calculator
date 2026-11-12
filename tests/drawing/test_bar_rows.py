@@ -16,7 +16,7 @@ from src.drawing.bar_rows import (
 from src.drawing.config import DrawingConfig
 from src.drawing.geometry import hook_path, overlap_pairs
 from src.drawing.layers import DIMENSION, LAP, TEXT
-from src.drawing.layout import build_beam_drawing, pillar_bottom
+from src.drawing.layout import beam_content, pillar_bottom
 from src.drawing.primitives import Line, Polyline, Text
 from src.pavement_elements.pavement import Pavement
 from tests.drawing.helpers import close, detailings
@@ -186,7 +186,7 @@ class TestLaps:
     """Each overlap is dimensioned between the rows of its two runs (§6.6)."""
 
     def test_one_mark_per_overlap(self, v5: DetailingBeam) -> None:
-        drawing = build_beam_drawing(v5, CONFIG, standalone=False)
+        drawing = beam_content(v5, CONFIG, tables=False)
         pairs = overlap_pairs(v5, False) + overlap_pairs(v5, True)
         laps = [i for i in drawing.items if isinstance(i, Line) and i.layer == LAP]
         assert len(laps) == 2 * len(pairs) == 16, "Two dashed limits per overlap"

@@ -6,8 +6,8 @@ Usage::
     python -m src.main --load saved_fixed [--log-level GENERAL] [--log-output both]
     python -m src.main --load t_concreto2 --display SAVE
 
-``--display`` draws the detailed beams of the resulting pavement: SHOW opens the
-pavement sheet in a window, SAVE writes every drawing to
+``--display`` draws the detailed beams of the resulting pavement: SHOW opens each beam's sheet in a
+window, SAVE writes every drawing to
 ``results/<mmm-dd>/drawing/<name>/``, and BOTH does both.
 """
 
@@ -41,7 +41,7 @@ _INTERFACE_MODULE = "simple_example"
 class DisplayMode(StrEnum):
     """What ``--display`` does with the drawings"""
 
-    SHOW = "SHOW"  # open the pavement sheet in a window
+    SHOW = "SHOW"  # open each beam sheet in a window
     SAVE = "SAVE"  # write the DXF, PNG and PDF files
     BOTH = "BOTH"  # save, then show
 
@@ -80,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=str.upper,
         choices=[mode.value for mode in DisplayMode],
         help=(
-            "Draw the detailed beams: SHOW opens the pavement sheet, SAVE writes "
+            "Draw the detailed beams: SHOW opens each beam sheet, SAVE writes "
             "DXF, PNG and PDF files to results/<mmm-dd>/drawing/<name>/, BOTH does "
             "both (default: no drawing)."
         ),
