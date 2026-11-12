@@ -61,7 +61,7 @@ class WallDefinition:
 
 
 @logger_label("{id}")
-@dataclass
+@dataclass(repr=False)
 class ContinuousBeam:
     """A structural beam spanning multiple pillars along a single axis (X or Y).
 
@@ -98,6 +98,11 @@ class ContinuousBeam:
     def reset_id_counter(cls) -> None:
         """Restart auto-generated ids at 1 (V1)"""
         cls._counter = count(1)
+
+    def __repr__(self) -> str:
+        """Identity only: the analysis, calculators and detailing of a dimensioned
+        beam would make the full dataclass repr huge"""
+        return f"ContinuousBeam(id={self.id!r}, pillar_ids={self.pillar_ids!r})"
 
     def __post_init__(self):
         if not self.id:

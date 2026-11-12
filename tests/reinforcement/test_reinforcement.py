@@ -9,6 +9,7 @@ import pytest
 from src.config import APP_CONFIG
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
+from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
 from src.reinforcement.reinforcement import (
     DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION,
@@ -751,3 +752,121 @@ class TestAnchorageSummaries:
         expected = [(i, side) for i in used for side in ("left", "right")]
         sides = [(a.layer_index, a.side) for a in reinforcement.anchorages]
         assert sides == expected, "one summary per used layer and side of the choice"
+
+
+_TWO_SPAN_LENGTH = 1000.0  # cm
+
+
+@pytest.fixture
+def two_span_reinforcement() -> Reinforcement:
+    """Choose 2φ16 at the middle of the first span of a two-span 1000 cm beam
+
+    The pillars are 20 cm wide: 0 (-10..10), 500 (490..510) and 1000 (990..1010).
+    The bars stop well short of both supports of the span.
+    """
+    beam = types.SimpleNamespace(
+        steel=Steel.CA50,
+        width=20.0,
+        height=60.0,
+        length=_TWO_SPAN_LENGTH,
+        label="V1",
+        supports=[
+            Support(0.0, -10.0, 10.0),
+            Support(500.0, 490.0, 510.0),
+            Support(1000.0, 990.0, 1010.0),
+        ],
+    )
+    reinforcement = Reinforcement(
+        cast(RectangularBeam, beam),
+        is_bottom_reinforcement=True,
+        center_position=250.0,
+        id="R",
+        support_moments=(0.0, -40.0, 0.0),
+        span_moment=50.0,
+    )
+    reinforcement.moment_shift = 28.0  # cm
+    reinforcement.effective_depth = 55.0  # cm
+    reinforcement.design_shear = 100.0  # kN
+    reinforcement.set_required_area(4.02)  # 2φ16 in layer 0
+    return reinforcement
+
+
+class TestLayerReachesSupport:
+    """A layer reaches a support when it is anchored inside it (NBR 6118 - 18.3.2.4.1)."""
+
+    def test_short_bars_do_not_reach(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        assert not two_span_reinforcement.layer_reaches_support(0, 1, left=False), (
+            "bars anchored near midspan do not reach the inner support"
+        )
+        assert not two_span_reinforcement.layer_reaches_support(0, 0, left=True), (
+            "bars anchored near midspan do not reach the outer support"
+        )
+
+    def test_empty_layer_raises(self, two_span_reinforcement: Reinforcement) -> None:
+        with pytest.raises(ValueError, match="no bars"):
+            two_span_reinforcement.layer_reaches_support(1, 1, left=False)
+
+
+class TestExtendLayerToSupport:
+    """Extending a layer anchors it inside the support, replacing that side."""
+
+    def test_inner_support_ten_diameters(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        """Face at 490 cm, 240 cm from the section; 10φ = 16 cm"""
+        two_span_reinforcement.extend_layer_to_support(0, 1, left=False)
+        for bar in _bars(two_span_reinforcement):
+            assert_approx(bar.right_length, 256.0, "Face distance + 10φ (cm)")
+            assert not bar.right_hook_enabled, "Straight bars past the face"
+        assert two_span_reinforcement.layer_reaches_support(0, 1, left=False), (
+            "the extended layer reaches the support"
+        )
+
+    def test_other_side_is_kept(self, two_span_reinforcement: Reinforcement) -> None:
+        before = [bar.left_length for bar in _bars(two_span_reinforcement)]
+        two_span_reinforcement.extend_layer_to_support(0, 1, left=False)
+        after = [bar.left_length for bar in _bars(two_span_reinforcement)]
+        assert after == before, "the left side is untouched"
+
+    def test_outer_support(self, two_span_reinforcement: Reinforcement) -> None:
+        two_span_reinforcement.extend_layer_to_support(0, 0, left=True)
+        assert two_span_reinforcement.layer_reaches_support(0, 0, left=True), (
+            "the extended layer is anchored inside the outer support"
+        )
+        for bar in _bars(two_span_reinforcement):
+            assert bar.left_length > 240.0, "bars run past the face at 10 cm"
+        assert two_span_reinforcement.chosen_bars[0].left_clamps is not None, (
+            "the 20 cm pillar is too narrow for l_b,nec; clamps complete it"
+        )
+
+    def test_clamps_count_as_reaching(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        layer = two_span_reinforcement.chosen_bars[0]
+        layer.set_clamps(True, Clamps(diameter=6.3, quantity=1, length=10.0, width=10.0))
+        assert two_span_reinforcement.layer_reaches_support(0, 0, left=True), (
+            "clamps on a side mean the bars are anchored in its support"
+        )
+
+    def test_summary_replaced_in_order(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        left_before = two_span_reinforcement.anchorages[0]
+        two_span_reinforcement.extend_layer_to_support(0, 1, left=False)
+        sides = [(a.layer_index, a.side) for a in two_span_reinforcement.anchorages]
+        assert sides == [(0, "left"), (0, "right")], (
+            "one summary per side, left then right"
+        )
+        assert two_span_reinforcement.anchorages[0] == left_before, (
+            "the left summary is kept"
+        )
+
+    def test_clamps_on_that_side_are_dropped(
+        self, two_span_reinforcement: Reinforcement
+    ) -> None:
+        layer = two_span_reinforcement.chosen_bars[0]
+        layer.set_clamps(False, Clamps(diameter=6.3, quantity=1, length=10.0, width=10.0))
+        two_span_reinforcement.extend_layer_to_support(0, 1, left=False)
+        assert layer.right_clamps is None, "10φ past the face needs no clamps"

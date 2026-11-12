@@ -252,24 +252,117 @@ class Reinforcement:
             if self._is_at_beam_start:
                 anchorage_calculator.run_end_support(left=True)
             else:
-                left_available_space = (
-                    self.center_position - RectangularBeam.nominal_covering
-                )  # cm
                 anchorage_calculator.run(
-                    left_available_space, left=True, allow_clamp=allow_clamp
+                    self._available_space(left=True),
+                    left=True,
+                    allow_clamp=allow_clamp,
                 )
 
             if self._is_at_beam_end:
                 anchorage_calculator.run_end_support(left=False)
             else:
-                right_available_space = (
-                    self.beam.length - RectangularBeam.nominal_covering
-                ) - self.center_position  # cm
                 anchorage_calculator.run(
-                    right_available_space, left=False, allow_clamp=allow_clamp
+                    self._available_space(left=False),
+                    left=False,
+                    allow_clamp=allow_clamp,
                 )
             summaries.extend(anchorage_calculator.summaries)
         self._layout_anchorages = tuple(summaries)
+
+    def _available_space(self, left: bool) -> float:
+        """Return the length from the section to the beam's end minus the nominal covering (cm)
+
+        Args:
+            left: Whether to measure towards the left end; otherwise the right.
+        """
+        covering = RectangularBeam.nominal_covering  # cm
+        if left:
+            return self.center_position - covering
+        return self.beam.length - covering - self.center_position
+
+    def _layer_anchorage_calculator(self, layer_index: int) -> AnchorageCalculator:
+        """Build the anchorage calculator of one chosen layer
+
+        Raises:
+            ValueError: If the moment shift is not set.
+        """
+        if self.moment_shift is None:
+            raise ValueError("Moment shift must be set before anchoring the bars.")
+        return AnchorageCalculator(
+            reinforcement=self,
+            moment_shift=self.moment_shift,
+            steel=self.steel,
+            layer_index=layer_index,
+            id=f"{self.id} | Layer {layer_index}",
+        )
+
+    def layer_reaches_support(
+        self, layer_index: int, support_index: int, left: bool
+    ) -> bool:
+        """Check whether a layer's bars are anchored inside a support
+
+        The bars reach the support when their length on that side covers the anchorage inside it (see ``AnchorageCalculator.support_anchorage_length``), or when clamps complete their anchorage on that side.
+
+        Args:
+            layer_index: Index of a non-empty chosen layer.
+            support_index: Index of the support in ``beam.supports``.
+            left: Whether the support is on the left of the center; otherwise on the right.
+
+        Raises:
+            ValueError: If the layer has no bars or the moment shift is not set.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.4.1
+        """
+        layer = self.chosen_bars[layer_index]
+        if not layer.bars:
+            raise ValueError(f"Layer {layer_index} has no bars.")
+        if layer.get_clamps(left) is not None:
+            return True  # clamps are only set where the bars end anchored in a support
+        calculator = self._layer_anchorage_calculator(layer_index)
+        needed = calculator.support_anchorage_length(support_index, left)  # cm
+        length = max(
+            bar.left_length if left else bar.right_length for bar in layer.bars
+        )  # cm
+        return length >= needed - END_SUPPORT_TOLERANCE
+
+    def extend_layer_to_support(
+        self, layer_index: int, support_index: int, left: bool
+    ) -> None:
+        """Extend a layer's bars into a support and anchor them there
+
+        The layer's anchorage on that side is replaced: its clamps on that side are dropped, the bars are anchored from the support's inner face, and the side's anchorage summary is updated. Clamps are allowed only when the effective depth and design shear are set.
+
+        Args:
+            layer_index: Index of a non-empty chosen layer.
+            support_index: Index of the support in ``beam.supports``.
+            left: Whether the support is on the left of the center; otherwise on the right.
+
+        Raises:
+            ValueError: If the moment shift is not set, or propagated from the anchorage calculator if the bars cannot be anchored inside the support.
+
+        References:
+            ABNT NBR 6118:2026 — Sections 18.3.2.4-c and 18.3.2.4.1
+        """
+        layer = self.chosen_bars[layer_index]
+        layer.set_clamps(left, None)
+        calculator = self._layer_anchorage_calculator(layer_index)
+        allow_clamp = self.effective_depth is not None and self.design_shear is not None
+        calculator.anchor_into_support(
+            support_index, self._available_space(left), left, allow_clamp
+        )
+        side = "left" if left else "right"
+        kept = [
+            summary
+            for summary in self.anchorages
+            if not (summary.layer_index == layer_index and summary.side == side)
+        ]
+        self.anchorages = tuple(
+            sorted(
+                kept + calculator.summaries,
+                key=lambda summary: (summary.layer_index, summary.side == "right"),
+            )
+        )
 
     def get_horizontal_spacing(self, bar_diameter: float) -> float:
         """
