@@ -1,47 +1,47 @@
-# beam_calculator — arquivos de logo
+# beam_calculator — logo files
 
-Monograma "b": a letra é formada por uma seção de viga, e os pontos representam as barras da armadura positiva.
-Nos SVGs, os textos foram convertidos em contornos. Por isso abrem iguais em qualquer computador, sem precisar instalar fontes.
+"b" monogram: the letter is formed by a beam cross-section, and the dots represent the positive reinforcement bars.
+In the SVGs, the text has been converted to outlines, so they render identically on any computer without installing fonts.
 
-## Pastas
+## Folders
 
-| Pasta | Conteúdo |
+| Folder | Contents |
 |---|---|
-| `svg/simbolo`, `png/simbolo` | Só o monograma (PNG em 256, 512 e 1024 px) |
-| `svg/horizontal`, `png/horizontal` | Símbolo + nome, com e sem a assinatura "Dimensionamento de vigas em concreto armado" (PNG @2x e @4x) |
-| `svg/vertical`, `png/vertical` | Versão empilhada, para capas e páginas de rosto |
-| `svg/icone`, `png/icone` | Ícone de aplicativo, favicons (16/32/48 px e `.ico`), `apple-touch-icon` e ícones Android |
+| `svg/symbol`, `png/symbol` | Monogram only (PNG at 256, 512 and 1024 px) |
+| `svg/horizontal`, `png/horizontal` | Symbol + name, with and without the tagline "Dimensionamento de vigas em concreto armado" (reinforced concrete beam design) (PNG @2x and @4x) |
+| `svg/vertical`, `png/vertical` | Stacked version, for covers and title pages |
+| `svg/icon`, `png/icon` | App icon, favicons (16/32/48 px and `.ico`), `apple-touch-icon` and Android icons |
 
-Cada logo vem em quatro versões:
-- `cor`: para fundo claro
-- `negativo`: para fundo escuro
-- `mono-preto`: impressão em preto e branco
-- `mono-branco`: aplicação sobre foto ou cor escura
+Each logo comes in four versions:
+- `color`: for light backgrounds
+- `negative`: for dark backgrounds
+- `mono-black`: black-and-white printing
+- `mono-white`: application over photos or dark colors
 
-Todos os PNGs têm fundo transparente, exceto os ícones de app.
+All PNGs have a transparent background, except the app icons.
 
-## Cores
+## Colors
 
-| Uso | Hex |
+| Use | Hex |
 |---|---|
-| Grafite (letra e texto) | `#1F2428` |
-| Azul de destaque (fundo claro) | `#2F6FDB` |
-| Azul de destaque (fundo escuro) | `#5B9BFF` |
-| Texto claro sobre fundo escuro | `#F1F3F5` |
-| Assinatura (fundo claro / escuro) | `#5B636B` / `#AEB5BC` |
+| Graphite (letter and text) | `#1F2428` |
+| Accent blue (light background) | `#2F6FDB` |
+| Accent blue (dark background) | `#5B9BFF` |
+| Light text on dark background | `#F1F3F5` |
+| Tagline (light / dark background) | `#5B636B` / `#AEB5BC` |
 
-## Fontes
-- Nome: **JetBrains Mono Bold**
-- Assinatura: **Inter Regular**
+## Fonts
+- Name: **JetBrains Mono Bold**
+- Tagline: **Inter Regular**
 
-As duas são gratuitas (SIL Open Font License) e estão no Google Fonts.
+Both are free (SIL Open Font License) and available on Google Fonts.
 
-## Uso
-- Mantenha ao redor do logo uma área livre de pelo menos metade da largura do "b".
-- Abaixo de 24 px de altura, use só o símbolo. Abaixo de 48 px, use o favicon simplificado (`favicon-claro.svg`).
-- Não distorça, não gire e não troque as cores fora das versões acima.
+## Usage
+- Keep a clear area around the logo of at least half the width of the "b".
+- Below 24 px in height, use the symbol only. Below 48 px, use the simplified favicon (`favicon-light.svg`).
+- Do not distort, rotate, or change the colors outside the versions above.
 
-## Favicon em uma página web
+## Favicon on a web page
 
 ```html
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -49,4 +49,4 @@ As duas são gratuitas (SIL Open Font License) e estão no Google Fonts.
 <link rel="apple-touch-icon" href="/apple-touch-icon-180.png">
 ```
 
-O `favicon.svg` muda sozinho para a versão clara quando o navegador está no modo escuro.
+`favicon.svg` automatically switches to the light version when the browser is in dark mode.
