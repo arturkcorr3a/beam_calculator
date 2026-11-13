@@ -2,6 +2,7 @@
 
 import types
 from collections.abc import Callable
+from math import pi
 
 import pytest
 
@@ -35,16 +36,22 @@ def _make_calculator_stub(d: float = 56.0) -> types.SimpleNamespace:
 
 
 def _make_stirrups_stub(
-    diameter_for: Callable[[float], float], moment_shift: float = 28.0
+    diameter_for: Callable[[float], float],
+    moment_shift: float = 28.0,
+    spacing_for: Callable[[float], float] = lambda depth: 20.0,
+    required_ratio_for: Callable[[float], float] = lambda depth: 0.0,
 ) -> types.SimpleNamespace:
     """Return a Stirrups stub that records the depths it is dimensioned with (cm).
 
     Args:
         diameter_for: Maps the effective depth (cm) to the chosen diameter (cm).
         moment_shift: Moment shift a_l (cm) returned by its calculator.
+        spacing_for: Maps the effective depth (cm) to the chosen spacing (cm).
+        required_ratio_for: Maps the effective depth (cm) to the required A_sw/s (cm²/cm).
     """
     stirrups = types.SimpleNamespace(
         depths=[],
+        required_ratio=0.0,
         calculator=types.SimpleNamespace(
             calculate_moment_shift=lambda: moment_shift,
             design_shear_force=_DESIGN_SHEAR,
@@ -53,7 +60,8 @@ def _make_stirrups_stub(
 
     def calculate_and_choose(effective_depth: float) -> tuple[float, float]:
         stirrups.depths.append(effective_depth)
-        return 20.0, diameter_for(effective_depth)
+        stirrups.required_ratio = required_ratio_for(effective_depth)
+        return spacing_for(effective_depth), diameter_for(effective_depth)
 
     stirrups.calculate_and_choose = calculate_and_choose
     return stirrups
@@ -126,11 +134,119 @@ class TestCoordinateSpan:
             coordinate_span([], stirrups)  # type: ignore[arg-type]
 
     def test_raises_when_not_converging(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A d that keeps oscillating raises ValueError after MAX_ITERATIONS passes."""
+        """A d that keeps drifting without repeating a state raises ValueError after MAX_ITERATIONS passes."""
         monkeypatch.setattr(stirrup_rebar_coordinator, "MAX_ITERATIONS", 5)
         calculator = _make_calculator_stub(d=56.0)
-        # The diameter flips with d, so d never settles (cm)
-        stirrups = _make_stirrups_stub(lambda depth: 1.0 if depth >= 55.5 else 0.5)
+
+        def drifting_calculate_for(
+            stirrup_diameter: float, moment_shift: float, design_shear: float
+        ) -> None:
+            calculator.d -= 1.0  # cm, never settles nor repeats
+
+        calculator.calculate_for = drifting_calculate_for
+        stirrups = _make_stirrups_stub(lambda depth: 0.5)
 
         with pytest.raises(ValueError, match="did not converge within 5"):
             coordinate_span([calculator], stirrups)  # type: ignore[list-item]
+
+    def test_same_stirrups_with_moving_d_is_not_a_cycle(self) -> None:
+        """The same stirrups with a d that is still changing keep iterating (cm)."""
+        calculator = _make_calculator_stub(d=56.0)
+        depths_after = iter([55.0, 54.0, 54.0, 54.0])
+
+        def calculate_for(
+            stirrup_diameter: float, moment_shift: float, design_shear: float
+        ) -> None:
+            calculator.d = next(depths_after)
+
+        calculator.calculate_for = calculate_for
+        stirrups = _make_stirrups_stub(lambda depth: 0.5)
+
+        coordinate_span([calculator], stirrups)  # type: ignore[list-item]
+
+        assert stirrups.depths == [56.0, 55.0, 54.0], (
+            "should stop on convergence, not on the repeated stirrups"
+        )
+
+
+# 6.3 mm every 13 cm and 8 mm every 20 cm: nearly equal A_sw/s (cm²/cm)
+_THIN = (13.0, 0.63)
+_THICK = (20.0, 0.8)
+
+
+def _make_oscillating_case(
+    required_at_low_d: float, required_at_high_d: float
+) -> tuple[types.SimpleNamespace, types.SimpleNamespace]:
+    """Return a calculator and stirrups that flip between the thick and thin stirrups
+
+    The thick stirrups lower d (cm) and the thin ones raise it, like in a real beam; the
+    A_sw/s required (cm²/cm) at the low d (thick stirrups' own d) and at the high d (thin
+    stirrups' own d) make each state (un)safe.
+    """
+    calculator = _make_calculator_stub(d=85.0)
+    d_for = {0.8: 84.19, 0.63: 85.97}
+
+    def calculate_for(
+        stirrup_diameter: float, moment_shift: float, design_shear: float
+    ) -> None:
+        calculator.calls.append((stirrup_diameter, moment_shift, design_shear))
+        calculator.d = d_for[stirrup_diameter]
+
+    calculator.calculate_for = calculate_for
+    stirrups = _make_stirrups_stub(
+        lambda depth: 0.63 if depth < 85.0 else 0.8,
+        spacing_for=lambda depth: _THIN[0] if depth < 85.0 else _THICK[0],
+        required_ratio_for=lambda depth: (
+            required_at_low_d if depth < 85.0 else required_at_high_d
+        ),
+    )
+    return calculator, stirrups
+
+
+class TestCycle:
+    """Tests for the stirrup ↔ longitudinal cycle resolution of coordinate_span()."""
+
+    def test_oscillation_ends_without_error(self) -> None:
+        """A two-state oscillation is resolved instead of raising ValueError."""
+        calculator, stirrups = _make_oscillating_case(0.0, 0.0)
+
+        coordinate_span([calculator], stirrups)  # type: ignore[list-item]
+
+        assert len(calculator.calls) < 10, (
+            "the cycle should be detected within a few passes"
+        )
+
+    def test_keeps_cheapest_safe_stirrups(self) -> None:
+        """Both states cover their own requirement: the one with the smaller A_sw/s is kept."""
+        calculator, stirrups = _make_oscillating_case(0.04, 0.04)
+
+        coordinate_span([calculator], stirrups)  # type: ignore[list-item]
+
+        # 6.3 mm every 13 cm has the smaller A_sw/s than 8 mm every 20 cm?
+        thin = pi * (0.63 / 2) ** 2 * 2 / _THIN[0]
+        thick = pi * (0.8 / 2) ** 2 * 2 / _THICK[0]
+        expected = 0.63 if thin < thick else 0.8
+        assert calculator.calls[-1][0] == expected, "cheapest safe stirrups are kept"
+
+    def test_keeps_the_safe_one_when_only_one_is_safe(self) -> None:
+        """Only the thick stirrups cover the A_sw/s required at their own d: they are kept."""
+        calculator, stirrups = _make_oscillating_case(0.0, 1.0)
+
+        coordinate_span([calculator], stirrups)  # type: ignore[list-item]
+
+        assert calculator.calls[-1][0] == 0.8, "thin stirrups fall short at their own d"
+
+    def test_unsafe_cycle_keeps_largest_and_warns(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No safe stirrups: the largest A_sw/s is kept and a warning is logged."""
+        warnings: list[str] = []
+        monkeypatch.setattr(stirrup_rebar_coordinator, "log_general", warnings.append)
+        calculator, stirrups = _make_oscillating_case(1.0, 1.0)
+
+        coordinate_span([calculator], stirrups)  # type: ignore[list-item]
+
+        thin = pi * (0.63 / 2) ** 2 * 2 / _THIN[0]
+        thick = pi * (0.8 / 2) ** 2 * 2 / _THICK[0]
+        assert calculator.calls[-1][0] == (0.63 if thin > thick else 0.8)
+        assert len(warnings) == 1 and "WARNING" in warnings[0]
