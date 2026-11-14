@@ -1,5 +1,6 @@
 """Memorial de cálculo: log level and output — never saved to the project file."""
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget
 
 from pavement_ui.core.model.settings import LogValues
@@ -27,7 +28,13 @@ class LogSection(FormSection):
             lambda k: label(OptionKind.LOG_OUTPUT, k),
         )
         self.add_row(s.CONFIG_LOG_LEVEL, self._level)
-        self.add_row(s.CONFIG_LOG_OUTPUT, self._output, s.CONFIG_LOG_HINT)
+        hint = self.add_row(
+            s.CONFIG_LOG_OUTPUT,
+            self._output,
+            s.CONFIG_LOG_HINT.format(folder=options.log_dir),
+        )
+        if hint is not None:  # the folder can be copied to open it elsewhere
+            hint.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
     def load(self, log: LogValues) -> None:
         select_key(self._level, log.level_key)

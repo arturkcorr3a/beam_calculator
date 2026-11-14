@@ -42,6 +42,7 @@ class EngineOptions:
     Attributes:
         usages_by_category: (category key, usage keys) pairs of NBR 6120 Table 10;
             some categories have no usages.
+        log_dir: Folder where the engine writes the calculation memorial.
     """
 
     concrete_classes: tuple[str, ...] = ()
@@ -54,6 +55,7 @@ class EngineOptions:
     log_outputs: tuple[str, ...] = ()
     masonry: tuple[MasonryOption, ...] = ()
     usages_by_category: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    log_dir: str = ""
 
     def masonry_for(self, structural: bool) -> tuple[MasonryOption, ...]:
         """Return the masonry types of the structural or the non-bearing list"""
