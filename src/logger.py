@@ -47,7 +47,7 @@ def default_logs_dir() -> Path:
     system's per-user log folder.
     """
     if getattr(sys, "frozen", False):  # set by PyInstaller
-        return Path(platformdirs.user_log_dir("PavementDesigner", appauthor=False))
+        return Path(platformdirs.user_log_dir("beam_calculator", appauthor=False))
     return Path(__file__).parent.parent / "logs"
 
 

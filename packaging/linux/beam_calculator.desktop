@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=beam_calculator
+Comment=Dimensionamento de vigas em concreto armado
+Exec=beam_calculator
+Icon=beam_calculator
+Terminal=false
+Categories=Science;Engineering;
+StartupWMClass=beam_calculator

@@ -65,7 +65,7 @@ ISOLATED_INVALID_INPUT: Final = "Dados inválidos."
 # --- about --------------------------------------------------------------------
 ABOUT_TITLE: Final = "Sobre"
 ABOUT_TEXT: Final = (
-    "<b>Pavement Designer</b><br>"
+    "<b>beam_calculator</b><br>"
     "Pré-dimensionamento e dimensionamento de pavimentos de concreto armado "
     "(NBR 6118, NBR 6120)."
 )

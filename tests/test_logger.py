@@ -851,5 +851,5 @@ class TestDefaultLogsDir:
             logger_module.platformdirs, "user_log_dir", fake_user_log_dir
         )
         assert logger_module.default_logs_dir() == Path(
-            "/user-logs/PavementDesigner-False"
+            "/user-logs/beam_calculator-False"
         ), "packaged, logs should go to the per-user log folder, with no author level"
