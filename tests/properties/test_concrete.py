@@ -1,7 +1,5 @@
 """Unit tests for the Concrete enum and its material properties."""
 
-from typing import Any, cast
-
 import pytest
 
 from src.config import APP_CONFIG
@@ -20,23 +18,6 @@ def concrete_c25() -> Concrete:
 def concrete_c60() -> Concrete:
     """Group-2 concrete (fck > 50 MPa)."""
     return Concrete.C60
-
-
-def _clear_cached_property(member: Concrete, name: str) -> None:
-    """Evict one cached_property from an enum member so it recomputes on next access.
-
-    Enum members are singletons, so ``cached_property`` results persist on the member
-    across tests. Aggregate-dependent properties must be re-evaluated after the
-    configured aggregate changes.
-
-    Args:
-        member: The concrete enum member whose cache should be cleared.
-        name: The cached_property attribute name to evict.
-    """
-    # A member's __dict__ is a read-only proxy at the type level, but enum members
-    # store cached_property results in a mutable backing dict at runtime.
-    member_cache = cast(dict[str, Any], member.__dict__)
-    member_cache.pop(name, None)
 
 
 class TestSafetyFactor:
@@ -122,15 +103,14 @@ class TestElasticModuli:
 class TestAlphaEAggregate:
     """Tests for the alpha_e factor across every aggregate branch.
 
-    Uses monkeypatch to change the configured aggregate and clears the cached
-    alpha_e on the (singleton) enum member before each read.
+    Uses monkeypatch to change the configured aggregate; the property is read
+    again without any cache eviction.
     """
 
     def test_basalt(
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.BASALT)
-        _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.2
         assert concrete_c25.alpha_e == expected_alpha_e, (
             "For basalt aggregate, alpha_e should be 1.2"
@@ -140,7 +120,6 @@ class TestAlphaEAggregate:
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.DIABASE)
-        _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.2
         assert concrete_c25.alpha_e == expected_alpha_e, (
             "For diabase aggregate, alpha_e should be 1.2"
@@ -150,7 +129,6 @@ class TestAlphaEAggregate:
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GRANITE)
-        _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.0
         assert concrete_c25.alpha_e == expected_alpha_e, (
             "For granite aggregate, alpha_e should be 1.0"
@@ -160,7 +138,6 @@ class TestAlphaEAggregate:
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GNEISS)
-        _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 1.0
         assert concrete_c25.alpha_e == expected_alpha_e, (
             "For gneiss aggregate, alpha_e should be 1.0"
@@ -170,7 +147,6 @@ class TestAlphaEAggregate:
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.LIMESTONE)
-        _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 0.9
         assert concrete_c25.alpha_e == expected_alpha_e, (
             "For limestone aggregate, alpha_e should be 0.9"
@@ -180,7 +156,6 @@ class TestAlphaEAggregate:
         self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.SANDSTONE)
-        _clear_cached_property(concrete_c25, "alpha_e")
         expected_alpha_e = 0.7
         assert concrete_c25.alpha_e == expected_alpha_e, (
             "For sandstone aggregate, alpha_e should be 0.7"
@@ -396,4 +371,30 @@ class TestDensity:
         expected_density = 24.0  # kN/m³
         assert Concrete.density(reinforced=False) == expected_density, (
             "Plain concrete density should be 24.0 kN/m³"
+        )
+
+
+class TestAggregateChangeAfterFirstRead:
+    """Elastic moduli follow the configured aggregate even after being read once"""
+
+    def test_moduli_follow_aggregate_change(
+        self, concrete_c25: Concrete, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.GRANITE)
+        granite_ecs = concrete_c25.ecs
+        granite_g_c = concrete_c25.g_c
+
+        monkeypatch.setattr(APP_CONFIG, "aggregate", Aggregate.BASALT)
+        basalt_ratio = 1.2  # alpha_E of basalt over alpha_E of granite
+        assert_approx(
+            concrete_c25.ecs,
+            granite_ecs * basalt_ratio,
+            "E_cs should follow the aggregate change (MPa)",
+            abs_tol=1e-6,
+        )
+        assert_approx(
+            concrete_c25.g_c,
+            granite_g_c * basalt_ratio,
+            "G_c should follow the aggregate change (MPa)",
+            abs_tol=1e-6,
         )

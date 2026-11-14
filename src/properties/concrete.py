@@ -41,7 +41,7 @@ class Concrete(Enum):
         log_property(f"concrete group: {result}")
         return result
 
-    @cached_property
+    @property
     def alpha_e(self) -> float:
         """
         The alpha_e factor for concrete, based on ABNT NBR 6118 - Section 8.2.8. It depends on the type of aggregate used in the concrete mix."""
@@ -61,7 +61,7 @@ class Concrete(Enum):
             case _:
                 assert_never(project_aggregate)
 
-    @cached_property
+    @property
     def eci(self) -> float:
         """
         The initial elastic modulus of concrete (E_ci) in MPa, based on ABNT NBR 6118 - Section 8.2.8, using alpha_E for the configured aggregate.
@@ -74,7 +74,7 @@ class Concrete(Enum):
         log_property(f"E_ci = {eci:.2f} MPa")
         return eci
 
-    @cached_property
+    @property
     def ecs(self) -> float:
         """
         The secant elastic modulus of concrete (E_cs) in MPa, based on ABNT NBR 6118 - Section 8.2.8, using alpha_E for the configured aggregate.
@@ -85,7 +85,7 @@ class Concrete(Enum):
         log_property(f"alpha_i = {alpha_i:.4f} → E_cs = {result:.2f} MPa")
         return result
 
-    @cached_property
+    @property
     def g_c(self) -> float:
         """
         The shear modulus of concrete (G_c) in MPa, based on ABNT NBR 6118 - Section 8.2.9, using alpha_E for the configured aggregate.
