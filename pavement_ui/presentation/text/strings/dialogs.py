@@ -67,7 +67,11 @@ ABOUT_TITLE: Final = "Sobre"
 ABOUT_TEXT: Final = (
     "<b>beam_calculator</b><br>"
     "Pré-dimensionamento e dimensionamento de pavimentos de concreto armado "
-    "(NBR 6118, NBR 6120)."
+    "(NBR 6118, NBR 6120).<br><br>"
+    "© 2026 Artur Kalil Corrêa<br>"
+    "Software livre: você pode redistribuí-lo e modificá-lo sob os termos da "
+    "GNU General Public License, versão 3 ou posterior. Distribuído SEM "
+    "QUALQUER GARANTIA. Veja o arquivo LICENSE."
 )
 
 # --- file dialogs -------------------------------------------------------------

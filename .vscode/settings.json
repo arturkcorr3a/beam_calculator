@@ -73,4 +73,5 @@
     ],
     "python.analysis.typeCheckingMode": "strict",
     "workbench.colorTheme": "Dark Modern",
+    "python.terminal.useEnvFile": true,
 }

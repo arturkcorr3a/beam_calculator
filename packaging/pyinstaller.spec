@@ -2,10 +2,48 @@
 # Build from the repository root: pyinstaller --noconfirm packaging/pyinstaller.spec
 # (packaging/build_linux.sh wraps it and packs the folder).
 
+import re
+import sys
+import sysconfig
+from importlib.metadata import distribution
 from pathlib import Path
 
 ROOT = Path(SPECPATH).parent  # noqa: F821 (SPECPATH is set by PyInstaller)
 ICON = ROOT / "resources/logo/png/icon/app.ico"
+_LICENSE_NAME = re.compile(r"LICEN[CS]E|COPYING|NOTICE|AUTHORS", re.IGNORECASE)
+
+
+def _python_license() -> Path:
+    """The interpreter's license: next to the stdlib (Linux) or in the prefix (Windows)"""
+    for folder in (Path(sysconfig.get_path("stdlib")), Path(sys.base_prefix)):
+        if (folder / "LICENSE.txt").is_file():
+            return folder / "LICENSE.txt"
+    raise SystemExit("Python's LICENSE.txt not found: the bundle must carry it")
+
+
+def license_datas() -> list[tuple[str, str]]:
+    """(file, bundle folder) of every license shipped in _internal/licenses/
+
+    The app's own GPL-3.0, Python's, PySide6/Qt's LGPL-3.0 notice, and the
+    license files of each package in requirements-app.txt (from its
+    .dist-info, keeping their relative folders, as some share a file name).
+    """
+    datas = [
+        (str(ROOT / "LICENSE"), "licenses/beam_calculator"),
+        (str(_python_license()), "licenses/python"),
+        (str(ROOT / "packaging/licenses/LGPL-3.0.txt"), "licenses/PySide6"),
+        (str(ROOT / "packaging/licenses/PySide6-NOTICE.txt"), "licenses/PySide6"),
+    ]
+    requirements = (ROOT / "requirements-app.txt").read_text().splitlines()
+    for name in (line.split("==")[0] for line in requirements if "==" in line):
+        dist = distribution(name)
+        for file in dist.files or []:
+            in_dist_info = file.parts[0].endswith(".dist-info")
+            if in_dist_info and _LICENSE_NAME.search(file.name):
+                folder = Path("licenses", dist.name, *file.parts[1:-1])
+                datas.append((str(file.locate()), folder.as_posix()))
+    return datas
+
 
 # Development tools and GUI toolkits the app never imports; some are pulled in
 # only because they are installed next to it in the development venv
@@ -28,9 +66,12 @@ EXCLUDES = [
 a = Analysis(  # noqa: F821
     [str(ROOT / "pavement_ui/__main__.py")],
     pathex=[str(ROOT)],
-    # Same relative path as in the repository: the code finds the logos
-    # through __file__ (src/drawing/sheet.py, pavement_ui/.../theme/logo.py)
-    datas=[(str(ROOT / "resources/logo/png"), "resources/logo/png")],
+    datas=[
+        # Same relative path as in the repository: the code finds the logos
+        # through __file__ (src/drawing/sheet.py, pavement_ui/.../theme/logo.py)
+        (str(ROOT / "resources/logo/png"), "resources/logo/png"),
+        *license_datas(),
+    ],
     # zoneinfo (sheet date) reads the time zones from tzdata when the system
     # has none, as on Windows; it is never imported, so name it here
     hiddenimports=["tzdata"],

@@ -12,5 +12,7 @@ python -m PyInstaller --noconfirm --clean packaging/pyinstaller.spec
 # Menu entry and icon for GNOME/KDE: the .tar.gz user runs install.sh once
 install -m 644 packaging/linux/beam_calculator.desktop dist/beam_calculator/
 install -m 755 packaging/linux/install.sh dist/beam_calculator/
+# GPL-3.0 at the top, where it is seen; the bundled packages' are in _internal/licenses/
+install -m 644 LICENSE dist/beam_calculator/
 tar -C dist -czf "$archive" beam_calculator
 echo "$archive"
