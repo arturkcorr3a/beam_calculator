@@ -40,7 +40,7 @@ python -m pavement_ui            # run the interface
 
 ## Checks before a pull request
 
-All of these must pass:
+All of these must pass; the CI workflow runs them on every pull request:
 
 ```bash
 pytest
