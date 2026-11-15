@@ -216,3 +216,8 @@ __marimo__/
 
 # Git
 *.patch
+
+# Private / maintainer-only (kept locally, not published)
+/docs/
+/notas.md
+/example.ipynb
