@@ -40,6 +40,6 @@ pyzmq==27.1.0
 ruff==0.17.0
 setuptools==84.2.1
 stack-data==0.6.3
-tornado==6.5.4
+tornado==6.6.1
 traitlets==5.14.3
 wcwidth==0.6.0
