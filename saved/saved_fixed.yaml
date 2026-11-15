@@ -1,3 +1,4 @@
+# TODO rename to a generic name and ship as an example project for end users
 pillars:
 - id: P1
   x: 4.0
