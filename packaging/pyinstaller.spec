@@ -2,7 +2,9 @@
 # Build from the repository root: pyinstaller --noconfirm packaging/pyinstaller.spec
 # (packaging/build_linux.sh wraps it and packs the folder).
 
+import os
 import re
+import subprocess
 import sys
 import sysconfig
 from importlib.metadata import distribution
@@ -11,6 +13,25 @@ from pathlib import Path
 ROOT = Path(SPECPATH).parent  # noqa: F821 (SPECPATH is set by PyInstaller)
 ICON = ROOT / "resources/logo/png/icon/app.ico"
 _LICENSE_NAME = re.compile(r"LICEN[CS]E|COPYING|NOTICE|AUTHORS", re.IGNORECASE)
+
+
+def version_file() -> Path:
+    """Write the version that pavement_ui/version.py reads into the build folder
+
+    It is APP_VERSION, set by the build scripts from the release tag, or else
+    what git describe says; without the tag's "v" (v0.2.0 is shown as 0.2.0).
+    """
+    version = os.environ.get("APP_VERSION") or subprocess.run(
+        ["git", "describe", "--tags", "--always", "--dirty"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    path = Path(workpath) / "VERSION"  # noqa: F821 (workpath is set by PyInstaller)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(version.removeprefix("v"), encoding="utf-8")
+    return path
 
 
 def _python_license() -> Path:
@@ -70,6 +91,7 @@ a = Analysis(  # noqa: F821
         # Same relative path as in the repository: the code finds the logos
         # through __file__ (src/drawing/sheet.py, pavement_ui/.../theme/logo.py)
         (str(ROOT / "resources/logo/png"), "resources/logo/png"),
+        (str(version_file()), "pavement_ui"),
         *license_datas(),
     ],
     # zoneinfo (sheet date) reads the time zones from tzdata when the system

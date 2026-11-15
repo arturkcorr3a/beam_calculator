@@ -15,6 +15,10 @@ recente e baixe, em **Assets**, o arquivo do seu sistema:
 | Fedora | `beam_calculator-<versão>-1.fc43.x86_64.rpm` |
 | Outras distribuições Linux | `beam_calculator-<versão>-linux-x86_64.tar.gz` |
 
+As versões marcadas como **Pre-release** são de teste; para uso normal, prefira
+a marcada como **Latest**. A versão instalada aparece no programa, em
+**Ajuda → Sobre**.
+
 ## 2. Instalar
 
 ### Windows

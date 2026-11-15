@@ -11,6 +11,7 @@ from pavement_ui.core.results.outcomes import UnexpectedFailure
 from pavement_ui.presentation.formatting.numbers import fmt_length_cm
 from pavement_ui.presentation.text.error_translation import file_error_text, translate
 from pavement_ui.presentation.text.strings import dialogs as s
+from pavement_ui.version import app_version
 
 _Icon = QMessageBox.Icon
 _Role = QMessageBox.ButtonRole
@@ -196,4 +197,4 @@ def show_isolated_input_error(parent: QWidget | None, message: str) -> None:
 
 
 def show_about(parent: QWidget | None) -> None:
-    QMessageBox.about(parent, s.ABOUT_TITLE, s.ABOUT_TEXT)
+    QMessageBox.about(parent, s.ABOUT_TITLE, s.ABOUT_TEXT.format(version=app_version()))

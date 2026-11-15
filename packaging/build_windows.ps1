@@ -21,6 +21,8 @@ if (-not $iscc) {
 }
 if (-not $iscc) { throw "ISCC.exe not found: install Inno Setup (https://jrsoftware.org/isinfo.php)" }
 
+# The spec writes it into the app, for its About window
+$env:APP_VERSION = $Version
 # Native commands do not stop the script on failure: check each exit code
 python -m PyInstaller --noconfirm --clean packaging/pyinstaller.spec
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }

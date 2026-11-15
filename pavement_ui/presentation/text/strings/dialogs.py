@@ -66,6 +66,7 @@ ISOLATED_INVALID_INPUT: Final = "Dados inválidos."
 ABOUT_TITLE: Final = "Sobre"
 ABOUT_TEXT: Final = (
     "<b>beam_calculator</b><br>"
+    "Versão {version}<br><br>"
     "Pré-dimensionamento e dimensionamento de pavimentos de concreto armado "
     "(NBR 6118, NBR 6120).<br><br>"
     "© 2026 Artur Kalil Corrêa<br>"

@@ -73,6 +73,44 @@ Follow [AGENTS.md](AGENTS.md), which holds the project rules. In short:
 - Open a pull request to `master`, describing what changed and why.
 - Write descriptive commit messages.
 
+## Releases
+
+Versions follow [semantic versioning](https://semver.org), as `vMAJOR.MINOR.PATCH`
+tags:
+
+| Part | Goes up when |
+|---|---|
+| MAJOR | older project files no longer open, or results change on purpose (e.g. a new edition of NBR 6118) |
+| MINOR | a feature is added and older project files still open |
+| PATCH | only bugs are fixed (say in the notes when a fix changes calculation results) |
+
+The `0.y.z` versions are the development ones; `v1.0.0` is the delivered TCC.
+
+To publish, go to **Actions → Release → Run workflow** on `master` and choose
+the part that goes up (`patch`, `minor` or `major`); tick *pre-release* for a
+test version (`v0.3.0-rc1`, `rc2`...). The workflow
+([.github/workflows/release.yml](.github/workflows/release.yml)) computes the
+next version from the tags (`packaging/next_version.sh`), builds and tests the
+Windows, Fedora and Linux packages, and only then creates the tag and the GitHub
+Release, with the pull requests merged since the previous version as notes.
+`none` builds and tests without publishing: the packages are in the run's
+artifacts. Pushing a `v*` tag by hand publishes it as well.
+
+Only the repository owner publishes, and only from `master`: the workflow
+refuses a publishing run started or re-run by anyone else, run from another
+branch, or for a tag on a commit that is not in `master`. On GitHub, the
+`release` environment of the publishing job admits only `master` and `v*` tags,
+whatever the workflow file says. Anyone with write access can still run `none`
+test builds.
+
+The version is written into the packaged app and shown in its *Sobre* window;
+run from the source code, it shows "desenvolvimento".
+
+To build locally, with the venv active: `packaging/build_linux.sh` (`.tar.gz`),
+then `packaging/build_rpm.sh` (`.rpm`, needs `rpm-build`); on Windows,
+`packaging\build_windows.ps1` (needs Inno Setup). `packaging/smoke_test.sh`
+checks a Linux build.
+
 ## License
 
 By contributing, you agree that your contributions are distributed under the

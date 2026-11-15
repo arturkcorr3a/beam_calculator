@@ -73,6 +73,8 @@ python -m pavement_ui
 The engine lives in `src/` and the PySide6 interface in `pavement_ui/`. Code and
 documentation conventions are in [AGENTS.md](AGENTS.md); see
 [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request.
+How versions are numbered and published is in its
+[Releases](CONTRIBUTING.md#releases) section.
 
 ### Code checks
 
@@ -93,24 +95,6 @@ pytest
 This runs the whole suite and prints a coverage summary with the missing lines;
 coverage settings are in `.coveragerc`. An HTML report is written to `htmlcov/`
 (`xdg-open htmlcov/index.html`).
-
-### Releases
-
-The installers are built and tested by GitHub Actions
-([.github/workflows/release.yml](.github/workflows/release.yml)) and published
-as a GitHub Release when a tag starting with `v` is pushed:
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-A tag with a hyphen (`v0.1.0-rc1`) makes a pre-release. Running the workflow by
-hand (Actions → Release → Run workflow) builds and tests the packages without
-publishing them; they are in the run's artifacts.
-
-To build locally, with the venv active: `packaging/build_linux.sh` (`.tar.gz`),
-then `packaging/build_rpm.sh` (`.rpm`, needs `rpm-build`); on Windows,
-`packaging\build_windows.ps1` (needs Inno Setup). `packaging/smoke_test.sh`
-checks a Linux build.
 
 ## Citation
 
