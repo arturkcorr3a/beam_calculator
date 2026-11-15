@@ -1,0 +1,24 @@
+# TODO add version and date-released at the first release, and a
+# preferred-citation for the undergraduate thesis after the defense
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: beam_calculator
+abstract: >-
+  Desktop program for the design of reinforced concrete beams of a typical
+  floor according to ABNT NBR 6118: slab load distribution, continuous beam
+  analysis, longitudinal reinforcement and stirrup design, deflection checks,
+  bar detailing, quantities, drawings and design report. Academic work
+  (undergraduate thesis, Universidade Federal do Rio Grande do Sul).
+authors:
+  - given-names: Artur Kalil
+    family-names: Corrêa
+    affiliation: Universidade Federal do Rio Grande do Sul
+license: GPL-3.0-or-later
+repository-code: "https://github.com/arturkcorr3a/beam_calculator"
+keywords:
+  - reinforced concrete
+  - concreto armado
+  - beam design
+  - structural engineering
+  - ABNT NBR 6118
