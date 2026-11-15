@@ -1,5 +1,5 @@
 """Resolve the plan geometry: each beam independently, so the plan stays drawable
-even when the structure is invalid (docs/UI_SPEC.md §6.6)."""
+even when the structure is invalid."""
 
 import math
 from typing import cast

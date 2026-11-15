@@ -3,7 +3,8 @@
 The layouts are the book's: 12 bars of 12.5 mm in 4 layers at the support and
 6 bars in 2 layers in the span, with 6.3 mm stirrups.
 
-FROZEN: inputs and expected values come from docs/carvalho-examples/cp4/ex1.md.
+FROZEN: inputs and expected values come from the book's worked example
+(Carvalho & Figueiredo Filho, 2014, p. 244–257).
 Do not change them; see the "Source-of-truth tests" section of AGENTS.md.
 """
 

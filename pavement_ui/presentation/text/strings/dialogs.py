@@ -1,4 +1,4 @@
-"""Texts of message boxes and file errors (docs/UI_SPEC.md §9.2, §9.3)."""
+"""Texts of message boxes and file errors."""
 
 from typing import Final
 
@@ -100,7 +100,7 @@ BUNDLE_DONE_DETAIL: Final = (
     "{path}\n\n{reports} relatórios e {sheets} folhas de detalhamento (PDF e DXF)."
 )
 
-# --- configuration dialog (docs/UI_SPEC.md §9.1) ------------------------------
+# --- configuration dialog ----------------------------------------------------
 CONFIG_TITLE: Final = "Configurações gerais do projeto"
 CONFIG_RESTORE: Final = "Restaurar padrões"
 CONFIG_OK: Final = "OK"

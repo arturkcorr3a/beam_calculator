@@ -1,4 +1,4 @@
-"""The only factory of message boxes (docs/UI_SPEC.md §9.2).
+"""The only factory of message boxes.
 
 Engine texts are translated here; callers pass the original messages.
 """

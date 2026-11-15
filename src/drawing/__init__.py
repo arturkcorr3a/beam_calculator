@@ -1,7 +1,4 @@
-"""Detailing drawings of the beams: on screen (matplotlib) and in DXF (ezdxf)
-
-See docs/especificacao_desenho.md.
-"""
+"""Detailing drawings of the beams: on screen (matplotlib) and in DXF (ezdxf)"""
 
 from src.drawing.api import (
     DrawingError,

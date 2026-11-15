@@ -1,4 +1,4 @@
-"""pt-BR labels of the engine's option keys (docs/UI_SPEC.md §7.3).
+"""pt-BR labels of the engine's option keys.
 
 A key without a label is shown as the key itself, so a new engine option never
 breaks the interface.

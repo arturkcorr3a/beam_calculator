@@ -1,4 +1,4 @@
-"""ProjectSession: the use cases of the main window (docs/UI_SPEC.md §6.8)."""
+"""ProjectSession: the use cases of the main window."""
 
 from pathlib import Path
 

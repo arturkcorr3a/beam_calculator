@@ -1,4 +1,4 @@
-"""When each main window action is enabled (docs/UI_SPEC.md §8.2) — pure, no Qt."""
+"""When each main window action is enabled — pure, no Qt."""
 
 from dataclasses import dataclass
 from enum import Enum, auto

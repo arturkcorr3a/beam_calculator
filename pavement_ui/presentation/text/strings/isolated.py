@@ -1,4 +1,4 @@
-"""Texts of the isolated beam calculator (docs/UI_SPEC.md §11)."""
+"""Texts of the isolated beam calculator."""
 
 from typing import Final
 

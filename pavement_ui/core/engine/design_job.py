@@ -22,7 +22,7 @@ class DesignJob:
 
     Shares no object with the UI and pickles, so it runs in the engine's worker
     process; there the job applies its own settings and log settings to the
-    process-global APP_CONFIG and logger (docs/UI_SPEC.md §3).
+    process-global APP_CONFIG and logger.
     """
 
     records: PavementRecords

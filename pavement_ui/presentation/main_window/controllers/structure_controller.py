@@ -17,7 +17,7 @@ from pavement_ui.presentation.execution.engine_executor import EngineExecutor
 
 
 class StructureController:
-    """Runs actValidate and actDesign (docs/UI_SPEC.md §7.5)
+    """Runs actValidate and actDesign
 
     While a design runs, the executor reports busy: the window shows its busy
     overlay and disables editing.

@@ -1,7 +1,7 @@
 """Ports: what the core and the presentation need from the engine.
 
 Implemented by the adapters in ``pavement_ui.core.engine`` and injected by
-``pavement_ui.app``, so nothing else depends on the engine (docs/UI_SPEC.md §3).
+``pavement_ui.app``, so nothing else depends on the engine.
 Every method raising ``EngineRuleError`` passes on the engine's original text.
 """
 

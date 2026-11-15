@@ -4,7 +4,8 @@ Chains the engine steps the book goes through: loads into the analysis, the
 analysis extremes into the area calculation, and the book's support layout
 into the effective depth check.
 
-FROZEN: inputs and expected values come from docs/carvalho-examples/cp4/ex1.md.
+FROZEN: inputs and expected values come from the book's worked example
+(Carvalho & Figueiredo Filho, 2014, p. 244–257).
 Do not change them; see the "Source-of-truth tests" section of AGENTS.md.
 """
 

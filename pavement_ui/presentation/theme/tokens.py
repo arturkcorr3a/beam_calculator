@@ -1,7 +1,6 @@
-"""Design tokens taken from the mockups — the single source of colors and metrics.
+"""Design tokens — the single source of colors and metrics.
 
-Every color used by the stylesheet or by custom painting comes from here
-(docs/UI_SPEC.md §7.1).
+Every color used by the stylesheet or by custom painting comes from here.
 """
 
 from typing import Final

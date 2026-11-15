@@ -1,4 +1,4 @@
-"""ResultsWindow: summary of a successful design (mockup A6)."""
+"""ResultsWindow: summary of a successful design."""
 
 from collections.abc import Callable, Sequence
 from pathlib import Path

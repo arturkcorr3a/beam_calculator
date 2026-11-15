@@ -11,7 +11,7 @@ from src.pavement_elements.geometry_utils import Alignment
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 
-# Combo order of the beam form (docs/UI_SPEC.md §7.3): center works for both axes
+# Combo order of the beam form: center works for both axes
 _ALIGNMENT_ORDER = (
     Alignment.CENTER,
     Alignment.TOP,

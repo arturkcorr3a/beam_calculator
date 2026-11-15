@@ -1,4 +1,4 @@
-"""Texts of the results windows (docs/UI_SPEC.md §10)."""
+"""Texts of the results windows."""
 
 from typing import Final
 

@@ -1,4 +1,4 @@
-"""Texts of the main window: title, menus, actions and status bar (docs/UI_SPEC.md §8)."""
+"""Texts of the main window: title, menus, actions and status bar."""
 
 from typing import Final
 

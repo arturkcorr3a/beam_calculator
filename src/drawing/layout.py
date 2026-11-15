@@ -2,7 +2,6 @@
 
 Model space is in cm, with the elevation on the analysis axis: x along the beam, y up
 from the beam's bottom face. Paper lengths (mm) go through ``DrawingConfig.paper``.
-See docs/especificacao_desenho.md, §6 and §7.
 """
 
 import logging

@@ -3,7 +3,7 @@
 Rules (minimum sizes, pillar existence, alignment…) belong to the engine and are
 checked by the engine adapters. Option keys (``*_key``) are stable engine keys:
 enum member names (e.g. "CENTER") or, for masonry and usage, the engine's full
-description (docs/UI_SPEC.md §6.1).
+description.
 """
 
 from dataclasses import dataclass

@@ -1,4 +1,4 @@
-"""PlanPanel: the titled plan with its zoom and fit buttons (docs/UI_SPEC.md §8.7)."""
+"""PlanPanel: the titled plan with its zoom and fit buttons."""
 
 from collections.abc import Callable
 

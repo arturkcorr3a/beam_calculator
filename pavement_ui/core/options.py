@@ -1,7 +1,7 @@
 """Choices offered by the engine for every option field (keys only, no labels).
 
 Read once from the engine by the adapters; the presentation maps each key to
-its pt-BR label. Nothing here is a fixed list of the UI (docs/UI_SPEC.md §6.4).
+its pt-BR label. Nothing here is a fixed list of the UI.
 """
 
 from dataclasses import dataclass

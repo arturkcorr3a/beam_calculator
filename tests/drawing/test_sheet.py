@@ -1,4 +1,4 @@
-"""Tests for the sheet formats, the frame and the block of notes and title block (docs/especificacao-selo.md)."""
+"""Tests for the sheet formats, the frame and the block of notes and title block."""
 
 import pytest
 

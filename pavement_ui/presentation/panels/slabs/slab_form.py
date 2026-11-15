@@ -1,4 +1,4 @@
-"""Fields of a new slab (docs/UI_SPEC.md §8.6)."""
+"""Fields of a new slab."""
 
 from PySide6.QtWidgets import QComboBox, QLineEdit, QVBoxLayout, QWidget
 

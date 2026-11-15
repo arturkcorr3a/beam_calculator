@@ -21,7 +21,7 @@ def engine_rules() -> Generator[None]:
     """Re-raise the engine's ValueError and KeyError as EngineRuleError
 
     The engine signals rule violations with ValueError and failed NBR 6120 table
-    lookups with KeyError (docs/UI_SPEC.md §5.2, E17).
+    lookups with KeyError.
 
     Raises:
         EngineRuleError: Carrying the engine's original message.

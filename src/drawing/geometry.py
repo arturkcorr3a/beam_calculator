@@ -1,8 +1,8 @@
 """Geometry of a detailed beam, read from the DetailingBeam for the drawings
 
-The functions down to ``row_offsets`` port the recipes of
-docs/estrutura_detalhamento.md, §7, without changing their behavior; those recipes
-were checked against the calculation there (§9). The rest builds on them.
+The functions down to ``row_offsets`` port the detailing recipes without changing
+their behavior; those recipes were checked against the calculation. The rest builds
+on them.
 """
 
 from math import pi, tan

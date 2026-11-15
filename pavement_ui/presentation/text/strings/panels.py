@@ -1,4 +1,4 @@
-"""Texts of the Pilares / Vigas / Lajes side panels (docs/UI_SPEC.md §8.3–8.6)."""
+"""Texts of the Pilares / Vigas / Lajes side panels."""
 
 from typing import Final
 

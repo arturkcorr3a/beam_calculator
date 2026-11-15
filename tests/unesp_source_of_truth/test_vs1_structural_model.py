@@ -1,6 +1,7 @@
 """Bastos (UNESP), item 19 — structural model of beam VS1 with elastic end supports.
 
-FROZEN: inputs and expected values come from docs/unesp-examples/vs1.md.
+FROZEN: inputs and expected values come from Bastos (UNESP),
+Vigas de Concreto Armado, item 19 (p. 74–97) and Annex IV (p. 172–173).
 The example follows ABNT NBR 6118:2014; the book solves the model with FTOOL.
 """
 

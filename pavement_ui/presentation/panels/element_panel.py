@@ -41,7 +41,7 @@ class PanelTexts:
 
 
 class ElementPanel[R: _Identified](QWidget):
-    """Include, list and remove one kind of element (docs/UI_SPEC.md §8.3)
+    """Include, list and remove one kind of element
 
     Signals:
         selection_changed: (kind, id or None) when the table selection changes.

@@ -1,6 +1,7 @@
 """Carvalho, chapter 5, Example 2 — anchorage of a 12.5 mm bar with an end hook.
 
-FROZEN: inputs and expected values come from docs/carvalho-examples/cp5/ex2.md.
+FROZEN: inputs and expected values come from the book's worked example
+(Carvalho & Figueiredo Filho, 2014).
 Do not change them; see the "Source-of-truth tests" section of AGENTS.md.
 """
 
