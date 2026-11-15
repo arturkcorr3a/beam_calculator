@@ -1,0 +1,201 @@
+# =============================================================================
+# beam_calculator — modelo de arquivo de pavimento (template)
+# =============================================================================
+#
+# Este arquivo descreve um pavimento de concreto armado: pilares, vigas
+# contínuas, lajes e configurações de projeto. Copie-o, edite os valores e
+# abra-o no beam_calculator (Arquivo › Abrir…).
+#
+# O exemplo abaixo é uma sala retangular de 5,00 m × 4,00 m: quatro pilares
+# nos cantos, quatro vigas no contorno e uma laje.
+#
+#        P3 ───────── V2 (top) ───────── P4
+#         │                               │
+#      V3 (left)        L1           V4 (right)
+#         │                               │
+#        P1 ──────── V1 (bottom) ─────── P2
+#
+# Regras gerais:
+#   - Unidades: coordenadas e dimensões em cm, cargas em kN/m², pé-direito em m.
+#   - O eixo x cresce para a direita e o eixo y cresce para cima.
+#   - A indentação (espaços, nunca tabulações) define a estrutura do arquivo.
+#   - Tudo depois de "#" é comentário e é ignorado. Ao salvar pelo programa,
+#     este arquivo é regravado sem os comentários explicativos.
+#   - Os textos de escolha (alinhamento, alvenaria, uso da laje, categoria) são
+#     comparados sem diferenciar maiúsculas e aceitam trechos do nome, por
+#     exemplo "Hollow ceramic block".
+#   - O dimensionamento (altura das vigas, espessura das lajes, armaduras) é
+#     feito pelo programa: o arquivo guarda só os dados de entrada.
+
+
+# -----------------------------------------------------------------------------
+# Pilares
+# -----------------------------------------------------------------------------
+# Um item por pilar:
+#   id     rótulo usado para citar o pilar nas vigas e lajes deste arquivo
+#          (qualquer texto único; o programa renumera os pilares ao abrir)
+#   x, y   posição do centro do pilar (cm)
+#   width  dimensão da seção na direção x (cm)
+#   depth  dimensão da seção na direção y (cm)
+pillars:
+  - id: P1
+    x: 0.0
+    y: 0.0
+    width: 20
+    depth: 25
+
+  - id: P2
+    x: 500.0
+    y: 0.0
+    width: 30
+    depth: 25
+
+  - id: P3
+    x: 0.0
+    y: 400.0
+    width: 20
+    depth: 35
+
+  - id: P4
+    x: 500.0
+    y: 400.0
+    width: 30
+    depth: 35
+
+
+# -----------------------------------------------------------------------------
+# Vigas contínuas
+# -----------------------------------------------------------------------------
+# Um item por viga. A viga é horizontal (eixo x) ou vertical (eixo y) e passa
+# por todos os pilares listados, sem pular nenhum pilar no caminho.
+#   pillar_ids           pilares que apoiam a viga, em ordem ao longo dela
+#   reference_pillar_id  um dos pilares de pillar_ids; o alinhamento é medido
+#                        em relação a ele
+#   width                largura da viga (cm); deve caber nos pilares
+#   alignment            posição da viga em relação ao pilar de referência:
+#                          center  eixo da viga no centro do pilar (qualquer viga)
+#                          top     face superior alinhada (viga horizontal)
+#                          bottom  face inferior alinhada (viga horizontal)
+#                          left    face esquerda alinhada (viga vertical)
+#                          right   face direita alinhada (viga vertical)
+#   wall                 parede apoiada sobre a viga (ABNT NBR 6120, Tabela 2):
+#     structural         false: alvenaria de vedação; true: alvenaria estrutural
+#     masonry_type       tipo de alvenaria. Vedação (structural: false):
+#                          Hollow concrete block (Class C - ABNT NBR 6136)
+#                          Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)
+#                          Autoclaved aerated concrete block (Class C25 - ABNT NBR 13438)
+#                          Glass block (decorative, non-fire-rated)
+#                        Estrutural (structural: true):
+#                          Hollow concrete block (Classes A and B - ABNT NBR 6136)
+#                          Hollow ceramic block with solid walls (Vertical holes - ABNT NBR 15270-1)
+#                          Hollow ceramic block with hollow walls (Vertical holes - ABNT NBR 15270-1)
+#                          Solid ceramic brick (ABNT NBR 15270-1)
+#                          Hollow calcium silicate block (Class E - ABNT NBR 14974-1)
+#                          Perforated calcium silicate block (Classes E, F and G - ABNT NBR 14974-1)
+#     nominal_thickness  espessura nominal do bloco (cm), uma das da Tabela 2
+#                        para o tipo escolhido (ex.: 9, 11.5, 14, 19)
+#     coating_thickness  revestimento por face (cm): 0, 1 ou 2
+beams:
+  - pillar_ids: [P1, P2]
+    reference_pillar_id: P1
+    width: 16
+    alignment: bottom
+    wall:
+      structural: false
+      masonry_type: Hollow ceramic block
+      nominal_thickness: 14
+      coating_thickness: 1
+
+  - pillar_ids: [P3, P4]
+    reference_pillar_id: P3
+    width: 16
+    alignment: top
+    wall:
+      structural: false
+      masonry_type: Hollow ceramic block
+      nominal_thickness: 14
+      coating_thickness: 1
+
+  - pillar_ids: [P1, P3]
+    reference_pillar_id: P1
+    width: 16
+    alignment: left
+    wall:
+      structural: false
+      masonry_type: Hollow ceramic block
+      nominal_thickness: 14
+      coating_thickness: 1
+
+  - pillar_ids: [P2, P4]
+    reference_pillar_id: P2
+    width: 16
+    alignment: right
+    wall:
+      structural: false
+      masonry_type: Hollow ceramic block
+      nominal_thickness: 14
+      coating_thickness: 1
+
+
+# -----------------------------------------------------------------------------
+# Lajes
+# -----------------------------------------------------------------------------
+# Um item por laje retangular. Cada borda da laje precisa de uma viga que
+# passe pelos dois pilares daquele canto.
+#   corner_pillar_ids  os quatro pilares dos cantos, em qualquer ordem
+#   local              uso da laje, que define a carga variável (ABNT NBR 6120,
+#                      Tabela 10). Deve ser um uso da categoria building_category
+#                      (seção config). Usos de "Residential buildings":
+#                        Bedrooms
+#                        Living rooms, pantries, and kitchens
+#                        Bathrooms
+#                        Pantry, service area, and laundry
+#                        Sports courts
+#                        Party rooms and game rooms
+#                        Common use areas
+#                        Gym / Fitness center
+#                        Ceilings accessible only for maintenance and without material storage
+#                        Attics
+#                        Corridors within autonomous units
+#                        Common use corridors
+#                        Storage rooms
+#                      Os usos das outras categorias aparecem na janela da laje.
+#   permanent_load     carga permanente de revestimentos, forro e enchimentos
+#                      (kN/m²), sem o peso próprio da laje, que o programa soma
+#   lowered            rebaixo da laje em relação ao piso (cm); opcional, padrão 0
+slabs:
+  - corner_pillar_ids: [P1, P2, P3, P4]
+    local: Bedrooms
+    permanent_load: 1.15
+    lowered: 0
+
+
+# -----------------------------------------------------------------------------
+# Configurações de projeto
+# -----------------------------------------------------------------------------
+# Valem para todo o pavimento (as mesmas da janela Ferramentas › Configurações).
+#   aggregate           rocha do agregado graúdo: basalt, diabase, granite,
+#                       gneiss, limestone ou sandstone
+#   max_aggregate_size  diâmetro máximo do agregado graúdo (cm)
+#   max_bar_types       máximo de diâmetros diferentes por armadura (1 a 10)
+#   max_layers          máximo de camadas de barras longitudinais (1 a 10)
+#   pavement_concrete   classe do concreto: C20, C25, C30, ... , C90
+#                       (de 5 em 5; mínimo conforme a classe de agressividade)
+#   pavement_steel      aço das armaduras: CA25, CA50 ou CA60
+#   building_category   categoria da edificação (ABNT NBR 6120, Tabela 10),
+#                       ex.: Residential buildings; Commercial, corporate, and
+#                       office buildings; Schools and educational institutions
+#   exposure_class      classe de agressividade ambiental (ABNT NBR 6118,
+#                       Tabela 6.1): 1 (fraca), 2 (moderada), 3 (forte) ou
+#                       4 (muito forte)
+#   ceiling_height      pé-direito (m)
+config:
+  aggregate: granite
+  max_aggregate_size: 2.5
+  max_bar_types: 3
+  max_layers: 3
+  pavement_concrete: C30
+  pavement_steel: CA50
+  building_category: Residential buildings
+  exposure_class: 2
+  ceiling_height: 2.8

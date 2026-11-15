@@ -152,7 +152,7 @@ class TConcreto2Example(SimpleExample):
 
     def run(self) -> Pavement:
         pavement = build_pavement()
-        save_pavement(pavement, "saved/t_concreto2.yaml")
+        save_pavement(pavement, "resources/examples/pavimento_residencial.yaml")
 
         pavement.resolve()
         pavement.print_beam_reports()

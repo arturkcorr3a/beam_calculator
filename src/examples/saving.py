@@ -12,7 +12,7 @@ from src.pavement_elements.pillar import Pillar
 from src.pavement_elements.slab import Slab
 from src.persistency.yaml_io import save_pavement
 
-PATH = "saved/saved.yaml"
+PATH = "results/saved.yaml"
 
 
 def build_pavement():

@@ -1,10 +1,10 @@
-"""Command-line runner for the examples and saved pavements.
+"""Command-line runner for the examples and the example pavement files.
 
 Usage::
 
     python -m src.main --example t_concreto2 [--log-level ELEMENT] [--log-output console]
-    python -m src.main --load saved_fixed [--log-level GENERAL] [--log-output both]
-    python -m src.main --load t_concreto2 --display SAVE
+    python -m src.main --load pavimento_laje_rebaixada [--log-level GENERAL] [--log-output both]
+    python -m src.main --load pavimento_residencial --display SAVE
 
 ``--display`` draws the detailed beams of the resulting pavement: SHOW opens each beam's sheet in a
 window, SAVE writes every drawing to
@@ -32,7 +32,7 @@ from src.pavement_elements.pavement import Pavement
 from src.persistency import load_pavement
 
 EXAMPLES_DIR = Path(__file__).parent / "examples"
-SAVED_DIR = Path(__file__).parent.parent / "saved"
+PAVEMENTS_DIR = Path(__file__).parent.parent / "resources" / "examples"
 RESULTS_DIR = Path(__file__).parent.parent / "results"
 EXAMPLES_PACKAGE = "src.examples"
 _INTERFACE_MODULE = "simple_example"
@@ -50,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the parser for the runner's command-line options"""
     parser = argparse.ArgumentParser(
         prog="python -m src.main",
-        description="Run an example from src/examples or a pavement saved in saved/.",
+        description="Run an example from src/examples or a pavement file in resources/examples/.",
     )
     target = parser.add_mutually_exclusive_group(required=True)
     target.add_argument(
@@ -61,7 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument(
         "--load",
         metavar="PATH",
-        help="YAML file in saved/ to load and resolve (.yaml is optional).",
+        help="YAML file in resources/examples/ to load and resolve (.yaml is optional).",
     )
     parser.add_argument(
         "--log-level",
@@ -97,14 +97,14 @@ def available_examples() -> list[str]:
     )
 
 
-def available_saved() -> list[str]:
-    """List the YAML file names in saved/, sorted"""
-    return sorted(path.name for path in SAVED_DIR.glob("*.yaml"))
+def available_pavements() -> list[str]:
+    """List the YAML file names in resources/examples/, sorted"""
+    return sorted(path.name for path in PAVEMENTS_DIR.glob("*.yaml"))
 
 
-def resolve_saved(name: str) -> Path:
-    """Map a ``--load`` value to a file in saved/, adding ``.yaml`` if missing"""
-    path = SAVED_DIR / name
+def resolve_pavement(name: str) -> Path:
+    """Map a ``--load`` value to a file in resources/examples/, adding ``.yaml`` if missing"""
+    path = PAVEMENTS_DIR / name
     return path if path.suffix == ".yaml" else path.with_name(f"{path.name}.yaml")
 
 
@@ -150,7 +150,7 @@ def drawing_folder(name: str, today: date | None = None) -> Path:
     """Return the folder where SAVE writes a pavement's drawings
 
     Args:
-        name: Name of the example or saved file.
+        name: Name of the example or pavement file.
         today: Date of the run; None reads the clock.
     """
     day = (today or date.today()).strftime("%b-%d").lower()
@@ -161,7 +161,7 @@ def display_pavement(pavement: Pavement, mode: DisplayMode, name: str) -> None:
     """Save and/or show the drawings of a resolved pavement
 
     Args:
-        name: Name of the example or saved file, used for the output folder.
+        name: Name of the example or pavement file, used for the output folder.
 
     Raises:
         DrawingError: If a beam is not detailed or has items without marks.
@@ -177,7 +177,7 @@ def display_pavement(pavement: Pavement, mode: DisplayMode, name: str) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Parse the command line and run the requested example or saved pavement
+    """Parse the command line and run the requested example or pavement file
 
     Args:
         argv: Arguments without the program name; None reads ``sys.argv``.
@@ -204,11 +204,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             parser.error(f"example '{name}' builds no detailed pavement to draw")
     else:
         assert load is not None  # guaranteed by the required exclusive group
-        path = resolve_saved(load)
+        path = resolve_pavement(load)
         if not path.is_file():
             parser.error(
-                f"file '{load}' not found in {SAVED_DIR}; "
-                f"available: {', '.join(available_saved())}"
+                f"file '{load}' not found in {PAVEMENTS_DIR}; "
+                f"available: {', '.join(available_pavements())}"
             )
         name = path.stem
         apply_log_options(log_level, log_output)
