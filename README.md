@@ -1,66 +1,100 @@
 # beam_calculator
 
-To install the app (Windows, Fedora, other Linux distributions), see
+Desktop program for the design of reinforced concrete beams of a typical floor
+according to the Brazilian standard ABNT NBR 6118. You draw the floor plan
+(pillars, continuous beams and solid slabs) and the program:
+
+- distributes the slab loads to the beams (loads from ABNT NBR 6120);
+- pre-sizes slabs and beams and checks slab and beam deflections;
+- analyses each continuous beam and designs its longitudinal reinforcement and
+  stirrups, with anchorage, lap splices and support bars;
+- details the bars and computes steel, concrete and formwork quantities;
+- exports the beam drawings (PDF and DXF) and the design report (PDF), and keeps
+  a calculation log of every run.
+
+An isolated continuous beam calculator is also available, outside the floor plan.
+
+**Language:** the interface, the reports and the drawings are currently
+available in **Portuguese (pt-BR) only**.
+
+> [!WARNING]
+> **Technical responsibility disclaimer.** beam_calculator is an academic work
+> (undergraduate thesis, UFRGS). Its results do not replace the analysis, the
+> judgment and the responsibility of a licensed structural engineer, who must
+> check every result before using it in a real project.
+
+## Screenshots
+
+<!-- TODO screenshot: main window with a floor plan → resources/screenshots/main-window.png -->
+<!-- TODO screenshot: beam results window → resources/screenshots/beam-results.png -->
+<!-- TODO screenshot: beam detailing drawing → resources/screenshots/beam-drawing.png -->
+
+*Screenshots coming soon.*
+
+## Installation
+
+Ready-to-use installers for Windows and Linux are published on the
+[Releases](https://github.com/arturkcorr3a/beam_calculator/releases) page; no
+Python installation is needed. Step-by-step instructions (in Portuguese) are in
 [INSTALACAO.md](INSTALACAO.md).
 
-## Desktop interface
+## Running from source
 
-The PySide6 interface (*beam_calculator*) lives in `pavement_ui/` and follows
-[docs/UI_SPEC.md](docs/UI_SPEC.md). Run it from the repository root:
+Requirements: **Python 3.14** on Windows or Linux.
+
 ```bash
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 python -m pavement_ui
 ```
 
-## Code checks
+## Known limitations
+
+<!-- TODO update the known limitations before the final release -->
+
+- **Typical floor only.** One floor at a time; pillars are supports of the
+  beams and are not designed.
+- **Solid slabs only.** Slabs are pre-sized, loaded and checked for deflection;
+  their reinforcement is not designed.
+- **Rectangular beams.** The flange (T-beam) contribution of the slab is not
+  considered, and the bending moments are not redistributed.
+- **Ultimate limit state in bending and shear**, with normal combinations only
+  (ABNT NBR 6118, Table 11.1). Torsion, skin reinforcement and crack width
+  (ELS-W) are not checked.
+- **Deflection (ELS-DEF)** is checked against the visual acceptability limit
+  l/250 only.
+- **One steel and one concrete class per project**, passive reinforcement only
+  (no prestressing).
+- **Building loads only**: no vehicle loads.
+
+## Development
+
+The engine lives in `src/` and the PySide6 interface in `pavement_ui/`. Code and
+documentation conventions are in [AGENTS.md](AGENTS.md); see
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request.
+
+### Code checks
 
 ```bash
-ruff check pavement_ui && ruff format --check pavement_ui
-pyright                      # strict, configured in pyproject.toml
+ruff check .
+ruff format --check <changed files>
+pyright                      # strict, pavement_ui (configured in pyproject.toml)
+pyright src tests            # the engine and the tests
 PYTHONPATH=. lint-imports    # GUI layering contracts in pyproject.toml
 ```
 
-## Testing
+### Testing
 
-Run the test suite with coverage:
 ```bash
 pytest
 ```
 
-This will automatically:
-- Run all tests
-- Generate coverage report in the terminal with missing lines
-- Create an HTML coverage report in `htmlcov/` directory
+This runs the whole suite and prints a coverage summary with the missing lines;
+coverage settings are in `.coveragerc`. An HTML report is written to `htmlcov/`
+(`xdg-open htmlcov/index.html`).
 
-### View Coverage Report
-
-**Terminal output:** Coverage summary is shown automatically after running `pytest`
-
-**HTML report:** Open the detailed HTML report by running:
-```bash
-xdg-open htmlcov/index.html
-```
-
-### Manual Coverage Options
-
-If you need specific coverage reports:
-```bash
-# Terminal only with missing lines
-pytest --cov --cov-report=term-missing
-
-# HTML report only
-pytest --cov --cov-report=html
-
-# Both terminal and HTML
-pytest --cov --cov-report=term-missing --cov-report=html
-```
-
-### Coverage Configuration
-
-Coverage settings are configured in `.coveragerc` to exclude:
-- All `__init__.py` files
-- All test files in `tests/` directory
-
-## Releases
+### Releases
 
 The installers are built and tested by GitHub Actions
 ([.github/workflows/release.yml](.github/workflows/release.yml)) and published
@@ -78,6 +112,11 @@ then `packaging/build_rpm.sh` (`.rpm`, needs `rpm-build`); on Windows,
 `packaging\build_windows.ps1` (needs Inno Setup). `packaging/smoke_test.sh`
 checks a Linux build.
 
+## Citation
+
+If you use beam_calculator in academic work, please cite it as described in
+[CITATION.cff](CITATION.cff) (GitHub shows it under "Cite this repository").
+
 ## License
 
 Copyright (C) 2026 Artur Kalil Corrêa
@@ -90,3 +129,10 @@ version. It is distributed WITHOUT ANY WARRANTY; see [LICENSE](LICENSE).
 The packaged app bundles third-party libraries under their own licenses
 (PySide6/Qt under LGPL-3.0, anastruct under GPL-3.0, the others under BSD, MIT,
 PSF or Apache-2.0); their texts ship in the app folder, in `_internal/licenses/`.
+
+Tables reproduced from ABNT NBR 6120:2019 and from Carvalho & Figueiredo Filho
+(2014), in `src/data/`, are cited at their source in each module.
+
+---
+
+Leia em português: [LEIAME.md](LEIAME.md)
