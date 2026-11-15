@@ -1,5 +1,8 @@
 # beam_calculator
 
+To install the app (Windows, Fedora, other Linux distributions), see
+[INSTALACAO.md](INSTALACAO.md).
+
 ## Desktop interface
 
 The PySide6 interface (*beam_calculator*) lives in `pavement_ui/` and follows
@@ -56,6 +59,24 @@ pytest --cov --cov-report=term-missing --cov-report=html
 Coverage settings are configured in `.coveragerc` to exclude:
 - All `__init__.py` files
 - All test files in `tests/` directory
+
+## Releases
+
+The installers are built and tested by GitHub Actions
+([.github/workflows/release.yml](.github/workflows/release.yml)) and published
+as a GitHub Release when a tag starting with `v` is pushed:
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+A tag with a hyphen (`v0.1.0-rc1`) makes a pre-release. Running the workflow by
+hand (Actions → Release → Run workflow) builds and tests the packages without
+publishing them; they are in the run's artifacts.
+
+To build locally, with the venv active: `packaging/build_linux.sh` (`.tar.gz`),
+then `packaging/build_rpm.sh` (`.rpm`, needs `rpm-build`); on Windows,
+`packaging\build_windows.ps1` (needs Inno Setup). `packaging/smoke_test.sh`
+checks a Linux build.
 
 ## License
 
