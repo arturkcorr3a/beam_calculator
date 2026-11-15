@@ -1,6 +1,6 @@
 """Paper sheet of a beam: standard format, frame, and the block of notes and title block
 
-Everything follows docs/especificacao-selo.md. The sheet's lower left corner is the
+The sheet's lower left corner is the
 origin of model space; paper lengths (mm) go through ``DrawingConfig.paper``. The block
 is built in paper mm with y growing downward, as the spec draws it, and converted to
 model space (y up) by ``_pt``.

@@ -1,6 +1,7 @@
 """Carvalho, chapter 6, Example 2 — shear design with Model I, C30.
 
-FROZEN: inputs and expected values come from docs/carvalho-examples/cp6/ex2.md.
+FROZEN: inputs and expected values come from the book's worked example
+(Carvalho & Figueiredo Filho, 2014).
 Do not change them; see the "Source-of-truth tests" section of AGENTS.md.
 """
 

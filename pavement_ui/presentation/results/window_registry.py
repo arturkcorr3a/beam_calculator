@@ -23,7 +23,7 @@ def _show(window: QWidget) -> None:
 
 
 class ResultWindows:
-    """Open, raise, refresh and close the results windows (docs/UI_SPEC.md §10)
+    """Open, raise, refresh and close the results windows
 
     After each finished design the open windows show the new results; a detail
     whose element no longer exists is closed. Without results (failed design,

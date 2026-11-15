@@ -1,4 +1,4 @@
-"""Render the t_concreto2 drawings for a visual check against the mockups (not run in CI)
+"""Render the t_concreto2 drawings for a visual check (not run in CI)
 
 Writes ``out/drawing/V1.png`` … ``V10.png`` and ``out/drawing/t_concreto2.dxf``.
 

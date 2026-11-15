@@ -1,0 +1,147 @@
+# Build and test the installers; on a v* tag, publish them as a GitHub Release.
+# Run it by hand (Actions → Release → Run workflow) to get the packages as
+# artifacts of the run without publishing anything.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+# Read-only by default; the release job asks for write access on its own
+permissions:
+  contents: read
+
+env:
+  PYINSTALLER: pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.10
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the version comes from git describe
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install Python packages
+        run: pip install -r requirements-app.txt ${{ env.PYINSTALLER }}
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build the installer
+        run: packaging/build_windows.ps1
+      - name: Install, start and uninstall it
+        run: |
+          $setup = Get-ChildItem dist\beam_calculator-Setup-*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait
+          $app = "$env:LOCALAPPDATA\Programs\beam_calculator"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $process = Start-Process "$app\beam_calculator.exe" -PassThru
+          Start-Sleep -Seconds 20
+          if ($process.HasExited) { throw "The app exited during startup ($($process.ExitCode))" }
+          # The window and its engine worker; a worker that opened another
+          # window would spawn workers of its own
+          $count = @(Get-Process beam_calculator).Count
+          Stop-Process -Name beam_calculator -Force
+          if ($count -lt 2 -or $count -gt 3) { throw "Expected the window and its engine worker, found $count processes" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\beam_calculator\Logs\beam_calculator_*.log")) { throw "No calculation memorial" }
+          Start-Sleep -Seconds 2
+          Start-Process "$app\unins000.exe" -ArgumentList "/VERYSILENT" -Wait
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/beam_calculator-Setup-*.exe
+          if-no-files-found: error
+
+  # For any distribution: built on an old Ubuntu, whose glibc newer ones accept
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install the system libraries Qt links to, so PyInstaller bundles them
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-3 libegl1 libfontconfig1 libgl1 \
+            libwayland-client0 libwayland-cursor0 libwayland-egl1 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libxcb-xkb1 libxkbcommon-x11-0
+      - name: Install Python packages
+        run: pip install -r requirements-app.txt ${{ env.PYINSTALLER }}
+      - name: Build the .tar.gz
+        run: packaging/build_linux.sh
+      - name: Test it
+        run: packaging/smoke_test.sh dist/beam_calculator/beam_calculator
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/beam_calculator-*.tar.gz
+          if-no-files-found: error
+
+  # For Fedora: built on Fedora, whose libraries its RPM requirements name
+  rpm:
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:43
+    steps:
+      - name: Install build tools
+        run: dnf install -y binutils findutils git python3 rpm-build
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Trust the checkout (the container runs as another user)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Install Python packages
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r requirements-app.txt ${{ env.PYINSTALLER }}
+      - name: Install the system libraries Qt links to, so PyInstaller bundles them
+        run: |
+          mapfile -t libs < <(find .venv -path '*/PySide6/Qt/*' -name '*.so*' -type f -exec ldd {} + 2>/dev/null \
+            | awk '/not found/ {print $1 "()(64bit)"}' | sort -u)
+          dnf install -y --skip-unavailable "${libs[@]}"
+      - name: Build the .rpm
+        run: |
+          source .venv/bin/activate
+          packaging/build_linux.sh
+          packaging/build_rpm.sh
+      - name: Install and test it
+        run: |
+          dnf install -y dist/beam_calculator-*.rpm
+          packaging/smoke_test.sh /usr/bin/beam_calculator
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: dist/beam_calculator-*.rpm
+          if-no-files-found: error
+
+  release:
+    needs: [windows, linux, rpm]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          # v0.1.0-rc1 and the like are pre-releases
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body: |
+            Como instalar no Windows e no Linux, e onde fica o memorial de cálculo:
+            [INSTALACAO.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/INSTALACAO.md)
+
+            | Sistema | Arquivo |
+            |---|---|
+            | Windows 10/11 (64 bits) | `beam_calculator-Setup-*.exe` |
+            | Fedora | `beam_calculator-*.rpm` |
+            | Outras distribuições Linux | `beam_calculator-*-linux-x86_64.tar.gz` |

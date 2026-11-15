@@ -1,8 +1,7 @@
 """Turn a pavement loaded from a file back into input records.
 
 The engine's file format does not store beam and slab IDs, so every element is
-renumbered P1…, V1…, L1… in file order and pillar references are remapped
-(docs/UI_SPEC.md §6.7).
+renumbered P1…, V1…, L1… in file order and pillar references are remapped.
 """
 
 from pavement_ui.core.engine.keys import m_from_cm, to_key

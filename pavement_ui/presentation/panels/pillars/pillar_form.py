@@ -1,4 +1,4 @@
-"""Fields of a new pillar (docs/UI_SPEC.md §8.4)."""
+"""Fields of a new pillar."""
 
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 

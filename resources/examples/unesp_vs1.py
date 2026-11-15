@@ -1,6 +1,7 @@
 """Beam VS1 of Bastos (UNESP Bauru), item 19: two spans, end pillars as elastic restraints.
 
-Reference: docs/unesp-examples/vs1.md. Run from anywhere::
+Reference: BASTOS, P. S. S. Vigas de Concreto Armado. UNESP, Bauru/SP, item 19
+(p. 74–97). Run from anywhere::
 
     python resources/examples/unesp_vs1.py [--output DIR] [--show]
 

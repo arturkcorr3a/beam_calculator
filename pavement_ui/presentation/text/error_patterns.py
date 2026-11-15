@@ -1,4 +1,4 @@
-"""Engine error messages (English) and their pt-BR templates (docs/UI_SPEC.md §9.3).
+"""Engine error messages (English) and their pt-BR templates.
 
 Each pattern matches the text of one ``raise`` in ``src``. Named groups are
 inserted into the template after conversion by their name prefix:

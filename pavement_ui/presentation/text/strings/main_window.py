@@ -1,4 +1,4 @@
-"""Texts of the main window: title, menus, actions and status bar (docs/UI_SPEC.md §8)."""
+"""Texts of the main window: title, menus, actions and status bar."""
 
 from typing import Final
 
@@ -6,7 +6,7 @@ from pavement_ui.presentation.text.strings.common import APP_NAME, UNTITLED
 
 
 def window_title(file_name: str | None) -> str:
-    """Build the main window title, e.g. "Pavement Designer — exemplo.yaml"
+    """Build the main window title, e.g. "beam_calculator — exemplo.yaml"
 
     Args:
         file_name: Name of the open project file, or None when unsaved.

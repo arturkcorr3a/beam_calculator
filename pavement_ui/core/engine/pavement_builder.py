@@ -10,7 +10,7 @@ def assemble(records: PavementRecords) -> Pavement:
     """Build a new, unresolved pavement from the records, in registration order
 
     A new pavement is built for every operation: the engine has no removal and
-    keeps resolved state on its elements (docs/UI_SPEC.md §3, decision 1).
+    keeps resolved state on its elements.
 
     Raises:
         ValueError: If the engine refuses a record (inclusion rules).

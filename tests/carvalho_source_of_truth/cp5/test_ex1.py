@@ -1,6 +1,7 @@
 """Carvalho, chapter 5, Example 1 — basic anchorage length of a 12.5 mm bar.
 
-FROZEN: inputs and expected values come from docs/carvalho-examples/cp5/ex1.md.
+FROZEN: inputs and expected values come from the book's worked example
+(Carvalho & Figueiredo Filho, 2014).
 Do not change them; see the "Source-of-truth tests" section of AGENTS.md.
 """
 

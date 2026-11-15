@@ -1,7 +1,7 @@
 """Read models of a dimensioned beam (pavement beam or isolated beam).
 
 The engine dimensions stirrups per span and longitudinal bars per design point
-(moment extremes), so spans and points are separate (docs/UI_SPEC.md §6.5).
+(moment extremes), so spans and points are separate.
 """
 
 from dataclasses import dataclass

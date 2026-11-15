@@ -17,7 +17,7 @@ _TEXTS = PanelTexts(s.PILLAR_ADD, s.PILLAR_HINT, s.PILLAR_LIST, s.PILLAR_REMOVE)
 def pillars_panel(
     session: ProjectSession, bridge: QtSessionBridge, parent: QWidget | None = None
 ) -> ElementPanel[PillarRecord]:
-    """Build the pillars panel (mockup A1)"""
+    """Build the pillars panel"""
     panel = ElementPanel[PillarRecord](
         ElementKind.PILLAR,
         PillarForm(),

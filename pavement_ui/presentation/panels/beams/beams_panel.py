@@ -17,7 +17,7 @@ _TEXTS = PanelTexts(s.BEAM_ADD, s.BEAM_HINT, s.BEAM_LIST, s.BEAM_REMOVE)
 def beams_panel(
     session: ProjectSession, bridge: QtSessionBridge, parent: QWidget | None = None
 ) -> ElementPanel[BeamRecord]:
-    """Build the beams panel (mockup A2); the wall hint follows the ceiling height"""
+    """Build the beams panel; the wall hint follows the ceiling height"""
     form = BeamForm(session.options)
     panel = ElementPanel[BeamRecord](
         ElementKind.BEAM,

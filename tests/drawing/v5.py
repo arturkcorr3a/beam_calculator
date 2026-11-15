@@ -1,7 +1,7 @@
-"""The V5 beam of the drawing mockups, built by hand (docs/especificacao_desenho.md, Appendix A).
+"""The V5 reference beam of the drawings, built by hand.
 
 Illustrative data, not produced by the calculation: the hooks' cut lengths follow the
-mockup's C values, not the bending rules.
+reference drawing's C values, not the bending rules.
 """
 
 from src.detailing.clear_span import ClearSpan
@@ -37,7 +37,7 @@ def _bar(
     cut_length: float | None = None,
     quantity: int = 2,
 ) -> DetailedBar:
-    """Build one bar run; the hook cut length makes up the mockup's C"""
+    """Build one bar run; the hook cut length makes up the reference drawing's C"""
     straight = end - start
     extra = 0.0 if cut_length is None else cut_length - straight
     hooks = (left_hook is not None) + (right_hook is not None)

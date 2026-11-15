@@ -821,3 +821,35 @@ class TestBeamLoggerSetLevel:
         assert logger_module.set_log_level.__self__ is logger_module._logger, (  # pyright: ignore[reportPrivateUsage, reportFunctionMemberAccess]
             "set_log_level should change the module's shared logger"
         )
+
+
+# ---------------------------------------------------------------------------
+# Default log folder
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultLogsDir:
+    """default_logs_dir() keeps logs/ from source and moves to the user's folder when packaged."""
+
+    def test_source_run_uses_repository_logs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delattr("sys.frozen", raising=False)
+        expected = Path(logger_module.__file__).parent.parent / "logs"
+        assert logger_module.default_logs_dir() == expected, (
+            "run from source, logs should stay in the repository's logs/"
+        )
+
+    def test_packaged_app_uses_user_log_folder(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_user_log_dir(appname: str, appauthor: bool) -> str:
+            return f"/user-logs/{appname}-{appauthor}"
+
+        monkeypatch.setattr("sys.frozen", True, raising=False)
+        monkeypatch.setattr(
+            logger_module.platformdirs, "user_log_dir", fake_user_log_dir
+        )
+        assert logger_module.default_logs_dir() == Path(
+            "/user-logs/beam_calculator-False"
+        ), "packaged, logs should go to the per-user log folder, with no author level"

@@ -17,7 +17,7 @@ _TEXTS = PanelTexts(s.SLAB_ADD, s.SLAB_HINT, s.SLAB_LIST, s.SLAB_REMOVE)
 def slabs_panel(
     session: ProjectSession, bridge: QtSessionBridge, parent: QWidget | None = None
 ) -> ElementPanel[SlabRecord]:
-    """Build the slabs panel (mockup A3); usages follow the building category
+    """Build the slabs panel; usages follow the building category
 
     Registered slabs keep their usage when the category changes [Manual].
     """

@@ -1,5 +1,12 @@
 # AGENTS
 
+Rules for anyone changing this code, human or AI agent.
+
+> **Maintainer-only material.** The `docs/` folder (design specs, worked-example
+> transcriptions, patch notes) is kept by the maintainer outside the public
+> repository and is ignored by git. Rules below that mention it apply to the
+> maintainer only.
+
 ## Code tags
 
 ### `# PAPER`
@@ -45,6 +52,7 @@ def function(param: type) -> return_type:
 5. **References** — normative standards and textbook citations. Format: `ABNT NBR XXXX:YYYY — Section X.X.X` or `Author (year) — Section/Table identifier`. Place after all other sections.
 6. **Attributes** (classes only) — list public instance attributes with their physical unit when relevant. Skip attributes already fully described by their name and type annotation.
 7. **No formulas** — never write formulas or equations in docstrings. Describe the rule in words and cite the norm section in References.
+8. **Every normative criterion is cited** — code that implements a requirement, limit or table of a standard names the exact item (e.g. `ABNT NBR 6118:2014 — Section 17.3.5.2.1`) in References. When the source is still unknown, tag it `# PAPER` instead of leaving it uncited.
 
 ### When to prompt the user
 
@@ -74,7 +82,7 @@ Do not guess units or normative references — incorrect documentation is worse 
   - `pavement_ui/core/engine/config_mapper.py` — map the field between `ConfigValues` and `AppConfig`
   - `pavement_ui/presentation/dialogs/config/` — the form section that edits the field
 
-- **Patch notes (default step)**: every change set ends with a `docs/patches/NN-patch-<kebab-case-slug>.md` file describing the change for the TCC report. `NN` is a two-digit sequence number, one above the highest existing file in `docs/patches/` (the first is `01`). Write it in pt-BR, after the test run (so the numbers are real), with these sections:
+- **Patch notes (maintainer only)**: contributors skip this step. For the maintainer, every change set ends with a `docs/patches/NN-patch-<kebab-case-slug>.md` file describing the change for the TCC report. `NN` is a two-digit sequence number, one above the highest existing file in `docs/patches/` (the first is `01`). Write it in pt-BR, after the test run (so the numbers are real), with these sections:
   - **Contexto** — why the change was made
   - **Referências normativas** — norm items involved, with a short quote or paraphrase
   - **Alterações por arquivo** — link to each changed file and what changed in it
@@ -85,26 +93,29 @@ Do not guess units or normative references — incorrect documentation is worse 
 
 ## Interface (`pavement_ui`)
 
-The desktop GUI follows [docs/UI_SPEC.md](docs/UI_SPEC.md).
-
 - Business rules live in the engine (`src/`). **Never** reimplement calculation, inclusion rules or validation in the UI.
 - Only `pavement_ui/core/engine/` imports `src.*`. `src/` never imports `pavement_ui`.
 - `pavement_ui/core` never imports PySide6. `pavement_ui/presentation` never imports `src` nor `pavement_ui.core.engine`.
 - Every user-visible text lives in `pavement_ui/presentation/text/strings/` (pt-BR). Code identifiers stay in English.
 - One file = one responsibility (one public class or widget). Target ≤ 200 lines; hard cap 300.
-- Engine changes are limited to those listed in docs/UI_SPEC.md §5.3, unless explicitly requested.
 - No automated tests for `pavement_ui`; engine changes in `src/` get tests per the conventions below.
-- Checks before finishing a stage:
-  - `.venv/bin/ruff check pavement_ui && .venv/bin/ruff format --check pavement_ui`
-  - `.venv/bin/pyright` (strict, configured in `pyproject.toml`)
-  - `PYTHONPATH=. .venv/bin/lint-imports` (layering contracts in `pyproject.toml`)
-  - `.venv/bin/pytest` when `src/` changed
 
 ---
 
-## Source-of-truth tests (`tests/carvalho_source_of_truth/`)
+## Checks before finishing a change
 
-These tests encode worked examples from Carvalho (`docs/carvalho-examples/`). **Do not modify them unless the user explicitly asks.** In particular, never change inputs, expected values, tolerances or `xfail` markers to make a test pass: a failure means the engine disagrees with the book. The only allowed edit without an explicit request is keeping the code runnable after an engine API change (imports, constructor/attribute names, unit conversions), without changing what is asserted.
+- `.venv/bin/ruff check .`
+- `.venv/bin/ruff format --check <changed files>` — format only the files you touched. A few committed files in `src/` are intentionally not ruff-formatted; never run `ruff format` on whole folders.
+- `.venv/bin/pyright` — strict, configured in `pyproject.toml`; covers `pavement_ui` only.
+- `.venv/bin/pyright src tests` — the engine and the tests, which bare `pyright` skips.
+- `PYTHONPATH=. .venv/bin/lint-imports` — layering contracts in `pyproject.toml`.
+- `.venv/bin/pytest` — whenever `src/` or `tests/` changed.
+
+---
+
+## Source-of-truth tests (`tests/carvalho_source_of_truth/`, `tests/unesp_source_of_truth/`)
+
+These tests encode published worked examples: Carvalho & Figueiredo Filho (2014) and Bastos (UNESP), as cited in each test module. **Do not modify them unless the maintainer explicitly asks.** In particular, never change inputs, expected values, tolerances or `xfail` markers to make a test pass: a failure means the engine disagrees with the book. The only allowed edit without an explicit request is keeping the code runnable after an engine API change (imports, constructor/attribute names, unit conversions), without changing what is asserted.
 
 ---
 

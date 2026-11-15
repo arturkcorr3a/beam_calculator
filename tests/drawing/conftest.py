@@ -16,7 +16,7 @@ from tests.drawing.v5 import build_v5  # noqa: E402
 
 @pytest.fixture
 def v5() -> DetailingBeam:
-    """The V5 beam of the mockups (spec Appendix A), with marks"""
+    """The hand-built V5 reference beam, with marks"""
     return build_v5()
 
 

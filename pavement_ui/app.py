@@ -21,12 +21,16 @@ from pavement_ui.presentation.theme.logo import app_icon
 from pavement_ui.presentation.theme.stylesheet import build_stylesheet
 
 _STYLE = "Fusion"
+# Name of packaging/linux/beam_calculator.desktop: on Wayland the shell finds
+# the app's icon and name through it, never through the window icon
+_DESKTOP_FILE = "beam_calculator"
 
 
 def _configure_application(app: QApplication) -> None:
     """Apply the pt-BR locale, fonts, base style and stylesheet to the application."""
     QLocale.setDefault(QLocale(QLocale.Language.Portuguese, QLocale.Country.Brazil))
     app.setApplicationName(APP_NAME)
+    app.setDesktopFileName(_DESKTOP_FILE)
     app.setStyle(_STYLE)
     app.setWindowIcon(app_icon())
     register_fonts()

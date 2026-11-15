@@ -25,9 +25,9 @@ class EngineExecutor(QObject):
     """Serialize engine jobs on a single long-lived worker process
 
     The engine is pure Python: on a thread it would hold the GIL that every Qt
-    callback into Python needs, freezing the window (docs/UI_SPEC.md §3,
-    decision 6). In its own process it also keeps its global configuration and
-    logger apart from the UI. Jobs must pickle (frozen dataclasses of records).
+    callback into Python needs, freezing the window. In its own process it also
+    keeps its global configuration and logger apart from the UI. Jobs must
+    pickle (frozen dataclasses of records).
 
     Results come back queued on the UI thread through ``ResultRelay``.
 

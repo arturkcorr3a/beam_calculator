@@ -1,0 +1,16 @@
+PySide6, Shiboken6 and Qt 6
+===========================
+
+This application uses PySide6 and Shiboken6 (Qt for Python) and the Qt 6
+libraries, (C) The Qt Company Ltd. and other contributors, under the GNU Lesser
+General Public License version 3 (LGPL-3.0-only); its text is in LGPL-3.0.txt,
+next to this file. The GNU General Public License version 3 it builds on is in
+licenses/beam_calculator/LICENSE.
+
+The libraries are not modified and are linked dynamically: they are the
+separate files in the PySide6 and shiboken6 folders of the application, which
+can be replaced by other builds of the same version.
+
+Source code:
+  PySide6 / Shiboken6: https://code.qt.io/cgit/pyside/pyside-setup.git/
+  Qt 6:                https://code.qt.io/

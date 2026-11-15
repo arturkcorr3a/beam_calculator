@@ -18,7 +18,7 @@ pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
 
-# Layering of the GUI (docs/UI_SPEC.md §3). Run with: PYTHONPATH=. lint-imports
+# Layering of the GUI. Run with: PYTHONPATH=. lint-imports
 [tool.importlinter]
 root_packages = ["pavement_ui", "src"]
 include_external_packages = true

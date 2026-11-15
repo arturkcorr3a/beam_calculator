@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import datetime
@@ -8,6 +9,7 @@ from enum import IntEnum, StrEnum
 from pathlib import Path
 from typing import IO, TypeVar
 
+import platformdirs
 from rich.console import Console
 from rich.markup import escape
 
@@ -37,7 +39,19 @@ _LEVEL_STYLES: dict[LogLevel, str] = {
     LogLevel.GENERAL: "bold white",
 }
 
-_LOGS_DIR = Path(__file__).parent.parent / "logs"
+
+def default_logs_dir() -> Path:
+    """Folder of the log files: the user's log folder when packaged, else logs/
+
+    The packaged app's install folder is read-only, so its logs go to the
+    system's per-user log folder.
+    """
+    if getattr(sys, "frozen", False):  # set by PyInstaller
+        return Path(platformdirs.user_log_dir("beam_calculator", appauthor=False))
+    return Path(__file__).parent.parent / "logs"
+
+
+_LOGS_DIR = default_logs_dir()
 
 
 class BeamLogger:

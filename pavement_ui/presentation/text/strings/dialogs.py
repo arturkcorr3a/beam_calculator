@@ -1,4 +1,4 @@
-"""Texts of message boxes and file errors (docs/UI_SPEC.md §9.2, §9.3)."""
+"""Texts of message boxes and file errors."""
 
 from typing import Final
 
@@ -65,9 +65,13 @@ ISOLATED_INVALID_INPUT: Final = "Dados inválidos."
 # --- about --------------------------------------------------------------------
 ABOUT_TITLE: Final = "Sobre"
 ABOUT_TEXT: Final = (
-    "<b>Pavement Designer</b><br>"
+    "<b>beam_calculator</b><br>"
     "Pré-dimensionamento e dimensionamento de pavimentos de concreto armado "
-    "(NBR 6118, NBR 6120)."
+    "(NBR 6118, NBR 6120).<br><br>"
+    "© 2026 Artur Kalil Corrêa<br>"
+    "Software livre: você pode redistribuí-lo e modificá-lo sob os termos da "
+    "GNU General Public License, versão 3 ou posterior. Distribuído SEM "
+    "QUALQUER GARANTIA. Veja o arquivo LICENSE."
 )
 
 # --- file dialogs -------------------------------------------------------------
@@ -96,7 +100,7 @@ BUNDLE_DONE_DETAIL: Final = (
     "{path}\n\n{reports} relatórios e {sheets} folhas de detalhamento (PDF e DXF)."
 )
 
-# --- configuration dialog (docs/UI_SPEC.md §9.1) ------------------------------
+# --- configuration dialog ----------------------------------------------------
 CONFIG_TITLE: Final = "Configurações gerais do projeto"
 CONFIG_RESTORE: Final = "Restaurar padrões"
 CONFIG_OK: Final = "OK"
@@ -120,4 +124,4 @@ CONFIG_CEILING: Final = "Pé-direito"
 CONFIG_LOG: Final = "Memorial de cálculo (não é salvo no arquivo)"
 CONFIG_LOG_LEVEL: Final = "Nível de detalhe"
 CONFIG_LOG_OUTPUT: Final = "Saída"
-CONFIG_LOG_HINT: Final = "Arquivo: logs/beam_calculator_<data-hora>.log"
+CONFIG_LOG_HINT: Final = "Pasta: {folder}\nArquivo: beam_calculator_<data-hora>.log"

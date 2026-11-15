@@ -1,6 +1,7 @@
 """Carvalho, chapter 2, Example 2 — Example 1 with C90 concrete.
 
-FROZEN: inputs and expected values come from docs/carvalho-examples/cp2/ex2.md.
+FROZEN: inputs and expected values come from the book's worked example
+(Carvalho & Figueiredo Filho, 2014).
 Do not change them; see the "Source-of-truth tests" section of AGENTS.md.
 """
 

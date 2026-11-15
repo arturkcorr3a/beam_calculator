@@ -6,12 +6,12 @@ from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.data.nbr6120_2019.table_2.data import TABLE_2
 from src.data.nbr6120_2019.table_2.model import MasonryType, Thickness
 from src.data.nbr6120_2019.table_10.data import TABLE_10
-from src.logger import LogLevel, LogOutput
+from src.logger import LogLevel, LogOutput, default_logs_dir
 from src.pavement_elements.geometry_utils import Alignment
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 
-# Combo order of the beam form (docs/UI_SPEC.md §7.3): center works for both axes
+# Combo order of the beam form: center works for both axes
 _ALIGNMENT_ORDER = (
     Alignment.CENTER,
     Alignment.TOP,
@@ -66,4 +66,5 @@ def read_options() -> EngineOptions:
         log_outputs=tuple(to_key(o) for o in LogOutput),
         masonry=_masonry(),
         usages_by_category=_usages_by_category(),
+        log_dir=str(default_logs_dir()),
     )

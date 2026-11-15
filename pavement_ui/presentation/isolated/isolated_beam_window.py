@@ -1,4 +1,4 @@
-"""Isolated beam calculator window (F11, docs/UI_SPEC.md §11)."""
+"""Isolated beam calculator window (F11)."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (

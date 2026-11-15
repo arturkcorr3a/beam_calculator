@@ -1,4 +1,4 @@
-"""Main window of the application (mockups A1–A3, docs/UI_SPEC.md §8.1)."""
+"""Main window of the application."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent

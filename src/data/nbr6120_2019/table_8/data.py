@@ -1,6 +1,14 @@
 """ABNT NBR 6120:2019 - Section 5.4 - Table 8: Ceilings, ducts and sprinklers data.
 
 Hardcoded values matching the normative table.
+
+The values are transcribed for use in calculations. The standard is
+copyrighted by ABNT; consult the original for the complete table and its notes.
+
+References:
+    ABNT NBR 6120:2019 — Section 5.4, Table 8
+    ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. ABNT NBR 6120: Ações para o
+    cálculo de estruturas de edificações. Rio de Janeiro: ABNT, 2019.
 """
 
 from src.data.nbr6120_2019.table_8.model import CeilingDuctSprinklerMaterial, Table8
@@ -47,7 +55,7 @@ _MATERIALS = (
 
 TABLE_8 = Table8(
     title="Table 8 - Ceilings, ducts and sprinklers",
-    reference="ABNT NBR 6120:2019",
+    reference="ABNT NBR 6120:2019 — Section 5.4, Table 8",
     description=(
         "Nominal characteristic values for the self-weight of ceilings, ducts, "
         "and sprinklers."

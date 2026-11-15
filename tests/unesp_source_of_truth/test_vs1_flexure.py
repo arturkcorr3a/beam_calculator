@@ -1,6 +1,7 @@
 """Bastos (UNESP), item 19.7 — flexural reinforcement of beam VS1.
 
-FROZEN: inputs and expected values come from docs/unesp-examples/vs1.md.
+FROZEN: inputs and expected values come from Bastos (UNESP),
+Vigas de Concreto Armado, item 19 (p. 74–97) and Annex IV (p. 172–173).
 The moments are the book's redistributed values (delta = 0.85 at P2), taken as
 inputs because the engine does not redistribute moments. The effective depth is
 preset to the book's, so the comparison isolates the area calculation. The book

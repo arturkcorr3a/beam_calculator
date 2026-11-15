@@ -1,4 +1,4 @@
-"""Fields of a new continuous beam (docs/UI_SPEC.md §8.5)."""
+"""Fields of a new continuous beam."""
 
 from PySide6.QtWidgets import QComboBox, QLineEdit, QVBoxLayout, QWidget
 

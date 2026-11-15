@@ -1,6 +1,7 @@
 """Carvalho, chapter 4, Example 1 — longitudinal steel area of beam V101.
 
-FROZEN: inputs and expected values come from docs/carvalho-examples/cp4/ex1.md.
+FROZEN: inputs and expected values come from the book's worked example
+(Carvalho & Figueiredo Filho, 2014, p. 244–257).
 Do not change them; see the "Source-of-truth tests" section of AGENTS.md.
 """
 

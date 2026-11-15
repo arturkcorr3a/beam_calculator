@@ -1,4 +1,4 @@
-"""ConfigDialog: the general project settings (mockup A4, docs/UI_SPEC.md §9.1)."""
+"""ConfigDialog: the general project settings."""
 
 from PySide6.QtWidgets import (
     QDialog,

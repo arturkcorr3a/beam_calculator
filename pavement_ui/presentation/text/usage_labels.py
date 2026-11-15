@@ -1,7 +1,7 @@
 """pt-BR labels of NBR 6120 Table 10 slab usages, by engine description.
 
 Residential usages are complete; usages of other categories fall back to the
-engine's text until translated [Decisão, docs/UI_SPEC.md §7.3].
+engine's text until translated.
 """
 
 from typing import Final

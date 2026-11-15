@@ -1,6 +1,14 @@
-"""ABNT NBR 6120:2019 - Section 5.4 - Table 10: Variable loads data.
+"""ABNT NBR 6120:2019 - Section 6.2 - Table 10: Variable loads data.
 
 Hardcoded values matching the normative table.
+
+The values are transcribed for use in calculations. The standard is
+copyrighted by ABNT; consult the original for the complete table and its notes.
+
+References:
+    ABNT NBR 6120:2019 — Section 6.2, Table 10
+    ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. ABNT NBR 6120: Ações para o
+    cálculo de estruturas de edificações. Rio de Janeiro: ABNT, 2019.
 """
 
 from src.data.nbr6120_2019.table_10.model import BuildingCategory, LocationLoad, Table10
@@ -1161,7 +1169,7 @@ _FOOTNOTES = {
 
 TABLE_10 = Table10(
     title="Table 10 - Nominal characteristic values of variable loads",
-    reference="ABNT NBR 6120:2019",
+    reference="ABNT NBR 6120:2019 — Section 6.2, Table 10",
     description=(
         "Nominal characteristic values for design variable loads (live loads) in buildings according to the type of use and location."
     ),

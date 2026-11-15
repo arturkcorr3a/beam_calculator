@@ -1,7 +1,7 @@
 """Tables and texts of the sheet: materials summary and line legend
 
 Every block is drawn with its top left corner at the origin; the layout moves it into
-place. See docs/especificacao_desenho.md, §6.9 and §6.10.
+place.
 """
 
 from collections.abc import Sequence
