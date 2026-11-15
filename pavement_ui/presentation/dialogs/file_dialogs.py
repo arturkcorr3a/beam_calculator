@@ -1,15 +1,41 @@
-"""Choose project files to open or save (*.yaml / *.yml) and report files to export (*.pdf)."""
+"""Choose project files to open or save (*.yaml / *.yml), examples to open, and report files to export (*.pdf)."""
 
+import sys
 from pathlib import Path
 
 from PySide6.QtWidgets import QFileDialog, QWidget
 
 from pavement_ui.presentation.text.strings import dialogs as s
 
+# Shipped next to the executable in the packages; resources/examples/ in the repository
+_PACKAGED_EXAMPLES = "exemplos"
+_SOURCE_EXAMPLES = Path(__file__).parents[3] / "resources" / "examples"
+
+
+def examples_dir() -> Path:
+    """Folder of the example pavement files and template.yaml
+
+    The packaged app (PyInstaller sets sys.frozen) has it next to its
+    executable; resolve() follows the RPM's /usr/bin link to /opt.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / _PACKAGED_EXAMPLES
+    return _SOURCE_EXAMPLES
+
 
 def ask_open_path(parent: QWidget | None) -> Path | None:
     """Ask for a project file to open; None if cancelled"""
     name, _ = QFileDialog.getOpenFileName(parent, s.OPEN_FILE_TITLE, "", s.FILE_FILTER)
+    return Path(name) if name else None
+
+
+def ask_example_path(parent: QWidget | None) -> Path | None:
+    """Ask for an example to open, starting in the examples folder; None if cancelled"""
+    folder = examples_dir()
+    start = str(folder) if folder.is_dir() else ""
+    name, _ = QFileDialog.getOpenFileName(
+        parent, s.OPEN_EXAMPLE_TITLE, start, s.FILE_FILTER
+    )
     return Path(name) if name else None
 
 

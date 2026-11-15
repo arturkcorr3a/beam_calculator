@@ -1,4 +1,4 @@
-"""Flows of the Arquivo menu: new, open, save, save as and quit (F10)."""
+"""Flows of the Arquivo menu: new, open, open example, save, save as and quit (F10)."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -11,7 +11,7 @@ from pavement_ui.presentation.dialogs import file_dialogs, messages
 
 
 class FileController:
-    """Runs actNew, actOpen, actSave, actSaveAs and actQuit
+    """Runs actNew, actOpen, actOpenExample, actSave, actSaveAs and actQuit
 
     Args:
         on_opened: Called after a project is opened or started (e.g. to fit the plan).
@@ -35,11 +35,20 @@ class FileController:
 
     def open(self) -> None:
         """Replace the project with a file [Manual §8]; no unsaved-changes check (M21)"""
-        path = file_dialogs.ask_open_path(self._window)
+        self._open_with(file_dialogs.ask_open_path(self._window), self._session.open)
+
+    def open_example(self) -> None:
+        """Replace the project with a shipped example, opened as untitled"""
+        self._open_with(
+            file_dialogs.ask_example_path(self._window), self._session.open_example
+        )
+
+    def _open_with(self, path: Path | None, load: Callable[[Path], None]) -> None:
+        """Load the chosen file, if any, reporting a failure to the user"""
         if path is None:
             return
         try:
-            self._session.open(path)
+            load(path)
         except PersistenceError as error:
             messages.show_file_error(self._window, error, opening=True)
             return

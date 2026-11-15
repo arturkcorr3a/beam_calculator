@@ -201,6 +201,16 @@ class ProjectSession:
         loaded = self._store.open(path)
         self._replace_project(loaded.records, loaded.config, path)
 
+    def open_example(self, path: Path) -> None:
+        """Load a project file as a new, untitled project; raises PersistenceError
+
+        Saving then asks for a new file, so the shipped example is never
+        overwritten (it may also sit in a read-only folder, as /opt).
+        """
+        self._ensure_idle()
+        loaded = self._store.open(path)
+        self._replace_project(loaded.records, loaded.config, None)
+
     def check_before_save(self) -> str | None:
         """Validate before saving
 

@@ -89,6 +89,25 @@ A pasta `.local` é oculta; por isso é mais fácil chegar a ela pelo caminho.
 Os arquivos de projeto (`.yaml`), os PDFs e os DXFs são salvos onde você
 escolher, nas janelas de salvar e exportar do programa.
 
+## 4. Pavimentos de exemplo
+
+O programa vem com pavimentos prontos para abrir e um modelo comentado
+(`template.yaml`), que explica cada campo do arquivo de projeto. Para abrir um
+deles, use **Arquivo → Abrir exemplo…**. O exemplo abre como projeto sem
+título: ao salvar, o programa pergunta onde gravar a sua cópia, e o original
+não é alterado.
+
+Os arquivos ficam na pasta `exemplos`, dentro da pasta do programa:
+
+| Instalação | Pasta |
+|---|---|
+| Windows | `%LOCALAPPDATA%\Programs\beam_calculator\exemplos` |
+| Fedora | `/opt/beam_calculator/exemplos` |
+| Outras distribuições Linux | `beam_calculator/exemplos`, na pasta extraída |
+
+Uma atualização do programa substitui os exemplos. Por isso, guarde os seus
+projetos em outra pasta.
+
 ## Licença
 
 O beam_calculator é software livre, distribuído sob a licença GNU GPL versão 3

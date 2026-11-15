@@ -100,6 +100,7 @@ jobs:
           $setup = Get-ChildItem dist\beam_calculator-Setup-*.exe | Select-Object -First 1
           Start-Process $setup.FullName -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait
           $app = "$env:LOCALAPPDATA\Programs\beam_calculator"
+          if (-not (Test-Path "$app\exemplos\template.yaml")) { throw "No example pavements in $app\exemplos" }
           $env:QT_QPA_PLATFORM = "offscreen"
           $process = Start-Process "$app\beam_calculator.exe" -PassThru
           Start-Sleep -Seconds 20

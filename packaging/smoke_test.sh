@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
-# Check a packaged Linux app without a screen: Qt's X11/Wayland plugins find
-# every library, the app stays up with its single engine worker, and it writes
-# the calculation memorial to the user's log folder. CI runs it on each package.
+# Check a packaged Linux app without a screen: the example pavements are next
+# to it, Qt's X11/Wayland plugins find every library, the app stays up with its
+# single engine worker, and it writes the calculation memorial to the user's
+# log folder. CI runs it on each package.
 # Usage: packaging/smoke_test.sh <beam_calculator executable or its link>
 set -euo pipefail
 shopt -s nullglob
 
 exe="$(readlink -f "$1")"
 internal="$(dirname "$exe")/_internal"
+examples="$(dirname "$exe")/exemplos"
 logs="${XDG_STATE_HOME:-$HOME/.local/state}/beam_calculator/log"
+
+# Arquivo › Abrir exemplo… opens this folder
+if [[ ! -f "$examples/template.yaml" ]]; then
+    echo "No example pavements in $examples" >&2
+    exit 1
+fi
 
 # The offscreen run below never loads the desktop plugins: check them with ldd
 plugins=("$internal"/PySide6/Qt/plugins/platforms/libq{xcb,wayland}*.so)

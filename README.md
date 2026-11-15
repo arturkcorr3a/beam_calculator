@@ -38,6 +38,21 @@ Ready-to-use installers for Windows and Linux are published on the
 Python installation is needed. Step-by-step instructions (in Portuguese) are in
 [INSTALACAO.md](INSTALACAO.md).
 
+## Example pavements
+
+The program ships with example pavements and a commented template, in the
+`exemplos` folder next to the program (`resources/examples/` in this
+repository). Open one with **Arquivo → Abrir exemplo…**: it opens as an untitled
+project, so **Salvar** asks where to save your copy and the example stays
+unchanged.
+
+- `pavimento_residencial.yaml`: residential floor with 21 pillars and 8 slabs;
+- `pavimento_laje_rebaixada.yaml`: 8 pillars and 3 slabs, one of them lowered;
+- `template.yaml`: a small pavement in which every field is explained (meaning,
+  unit and accepted values), to start a project by editing the file by hand.
+
+Project files are plain YAML text and can be edited in any text editor.
+
 ## Running from source
 
 Requirements: **Python 3.14** on Windows or Linux.

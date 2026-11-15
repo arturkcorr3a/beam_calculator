@@ -1,6 +1,7 @@
-"""Render the t_concreto2 drawings for a visual check (not run in CI)
+"""Render the drawings of the pavimento_residencial example (t_concreto2) for a visual check (not run in CI)
 
-Writes ``out/drawing/V1.png`` … ``V10.png`` and ``out/drawing/t_concreto2.dxf``.
+Writes one sheet per beam, ``out/drawing/V1.dxf``/``.png``/``.pdf`` … ``V10.*``,
+and ``out/drawing/pavement.pdf`` with every sheet, one per page.
 
 Usage, from the repository root::
 
@@ -13,38 +14,25 @@ import matplotlib
 
 matplotlib.use("Agg")
 
-import matplotlib.pyplot as plt  # noqa: E402
-
 from src.config import APP_CONFIG  # noqa: E402
-from src.drawing.api import (  # noqa: E402
-    PNG_DPI,
-    beam_figure,
-    export_pavement_dxf,
-    pavement_detailings,
-)
+from src.drawing.api import save_pavement as save_drawings  # noqa: E402
 from src.logger import LogLevel, configure_logger  # noqa: E402
 from src.persistency import load_pavement  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-SAVED = ROOT / "saved" / "t_concreto2.yaml"
+SAVED = ROOT / "resources" / "examples" / "pavimento_residencial.yaml"
 OUT = ROOT / "out" / "drawing"
-NAME = "t_concreto2"
+NAME = "pavimento_residencial"
 
 
 def main() -> None:
-    """Resolve t_concreto2 from saved/ and write its beam PNGs and its pavement DXF"""
+    """Resolve the example from resources/examples/ and write its beam sheets"""
     APP_CONFIG.log_level = LogLevel.DISABLED
     configure_logger(APP_CONFIG.log_level, APP_CONFIG.log_output)
     pavement = load_pavement(SAVED)
     pavement.resolve()
-    OUT.mkdir(parents=True, exist_ok=True)
-    for detailing in pavement_detailings(pavement):
-        figure = beam_figure(detailing, pavement_name=NAME)
-        path = OUT / f"{detailing.beam_id}.png"
-        figure.savefig(path, dpi=PNG_DPI)  # pyright: ignore[reportUnknownMemberType]
-        plt.close(figure)
+    for path in save_drawings(pavement, OUT, pavement_name=NAME):
         print(path)
-    print(export_pavement_dxf(pavement, OUT / f"{NAME}.dxf", pavement_name=NAME))
 
 
 if __name__ == "__main__":

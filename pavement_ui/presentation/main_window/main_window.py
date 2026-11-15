@@ -121,6 +121,7 @@ class MainWindow(QMainWindow):
         actions, pavement = self._actions, self._pavement
         actions[A.NEW].triggered.connect(self._files.new_project)
         actions[A.OPEN].triggered.connect(self._files.open)
+        actions[A.OPEN_EXAMPLE].triggered.connect(self._files.open_example)
         actions[A.SAVE].triggered.connect(self._files.save)
         actions[A.SAVE_AS].triggered.connect(self._files.save_as)
         actions[A.CONFIG].triggered.connect(self._config.edit)

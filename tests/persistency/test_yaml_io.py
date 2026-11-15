@@ -367,3 +367,72 @@ class TestLoadPavement:
         save_pavement(build_pavement(), path)
         loaded = load_pavement(str(path))
         assert len(loaded.pillars) == 4, "load_pavement should accept a str path"
+
+
+# ---------------------------------------------------------------------------
+# TestLayout
+# ---------------------------------------------------------------------------
+
+
+class TestLayout:
+    """save_pavement lays the file out for people to read and edit by hand."""
+
+    @pytest.fixture
+    def text(self, tmp_path: Path) -> str:
+        path = tmp_path / "pavement.yaml"
+        save_pavement(build_pavement(), path)
+        return path.read_text(encoding="utf-8")
+
+    def test_starts_with_a_comment_header(self, text: str) -> None:
+        assert text.startswith("# "), "the file should open with a comment header"
+
+    @pytest.mark.parametrize("key", ["pillars", "beams", "slabs", "config"])
+    def test_each_section_has_a_blank_line_and_a_comment_above(
+        self, text: str, key: str
+    ) -> None:
+        lines = text.splitlines()
+        index = lines.index(f"{key}:")
+        assert lines[index - 1].startswith("# "), f"comment right above '{key}:'"
+        assert lines[index - 2] == "", f"blank line above the '{key}' comment"
+
+    def test_sequence_items_are_indented(self, text: str) -> None:
+        assert "\npillars:\n  - id: " in text, "pillars items should be indented"
+        assert "\nbeams:\n  - pillar_ids: " in text, "beams items should be indented"
+
+    def test_items_are_separated_by_a_blank_line(self, text: str) -> None:
+        pillars = text.split("\npillars:\n")[1].split("\n\n#")[0]
+        assert pillars.count("\n\n  - id: ") == 3, (
+            "the four pillars should be separated by three blank lines"
+        )
+
+    def test_id_lists_are_inline(self, text: str) -> None:
+        assert "  - pillar_ids: [" in text, "pillar_ids should be written inline"
+        assert "  - corner_pillar_ids: [" in text, (
+            "corner_pillar_ids should be written inline"
+        )
+
+    def test_nested_mappings_are_indented(self, text: str) -> None:
+        assert "\n    wall:\n      structural: " in text, (
+            "the wall mapping should be nested under its beam"
+        )
+
+    def test_empty_lists_are_inline(self, tmp_path: Path) -> None:
+        path = tmp_path / "empty.yaml"
+        save_pavement(Pavement(), path)
+        text = path.read_text(encoding="utf-8")
+        for key in ("pillars", "beams", "slabs"):
+            assert f"\n{key}: []\n" in text, f"an empty '{key}' should read '[]'"
+        assert len(load_pavement(path).pillars) == 0
+
+
+class TestLoadMalformed:
+    """load_pavement rejects documents whose top level is not a mapping."""
+
+    @pytest.mark.parametrize(
+        "content", ["", "# only a comment\n", "- 1\n- 2\n", "42\n"]
+    )
+    def test_non_mapping_top_level_raises(self, tmp_path: Path, content: str) -> None:
+        path = tmp_path / "bad.yaml"
+        path.write_text(content, encoding="utf-8")
+        with pytest.raises(ValueError, match="expected a mapping at the top level"):
+            load_pavement(path)

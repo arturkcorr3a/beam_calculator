@@ -50,10 +50,10 @@ def _example_class(module_name: str, log: list[str]) -> type[SimpleExample]:
 
 
 @pytest.fixture
-def saved_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Point the runner's saved/ folder at a temp dir holding one YAML file"""
+def pavements_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point the runner's pavement folder at a temp dir holding one YAML file"""
     (tmp_path / "demo.yaml").write_text("", encoding="utf-8")
-    monkeypatch.setattr(runner, "SAVED_DIR", tmp_path)
+    monkeypatch.setattr(runner, "PAVEMENTS_DIR", tmp_path)
     return tmp_path
 
 
@@ -95,16 +95,16 @@ class TestBuildParser:
             runner.build_parser().parse_args(["--load", "x", "--log-level", "loud"])
 
 
-class TestResolveSaved:
-    """Tests for mapping --load values to files in saved/."""
+class TestResolvePavement:
+    """Tests for mapping --load values to files in resources/examples/."""
 
-    def test_adds_yaml_extension(self, saved_dir: Path) -> None:
-        assert runner.resolve_saved("demo") == saved_dir / "demo.yaml", (
+    def test_adds_yaml_extension(self, pavements_dir: Path) -> None:
+        assert runner.resolve_pavement("demo") == pavements_dir / "demo.yaml", (
             "A bare name should get the .yaml extension"
         )
 
-    def test_keeps_yaml_extension(self, saved_dir: Path) -> None:
-        assert runner.resolve_saved("demo.yaml") == saved_dir / "demo.yaml", (
+    def test_keeps_yaml_extension(self, pavements_dir: Path) -> None:
+        assert runner.resolve_pavement("demo.yaml") == pavements_dir / "demo.yaml", (
             "A name with .yaml should be used as-is"
         )
 
@@ -155,7 +155,7 @@ class TestMain:
 
     def test_load_resolves_pavement_with_log_flags(
         self,
-        saved_dir: Path,
+        pavements_dir: Path,
         logger_calls: _Recorder,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -168,7 +168,7 @@ class TestMain:
             ["--load", "demo", "--log-level", "general", "--log-output", "console"]
         )
 
-        assert loader.calls == [(saved_dir / "demo.yaml",)], "Should load demo.yaml"
+        assert loader.calls == [(pavements_dir / "demo.yaml",)], "Should load demo.yaml"
         assert resolved == [True], "The loaded pavement should be resolved"
         assert APP_CONFIG.log_level == LogLevel.GENERAL, "Level should be applied"
         assert APP_CONFIG.log_output == LogOutput.CONSOLE, "Output should be applied"
@@ -178,7 +178,7 @@ class TestMain:
 
     def test_load_without_flags_keeps_log_defaults(
         self,
-        saved_dir: Path,
+        pavements_dir: Path,
         logger_calls: _Recorder,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -193,8 +193,8 @@ class TestMain:
             "Omitted flags should keep the APP_CONFIG log settings"
         )
 
-    def test_missing_saved_file_exits(
-        self, saved_dir: Path, logger_calls: _Recorder
+    def test_missing_pavement_file_exits(
+        self, pavements_dir: Path, logger_calls: _Recorder
     ) -> None:
         with pytest.raises(SystemExit):
             runner.main(["--load", "nope"])
@@ -272,7 +272,7 @@ class TestDisplay:
         mode: str,
         saves: int,
         shows: int,
-        saved_dir: Path,
+        pavements_dir: Path,
         logger_calls: _Recorder,
         drawing_calls: tuple[_Recorder, _Recorder],
         monkeypatch: pytest.MonkeyPatch,
@@ -297,7 +297,7 @@ class TestDisplay:
 
     def test_no_display_draws_nothing(
         self,
-        saved_dir: Path,
+        pavements_dir: Path,
         logger_calls: _Recorder,
         drawing_calls: tuple[_Recorder, _Recorder],
         monkeypatch: pytest.MonkeyPatch,
@@ -346,7 +346,7 @@ class TestDisplay:
 
     def test_drawing_error_exits(
         self,
-        saved_dir: Path,
+        pavements_dir: Path,
         logger_calls: _Recorder,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
