@@ -1,0 +1,14 @@
+# Version updates for the GitHub Actions of the workflows. The pinned Python
+# packages get only security updates (Settings → Code security → Dependabot
+# security updates), not routine bumps.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
