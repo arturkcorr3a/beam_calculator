@@ -7,6 +7,7 @@ from enum import Enum, auto
 class ActionId(Enum):
     NEW = auto()
     OPEN = auto()
+    OPEN_EXAMPLE = auto()
     SAVE = auto()
     SAVE_AS = auto()
     QUIT = auto()
@@ -43,6 +44,7 @@ _WHEN_IDLE = frozenset(
     {
         ActionId.NEW,
         ActionId.OPEN,
+        ActionId.OPEN_EXAMPLE,
         ActionId.SAVE,
         ActionId.SAVE_AS,
         ActionId.FOCUS_PILLARS,

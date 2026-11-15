@@ -45,6 +45,7 @@ SAVE_INVALID_DETAIL: Final = (
 
 # --- files --------------------------------------------------------------------
 OPEN_FILE_TITLE: Final = "Abrir arquivo"
+OPEN_EXAMPLE_TITLE: Final = "Abrir exemplo"
 SAVE_FILE_TITLE: Final = "Salvar arquivo"
 OPEN_FAILED: Final = "Não foi possível abrir o arquivo."
 SAVE_FAILED: Final = "Não foi possível salvar o arquivo."

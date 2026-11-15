@@ -26,6 +26,10 @@ $env:APP_VERSION = $Version
 # Native commands do not stop the script on failure: check each exit code
 python -m PyInstaller --noconfirm --clean packaging/pyinstaller.spec
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
+# Example pavements and the commented template, where the user sees them; the
+# app's Arquivo > Abrir exemplo... opens this folder
+New-Item -ItemType Directory -Force dist\beam_calculator\exemplos | Out-Null
+Copy-Item resources\examples\*.yaml dist\beam_calculator\exemplos\
 # GPL-3.0 at the top, where it is seen; the bundled packages' are in _internal\licenses\
 Copy-Item LICENSE dist\beam_calculator\
 

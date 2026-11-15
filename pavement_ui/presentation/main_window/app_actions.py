@@ -27,6 +27,7 @@ class _ActionSpec:
 _SPECS: dict[ActionId, _ActionSpec] = {
     ActionId.NEW: _ActionSpec("actNew", s.NEW, "Ctrl+N", "new"),
     ActionId.OPEN: _ActionSpec("actOpen", s.OPEN, "Ctrl+O", "open"),
+    ActionId.OPEN_EXAMPLE: _ActionSpec("actOpenExample", s.OPEN_EXAMPLE),
     ActionId.SAVE: _ActionSpec("actSave", s.SAVE, "Ctrl+S", "save"),
     ActionId.SAVE_AS: _ActionSpec("actSaveAs", s.SAVE_AS, "Ctrl+Shift+S"),
     ActionId.QUIT: _ActionSpec("actQuit", s.QUIT, "Ctrl+Q"),

@@ -11,7 +11,10 @@ from pavement_ui.presentation.widgets.variants import set_variant
 type _Group = tuple[A, ...]
 
 _MENUS: tuple[tuple[str, tuple[_Group, ...]], ...] = (
-    (s.MENU_FILE, ((A.NEW, A.OPEN, A.SAVE, A.SAVE_AS), (A.QUIT,))),
+    (
+        s.MENU_FILE,
+        ((A.NEW, A.OPEN, A.OPEN_EXAMPLE, A.SAVE, A.SAVE_AS), (A.QUIT,)),
+    ),
     (s.MENU_PAVEMENT, ((A.FOCUS_PILLARS, A.FOCUS_BEAMS, A.FOCUS_SLABS), (A.CLEAR,))),
     (s.MENU_CALCULATION, ((A.VALIDATE, A.DESIGN, A.RESULTS),)),
     (s.MENU_TOOLS, ((A.CONFIG, A.ISOLATED),)),

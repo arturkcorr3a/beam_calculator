@@ -37,6 +37,21 @@ Os instaladores prontos para Windows e Linux são publicados na página
 [Releases](https://github.com/arturkcorr3a/beam_calculator/releases); não é
 preciso instalar Python. O passo a passo está em [INSTALACAO.md](INSTALACAO.md).
 
+## Pavimentos de exemplo
+
+O programa vem com pavimentos de exemplo e um modelo comentado, na pasta
+`exemplos`, ao lado do programa (`resources/examples/` neste repositório). Abra
+um deles em **Arquivo → Abrir exemplo…**: ele abre como projeto sem título, então
+**Salvar** pergunta onde gravar a sua cópia e o exemplo não é alterado.
+
+- `pavimento_residencial.yaml`: pavimento residencial com 21 pilares e 8 lajes;
+- `pavimento_laje_rebaixada.yaml`: 8 pilares e 3 lajes, uma delas rebaixada;
+- `template.yaml`: um pavimento pequeno com cada campo explicado (significado,
+  unidade e valores aceitos), para começar um projeto editando o arquivo à mão.
+
+Os arquivos de projeto são texto YAML e podem ser editados em qualquer editor
+de texto.
+
 ## Executar a partir do código-fonte
 
 Requisitos: **Python 3.14**, no Windows ou no Linux.

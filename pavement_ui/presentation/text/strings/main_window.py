@@ -25,6 +25,7 @@ TOOLBAR: Final = "Barra de ferramentas"
 # --- actions ------------------------------------------------------------------
 NEW: Final = "Novo"
 OPEN: Final = "Abrir…"
+OPEN_EXAMPLE: Final = "Abrir exemplo…"
 SAVE: Final = "Salvar"
 SAVE_AS: Final = "Salvar como…"
 QUIT: Final = "Sair"

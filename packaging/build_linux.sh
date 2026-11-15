@@ -14,6 +14,10 @@ APP_VERSION="$version" python -m PyInstaller --noconfirm --clean packaging/pyins
 # Menu entry and icon for GNOME/KDE: the .tar.gz user runs install.sh once
 install -m 644 packaging/linux/beam_calculator.desktop dist/beam_calculator/
 install -m 755 packaging/linux/install.sh dist/beam_calculator/
+# Example pavements and the commented template, where the user sees them; the
+# app's Arquivo › Abrir exemplo… opens this folder (the RPM copies it to /opt)
+install -d dist/beam_calculator/exemplos
+install -m 644 resources/examples/*.yaml dist/beam_calculator/exemplos/
 # GPL-3.0 at the top, where it is seen; the bundled packages' are in _internal/licenses/
 install -m 644 LICENSE dist/beam_calculator/
 tar -C dist -czf "$archive" beam_calculator
