@@ -1,0 +1,21 @@
+name: Suggestion / Sugestão
+description: A feature or check the program does not have yet
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        First check the *Known limitations* of the [README](https://github.com/arturkcorr3a/beam_calculator/blob/master/README.md#known-limitations):
+        some are already known. You may write in Portuguese or English.
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggestion
+      description: What the program should do, and in which situation of a real design you need it.
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference
+      description: "Optional: the standard item or the book that describes the criterion."

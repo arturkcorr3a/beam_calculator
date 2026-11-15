@@ -1,0 +1,67 @@
+name: Calculation error / Erro de cálculo
+description: A result that disagrees with a standard, a book or a hand calculation
+title: "[Calculation] "
+labels: ["calculation-error"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for checking the results. You may write in Portuguese or English.
+        *Pode escrever em português ou em inglês.*
+
+        A calculation error is not a security vulnerability: this public issue is
+        the right place for it (see [SECURITY.md](https://github.com/arturkcorr3a/beam_calculator/blob/master/SECURITY.md)).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in the *Sobre* window; "desenvolvimento" when run from the source code (then give the commit).
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input data
+      description: |
+        The values you entered or, better, the project file (`.yaml`, saved with *Arquivo → Salvar*).
+        Attach it by dragging it here; if GitHub refuses the `.yaml`, put it in a `.zip`.
+    validations:
+      required: true
+  - type: input
+    id: element
+    attributes:
+      label: Element
+      description: Where the result is wrong.
+      placeholder: beam V3, span 2
+    validations:
+      required: true
+  - type: textarea
+    id: obtained
+    attributes:
+      label: Obtained result
+      description: What the program gave.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: The value you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source of the expected result
+      description: The standard item (e.g. ABNT NBR 6118, 17.3.5.2.1), the book and page, or your hand calculation.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Calculation log
+      description: |
+        Optional: the relevant part of `beam_calculator_<date-time>.log`
+        (its folder is in [INSTALACAO.md](https://github.com/arturkcorr3a/beam_calculator/blob/master/INSTALACAO.md)).
+      render: text

@@ -12,7 +12,7 @@ calculation errors.
 
 ## Reporting a calculation error
 
-Open an issue with:
+Open an issue with the *Calculation error* form, which asks for:
 
 1. **Input data**: the values you entered or, better, the project file
    (`.yaml`, saved with *Arquivo → Salvar*) attached to the issue.

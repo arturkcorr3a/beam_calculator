@@ -72,7 +72,8 @@ python -m pavement_ui
 O motor de cálculo fica em `src/` e a interface PySide6 em `pavement_ui/`. As
 convenções de código e documentação estão no [AGENTS.md](AGENTS.md) (em
 inglês); leia o [CONTRIBUTING.md](CONTRIBUTING.md) antes de abrir uma issue ou
-um pull request.
+um pull request. Como as versões são numeradas e publicadas está na seção
+[Releases](CONTRIBUTING.md#releases) dele.
 
 ### Verificações de código
 
@@ -93,24 +94,6 @@ pytest
 Roda a suíte inteira e mostra o resumo de cobertura com as linhas não
 cobertas; a configuração da cobertura está no `.coveragerc`. Um relatório HTML
 é gravado em `htmlcov/` (`xdg-open htmlcov/index.html`).
-
-### Releases
-
-Os instaladores são gerados e testados pelo GitHub Actions
-([.github/workflows/release.yml](.github/workflows/release.yml)) e publicados
-como uma GitHub Release quando uma tag começando com `v` é enviada:
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-Uma tag com hífen (`v0.1.0-rc1`) gera uma pré-release. Rodar o workflow à mão
-(Actions → Release → Run workflow) gera e testa os pacotes sem publicá-los;
-eles ficam nos artifacts da execução.
-
-Para gerar localmente, com o venv ativo: `packaging/build_linux.sh`
-(`.tar.gz`) e depois `packaging/build_rpm.sh` (`.rpm`, precisa do
-`rpm-build`); no Windows, `packaging\build_windows.ps1` (precisa do Inno
-Setup). O `packaging/smoke_test.sh` testa um build Linux.
 
 ## Como citar
 
