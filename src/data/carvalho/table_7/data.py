@@ -1,6 +1,15 @@
 """Carvalho & Figueiredo Filho (2014) - Table 7 (Quadro 7.1): Slab bending moment coefficients data.
 
 Hardcoded values matching Quadro 7.1 of "Cálculo e Detalhamento de Estruturas Usuais de Concreto Armado".
+
+The values are transcribed for use in calculations. The book is copyrighted
+by its authors and publisher; consult the original for the complete table.
+
+References:
+    Carvalho & Figueiredo Filho (2014) — Chapter 7, Quadro 7.1
+    CARVALHO, R. C.; FIGUEIREDO FILHO, J. R. Cálculo e detalhamento de
+    estruturas usuais de concreto armado. 4. ed. São Carlos: EdUFSCar, 2014.
+    v. 1. ISBN 978-85-7600-356-4.
 """
 
 from src.data.carvalho.table_7.model import MomentCoefficients, SlabMomentEntry, Table7

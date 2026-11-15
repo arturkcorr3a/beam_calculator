@@ -2,6 +2,14 @@
 
 Hardcoded values matching the normative table.  Each helper builds one
 ``MasonryType`` to keep the top-level instantiation readable.
+
+The values are transcribed for use in calculations. The standard is
+copyrighted by ABNT; consult the original for the complete table and its notes.
+
+References:
+    ABNT NBR 6120:2019 — Section 5.4, Table 2
+    ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. ABNT NBR 6120: Ações para o
+    cálculo de estruturas de edificações. Rio de Janeiro: ABNT, 2019.
 """
 
 from src.data.nbr6120_2019.table_2.model import MasonryType, Table2, Thickness
@@ -121,7 +129,7 @@ _NON_BEARING_MASONRY = (
 
 TABLE_2 = Table2(
     title="Table 2 - Masonry",
-    reference="ABNT NBR 6120:2019",
+    reference="ABNT NBR 6120:2019 — Section 5.4, Table 2",
     description=(
         "Nominal characteristic values for the self-weight of masonry walls "
         "(structural and non-bearing) based on nominal thickness and coating "

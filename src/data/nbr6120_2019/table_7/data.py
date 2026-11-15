@@ -1,6 +1,14 @@
 """ABNT NBR 6120:2019 - Section 5.4 - Table 7: Fills data.
 
 Hardcoded values matching the normative table.
+
+The values are transcribed for use in calculations. The standard is
+copyrighted by ABNT; consult the original for the complete table and its notes.
+
+References:
+    ABNT NBR 6120:2019 — Section 5.4, Table 7
+    ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. ABNT NBR 6120: Ações para o
+    cálculo de estruturas de edificações. Rio de Janeiro: ABNT, 2019.
 """
 
 from src.data.nbr6120_2019.table_7.model import FillMaterial, Table7
@@ -47,7 +55,7 @@ _MATERIALS = (
 
 TABLE_7 = Table7(
     title="Table 7 - Fills",
-    reference="ABNT NBR 6120:2019",
+    reference="ABNT NBR 6120:2019 — Section 5.4, Table 7",
     description=(
         "Apparent specific weight values for fill materials. When a range is "
         "provided, the average value is given in parentheses."

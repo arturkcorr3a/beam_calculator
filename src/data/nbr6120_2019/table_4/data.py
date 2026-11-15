@@ -1,6 +1,14 @@
 """ABNT NBR 6120:2019 - Section 5.4 - Table 4: Floor coverings and waterproofing data.
 
 Hardcoded values matching the normative table.
+
+The values are transcribed for use in calculations. The standard is
+copyrighted by ABNT; consult the original for the complete table and its notes.
+
+References:
+    ABNT NBR 6120:2019 — Section 5.4, Table 4
+    ASSOCIAÇÃO BRASILEIRA DE NORMAS TÉCNICAS. ABNT NBR 6120: Ações para o
+    cálculo de estruturas de edificações. Rio de Janeiro: ABNT, 2019.
 """
 
 from src.data.nbr6120_2019.table_4.model import (
@@ -74,7 +82,7 @@ _MATERIALS = (
 
 TABLE_4 = Table4(
     title="Table 4 - Floor coverings and waterproofing",
-    reference="ABNT NBR 6120:2019",
+    reference="ABNT NBR 6120:2019 — Section 5.4, Table 4",
     description=(
         "Nominal characteristic values for the self-weight of floor coverings "
         "and waterproofing based on material and thickness."

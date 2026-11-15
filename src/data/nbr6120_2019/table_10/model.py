@@ -1,4 +1,4 @@
-"""Dataclass models for ABNT NBR 6120:2019 - Section 5.4 - Table 10 (Variable loads)."""
+"""Dataclass models for ABNT NBR 6120:2019 - Section 6.2 - Table 10 (Variable loads)."""
 
 from dataclasses import dataclass
 
@@ -35,7 +35,7 @@ class BuildingCategory:
 @logger_label("ABNT NBR 6120:2019 - Table 10")
 @dataclass(frozen=True)
 class Table10:
-    """ABNT NBR 6120:2019 - Section 5.4 - Table 10 (Variable loads).
+    """ABNT NBR 6120:2019 - Section 6.2 - Table 10 (Variable loads).
 
     Attributes:
         title: Table title.
