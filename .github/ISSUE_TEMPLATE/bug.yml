@@ -1,0 +1,52 @@
+name: Bug / Defeito
+description: The program crashes, freezes or does something wrong that is not a calculation result
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a wrong calculation result, use the *Calculation error* form instead.
+        You may write in Portuguese or English.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Shown in the *Sobre* window; "desenvolvimento" when run from the source code (then give the commit).
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - Windows (installer)
+        - Fedora (.rpm)
+        - Other Linux (.tar.gz)
+        - From the source code
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If a project file is needed, attach the `.yaml` (in a `.zip` if GitHub refuses it).
+      placeholder: |
+        1. Open ...
+        2. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Error message or log
+      description: |
+        Optional: the error message, or the end of `beam_calculator_<date-time>.log`
+        (its folder is in [INSTALACAO.md](https://github.com/arturkcorr3a/beam_calculator/blob/master/INSTALACAO.md)).
+      render: text

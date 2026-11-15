@@ -82,6 +82,8 @@ Do not guess units or normative references — incorrect documentation is worse 
   - `pavement_ui/core/engine/config_mapper.py` — map the field between `ConfigValues` and `AppConfig`
   - `pavement_ui/presentation/dialogs/config/` — the form section that edits the field
 
+- **`README.md` ↔ `LEIAME.md` sync**: `LEIAME.md` is the pt-BR translation of `README.md`. Every change to one is made to the other in the same change set, so both always say the same thing (sections, limitations, commands, links). Any change that makes either of them outdated (a new feature, a removed limitation, a new command or workflow) updates both.
+
 - **Patch notes (maintainer only)**: contributors skip this step. For the maintainer, every change set ends with a `docs/patches/NN-patch-<kebab-case-slug>.md` file describing the change for the TCC report. `NN` is a two-digit sequence number, one above the highest existing file in `docs/patches/` (the first is `01`). Write it in pt-BR, after the test run (so the numbers are real), with these sections:
   - **Contexto** — why the change was made
   - **Referências normativas** — norm items involved, with a short quote or paraphrase
