@@ -1,27 +1,89 @@
-# Build and test the installers; on a v* tag, publish them as a GitHub Release.
-# Run it by hand (Actions → Release → Run workflow) to get the packages as
-# artifacts of the run without publishing anything.
+# Build and test the installers, then publish them as a GitHub Release.
+# Publish from Actions → Release → Run workflow, choosing which part of the
+# version goes up: the workflow computes the next version, builds, tests, and
+# only then creates its tag and Release. "none" builds and tests without
+# publishing (the packages are in the run's artifacts). Pushing a v* tag by
+# hand also publishes it.
 name: Release
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      bump:
+        description: "Parte da versão a aumentar (none: só gera e testa os pacotes, sem publicar)"
+        type: choice
+        options: [none, patch, minor, major]
+        default: none
+      prerelease:
+        description: "Publicar como versão de teste (pre-release: v0.3.0-rc1, rc2...)"
+        type: boolean
+        default: false
 
 # Read-only by default; the release job asks for write access on its own
 permissions:
   contents: read
 
+# One publication at a time: two at once would compute the same version
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   PYINSTALLER: pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.10
 
 jobs:
+  # The tag to publish: the pushed one, the next one, or none (a test build)
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.next.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the next version is counted from the existing tags
+      - id: next
+        env:
+          BUMP: ${{ inputs.bump }}
+          RC: ${{ inputs.prerelease && 'rc' || '' }}
+        run: |
+          # A test build publishes nothing: anyone with write access may run it
+          if [[ "$GITHUB_EVENT_NAME" != push && "$BUMP" == none ]]; then
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            echo "### Version: none (test build)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Publishing: only the owner (who started the run and who re-ran it)...
+          for actor in "$GITHUB_ACTOR" "$GITHUB_TRIGGERING_ACTOR"; do
+            if [[ "$actor" != "$GITHUB_REPOSITORY_OWNER" ]]; then
+              echo "::error::Only $GITHUB_REPOSITORY_OWNER publishes versions; this run is by $actor"
+              exit 1
+            fi
+          done
+          # ...and only from master, also for a tag pushed by hand
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+              echo "::error::The tag $GITHUB_REF_NAME is not on a commit of master"
+              exit 1
+            fi
+            tag="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF" != refs/heads/master ]]; then
+            echo "::error::Versions are published from master only"
+            exit 1
+          else
+            tag="$(packaging/next_version.sh "$BUMP" "$RC")"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "### Version: $tag" >> "$GITHUB_STEP_SUMMARY"
+
   windows:
+    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0 # the version comes from git describe
+          fetch-depth: 0 # a test build is named by git describe
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
@@ -30,7 +92,9 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
       - name: Build the installer
-        run: packaging/build_windows.ps1
+        env:
+          VERSION: ${{ needs.version.outputs.tag }}
+        run: packaging/build_windows.ps1 -Version "$env:VERSION"
       - name: Install, start and uninstall it
         run: |
           $setup = Get-ChildItem dist\beam_calculator-Setup-*.exe | Select-Object -First 1
@@ -56,6 +120,7 @@ jobs:
 
   # For any distribution: built on an old Ubuntu, whose glibc newer ones accept
   linux:
+    needs: version
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
@@ -75,7 +140,9 @@ jobs:
       - name: Install Python packages
         run: pip install -r requirements-app.txt ${{ env.PYINSTALLER }}
       - name: Build the .tar.gz
-        run: packaging/build_linux.sh
+        env:
+          VERSION: ${{ needs.version.outputs.tag }}
+        run: packaging/build_linux.sh "$VERSION"
       - name: Test it
         run: packaging/smoke_test.sh dist/beam_calculator/beam_calculator
       - uses: actions/upload-artifact@v7
@@ -86,6 +153,7 @@ jobs:
 
   # For Fedora: built on Fedora, whose libraries its RPM requirements name
   rpm:
+    needs: version
     runs-on: ubuntu-24.04
     container: registry.fedoraproject.org/fedora:43
     steps:
@@ -106,10 +174,12 @@ jobs:
             | awk '/not found/ {print $1 "()(64bit)"}' | sort -u)
           dnf install -y --skip-unavailable "${libs[@]}"
       - name: Build the .rpm
+        env:
+          VERSION: ${{ needs.version.outputs.tag }}
         run: |
           source .venv/bin/activate
-          packaging/build_linux.sh
-          packaging/build_rpm.sh
+          packaging/build_linux.sh "$VERSION"
+          packaging/build_rpm.sh "$VERSION"
       - name: Install and test it
         run: |
           dnf install -y dist/beam_calculator-*.rpm
@@ -120,10 +190,13 @@ jobs:
           path: dist/beam_calculator-*.rpm
           if-no-files-found: error
 
+  # Only after every package passed its test: a failed build publishes nothing
   release:
-    needs: [windows, linux, rpm]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version, windows, linux, rpm]
+    if: needs.version.outputs.tag != ''
     runs-on: ubuntu-24.04
+    # Its settings on GitHub admit only master and v* tags, whatever this file says
+    environment: release
     permissions:
       contents: write
     steps:
@@ -133,12 +206,17 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v3
         with:
+          # Created on the built commit when it does not exist yet
+          tag_name: ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: dist/*
-          # v0.1.0-rc1 and the like are pre-releases
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          # v0.3.0-rc1 and the like are pre-releases
+          prerelease: ${{ contains(needs.version.outputs.tag, '-') }}
+          # The pull requests merged since the previous version, after this text
+          generate_release_notes: true
           body: |
             Como instalar no Windows e no Linux, e onde fica o memorial de cálculo:
-            [INSTALACAO.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/INSTALACAO.md)
+            [INSTALACAO.md](https://github.com/${{ github.repository }}/blob/${{ needs.version.outputs.tag }}/INSTALACAO.md)
 
             | Sistema | Arquivo |
             |---|---|

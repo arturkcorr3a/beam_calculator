@@ -6,9 +6,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 version="${1:-$(git describe --tags --always --dirty)}"
+version="${version#v}" # the tag v0.2.0 is version 0.2.0
 archive="dist/beam_calculator-${version}-linux-x86_64.tar.gz"
 
-python -m PyInstaller --noconfirm --clean packaging/pyinstaller.spec
+# The spec writes it into the app, for its About window
+APP_VERSION="$version" python -m PyInstaller --noconfirm --clean packaging/pyinstaller.spec
 # Menu entry and icon for GNOME/KDE: the .tar.gz user runs install.sh once
 install -m 644 packaging/linux/beam_calculator.desktop dist/beam_calculator/
 install -m 755 packaging/linux/install.sh dist/beam_calculator/
