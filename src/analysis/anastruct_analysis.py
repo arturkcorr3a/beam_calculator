@@ -198,9 +198,14 @@ class AnaStructBeamAnalysis:
         """Total beam length (cm)."""
         return self._section.length
 
-    def bending_moment(self, position: float) -> float:
-        """Return the bending moment at a position (kN.m, sagging positive)."""
-        return self._element_at(position).moment(position)
+    def bending_moment(self, position: float, from_right: bool = False) -> float:
+        """Return the bending moment at a position (kN.m, sagging positive).
+
+        Args:
+            position: Position along the beam (cm).
+            from_right: On a node shared by two elements (a support with a rotational spring has a moment jump), read the element that starts there instead of the one that ends there.
+        """
+        return self._element_at(position, from_right).moment(position)
 
     def shear_force(self, position: float) -> float:
         """Return the shear force at a position (kN)."""
@@ -254,7 +259,7 @@ class AnaStructBeamAnalysis:
     def moment_extreme_in_range(self, start: float, end: float) -> tuple[float, float]:
         """Return the bending moment with the greatest absolute value within a range.
 
-        Each element's moment is a parabola, so the dominant value lies at a range end, an element start, or a parabola vertex.
+        Each element's moment is a parabola, so over the part of an element inside the range the dominant value lies at an end of that part or at the parabola vertex. Both sides of a moment jump on a support are candidates when the support is inside the range.
 
         Args:
             start: Left end of the range (cm).
@@ -263,14 +268,18 @@ class AnaStructBeamAnalysis:
         Returns:
             `(position, moment)` of the dominant moment (position in cm, moment in kN.m).
         """
-        candidates = {element.start for element in self._elements} | {
-            vertex
-            for element in self._elements
-            if (vertex := element.vertex()) is not None
-        }
-        positions = [start, end] + sorted(c for c in candidates if start < c < end)
-        dominant = max(positions, key=lambda x: abs(self.bending_moment(x)))
-        return dominant, self.bending_moment(dominant)
+        candidates: list[tuple[float, float]] = []
+        for element in self._elements:
+            low = max(element.start, start)
+            high = min(element.end, end)
+            if low > high:
+                continue
+            positions = [low, high]
+            vertex = element.vertex()
+            if vertex is not None and low < vertex < high:
+                positions.append(vertex)
+            candidates.extend((x, element.moment(x)) for x in positions)
+        return max(candidates, key=lambda candidate: abs(candidate[1]))
 
     def positions_for_moment(self, target_moment: float) -> list[float]:
         """Return the sorted positions where the bending moment equals a target.
@@ -388,13 +397,16 @@ class AnaStructBeamAnalysis:
             )
         return elements
 
-    def _element_at(self, position: float) -> _Element:
+    def _element_at(self, position: float, from_right: bool = False) -> _Element:
         """Return the element containing a global position (cm).
+
+        On a node shared by two elements, returns the one that ends there, or the one that starts there when ``from_right``.
 
         Raises:
             ValueError: If the position lies outside the beam.
         """
-        for element in self._elements:
+        elements = reversed(self._elements) if from_right else self._elements
+        for element in elements:
             if (
                 element.start - _POSITION_TOLERANCE
                 <= position
