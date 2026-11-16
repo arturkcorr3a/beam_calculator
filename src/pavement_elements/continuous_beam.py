@@ -487,7 +487,8 @@ class ContinuousBeam:
         """Loads all spans based on the loads applied to their supported slabs."""
         area_m2 = self.width / 100 * self.height / 100
         own_weight = LinearLoads.get_concrete_element_own_weight(area_m2)  # kN/m
-        wall_height = APP_CONFIG.ceiling_height
+        # Wall occupies the clear height below the beam: ceiling height - beam height.
+        wall_height = max(APP_CONFIG.ceiling_height - self.height / 100, 0.0)  # m
         wall_weight = LinearLoads.get_wall_load(
             *self.wall.get_parameters_for_load(), wall_height
         )  # kN/m

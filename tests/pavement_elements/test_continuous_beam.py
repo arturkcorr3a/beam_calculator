@@ -636,6 +636,52 @@ class TestLoadSpans:
                 LoadComponent(LoadKind.WALL, None, 3.0),
             ], "each span should keep its own weight and wall loads apart"
 
+    def test_wall_height_discounts_beam_height(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+        horizontal_beam.pre_size(registry_horizontal)
+        heights: list[float] = []
+        monkeypatch.setattr(
+            LinearLoads,
+            "get_wall_load",
+            lambda *a, **kw: heights.append(a[-1]) or 3.0,  # type: ignore
+        )
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+
+        horizontal_beam.load_spans()
+
+        assert_approx(
+            heights[0],
+            2.5 - horizontal_beam.height / 100,
+            "wall height should be ceiling height minus beam height",
+        )
+
+    def test_wall_height_never_negative(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+        horizontal_beam.pre_size(registry_horizontal)
+        heights: list[float] = []
+        monkeypatch.setattr(
+            LinearLoads,
+            "get_wall_load",
+            lambda *a, **kw: heights.append(a[-1]) or 0.0,  # type: ignore
+        )
+        monkeypatch.setattr(
+            APP_CONFIG, "ceiling_height", horizontal_beam.height / 100 - 0.1
+        )
+
+        horizontal_beam.load_spans()
+
+        assert heights[0] == 0.0, "wall height should be clamped at zero"
+
 
 # ---------------------------------------------------------------------------
 # TestDimension (mocked BeamCalculator)
