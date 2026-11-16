@@ -261,9 +261,12 @@ class TestInterestPoints:
         )
 
     def test_splits_interior_support_point(self) -> None:
-        """A point on an interior support becomes one point 0.01 cm to each side (cm, kN.m)."""
+        """A point on an interior support becomes one point 0.01 cm to each side, each with its side's moment (cm, kN.m)."""
         analysis = types.SimpleNamespace(
             moment_extremes_per_segment=lambda: [(300.0, -60.0)],
+            bending_moment=lambda position, from_right=False: (  # pyright: ignore[reportUnknownLambdaType]
+                -50.0 if from_right else -60.0
+            ),
         )
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
@@ -277,8 +280,9 @@ class TestInterestPoints:
         assert_approx(
             points[1][0], 300.01, "right point 0.01 cm after the support (cm)"
         )
-        assert points[0][1] == points[1][1] == -60.0, (
-            "both split points keep the support's moment (kN.m)"
+        assert points[0][1] == -60.0, "left point reads the moment left of the support"
+        assert points[1][1] == -50.0, (
+            "right point reads the moment right of the support, past the spring's jump"
         )
 
     def test_keeps_beam_end_and_midspan_points(self) -> None:
@@ -291,6 +295,55 @@ class TestInterestPoints:
         points = bc._interest_points(analysis)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
 
         assert points == extremes, "end and midspan points should be kept as they are"
+
+
+# ---------------------------------------------------------------------------
+# TestRoundSupportMoments
+# ---------------------------------------------------------------------------
+
+
+class TestRoundSupportMoments:
+    """Tests for _round_support_moments() — NBR 6118:2026 14.6.3, ΔM = R·t/8."""
+
+    @staticmethod
+    def _round(
+        points: list[tuple[float, float]], reaction: float = 100.0
+    ) -> list[tuple[float, float]]:
+        """Run the rounding on supports at 0, 300 and 500 cm, 20 cm wide (kN reaction)."""
+        analysis = types.SimpleNamespace(reaction=lambda position: reaction)  # pyright: ignore[reportUnknownLambdaType]
+        supports = [
+            types.SimpleNamespace(center=c, left=c - 10.0, right=c + 10.0)
+            for c in (0.0, 300.0, 500.0)
+        ]
+        structural_beam = types.SimpleNamespace(supports=supports)
+        bc = BeamCalculator(_make_beam_stub(), {})  # type: ignore[arg-type]
+        return bc._round_support_moments(points, analysis, structural_beam)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+
+    def test_interior_support_reduced_on_both_sides(self) -> None:
+        """R = 100 kN, t = 20 cm → ΔM = 2.5 kN.m on each side of the split point."""
+        rounded = self._round([(299.99, -60.0), (300.01, -50.0)])
+
+        assert_approx(rounded[0][1], -57.5, "left side moment (kN.m)")
+        assert_approx(rounded[1][1], -47.5, "right side moment (kN.m)")
+        assert rounded[0][0] == 299.99, "positions are kept"
+
+    def test_reduction_never_changes_sign(self) -> None:
+        """A ΔM larger than |M| leaves zero, not a positive moment (kN.m)."""
+        rounded = self._round([(300.0, -1.0)])
+
+        assert rounded == [(300.0, 0.0)], "rounded moment should stop at zero"
+
+    def test_positive_and_span_points_unchanged(self) -> None:
+        """Sagging moments, even on a support, and points inside spans are kept."""
+        points = [(150.0, 40.0), (300.0, 5.0), (200.0, -10.0)]
+
+        assert self._round(points) == points, "only hogging moments on supports change"
+
+    def test_end_support_reduced(self) -> None:
+        """A hogging moment at a beam end support is rounded too (kN.m)."""
+        rounded = self._round([(500.0, -20.0)])
+
+        assert_approx(rounded[0][1], -17.5, "end support moment (kN.m)")
 
 
 # ---------------------------------------------------------------------------
@@ -552,7 +605,7 @@ class TestRunBySpan:
             ],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
-            bending_moment=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
+            bending_moment=lambda position, from_right=False: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -649,9 +702,10 @@ class TestRunBySpan:
         analysis = types.SimpleNamespace(
             moment_extremes_per_segment=lambda: [(150.0, 40.0)],
             moment_extreme_in_range=moment_extreme_in_range,
+            reaction=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
-            bending_moment=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
+            bending_moment=lambda position, from_right=False: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -712,15 +766,20 @@ class TestRunBySpan:
     def test_passes_support_moments_to_calculators(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Each calculator gets the moment at every support center, left to right (kN.m)."""
+        """Each calculator gets the moment at every support center as its span sees it, left to right (kN.m)."""
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
         monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
-        moments_by_position = {0.0: -10.0, 300.0: -60.0, 500.0: -5.0}  # kN.m
+        left_moments = {0.0: -10.0, 300.0: -60.0, 500.0: -5.0}  # kN.m
+        right_moments = {0.0: -10.0, 300.0: -50.0, 500.0: -5.0}  # kN.m, jump at 300
+
+        def bending_moment(position: float, from_right: bool = False) -> float:
+            return (right_moments if from_right else left_moments)[position]
+
         analysis = types.SimpleNamespace(
             moment_extremes_per_segment=lambda: [(150.0, 40.0), (420.0, 25.0)],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
-            bending_moment=moments_by_position.__getitem__,
+            bending_moment=bending_moment,
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -756,8 +815,8 @@ class TestRunBySpan:
 
         bc.run()
 
-        assert received == [(-10.0, -60.0, -5.0)] * 2, (
-            "every calculator should get the moment at each support center (kN.m)"
+        assert received == [(-10.0, -60.0, -5.0), (-10.0, -50.0, -5.0)], (
+            "each span's calculators should get the moments on the sides facing the span (kN.m)"
         )
 
 

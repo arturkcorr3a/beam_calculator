@@ -52,6 +52,8 @@ class BeamCalculator:
     def run(self) -> None:
         """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points and distributes the stirrups in zones along the span.
 
+        The hogging moments at the supports are rounded for the support width (see ``_round_support_moments``); the moments used for the anchorage checks are not.
+
         Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation. Once chosen, each span's bottom bars are extended into its supports where needed (see ``carry_span_bars_to_supports``), and then the end supports get the bars they lack to anchor the compression strut (see ``anchor_outer_supports``).
         """
         supports = self._build_supports()
@@ -59,24 +61,31 @@ class BeamCalculator:
         structural_beam = self._build_structural_beam()
         analysis = analyse_beam(structural_beam, supports, loads)
 
-        interest_points = self._interest_points(analysis)
+        interest_points = self._round_support_moments(
+            self._interest_points(analysis), analysis, structural_beam
+        )
         moment_zeros = tuple(analysis.moment_zeros())  # cm
-        support_moments = tuple(
-            analysis.bending_moment(support.center)
-            for support in structural_beam.supports
-        )  # kN.m
         self._build_stirrups(structural_beam, analysis)
 
         results: list[tuple[float, RebarCalculator]] = []
         span_calculators: list[list[RebarCalculator]] = []
-        for span, start, end in self._span_ranges():
+        span_support_moments: list[tuple[float, ...]] = []
+        for span_index, (span, start, end) in enumerate(self._span_ranges()):
+            support_moments = self._support_moments(
+                analysis, structural_beam, span_index
+            )  # kN.m
+            span_support_moments.append(support_moments)
             points = [
                 (position, moment)
                 for position, moment in interest_points
                 if start <= position <= end
             ]
             if not points:
-                points = [self._span_extreme(analysis, start, end)]
+                points = self._round_support_moments(
+                    [self._span_extreme(analysis, start, end)],
+                    analysis,
+                    structural_beam,
+                )
                 log_operation(
                     f"No interest point in span {start:.2f}-{end:.2f} cm; using its greatest moment"
                 )
@@ -117,7 +126,7 @@ class BeamCalculator:
                 analysis,
                 span_calculators,
                 moment_zeros,
-                support_moments,
+                span_support_moments,
             ),
         )
 
@@ -127,7 +136,7 @@ class BeamCalculator:
         analysis: BeamAnalysis,
         span_calculators: list[list[RebarCalculator]],
         moment_zeros: tuple[float, ...],
-        support_moments: tuple[float, ...],
+        support_moments: list[tuple[float, ...]],
     ) -> list[OuterSupport]:
         """Collect the efforts and section data at the beam's end supports
 
@@ -136,7 +145,7 @@ class BeamCalculator:
         Args:
             span_calculators: Each span's coordinated calculators, left to right.
             moment_zeros: Positions along the beam where the moment is zero (cm).
-            support_moments: Characteristic moment on each support (kN.m).
+            support_moments: Each span's characteristic moment on each support (kN.m), left to right (see ``_support_moments``).
         """
         spans = self._support_spans()
         candidates = [(spans[0], 0, 1.0), (spans[-1], len(spans), -1.0)]
@@ -155,7 +164,7 @@ class BeamCalculator:
                 OuterSupport(
                     support_index=support_index,
                     span=span,
-                    support_moment=support_moments[support_index],
+                    support_moment=support_moments[spans.index(span)][support_index],
                     design_shear=design_effort_elu(abs(shear)),
                     effective_depth=cast(float, source.effective_depth),
                     stress_block_depth=cast(float, source.stress_block_depth),
@@ -165,6 +174,24 @@ class BeamCalculator:
                 )
             )
         return outer
+
+    def _support_moments(
+        self,
+        analysis: BeamAnalysis,
+        structural_beam: RectangularBeam,
+        span_index: int,
+    ) -> tuple[float, ...]:
+        """Reads the characteristic moment on each support, as seen by one span (kN.m).
+
+        A support with a rotational spring has a moment jump, so the span reads the side facing it: its start support from the right and its end support from the left. The other supports are read from the left.
+
+        Args:
+            span_index: Index of the span; it rests on supports ``span_index`` and ``span_index + 1``.
+        """
+        return tuple(
+            analysis.bending_moment(support.center, from_right=index == span_index)
+            for index, support in enumerate(structural_beam.supports)
+        )
 
     def _section_source(
         self, span: SpanRange, calculators: list[RebarCalculator]
@@ -194,7 +221,48 @@ class BeamCalculator:
         Returns:
             `(position, moment)` pairs (position in cm, moment in kN.m), sorted left to right.
         """
-        return self._split_support_points(analysis.moment_extremes_per_segment())
+        return self._split_support_points(
+            analysis.moment_extremes_per_segment(), analysis
+        )
+
+    def _round_support_moments(
+        self,
+        points: list[tuple[float, float]],
+        analysis: BeamAnalysis,
+        structural_beam: RectangularBeam,
+    ) -> list[tuple[float, float]]:
+        """Rounds the hogging moment of the points on a support, as allowed by NBR 6118:2026 item 14.6.3 (Figure 14.6).
+
+        The support has a width, not a single point, so the peak of the moment diagram over it is reduced by ``ΔM = R·t/8``, with R the support reaction and t the support width along the beam. The reduced moment never changes sign. Positive moments and points away from the supports are kept as they are.
+
+        Args:
+            points: `(position, moment)` pairs (position in cm, moment in kN.m, sagging positive).
+            analysis: Solved beam, read for the support reactions.
+            structural_beam: Beam whose supports give the pillar widths.
+        """
+        rounded: list[tuple[float, float]] = []
+        for position, moment in points:
+            support = next(
+                (
+                    support
+                    for support in structural_beam.supports
+                    if abs(position - support.center)
+                    <= SUPPORT_SPLIT_OFFSET + END_SUPPORT_TOLERANCE
+                ),
+                None,
+            )
+            if support is None or moment >= 0:
+                rounded.append((position, moment))
+                continue
+            reaction = analysis.reaction(support.center)  # kN
+            width = support.right - support.left  # cm
+            reduction = reaction * width / 8 / 100  # kN.m
+            reduced = min(moment + reduction, 0.0)  # kN.m
+            log_operation(
+                f"Support at {support.center:.2f} cm: moment rounded from {moment:.2f} to {reduced:.2f} kN.m (R = {reaction:.2f} kN, t = {width:.2f} cm)"
+            )
+            rounded.append((position, reduced))
+        return rounded
 
     def _span_extreme(
         self, analysis: BeamAnalysis, start: float, end: float
@@ -215,24 +283,37 @@ class BeamCalculator:
         )
 
     def _split_support_points(
-        self, points: list[tuple[float, float]]
+        self, points: list[tuple[float, float]], analysis: BeamAnalysis
     ) -> list[tuple[float, float]]:
         """Splits every point on an interior support into two, SUPPORT_SPLIT_OFFSET to its left and right.
 
-        Both keep the support's moment. Points at the beam ends and elsewhere are kept as they are.
+        Each takes the support's moment on its own side (they differ where a rotational spring makes the moment jump). Points at the beam ends and elsewhere are kept as they are.
 
         Args:
             points: `(position, moment)` pairs (position in cm, moment in kN.m).
+            analysis: Solved beam, read for the moment on each side of the support.
         """
         interior_supports = self._get_interior_supports()  # cm
         split_points: list[tuple[float, float]] = []
         for position, moment in points:
-            if any(
-                abs(position - support) <= END_SUPPORT_TOLERANCE
-                for support in interior_supports
-            ):
-                split_points.append((position - SUPPORT_SPLIT_OFFSET, moment))
-                split_points.append((position + SUPPORT_SPLIT_OFFSET, moment))
+            support = next(
+                (
+                    support
+                    for support in interior_supports
+                    if abs(position - support) <= END_SUPPORT_TOLERANCE
+                ),
+                None,
+            )
+            if support is not None:
+                split_points.append(
+                    (position - SUPPORT_SPLIT_OFFSET, analysis.bending_moment(support))
+                )
+                split_points.append(
+                    (
+                        position + SUPPORT_SPLIT_OFFSET,
+                        analysis.bending_moment(support, from_right=True),
+                    )
+                )
             else:
                 split_points.append((position, moment))
         return split_points

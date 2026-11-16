@@ -414,6 +414,53 @@ class TestRotationalSprings:
             abs_tol=1e-3,
         )
 
+    @pytest.fixture
+    def spring_two_span_beam(self) -> AnaStructBeamAnalysis:
+        """Two 3 m spans, pinned ends, a rotational spring on the central support, load on the right span only (so the support rotates)."""
+        stiffness = _bending_stiffness() / 3.0  # kN.m/rad
+        return _solve(
+            [BeamSupport(0.0), BeamSupport(300.0, stiffness), BeamSupport(600.0)],
+            loads=[DistributedLoad(300.0, 600.0, _Q)],
+        )
+
+    def test_moment_jumps_over_spring_support(
+        self, spring_two_span_beam: AnaStructBeamAnalysis
+    ) -> None:
+        """The spring support applies a concentrated moment, so the moment on its two sides differs (kN.m)."""
+        left = spring_two_span_beam.bending_moment(300.0)
+        right = spring_two_span_beam.bending_moment(300.0, from_right=True)
+        assert abs(left - right) > 1e-3, "the moment should jump over the support"
+
+    def test_no_jump_without_support_rotation(self) -> None:
+        """A symmetric beam on a stiff spring has no rotation at the support, so no jump; nor does a pinned end (kN.m)."""
+        beam = _solve([BeamSupport(0.0), BeamSupport(300.0, 1e12), BeamSupport(600.0)])
+        assert_approx(
+            beam.bending_moment(300.0, from_right=True),
+            beam.bending_moment(300.0),
+            "Stiff spring on a symmetric beam: both sides equal (kN.m)",
+            abs_tol=1e-3,
+        )
+        assert_approx(
+            beam.bending_moment(0.0, from_right=True),
+            beam.bending_moment(0.0),
+            "No jump at a pinned end (kN.m)",
+            abs_tol=1e-6,
+        )
+
+    def test_extreme_in_range_sees_right_side_of_jump(self) -> None:
+        """When |M| is larger just right of the spring support, the range extreme is that value (kN.m)."""
+        stiffness = _bending_stiffness() / 3.0
+        beam = _solve(
+            [BeamSupport(0.0), BeamSupport(300.0, stiffness), BeamSupport(600.0)],
+            loads=[DistributedLoad(300.0, 600.0, _Q)],
+        )
+        left = beam.bending_moment(300.0)
+        right = beam.bending_moment(300.0, from_right=True)
+        assert abs(right) > abs(left), "setup: the right side should dominate"
+        position, moment = beam.moment_extreme_in_range(299.0, 301.0)
+        assert_approx(position, 300.0, "Support position (cm)", abs_tol=0.01)
+        assert_approx(moment, right, "Right-side moment (kN.m)", abs_tol=1e-6)
+
     def test_negative_stiffness_raises(self) -> None:
         """A negative rotational stiffness raises ValueError."""
         supports = [BeamSupport(0.0, -1.0), BeamSupport(600.0)]

@@ -13,8 +13,13 @@ class BeamAnalysis(Protocol):
         """Total beam length (cm)."""
         ...
 
-    def bending_moment(self, position: float) -> float:
-        """Return the bending moment at a position (kN.m)."""
+    def bending_moment(self, position: float, from_right: bool = False) -> float:
+        """Return the bending moment at a position (kN.m).
+
+        Args:
+            position: Position along the beam (cm).
+            from_right: On a support where the moment jumps (rotational spring), read the value just to its right instead of just to its left.
+        """
         ...
 
     def shear_force(self, position: float) -> float:
@@ -47,6 +52,8 @@ class BeamAnalysis(Protocol):
 
     def moment_extreme_in_range(self, start: float, end: float) -> tuple[float, float]:
         """Return the bending moment with the greatest absolute value within a range.
+
+        Both sides of a moment jump on a support inside the range are considered.
 
         Args:
             start: Left end of the range (cm).
