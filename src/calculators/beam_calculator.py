@@ -61,15 +61,16 @@ class BeamCalculator:
 
         interest_points = self._interest_points(analysis)
         moment_zeros = tuple(analysis.moment_zeros())  # cm
-        support_moments = tuple(
-            analysis.bending_moment(support.center)
-            for support in structural_beam.supports
-        )  # kN.m
         self._build_stirrups(structural_beam, analysis)
 
         results: list[tuple[float, RebarCalculator]] = []
         span_calculators: list[list[RebarCalculator]] = []
-        for span, start, end in self._span_ranges():
+        span_support_moments: list[tuple[float, ...]] = []
+        for span_index, (span, start, end) in enumerate(self._span_ranges()):
+            support_moments = self._support_moments(
+                analysis, structural_beam, span_index
+            )  # kN.m
+            span_support_moments.append(support_moments)
             points = [
                 (position, moment)
                 for position, moment in interest_points
@@ -117,7 +118,7 @@ class BeamCalculator:
                 analysis,
                 span_calculators,
                 moment_zeros,
-                support_moments,
+                span_support_moments,
             ),
         )
 
@@ -127,7 +128,7 @@ class BeamCalculator:
         analysis: BeamAnalysis,
         span_calculators: list[list[RebarCalculator]],
         moment_zeros: tuple[float, ...],
-        support_moments: tuple[float, ...],
+        support_moments: list[tuple[float, ...]],
     ) -> list[OuterSupport]:
         """Collect the efforts and section data at the beam's end supports
 
@@ -136,7 +137,7 @@ class BeamCalculator:
         Args:
             span_calculators: Each span's coordinated calculators, left to right.
             moment_zeros: Positions along the beam where the moment is zero (cm).
-            support_moments: Characteristic moment on each support (kN.m).
+            support_moments: Each span's characteristic moment on each support (kN.m), left to right (see ``_support_moments``).
         """
         spans = self._support_spans()
         candidates = [(spans[0], 0, 1.0), (spans[-1], len(spans), -1.0)]
@@ -155,7 +156,7 @@ class BeamCalculator:
                 OuterSupport(
                     support_index=support_index,
                     span=span,
-                    support_moment=support_moments[support_index],
+                    support_moment=support_moments[spans.index(span)][support_index],
                     design_shear=design_effort_elu(abs(shear)),
                     effective_depth=cast(float, source.effective_depth),
                     stress_block_depth=cast(float, source.stress_block_depth),
@@ -165,6 +166,24 @@ class BeamCalculator:
                 )
             )
         return outer
+
+    def _support_moments(
+        self,
+        analysis: BeamAnalysis,
+        structural_beam: RectangularBeam,
+        span_index: int,
+    ) -> tuple[float, ...]:
+        """Reads the characteristic moment on each support, as seen by one span (kN.m).
+
+        A support with a rotational spring has a moment jump, so the span reads the side facing it: its start support from the right and its end support from the left. The other supports are read from the left.
+
+        Args:
+            span_index: Index of the span; it rests on supports ``span_index`` and ``span_index + 1``.
+        """
+        return tuple(
+            analysis.bending_moment(support.center, from_right=index == span_index)
+            for index, support in enumerate(structural_beam.supports)
+        )
 
     def _section_source(
         self, span: SpanRange, calculators: list[RebarCalculator]
@@ -194,7 +213,9 @@ class BeamCalculator:
         Returns:
             `(position, moment)` pairs (position in cm, moment in kN.m), sorted left to right.
         """
-        return self._split_support_points(analysis.moment_extremes_per_segment())
+        return self._split_support_points(
+            analysis.moment_extremes_per_segment(), analysis
+        )
 
     def _span_extreme(
         self, analysis: BeamAnalysis, start: float, end: float
@@ -215,24 +236,37 @@ class BeamCalculator:
         )
 
     def _split_support_points(
-        self, points: list[tuple[float, float]]
+        self, points: list[tuple[float, float]], analysis: BeamAnalysis
     ) -> list[tuple[float, float]]:
         """Splits every point on an interior support into two, SUPPORT_SPLIT_OFFSET to its left and right.
 
-        Both keep the support's moment. Points at the beam ends and elsewhere are kept as they are.
+        Each takes the support's moment on its own side (they differ where a rotational spring makes the moment jump). Points at the beam ends and elsewhere are kept as they are.
 
         Args:
             points: `(position, moment)` pairs (position in cm, moment in kN.m).
+            analysis: Solved beam, read for the moment on each side of the support.
         """
         interior_supports = self._get_interior_supports()  # cm
         split_points: list[tuple[float, float]] = []
         for position, moment in points:
-            if any(
-                abs(position - support) <= END_SUPPORT_TOLERANCE
-                for support in interior_supports
-            ):
-                split_points.append((position - SUPPORT_SPLIT_OFFSET, moment))
-                split_points.append((position + SUPPORT_SPLIT_OFFSET, moment))
+            support = next(
+                (
+                    support
+                    for support in interior_supports
+                    if abs(position - support) <= END_SUPPORT_TOLERANCE
+                ),
+                None,
+            )
+            if support is not None:
+                split_points.append(
+                    (position - SUPPORT_SPLIT_OFFSET, analysis.bending_moment(support))
+                )
+                split_points.append(
+                    (
+                        position + SUPPORT_SPLIT_OFFSET,
+                        analysis.bending_moment(support, from_right=True),
+                    )
+                )
             else:
                 split_points.append((position, moment))
         return split_points

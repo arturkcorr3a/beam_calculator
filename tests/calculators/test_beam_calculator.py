@@ -261,9 +261,12 @@ class TestInterestPoints:
         )
 
     def test_splits_interior_support_point(self) -> None:
-        """A point on an interior support becomes one point 0.01 cm to each side (cm, kN.m)."""
+        """A point on an interior support becomes one point 0.01 cm to each side, each with its side's moment (cm, kN.m)."""
         analysis = types.SimpleNamespace(
             moment_extremes_per_segment=lambda: [(300.0, -60.0)],
+            bending_moment=lambda position, from_right=False: (  # pyright: ignore[reportUnknownLambdaType]
+                -50.0 if from_right else -60.0
+            ),
         )
         spans = [_make_span_stub(length_cm=300.0), _make_span_stub(length_cm=200.0)]
         bc = BeamCalculator(_make_beam_stub(spans=spans), {})  # type: ignore[arg-type]
@@ -277,8 +280,9 @@ class TestInterestPoints:
         assert_approx(
             points[1][0], 300.01, "right point 0.01 cm after the support (cm)"
         )
-        assert points[0][1] == points[1][1] == -60.0, (
-            "both split points keep the support's moment (kN.m)"
+        assert points[0][1] == -60.0, "left point reads the moment left of the support"
+        assert points[1][1] == -50.0, (
+            "right point reads the moment right of the support, past the spring's jump"
         )
 
     def test_keeps_beam_end_and_midspan_points(self) -> None:
@@ -552,7 +556,7 @@ class TestRunBySpan:
             ],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
-            bending_moment=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
+            bending_moment=lambda position, from_right=False: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -651,7 +655,7 @@ class TestRunBySpan:
             moment_extreme_in_range=moment_extreme_in_range,
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
-            bending_moment=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
+            bending_moment=lambda position, from_right=False: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -712,15 +716,20 @@ class TestRunBySpan:
     def test_passes_support_moments_to_calculators(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Each calculator gets the moment at every support center, left to right (kN.m)."""
+        """Each calculator gets the moment at every support center as its span sees it, left to right (kN.m)."""
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
         monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
-        moments_by_position = {0.0: -10.0, 300.0: -60.0, 500.0: -5.0}  # kN.m
+        left_moments = {0.0: -10.0, 300.0: -60.0, 500.0: -5.0}  # kN.m
+        right_moments = {0.0: -10.0, 300.0: -50.0, 500.0: -5.0}  # kN.m, jump at 300
+
+        def bending_moment(position: float, from_right: bool = False) -> float:
+            return (right_moments if from_right else left_moments)[position]
+
         analysis = types.SimpleNamespace(
             moment_extremes_per_segment=lambda: [(150.0, 40.0), (420.0, 25.0)],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
-            bending_moment=moments_by_position.__getitem__,
+            bending_moment=bending_moment,
         )
 
         def analyse_beam(*args: object) -> types.SimpleNamespace:
@@ -756,8 +765,8 @@ class TestRunBySpan:
 
         bc.run()
 
-        assert received == [(-10.0, -60.0, -5.0)] * 2, (
-            "every calculator should get the moment at each support center (kN.m)"
+        assert received == [(-10.0, -60.0, -5.0), (-10.0, -50.0, -5.0)], (
+            "each span's calculators should get the moments on the sides facing the span (kN.m)"
         )
 
 
