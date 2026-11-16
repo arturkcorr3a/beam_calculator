@@ -52,6 +52,8 @@ class BeamCalculator:
     def run(self) -> None:
         """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points and distributes the stirrups in zones along the span.
 
+        The hogging moments at the supports are rounded for the support width (see ``_round_support_moments``); the moments used for the anchorage checks are not.
+
         Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation. Once chosen, each span's bottom bars are extended into its supports where needed (see ``carry_span_bars_to_supports``), and then the end supports get the bars they lack to anchor the compression strut (see ``anchor_outer_supports``).
         """
         supports = self._build_supports()
@@ -59,7 +61,9 @@ class BeamCalculator:
         structural_beam = self._build_structural_beam()
         analysis = analyse_beam(structural_beam, supports, loads)
 
-        interest_points = self._interest_points(analysis)
+        interest_points = self._round_support_moments(
+            self._interest_points(analysis), analysis, structural_beam
+        )
         moment_zeros = tuple(analysis.moment_zeros())  # cm
         self._build_stirrups(structural_beam, analysis)
 
@@ -77,7 +81,11 @@ class BeamCalculator:
                 if start <= position <= end
             ]
             if not points:
-                points = [self._span_extreme(analysis, start, end)]
+                points = self._round_support_moments(
+                    [self._span_extreme(analysis, start, end)],
+                    analysis,
+                    structural_beam,
+                )
                 log_operation(
                     f"No interest point in span {start:.2f}-{end:.2f} cm; using its greatest moment"
                 )
@@ -216,6 +224,45 @@ class BeamCalculator:
         return self._split_support_points(
             analysis.moment_extremes_per_segment(), analysis
         )
+
+    def _round_support_moments(
+        self,
+        points: list[tuple[float, float]],
+        analysis: BeamAnalysis,
+        structural_beam: RectangularBeam,
+    ) -> list[tuple[float, float]]:
+        """Rounds the hogging moment of the points on a support, as allowed by NBR 6118:2026 item 14.6.3 (Figure 14.6).
+
+        The support has a width, not a single point, so the peak of the moment diagram over it is reduced by ``ΔM = R·t/8``, with R the support reaction and t the support width along the beam. The reduced moment never changes sign. Positive moments and points away from the supports are kept as they are.
+
+        Args:
+            points: `(position, moment)` pairs (position in cm, moment in kN.m, sagging positive).
+            analysis: Solved beam, read for the support reactions.
+            structural_beam: Beam whose supports give the pillar widths.
+        """
+        rounded: list[tuple[float, float]] = []
+        for position, moment in points:
+            support = next(
+                (
+                    support
+                    for support in structural_beam.supports
+                    if abs(position - support.center)
+                    <= SUPPORT_SPLIT_OFFSET + END_SUPPORT_TOLERANCE
+                ),
+                None,
+            )
+            if support is None or moment >= 0:
+                rounded.append((position, moment))
+                continue
+            reaction = analysis.reaction(support.center)  # kN
+            width = support.right - support.left  # cm
+            reduction = reaction * width / 8 / 100  # kN.m
+            reduced = min(moment + reduction, 0.0)  # kN.m
+            log_operation(
+                f"Support at {support.center:.2f} cm: moment rounded from {moment:.2f} to {reduced:.2f} kN.m (R = {reaction:.2f} kN, t = {width:.2f} cm)"
+            )
+            rounded.append((position, reduced))
+        return rounded
 
     def _span_extreme(
         self, analysis: BeamAnalysis, start: float, end: float

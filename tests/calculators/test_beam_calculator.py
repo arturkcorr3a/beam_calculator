@@ -298,6 +298,55 @@ class TestInterestPoints:
 
 
 # ---------------------------------------------------------------------------
+# TestRoundSupportMoments
+# ---------------------------------------------------------------------------
+
+
+class TestRoundSupportMoments:
+    """Tests for _round_support_moments() — NBR 6118:2026 14.6.3, ΔM = R·t/8."""
+
+    @staticmethod
+    def _round(
+        points: list[tuple[float, float]], reaction: float = 100.0
+    ) -> list[tuple[float, float]]:
+        """Run the rounding on supports at 0, 300 and 500 cm, 20 cm wide (kN reaction)."""
+        analysis = types.SimpleNamespace(reaction=lambda position: reaction)  # pyright: ignore[reportUnknownLambdaType]
+        supports = [
+            types.SimpleNamespace(center=c, left=c - 10.0, right=c + 10.0)
+            for c in (0.0, 300.0, 500.0)
+        ]
+        structural_beam = types.SimpleNamespace(supports=supports)
+        bc = BeamCalculator(_make_beam_stub(), {})  # type: ignore[arg-type]
+        return bc._round_support_moments(points, analysis, structural_beam)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+
+    def test_interior_support_reduced_on_both_sides(self) -> None:
+        """R = 100 kN, t = 20 cm → ΔM = 2.5 kN.m on each side of the split point."""
+        rounded = self._round([(299.99, -60.0), (300.01, -50.0)])
+
+        assert_approx(rounded[0][1], -57.5, "left side moment (kN.m)")
+        assert_approx(rounded[1][1], -47.5, "right side moment (kN.m)")
+        assert rounded[0][0] == 299.99, "positions are kept"
+
+    def test_reduction_never_changes_sign(self) -> None:
+        """A ΔM larger than |M| leaves zero, not a positive moment (kN.m)."""
+        rounded = self._round([(300.0, -1.0)])
+
+        assert rounded == [(300.0, 0.0)], "rounded moment should stop at zero"
+
+    def test_positive_and_span_points_unchanged(self) -> None:
+        """Sagging moments, even on a support, and points inside spans are kept."""
+        points = [(150.0, 40.0), (300.0, 5.0), (200.0, -10.0)]
+
+        assert self._round(points) == points, "only hogging moments on supports change"
+
+    def test_end_support_reduced(self) -> None:
+        """A hogging moment at a beam end support is rounded too (kN.m)."""
+        rounded = self._round([(500.0, -20.0)])
+
+        assert_approx(rounded[0][1], -17.5, "end support moment (kN.m)")
+
+
+# ---------------------------------------------------------------------------
 # TestSpanRanges
 # ---------------------------------------------------------------------------
 
@@ -653,6 +702,7 @@ class TestRunBySpan:
         analysis = types.SimpleNamespace(
             moment_extremes_per_segment=lambda: [(150.0, 40.0)],
             moment_extreme_in_range=moment_extreme_in_range,
+            reaction=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
             bending_moment=lambda position, from_right=False: 0.0,  # pyright: ignore[reportUnknownLambdaType]
