@@ -401,7 +401,12 @@ class BeamCalculator:
         Returns:
             One support per span boundary, ordered left to right.
         """
-        # FIXME dont consider effective length caps on inner pillars
+        # FIXME NBR 6118:2026 item 14.6.6.1-b: the solidarity of an INTERIOR pillar must not always be modeled as an elastic spring.
+        #  Today every support (extremes and interiors) gets the pillar's rotational stiffness. The standard (see Bastos/UNESP, "Vigas de concreto armado", Figura 19) sets the interior-support restraint from the pillar extent along the beam axis (b_int) vs. the pillar's equivalent height (e):
+        #    - b_int <= e/4 -> interior pillar is a SIMPLE support (rotational_stiffness = 0.0); the spring must NOT be applied.
+        #    - b_int >  e/4 -> both spans are PERFECTLY FIXED at the pillar (rotational_stiffness = math.inf); the negative moment cannot be smaller than the perfect-fixity one.
+        #  e = distance between mid-height of the beams at the top and bottom of the pillar lift (e.g. clear height + h_beam_below/2 + h_beam_above/2), not just ``APP_CONFIG.ceiling_height``.
+        #  Extreme pillars keep the elastic spring (14.6.6.1-c). Also affects ``Pillar.calculate_stiffness_for_beam_supporting`` callers and the examples/tests (e.g. unesp_vs1 reference values), and the negative-moment rounding over wide interior supports.
         axis = cast(Axis, self._beam.axis)
         positions = [0.0]
         for span in self._beam.spans:
