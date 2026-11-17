@@ -117,11 +117,11 @@ class TestSupports:
 
 
 class TestPlan:
-    """The plan of every slab of t_concreto2"""
+    """The plan of every slab of laje_rebaixada"""
 
-    def test_beams_pillars_and_dimensions(self, t_concreto2: Pavement) -> None:
-        for slab in t_concreto2.slabs.values():
-            drawing = build_slab_plan(slab, t_concreto2.pillars)
+    def test_beams_pillars_and_dimensions(self, laje_rebaixada: Pavement) -> None:
+        for slab in laje_rebaixada.slabs.values():
+            drawing = build_slab_plan(slab, laje_rebaixada.pillars)
             texts = _texts(drawing)
             for edge in Edges:
                 assert slab.edges[edge].beam.id in texts, f"{slab.id}: {edge} beam"
@@ -134,9 +134,9 @@ class TestPlan:
                 [f"lx = {fmt_len(lx)}", f"ly = {fmt_len(ly)}"]
             )
 
-    def test_outlines(self, t_concreto2: Pavement) -> None:
-        slab = next(iter(t_concreto2.slabs.values()))
-        drawing = build_slab_plan(slab, t_concreto2.pillars)
+    def test_outlines(self, laje_rebaixada: Pavement) -> None:
+        slab = next(iter(laje_rebaixada.slabs.values()))
+        drawing = build_slab_plan(slab, laje_rebaixada.pillars)
         polylines = [item for item in drawing.items if isinstance(item, Polyline)]
         layers = [item.layer for item in polylines]
         assert layers.count(SLAB_OUTLINE) == 1, "one slab outline"

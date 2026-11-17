@@ -146,10 +146,10 @@ class TestSheets:
 
 @pytest.mark.slow
 class TestDxfRoundTrip:
-    """Spec §11 test_dxf_roundtrip on t_concreto2."""
+    """Spec §11 test_dxf_roundtrip on laje_rebaixada."""
 
-    def test_beams(self, t_concreto2: Pavement, tmp_path: Path) -> None:
-        for beam in detailings(t_concreto2):
+    def test_beams(self, laje_rebaixada: Pavement, tmp_path: Path) -> None:
+        for beam in detailings(laje_rebaixada):
             doc = read_dxf(export_beam_dxf(beam, tmp_path / f"{beam.beam_id}.dxf"))
             assert not doc.audit().has_errors, f"{beam.beam_id}: clean audit"
             texts = {

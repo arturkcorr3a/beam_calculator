@@ -1,11 +1,14 @@
 """Unit tests for the AppConfig dataclass and its defaults."""
 
+import os
+import subprocess
+import sys
 from dataclasses import fields
+from pathlib import Path
 
 import pytest
 
-import src.logger as logger_module
-from src.config import APP_CONFIG, AppConfig
+from src.config import AppConfig
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.logger import LogLevel, LogOutput
 from src.persistency.deserialization import config_from_dict
@@ -166,15 +169,39 @@ class TestAppConfigPersistencySync:
 
 
 class TestLoggerConfiguration:
-    """Tests that importing src.config applies APP_CONFIG to the module logger."""
+    """Tests that importing src.config applies APP_CONFIG to the module logger.
 
-    def test_logger_level_matches_app_config(self) -> None:
-        assert logger_module._logger._level is APP_CONFIG.log_level, (  # pyright: ignore[reportPrivateUsage]
+    Run in a fresh interpreter: the test session silences the logger.
+    """
+
+    @staticmethod
+    def _logger_state(logs_dir: Path) -> tuple[str, str]:
+        code = (
+            "import src.logger as m;"
+            f"m._LOGS_DIR = __import__('pathlib').Path({str(logs_dir)!r});"
+            "import src.config;"
+            "print(m._logger._level.name, m._logger._output.value)"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=Path(__file__).parent.parent,
+            env={**os.environ, "PYTHONPATH": str(Path(__file__).parent.parent)},
+        )
+        level, output = result.stdout.split()
+        return level, output
+
+    def test_logger_level_matches_app_config(self, tmp_path: Path) -> None:
+        level, _ = self._logger_state(tmp_path)
+        assert level == AppConfig().log_level.name, (
             "The module logger level should match APP_CONFIG.log_level"
         )
 
-    def test_logger_output_matches_app_config(self) -> None:
-        assert logger_module._logger._output is APP_CONFIG.log_output, (  # pyright: ignore[reportPrivateUsage]
+    def test_logger_output_matches_app_config(self, tmp_path: Path) -> None:
+        _, output = self._logger_state(tmp_path)
+        assert output == AppConfig().log_output.value, (
             "The module logger output should match APP_CONFIG.log_output"
         )
 

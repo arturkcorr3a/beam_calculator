@@ -62,14 +62,14 @@ class TestOutline:
             "b/h should be drawn"
         )
 
-    def test_names_every_pillar(self, t_concreto2: Pavement) -> None:
-        for beam in detailings(t_concreto2):
+    def test_names_every_pillar(self, laje_rebaixada: Pavement) -> None:
+        for beam in detailings(laje_rebaixada):
             texts = _texts(build_beam_outline(beam), TEXT)
             for name in pillar_ids(beam):
                 assert name in texts, f"{beam.beam_id}: pillar {name} should be named"
 
-    def test_no_cut_layer(self, t_concreto2: Pavement) -> None:
-        for beam in detailings(t_concreto2):
+    def test_no_cut_layer(self, laje_rebaixada: Pavement) -> None:
+        for beam in detailings(laje_rebaixada):
             assert CUT not in build_beam_outline(beam).layers()
 
 
