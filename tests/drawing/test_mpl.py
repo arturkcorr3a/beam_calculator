@@ -147,13 +147,13 @@ class TestFigures:
         ), "The PDF page is the A2 sheet"
 
     @pytest.mark.slow
-    def test_t_concreto2(self, t_concreto2: Pavement) -> None:
-        for beam in detailings(t_concreto2):
+    def test_laje_rebaixada(self, laje_rebaixada: Pavement) -> None:
+        for beam in detailings(laje_rebaixada):
             figure = beam_figure(beam)
             figure.canvas.draw()
             plt.close(figure)
-        figures = pavement_figures(t_concreto2, pavement_name="t_concreto2")
-        assert len(figures) == len(detailings(t_concreto2)), "One figure per beam"
+        figures = pavement_figures(laje_rebaixada, pavement_name="laje_rebaixada")
+        assert len(figures) == len(detailings(laje_rebaixada)), "One figure per beam"
         for figure in figures:
             figure.canvas.draw()
             assert TOOLTIPS[figure].items, "Every sheet has hover targets"

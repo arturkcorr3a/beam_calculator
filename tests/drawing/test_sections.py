@@ -144,8 +144,8 @@ class TestSection:
         )
 
     @pytest.mark.slow
-    def test_t_concreto2(self, t_concreto2: Pavement) -> None:
-        for beam in detailings(t_concreto2):
+    def test_laje_rebaixada(self, laje_rebaixada: Pavement) -> None:
+        for beam in detailings(laje_rebaixada):
             _check_section_bars(beam)
 
 
