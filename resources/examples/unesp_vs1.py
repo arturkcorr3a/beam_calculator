@@ -20,9 +20,11 @@ Differences from the book, none of them in the model:
   ends); the engine's is 12EI/h with the stretches pinned at mid-height, so
   ``ceiling_height`` is 6.0 m below to give the same 6EI/300 (about 6,996 and
   27,540 kN.m/rad for P1 and P3);
-* the engine gives P2 a rotational spring too (27,537 kN.m/rad), while the book takes it
-  as a pin because b_int = 30 cm < l_e/4 = 75 cm. That changes M(P2) from -135.4 to
-  -136.6 kN.m (0.9 %), M(P1) from -10.4 to -10.3 and M(P3) from -28.4 to -28.7.
+* both classify P2 as not rigid (b_int = 30 cm <= l_e/4 = 75 cm, NBR 6118 item
+  14.6.6.1-b; the engine reads e = ``ceiling_height``, so its limit here is 150 cm). The
+  book then takes P2 as a pin; the engine keeps its rotational spring (27,537 kN.m/rad),
+  a designer's choice (Bastos, note 102). That changes M(P2) from -135.4 to -136.6 kN.m
+  (0.9 %), M(P1) from -10.4 to -10.3 and M(P3) from -28.4 to -28.7.
 """
 
 import argparse

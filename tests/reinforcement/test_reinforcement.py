@@ -969,3 +969,136 @@ class TestStackedReinforcement:
         monkeypatch.setattr(APP_CONFIG, "max_layers", 1)
         with pytest.raises(ValueError, match="No layer left"):
             _support_point(two_span_reinforcement, stacked=True)
+
+
+# ---------------------------------------------------------------------------
+# Staggering by layer (NBR 6118 - Section 18.3.2.3.1)
+# ---------------------------------------------------------------------------
+
+_SECTION_MOMENT = 30.0  # kN.m
+
+
+def _no_positions(level: float) -> list[float]:
+    """Stand in for a moment diagram that never reaches the level"""
+    return []
+
+
+def _staggered(
+    beam: RectangularBeam, center_position: float = 250.0, is_tensioned: bool = True
+) -> Reinforcement:
+    """Build a bottom reinforcement with 2φ16 in layer 0 and 1φ10 in layer 1, staggered"""
+    reinforcement = Reinforcement(
+        beam,
+        is_bottom_reinforcement=True,
+        center_position=center_position,
+        id="R",
+        is_tensioned=is_tensioned,
+        section_moment=_SECTION_MOMENT,
+        moment_positions=_no_positions,
+    )
+    reinforcement.moment_shift = 28.0  # cm
+    _place_layers(reinforcement, (16.0, 16.0), (10.0,))
+    return reinforcement
+
+
+def _set_lengths(layer: Layer, left: float, right: float) -> None:
+    """Set the side lengths (cm) of every bar of a layer"""
+    layer.set_anchorage_length(left, left=True)
+    layer.set_anchorage_length(right, left=False)
+
+
+def _enforce(reinforcement: Reinforcement) -> None:
+    """Run the staggered-length pass on the reinforcement"""
+    reinforcement._enforce_staggered_lengths()  # pyright: ignore[reportPrivateUsage]
+
+
+class TestLayerMomentBand:
+    """Tests for the band of the section moment each layer resists (kN.m)."""
+
+    def test_bands_follow_the_layer_areas(self, beam_double: RectangularBeam) -> None:
+        reinforcement = _staggered(beam_double)
+        areas = [layer.area for layer in reinforcement.chosen_bars[:2]]  # cm²
+        split = _SECTION_MOMENT * areas[0] / sum(areas)  # kN.m
+        first = reinforcement.layer_moment_band(0)
+        innermost = reinforcement.layer_moment_band(1)
+        assert first is not None and innermost is not None, "both layers staggered"
+        assert_approx(first[0], 0.0, "first band starts at zero (kN.m)")
+        assert_approx(first[1], split, "first band top by area share (kN.m)")
+        assert_approx(innermost[0], split, "innermost band bottom (kN.m)")
+        assert_approx(innermost[1], _SECTION_MOMENT, "innermost band ends at M (kN.m)")
+
+    def test_compressed_bars_are_not_staggered(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        reinforcement = _staggered(beam_double, is_tensioned=False)
+        assert reinforcement.layer_moment_band(0) is None, "compressed: no band"
+
+    def test_no_diagram_is_not_staggered(self, reinforcement: Reinforcement) -> None:
+        _place_layers(reinforcement, (16.0,))
+        assert reinforcement.layer_moment_band(0) is None, "no diagram: no band"
+
+    def test_empty_layer_raises(self, beam_double: RectangularBeam) -> None:
+        reinforcement = _staggered(beam_double)
+        with pytest.raises(ValueError, match="no bars"):
+            reinforcement.layer_moment_band(2)
+
+
+class TestEnforceStaggeredLengths:
+    """Tests for keeping each layer at least as long as the layer above it (cm)."""
+
+    def test_lower_layer_is_raised(self, beam_double: RectangularBeam) -> None:
+        reinforcement = _staggered(beam_double)
+        first, innermost = reinforcement.chosen_bars[:2]
+        _set_lengths(first, left=50.0, right=100.0)
+        _set_lengths(innermost, left=80.0, right=60.0)
+        _enforce(reinforcement)
+        for bar in first.bars:
+            assert_approx(bar.left_length, 80.0, "raised to the layer above (cm)")
+            assert_approx(bar.right_length, 100.0, "already longer: kept (cm)")
+
+    def test_raise_is_capped_by_the_space(self, beam_double: RectangularBeam) -> None:
+        reinforcement = _staggered(beam_double)
+        first, innermost = reinforcement.chosen_bars[:2]
+        _set_lengths(first, left=50.0, right=50.0)
+        _set_lengths(innermost, left=400.0, right=50.0)
+        _enforce(reinforcement)
+        space = 250.0 - RectangularBeam.nominal_covering  # cm
+        for bar in first.bars:
+            assert_approx(bar.left_length, space, "capped at the beam's end (cm)")
+
+    def test_hooked_raise_keeps_the_hook_cover(
+        self, beam_double: RectangularBeam
+    ) -> None:
+        """Hooked 16 mm bars keep max(c_nom, 3φ) to the beam's end"""
+        reinforcement = _staggered(beam_double)
+        first, innermost = reinforcement.chosen_bars[:2]
+        first.set_hooks(left=True, enable=True)
+        _set_lengths(first, left=50.0, right=50.0)
+        _set_lengths(innermost, left=400.0, right=50.0)
+        _enforce(reinforcement)
+        covering = RectangularBeam.nominal_covering  # cm
+        expected = 250.0 - max(covering, 3 * 1.6)  # cm
+        for bar in first.bars:
+            assert_approx(bar.left_length, expected, "capped before the hook (cm)")
+
+    def test_side_with_clamps_is_kept(self, beam_double: RectangularBeam) -> None:
+        reinforcement = _staggered(beam_double)
+        first, innermost = reinforcement.chosen_bars[:2]
+        _set_lengths(first, left=50.0, right=50.0)
+        _set_lengths(innermost, left=80.0, right=50.0)
+        first.set_clamps(
+            True, Clamps(diameter=6.3, quantity=1, length=10.0, width=10.0)
+        )
+        _enforce(reinforcement)
+        for bar in first.bars:
+            assert_approx(bar.left_length, 50.0, "clamped side left as it is (cm)")
+
+    def test_end_support_side_is_kept(self, beam_double: RectangularBeam) -> None:
+        reinforcement = _staggered(beam_double, center_position=0.0)
+        first, innermost = reinforcement.chosen_bars[:2]
+        _set_lengths(first, left=0.0, right=50.0)
+        _set_lengths(innermost, left=10.0, right=80.0)
+        _enforce(reinforcement)
+        for bar in first.bars:
+            assert_approx(bar.left_length, 0.0, "end support side left as it is (cm)")
+            assert_approx(bar.right_length, 80.0, "interior side raised (cm)")

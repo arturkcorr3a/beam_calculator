@@ -2,6 +2,7 @@
 
 import types
 from collections.abc import Iterator
+from math import sqrt
 from typing import Any
 from unittest.mock import PropertyMock, patch
 
@@ -45,6 +46,11 @@ def _make_layer(
     return layer
 
 
+def _unstaggered(layer_index: int) -> None:
+    """Report every layer of a stub reinforcement as unstaggered"""
+    return None
+
+
 def _make_reinforcement(
     layer: Layer,
     required_area: float,
@@ -65,6 +71,7 @@ def _make_reinforcement(
         center_position=_STUB_CENTER,
         moment_zeros=moment_zeros,
         span_moment=None,
+        layer_moment_band=_unstaggered,
     )
 
 
@@ -489,13 +496,13 @@ class TestTotalAnchorageLength:
         )
         ac.left = True
         assert_approx(
-            ac.length_past_zero_moment,
+            ac.length_past_cut_point,
             150.0 + 10 * 1.6,
             "left side should use the zero at 100 cm (cm)",
         )
         ac.left = False
         assert_approx(
-            ac.length_past_zero_moment,
+            ac.length_past_cut_point,
             50.0 + 10 * 1.6,
             "right side should use the zero at 300 cm (cm)",
         )
@@ -505,7 +512,7 @@ class TestTotalAnchorageLength:
         ac = _make_ac(layer_16mm_good, 2.0, 2.0, moment_zeros=(0.0, _STUB_BEAM_LENGTH))
         for left in (True, False):
             ac.left = left
-            assert ac.length_past_zero_moment == 0.0, (
+            assert ac.length_past_cut_point == 0.0, (
                 f"end zeros should be ignored (left={left})"
             )
 
@@ -710,6 +717,7 @@ def _make_clamp_ac(
         center_position=_BEAM_LENGTH / 2,
         moment_zeros=(),
         span_moment=None,
+        layer_moment_band=_unstaggered,
         effective_depth=effective_depth,
         design_shear=100.0,
         stirrup_inner_width=_STIRRUP_INNER_WIDTH,
@@ -922,6 +930,7 @@ def _make_support_ac(
         center_position=center,
         moment_zeros=(),
         span_moment=span_moment,
+        layer_moment_band=_unstaggered,
         support_moment=support_moments.__getitem__,
         effective_depth=_SUPPORT_EFFECTIVE_DEPTH,
         stress_block_depth=_SUPPORT_STRESS_BLOCK_DEPTH,
@@ -1278,6 +1287,7 @@ def _make_end_support_ac(
         center_position=center,
         moment_zeros=(),
         span_moment=None,
+        layer_moment_band=_unstaggered,
     )
     return AnchorageCalculator(
         moment_shift=28.0,
@@ -1352,3 +1362,171 @@ class TestRunEndSupport:
         ac = _make_end_support_ac(layer_16mm_good, 0.0)
         with pytest.raises(ValueError, match="Hooks do not fit"):
             ac.run_end_support(left=True)
+
+
+# ---------------------------------------------------------------------------
+# Staggering by layer (NBR 6118 - Section 18.3.2.3.1, Figure 18.3)
+# ---------------------------------------------------------------------------
+
+_STAGGER_MOMENT = 40.0  # kN.m, at the section (x = 250 cm)
+_STAGGER_HALF_WIDTH = 200.0  # cm, from the section to each zero of the diagram
+_HALF_MOMENT_OFFSET = _STAGGER_HALF_WIDTH * sqrt(0.5)  # cm, where M = M0 / 2
+_LOWER_BAND = (0.0, _STAGGER_MOMENT / 2)  # kN.m, first of two equal layers
+_UPPER_BAND = (_STAGGER_MOMENT / 2, _STAGGER_MOMENT)  # kN.m, innermost layer
+_STAGGER_ZEROS = (50.0, 450.0)  # cm
+
+
+def _parabola_positions(level: float) -> list[float]:
+    """Return where M(x) = M0 (1 - ((x - 250) / 200)²) equals a level (cm)"""
+    ratio = 1 - level / _STAGGER_MOMENT
+    if ratio < 0:
+        return []
+    offset = _STAGGER_HALF_WIDTH * sqrt(ratio)  # cm
+    return [_STUB_CENTER - offset, _STUB_CENTER + offset]
+
+
+def _make_staggered_ac(
+    band: tuple[float, float],
+    *,
+    moment_zeros: tuple[float, ...] = _STAGGER_ZEROS,
+    span_moment: float | None = None,
+    supports: tuple[Support, ...] = (),
+) -> AnchorageCalculator:
+    """Construct an AnchorageCalculator for a 16 mm layer staggered over a parabolic diagram
+
+    The diagram peaks at 40 kN.m on the section (250 cm) and drops to zero 200 cm
+    away on each side; a_l = 28 cm.
+    """
+    layer = _make_layer(16.0, good_adherence=True)
+
+    def layer_moment_band(layer_index: int) -> tuple[float, float]:
+        return band
+
+    reinforcement = types.SimpleNamespace(
+        chosen_bars=[layer],
+        is_bottom_reinforcement=True,
+        beam=types.SimpleNamespace(
+            height=60.0, length=_STUB_BEAM_LENGTH, supports=list(supports)
+        ),
+        required_area=2.0,
+        area=2.0,
+        center_position=_STUB_CENTER,
+        moment_zeros=moment_zeros,
+        span_moment=span_moment,
+        section_moment=_STAGGER_MOMENT,
+        moment_positions=_parabola_positions,
+        layer_moment_band=layer_moment_band,
+    )
+    return AnchorageCalculator(
+        moment_shift=28.0,
+        steel=Steel.CA50,
+        layer_index=0,
+        reinforcement=reinforcement,  # pyright: ignore[reportArgumentType]
+        id="Test",
+    )
+
+
+class TestStaggeredAnchorageLength:
+    """Tests for max(l_A + l_b,nec, l_B + 10φ) + a_l of staggered layers (cm)."""
+
+    def test_innermost_layer_starts_at_the_section(self) -> None:
+        ac = _make_staggered_ac(_UPPER_BAND)
+        ac.left = True
+        assert ac.stress_start_distance == 0.0, (
+            "the top band ends at M: A is the section"
+        )
+
+    def test_innermost_layer_is_cut_at_its_band_bottom(self) -> None:
+        """B is where M = M0 / 2, 141.42 cm away"""
+        ac = _make_staggered_ac(_UPPER_BAND)
+        ac.left = True
+        assert_approx(
+            ac.length_past_cut_point,
+            _HALF_MOMENT_OFFSET + 10 * 1.6,
+            "l_B + 10φ of the innermost layer (cm)",
+        )
+        assert_approx(
+            ac.total_anchorage_length,
+            max(ac.necessary_anchorage_length, _HALF_MOMENT_OFFSET + 16.0) + 28.0,
+            "innermost layer: max(l_b,nec, l_B + 10φ) + a_l (cm)",
+        )
+
+    @pytest.mark.parametrize("left", [True, False], ids=["left", "right"])
+    def test_first_layer_runs_past_the_zero(self, left: bool) -> None:
+        """A is where M = M0 / 2 (141.42 cm); B is the zero, 200 cm away"""
+        ac = _make_staggered_ac(_LOWER_BAND)
+        ac.left = left
+        assert_approx(
+            ac.stress_start_distance,
+            _HALF_MOMENT_OFFSET,
+            "l_A of the first layer (cm)",
+        )
+        assert_approx(
+            ac.total_anchorage_length,
+            max(_HALF_MOMENT_OFFSET + ac.necessary_anchorage_length, 200.0 + 16.0)
+            + 28.0,
+            "first layer: max(l_A + l_b,nec, l_B + 10φ) + a_l (cm)",
+        )
+
+    def test_first_layer_outlasts_the_innermost(self) -> None:
+        first = _make_staggered_ac(_LOWER_BAND)
+        innermost = _make_staggered_ac(_UPPER_BAND)
+        first.left = innermost.left = True
+        assert first.total_anchorage_length > innermost.total_anchorage_length, (
+            "the first layer should be the longest"
+        )
+
+    def test_single_layer_matches_the_unstaggered_length(
+        self, layer_16mm_good: Layer
+    ) -> None:
+        """A whole-moment band starts at the section and is cut at the zero"""
+        staggered = _make_staggered_ac((0.0, _STAGGER_MOMENT))
+        unstaggered = _make_ac(layer_16mm_good, 2.0, 2.0, moment_zeros=_STAGGER_ZEROS)
+        staggered.left = unstaggered.left = True
+        assert_approx(
+            staggered.total_anchorage_length,
+            unstaggered.total_anchorage_length,
+            "one layer keeps the unstaggered length (cm)",
+        )
+
+    def test_cut_point_past_the_zero_falls_back_to_the_zero(self) -> None:
+        """A zero 50 cm away comes before M = M0 / 2: B falls back to it"""
+        ac = _make_staggered_ac(_UPPER_BAND, moment_zeros=(200.0, 450.0))
+        ac.left = True
+        assert_approx(
+            ac.length_past_cut_point,
+            50.0 + 16.0,
+            "l_B + 10φ up to the zero (cm)",
+        )
+
+    def test_band_top_past_the_zero_falls_back_to_the_cut_point(self) -> None:
+        """M = M0 / 2 lies past the zero 50 cm away: A falls back to the zero"""
+        ac = _make_staggered_ac(_LOWER_BAND, moment_zeros=(200.0, 450.0))
+        ac.left = True
+        assert_approx(ac.stress_start_distance, 50.0, "l_A at the cut point (cm)")
+
+
+class TestStaggeredReachedSupport:
+    """Tests for the shifted start of each layer's anchorage reaching a support."""
+
+    _SUPPORTS = (Support(70.0, 60.0, 90.0), Support(430.0, 410.0, 440.0))
+
+    def test_first_layer_reaches_the_support(self) -> None:
+        """A − a_l = 250 − 141.42 − 28 = 80.58 cm, past the face at 90 cm"""
+        ac = _make_staggered_ac(
+            _LOWER_BAND, span_moment=_STAGGER_MOMENT, supports=self._SUPPORTS
+        )
+        ac.left = True
+        assert ac._reached_support_index == 0, (  # pyright: ignore[reportPrivateUsage]
+            "the first layer's shifted A reaches the support"
+        )
+
+    def test_innermost_layer_falls_short(self) -> None:
+        """A − a_l = 250 − 28 = 222 cm, short of the face at 90 cm"""
+        ac = _make_staggered_ac(
+            _UPPER_BAND, span_moment=_STAGGER_MOMENT, supports=self._SUPPORTS
+        )
+        ac.left = True
+        assert ac._reached_support_index is None, (  # pyright: ignore[reportPrivateUsage]
+            "the innermost layer's shifted A stays in the span"
+        )

@@ -9,6 +9,7 @@ from src.logger import log_operation, log_property, logger_label
 from src.properties.steel import Steel
 from src.reinforcement.anchorage_summary import AnchorageSummary
 from src.reinforcement.clamps import Clamps
+from src.reinforcement.staggering import nearest_distance
 from src.structural_elements.rectangular_beam import RectangularBeam
 from src.structural_elements.support import Support
 
@@ -33,6 +34,7 @@ class AnchorageCalculator:
     ):
         self.moment_shift = moment_shift  # cm, a_l
         self.steel = steel
+        self.layer_index = layer_index
         self.layer = reinforcement.chosen_bars[layer_index]
         self.reinforcement = reinforcement
         self.beam_height = self.reinforcement.beam.height  # cm
@@ -47,7 +49,7 @@ class AnchorageCalculator:
         Tries straight bars first, then hooked bars. If both fail and clamps are allowed at an extremity support, the hooked bars take the whole
         available space and clamps carry the rest of the force.
 
-        When the shifted point (center ∓ a_l) of a positive-moment point reaches a support's inner face, the support rules replace this extent (see ``_run_support_anchorage``).
+        When the layer's shifted point A (center ∓ (l_A + a_l), see ``_reached_support_index``) of a positive-moment point reaches a support's inner face, the support rules replace this extent (see ``_run_support_anchorage``).
 
         Args:
             available_space: Length from the section to the bar's end (cm).
@@ -323,7 +325,7 @@ class AnchorageCalculator:
     def _reached_support_index(self) -> int | None:
         """Find the support whose inner face the shifted point reaches on the current side
 
-        Only the bars of a positive-moment point (``span_moment`` set) are checked. The shifted point A = center ∓ a_l reaches the nearest support on the current side when it lies on or past that support's inner face.
+        Only the bars of a positive-moment point (``span_moment`` set) are checked. The layer's anchorage starts at the point where its stress begins to fall (see ``stress_start_distance``); shifted by a_l, it reaches the nearest support on the current side when it lies on or past that support's inner face.
 
         Returns:
             Index of the support in ``beam.supports``, or None if A stays
@@ -336,18 +338,19 @@ class AnchorageCalculator:
             return None
         center = self.reinforcement.center_position  # cm
         supports = self.reinforcement.beam.supports
+        shift = self.stress_start_distance + self.moment_shift  # cm
         if self.left:
             indices = [i for i, s in enumerate(supports) if s.center < center]
             if not indices:
                 return None
             index = indices[-1]
-            is_reached = center - self.moment_shift <= supports[index].right
+            is_reached = center - shift <= supports[index].right
         else:
             indices = [i for i, s in enumerate(supports) if s.center > center]
             if not indices:
                 return None
             index = indices[0]
-            is_reached = center + self.moment_shift >= supports[index].left
+            is_reached = center + shift >= supports[index].left
         return index if is_reached else None
 
     def _inner_face_distance(self, support: Support) -> float:
@@ -553,51 +556,122 @@ class AnchorageCalculator:
 
     @property
     def total_anchorage_length(self) -> float:
-        """Calculate the bar length past the section, NBR 6118 - Section 18.3.2.3.1
+        """Calculate the bar length past the section
 
-        The greatest between l_b,nec and the length past the zero-moment point,
-        plus the moment shift a_l.
+        The greatest of l_b,nec past the point where the layer's stress starts to fall and the length past the layer's theoretical cut point (see ``length_past_cut_point``), plus the moment shift a_l. Unstaggered bars start falling at the section itself.
 
         Returns:
             Length in cm.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.3.1 (Figure 18.3)
         """
         # PAPER get ref
         total = (
-            max(self.necessary_anchorage_length, self.length_past_zero_moment)
+            max(
+                self.stress_start_distance + self.necessary_anchorage_length,
+                self.length_past_cut_point,
+            )
             + self.moment_shift
         )
         log_property(
-            f"Total Anchorage Length (max(l_b,nec, l_M=0 + 10φ) + a_l) = {total:.2f} cm"
+            f"Total Anchorage Length (max(l_A + l_b,nec, l_B + 10φ) + a_l) = {total:.2f} cm"
         )
         return total
 
     @property
-    def length_past_zero_moment(self) -> float:
-        """Calculate the length from the section to 10φ past the nearest zero-moment point on the current side, NBR 6118 - Section 18.3.2.3.1
+    def stress_start_distance(self) -> float:
+        """Calculate the distance from the section to where the layer's stress starts to fall, on the current side
 
-        Zero-moment points at the beam ends are ignored.
+        That is where the moment diagram drops to the top of the layer's band (see ``Reinforcement.layer_moment_band``). It is zero for the innermost layer, whose band ends at the section moment, and for unstaggered bars. When the diagram does not reach the band's top before the zero-moment point, the cut point's distance is used.
 
         Returns:
-            Length in cm; zero when there is no zero-moment point inside the
-            beam on the current side.
+            Length in cm.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.3.1 (Figure 18.3, point A)
         """
-        center = self.reinforcement.center_position  # cm
+        band = self.reinforcement.layer_moment_band(self.layer_index)
+        if band is None:
+            return 0.0
+        _, upper = band  # kN.m
+        distance = self._moment_level_distance(upper)  # cm
+        if distance is None:
+            distance = self._cut_point_distance or 0.0
+        log_property(
+            f"Distance to the start of the stress drop (l_A) = {distance:.2f} cm"
+        )
+        return distance
+
+    @property
+    def length_past_cut_point(self) -> float:
+        """Calculate the length from the section to 10φ past the layer's theoretical cut point, on the current side
+
+        The cut point is where the moment diagram drops to the bottom of the layer's band (see ``Reinforcement.layer_moment_band``). For the first layer and for unstaggered bars it is the nearest zero-moment point; zero-moment points at the beam ends are ignored.
+
+        Returns:
+            Length in cm; zero when there is no cut point inside the beam on the
+            current side.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.3.1 (Figure 18.3, point B)
+        """
+        distance = self._cut_point_distance  # cm
+        if distance is None:
+            return 0.0
+        length = distance + 10 * (self.max_diameter / 10)
+        log_property(f"Length to the cut point + 10φ (l_B + 10φ) = {length:.2f} cm")
+        return length
+
+    @property
+    def _cut_point_distance(self) -> float | None:
+        """Return the distance from the section to the layer's theoretical cut point on the current side (cm), or None"""
+        band = self.reinforcement.layer_moment_band(self.layer_index)
+        if band is not None and band[0] != 0.0:
+            distance = self._moment_level_distance(band[0])  # cm
+            if distance is not None:
+                return distance
+        return self._zero_moment_distance
+
+    def _moment_level_distance(self, level: float) -> float | None:
+        """Return the distance from the section to where the moment diagram drops to a level, on the current side
+
+        Only positions up to the nearest zero-moment point on that side count.
+
+        Args:
+            level: Characteristic bending moment (kN.m), with the section moment's sign.
+
+        Returns:
+            Distance in cm: zero when the level is the section moment or above it; None when the diagram does not reach it.
+        """
+        section_moment = self.reinforcement.section_moment  # kN.m
+        moment_positions = self.reinforcement.moment_positions
+        if section_moment is None or moment_positions is None:
+            return None
+        if abs(level) >= abs(section_moment):
+            return 0.0
+        return nearest_distance(
+            self.reinforcement.center_position,
+            moment_positions(level),
+            self.left,
+            limit=self._zero_moment_distance,
+        )
+
+    @property
+    def _zero_moment_distance(self) -> float | None:
+        """Return the distance from the section to the nearest zero-moment point inside the beam on the current side (cm), or None
+
+        Zero-moment points at the beam ends are ignored.
+        """
         beam_length = self.reinforcement.beam.length  # cm
         inner_zeros = [
             zero
             for zero in self.reinforcement.moment_zeros
             if END_ZERO_TOLERANCE < zero < beam_length - END_ZERO_TOLERANCE
         ]
-        if self.left:
-            distances = [center - zero for zero in inner_zeros if zero < center]
-        else:
-            distances = [zero - center for zero in inner_zeros if zero > center]
-        if not distances:
-            return 0.0
-
-        length = min(distances) + 10 * (self.max_diameter / 10)
-        log_property(f"Length to zero moment + 10φ = {length:.2f} cm")
-        return length
+        return nearest_distance(
+            self.reinforcement.center_position, inner_zeros, self.left
+        )
 
     @staticmethod
     def adherence_coefficient_for(good_adherence: bool) -> float:
