@@ -14,9 +14,11 @@ class ConfigController:
         self._window = window
 
     def edit(self) -> None:
+        self.edit_over(self._window)
+
+    def edit_over(self, parent: QWidget) -> None:
+        """Same as edit, with the dialog modal over parent (e.g. the isolated beam)"""
         session = self._session
-        dialog = ConfigDialog(
-            session.config, session.log, session.options, self._window
-        )
+        dialog = ConfigDialog(session.config, session.log, session.options, parent)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             session.update_config(*dialog.result_values())

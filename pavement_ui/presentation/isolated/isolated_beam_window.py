@@ -1,5 +1,7 @@
 """Isolated beam calculator window (F11)."""
 
+from collections.abc import Callable
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
@@ -43,9 +45,10 @@ _LEFT_WIDTH_PX = 460
 class IsolatedBeamWindow(QWidget):
     """Non-modal window: inputs on the left (scrolling), scheme and results on the right
 
-    Any edit clears the results, so they always match the inputs [Decisão].
-    The job runs on the shared engine executor: "Dimensionar" waits while any
-    job (also a pavement design) is running.
+    Any edit (also of the project settings) clears the results, so they always
+    match the inputs [Decisão]. The job runs on the shared engine executor:
+    "Dimensionar" and the settings button wait while any job (also a pavement
+    design) is running. edit_config opens the settings dialog over the given window.
     """
 
     def __init__(
@@ -55,6 +58,7 @@ class IsolatedBeamWindow(QWidget):
         executor: EngineExecutor,
         engine: IsolatedBeamEngine,
         exporter: DrawingExporter,
+        edit_config: Callable[[QWidget], None],
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent, Qt.WindowType.Window)
@@ -77,6 +81,7 @@ class IsolatedBeamWindow(QWidget):
         for group in (self._inputs, self._spans, self._loads):
             group.changed.connect(self._on_inputs_changed)
         self._design.clicked.connect(self._run)
+        self._summary.edit_requested.connect(lambda: edit_config(self))
         bridge.config_changed.connect(self._refresh_config)
         executor.busy_changed.connect(self._on_busy)
         self._refresh_config()
@@ -125,6 +130,7 @@ class IsolatedBeamWindow(QWidget):
         config = self._session.config
         self._summary.set_config(config)
         self._loads.set_wall_height(config.ceiling_height_m)
+        self._results.clear()
 
     def _values(self) -> IsolatedBeamInput:
         return IsolatedBeamInput(
@@ -146,6 +152,7 @@ class IsolatedBeamWindow(QWidget):
 
     def _on_busy(self, busy: bool) -> None:
         self._design.setEnabled(not busy)
+        self._summary.set_edit_enabled(not busy)
 
     def _run(self) -> None:
         if self._executor.busy:

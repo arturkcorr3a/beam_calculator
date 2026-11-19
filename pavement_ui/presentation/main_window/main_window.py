@@ -172,6 +172,7 @@ class MainWindow(QMainWindow):
                 self._executor,
                 self._isolated_engine,
                 self._drawing_exporter,
+                self._config.edit_over,
                 self,
             )
         self._isolated.show()
