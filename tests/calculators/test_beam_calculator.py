@@ -605,6 +605,7 @@ class TestRunBySpan:
             ],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
+            positions_for_moment=list[float],
             bending_moment=lambda position, from_right=False: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
@@ -618,6 +619,7 @@ class TestRunBySpan:
             position: float,
             moment_zeros: tuple[float, ...],
             support_moments: tuple[float, ...],
+            moment_positions: object,
         ) -> types.SimpleNamespace:
             # the support's right side (300.01 cm) needs more steel than its left side
             return _make_calculator_stub(
@@ -705,6 +707,7 @@ class TestRunBySpan:
             reaction=lambda position: 0.0,  # pyright: ignore[reportUnknownLambdaType]
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
+            positions_for_moment=list[float],
             bending_moment=lambda position, from_right=False: 0.0,  # pyright: ignore[reportUnknownLambdaType]
         )
 
@@ -720,6 +723,7 @@ class TestRunBySpan:
             position: float,
             moment_zeros: tuple[float, ...],
             support_moments: tuple[float, ...],
+            moment_positions: object,
         ) -> types.SimpleNamespace:
             built.append((position, moment))
             return _make_calculator_stub(position, tensioned_area=4.0)
@@ -779,6 +783,7 @@ class TestRunBySpan:
             moment_extremes_per_segment=lambda: [(150.0, 40.0), (420.0, 25.0)],
             shear_force=lambda position: 50.0,  # pyright: ignore[reportUnknownLambdaType]
             moment_zeros=list[float],
+            positions_for_moment=list[float],
             bending_moment=bending_moment,
         )
 
@@ -794,6 +799,7 @@ class TestRunBySpan:
             position: float,
             moment_zeros: tuple[float, ...],
             support_moments: tuple[float, ...],
+            moment_positions: object,
         ) -> types.SimpleNamespace:
             received.append(support_moments)
             return _make_calculator_stub(position, tensioned_area=4.0)

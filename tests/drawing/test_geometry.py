@@ -161,10 +161,11 @@ class TestBarPath:
                 assert difference < count, (
                     f"{run.mark}: drawn {difference:.2f} cm off the cut length"
                 )
-        assert hooks == 69, (
-            "t_concreto2 has 69 hooks (66 in ED §9, before the span bars were "
+        assert hooks == 68, (
+            "t_concreto2 has 68 hooks (66 in ED §9, before the span bars were "
             "carried to the supports; 72 before the support moments were rounded, "
-            "NBR 6118 14.6.3; 70 before the wall load discounted the beam height)"
+            "NBR 6118 14.6.3; 70 before the wall load discounted the beam height; "
+            "69 before the bars were staggered by layer)"
         )
 
 

@@ -191,3 +191,52 @@ class TestDimensioning:
             "reactions should add up to (g + q) × total length (kN)",
             abs_tol=1e-3,
         )
+
+
+class TestStaggering:
+    """The span's bottom bars are staggered by layer (NBR 6118 - 18.3.2.3.1)."""
+
+    @pytest.fixture
+    def span_bars(self, monkeypatch: pytest.MonkeyPatch) -> list[tuple[float, float]]:
+        """Dimension a 15 × 60 cm beam over one 5.00 m span with 30 kN/m
+
+        Returns:
+            The (left, right) bar lengths (cm) of each layer of the span's
+            bottom bars, from the bottom face up.
+        """
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+        beam, pillars = build_isolated_beam(
+            [500.0], 15.0, 60.0, [_PILLAR] * 2, [OwnWeightLoad(), CustomLoad("x", 30.0)]
+        )
+        beam.dimension(pillars)
+        span = next(
+            r
+            for r in beam.reinforcement
+            if r.is_tensioned and r.is_bottom_reinforcement
+        )
+        return [
+            (
+                max(bar.left_length for bar in layer.bars),
+                max(bar.right_length for bar in layer.bars),
+            )
+            for layer in span.chosen_bars
+            if layer.bars
+        ]
+
+    def test_bars_take_two_layers(self, span_bars: list[tuple[float, float]]) -> None:
+        assert len(span_bars) >= 2, "the example should need two layers"
+
+    def test_innermost_layer_is_cut_first(
+        self, span_bars: list[tuple[float, float]]
+    ) -> None:
+        first, innermost = span_bars[0], span_bars[-1]
+        assert innermost[0] < first[0], "innermost layer shorter on the left"
+        assert innermost[1] < first[1], "innermost layer shorter on the right"
+
+    def test_layers_never_grow_inwards(
+        self, span_bars: list[tuple[float, float]]
+    ) -> None:
+        for lower, upper in zip(span_bars, span_bars[1:], strict=False):
+            assert upper[0] <= lower[0], "no layer longer than the one below (left)"
+            assert upper[1] <= lower[1], "no layer longer than the one below (right)"
