@@ -1,3 +1,4 @@
+from collections.abc import Callable, Sequence
 from functools import cached_property
 from math import sqrt
 
@@ -57,6 +58,7 @@ class RebarCalculator:
         d_compressed: float | None = None,  # Optional effective depth parameter
         moment_zeros: tuple[float, ...] = (),
         support_moments: tuple[float, ...] = (),
+        moment_positions: Callable[[float], Sequence[float]] | None = None,
     ):
         """Initialize the RebarCalculator with a rectangular beam and its design bending moment.
 
@@ -66,6 +68,7 @@ class RebarCalculator:
             bending_moment_position: Position along the beam's length where the bending moment is applied (cm).
             moment_zeros: Positions along the beam where the bending moment is zero (cm), used for the bars' anchorage.
             support_moments: Characteristic bending moment on each of the beam's supports (kN.m), aligned with ``beam.supports``; used for the support anchorage checks of positive-moment bars.
+            moment_positions: Returns the positions along the beam (cm) where the characteristic bending moment equals a given value (kN.m); when given, the tensioned bars are staggered by layer along the moment diagram.
         """
         self.preset_d = d
         self.preset_d_compressed = d_compressed
@@ -89,6 +92,8 @@ class RebarCalculator:
             moment_zeros=moment_zeros,
             support_moments=support_moments if is_span_moment else (),
             span_moment=bending_moment if is_span_moment else None,
+            section_moment=bending_moment,
+            moment_positions=moment_positions,
         )
         self.compressed_reinforcement = Reinforcement(
             self.beam,

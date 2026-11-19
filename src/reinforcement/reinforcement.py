@@ -1,5 +1,7 @@
 from collections import Counter
+from collections.abc import Callable, Sequence
 from copy import copy
+from itertools import pairwise
 from typing import cast
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
@@ -14,6 +16,7 @@ from src.logger import (
 from src.reinforcement.anchorage_summary import AnchorageSummary
 from src.reinforcement.layer import Layer
 from src.reinforcement.rebar_chooser import RebarChooser
+from src.reinforcement.staggering import MomentBand, layer_moment_bands
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
 
@@ -44,6 +47,8 @@ class Reinforcement:
         is_tensioned: bool = True,
         anchored_support: int | None = None,
         stacked_on: Reinforcement | None = None,
+        section_moment: float | None = None,
+        moment_positions: Callable[[float], Sequence[float]] | None = None,
     ):
         """Initialize an empty longitudinal reinforcement
 
@@ -66,6 +71,11 @@ class Reinforcement:
                 from the face on that side. None for an ordinary point.
             stacked_on: Reinforcement whose layers come first on the same face;
                 this one's layers are stacked after its last non-empty layer.
+            section_moment: Characteristic bending moment the bars were designed
+                for (kN.m), signed. With ``moment_positions``, it staggers the
+                tensioned bars by layer (see ``layer_moment_band``).
+            moment_positions: Returns the positions along the beam (cm) where the
+                characteristic bending moment equals a given value (kN.m).
 
         Raises:
             ValueError: If ``stacked_on`` already fills every layer.
@@ -90,6 +100,8 @@ class Reinforcement:
         self.moment_zeros = moment_zeros  # cm, positions where M = 0
         self.support_moments = support_moments  # kN.m, characteristic, signed
         self.span_moment = span_moment  # kN.m, characteristic, M_vão
+        self.section_moment = section_moment  # kN.m, characteristic, signed
+        self.moment_positions = moment_positions
         self.moment_shift: float | None = None  # cm, a_l
         self.stirrup_diameter: float | None = None  # cm
         self.effective_depth: float | None = None  # cm, d, used by clamps
@@ -104,6 +116,47 @@ class Reinforcement:
         if support_index < len(self.support_moments):
             return self.support_moments[support_index]
         return 0.0
+
+    @property
+    def is_staggered(self) -> bool:
+        """Whether the bars are staggered by layer along the moment diagram
+
+        Only tensioned bars with a section moment and a moment diagram are staggered.
+        """
+        return (
+            self.is_tensioned
+            and self.section_moment is not None
+            and self.moment_positions is not None
+        )
+
+    def layer_moment_band(self, layer_index: int) -> MomentBand | None:
+        """Return the band of the section moment a layer's bars resist, or None if not staggered
+
+        The section moment is split among the non-empty layers in proportion to their areas: the first layer takes the band from zero moment up and is the longest, the innermost one takes the band ending at the section moment and is the shortest.
+
+        Args:
+            layer_index: Index of a non-empty chosen layer.
+
+        Returns:
+            The (lower, upper) characteristic moments of the band (kN.m), signed.
+
+        Raises:
+            ValueError: If the layer has no bars.
+
+        References:
+            ABNT NBR 6118:2026 — Section 18.3.2.3.1 (Figure 18.3)
+            Carvalho e Figueiredo Filho (2014) — Chapter 5, staggering of the longitudinal bars.
+        """
+        if not self.is_staggered:
+            return None
+        if not self.chosen_bars[layer_index].bars:
+            raise ValueError(f"Layer {layer_index} has no bars.")
+        indexes = [i for i, layer in enumerate(self.chosen_bars) if layer.bars]
+        bands = layer_moment_bands(
+            [self.chosen_bars[i].area for i in indexes],
+            cast(float, self.section_moment),
+        )
+        return bands[indexes.index(layer_index)]
 
     @property
     def used_layers_top_index(self) -> int:
@@ -314,6 +367,56 @@ class Reinforcement:
                 )
             summaries.extend(anchorage_calculator.summaries)
         self._layout_anchorages = tuple(summaries)
+        if self.is_staggered:
+            self._enforce_staggered_lengths()
+
+    def _enforce_staggered_lengths(self) -> None:
+        """Lengthen each layer's bars to at least the length of the layer above them
+
+        Keeps the first layer the longest and the innermost one the shortest on each side, even where a layer's own anchorage would be longer than the one below it (a poorer bond zone, or hooks on the layer below). The new length is capped by the space up to the bar's end, less the hook cover when the bars are hooked on that side. Sides over an end support, anchored in the point's own support, or completed by clamps are left as they are.
+        """
+        indexes = [i for i, layer in enumerate(self.chosen_bars) if layer.bars]
+        for left in (True, False):
+            is_end_support = self._is_at_beam_start if left else self._is_at_beam_end
+            if is_end_support or self._anchored_support_is_on(left):
+                continue
+            for lower_index, upper_index in reversed(list(pairwise(indexes))):
+                lower = self.chosen_bars[lower_index]
+                upper = self.chosen_bars[upper_index]
+                if lower.get_clamps(left) is not None:
+                    continue
+                if upper.get_clamps(left) is not None:
+                    continue
+                current = _side_length(lower, left)  # cm
+                target = min(
+                    _side_length(upper, left),
+                    self._side_length_limit(lower_index, left),
+                )  # cm
+                if target <= current:
+                    continue
+                lower.set_anchorage_length(target, left)
+                log_operation(
+                    f"Layer {lower_index} lengthened on the {'left' if left else 'right'} from {current:.2f} to {target:.2f} cm, to stay at least as long as layer {upper_index}."
+                )
+
+    def _side_length_limit(self, layer_index: int, left: bool) -> float:
+        """Return the longest a layer's bars may run on one side (cm)
+
+        The space up to the beam's end, less the hook cover when the bars are hooked on that side.
+
+        References:
+            ABNT NBR 6118:2026 — Section 9.4.2.5
+        """
+        space = self._available_space(left)  # cm
+        layer = self.chosen_bars[layer_index]
+        is_hooked = any(
+            bar.left_hook_enabled if left else bar.right_hook_enabled
+            for bar in layer.bars
+        )
+        if not is_hooked:
+            return space
+        calculator = self._layer_anchorage_calculator(layer_index)
+        return calculator.get_adjusted_available_space_for_hooks(space)
 
     def _anchored_support_is_on(self, left: bool) -> bool:
         """Whether the support the point sits on lies on the given side of it"""
@@ -794,3 +897,8 @@ class Reinforcement:
             f"Enough space: {'Yes' if is_there_enough_space else 'No'}"
         )
         return is_there_enough_space
+
+
+def _side_length(layer: Layer, left: bool) -> float:
+    """Return the longest bar length of a layer on one side of the section (cm)"""
+    return max(bar.left_length if left else bar.right_length for bar in layer.bars)

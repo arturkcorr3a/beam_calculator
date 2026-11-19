@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, cast
 
 from src.analysis.beam_analysis import BeamAnalysis
@@ -100,6 +101,7 @@ class BeamCalculator:
                         position,
                         moment_zeros,
                         support_moments,
+                        analysis.positions_for_moment,
                     )
                 )
             coordinate_span(calculators, span.stirrups)
@@ -482,6 +484,7 @@ class BeamCalculator:
         bending_moment_position: float,
         moment_zeros: tuple[float, ...],
         support_moments: tuple[float, ...],
+        moment_positions: Callable[[float], Sequence[float]],
     ) -> RebarCalculator:
         """Builds the longitudinal reinforcement calculator for a single interest point (dimensioned later by ``coordinate_span``).
 
@@ -493,6 +496,9 @@ class BeamCalculator:
                 zero (cm), used for the bars' anchorage.
             support_moments: Characteristic bending moment on each support
                 (kN.m), left to right, used for the support anchorage checks.
+            moment_positions: Returns the positions along the beam (cm) where the
+                characteristic bending moment equals a given value (kN.m), used
+                to stagger the tensioned bars by layer.
         """
         return RebarCalculator(
             beam=structural_beam,
@@ -501,6 +507,7 @@ class BeamCalculator:
             id=self.label,
             moment_zeros=moment_zeros,
             support_moments=support_moments,
+            moment_positions=moment_positions,
         )
 
     def _store_reinforcement(self, calculator: RebarCalculator) -> None:
