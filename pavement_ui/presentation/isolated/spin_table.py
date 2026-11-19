@@ -72,6 +72,19 @@ class SpinTable(QTableWidget):
         self._fit_height()
         self.changed.emit()
 
+    def set_values(self, rows: Sequence[Sequence[float]]) -> None:
+        """One row per item, each with a value per column; emits changed once"""
+        self.blockSignals(True)
+        self.set_row_count(len(rows))
+        for row, values in enumerate(rows):
+            for col, value in enumerate(values):
+                box = self._box(row, col)
+                box.blockSignals(True)
+                box.setValue(value)
+                box.blockSignals(False)
+        self.blockSignals(False)
+        self.changed.emit()
+
     def values(self) -> list[tuple[float, ...]]:
         """The values of each row, left to right, in the columns' units"""
         return [

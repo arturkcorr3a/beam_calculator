@@ -1,0 +1,151 @@
+# =============================================================================
+# beam_calculator — modelo de arquivo de viga isolada (template)
+# =============================================================================
+#
+# Este arquivo descreve uma viga contínua isolada: seção, vãos, pilares,
+# cargas e configurações de projeto. Copie-o, edite os valores e abra-o na
+# calculadora de viga isolada (Ferramentas › Viga isolada…, botão "Abrir…").
+#
+# O exemplo abaixo é uma viga de dois vãos (4,50 m e 3,20 m) sobre três
+# pilares, com peso próprio, uma parede só no V2 e uma carga variável no V1.
+#
+#              V1 (4,50 m)              V2 (3,20 m)
+#        ══════════════════════╤═════════════════════
+#        P1                    P2                   P3
+#
+# Regras gerais:
+#   - Unidades: seção e pilares em cm, vãos e altura de parede em m,
+#     cargas em kN/m.
+#   - A indentação (espaços, nunca tabulações) define a estrutura do arquivo.
+#   - Tudo depois de "#" é comentário e é ignorado. Ao salvar pelo programa,
+#     este arquivo é regravado sem os comentários explicativos.
+#   - Ao abrir, as configurações deste arquivo (seção config) substituem as do
+#     projeto aberto, como acontece ao abrir um pavimento.
+#   - O dimensionamento (armaduras, estribos) é feito pelo programa: o arquivo
+#     guarda só os dados de entrada.
+
+
+# -----------------------------------------------------------------------------
+# Seção
+# -----------------------------------------------------------------------------
+#   width   largura b da viga (cm); a NBR 6118 exige pelo menos 12 cm
+#   height  altura h da viga (cm)
+section:
+  width: 16
+  height: 45
+
+
+# -----------------------------------------------------------------------------
+# Vãos
+# -----------------------------------------------------------------------------
+# Comprimento de cada vão, da esquerda para a direita (m), medido entre os
+# eixos dos pilares. De 1 a 10 vãos.
+spans: [4.5, 3.2]
+
+
+# -----------------------------------------------------------------------------
+# Pilares
+# -----------------------------------------------------------------------------
+# Um item por apoio, da esquerda para a direita: sempre um pilar a mais que
+# o número de vãos (P1, P2, ...).
+#   width  dimensão do pilar ao longo da viga (cm); pelo menos 14 cm
+#   depth  dimensão do pilar na direção transversal (cm); deve cobrir a
+#          largura da viga
+pillars:
+  - width: 20
+    depth: 30
+
+  - width: 25
+    depth: 20
+
+  - width: 20
+    depth: 30
+
+
+# -----------------------------------------------------------------------------
+# Cargas
+# -----------------------------------------------------------------------------
+# Um item por carga distribuída. Campos comuns:
+#   type  own_weight  peso próprio da viga (25 kN/m³ × b × h)
+#         wall        parede apoiada sobre a viga (ABNT NBR 6120, Tabela 2)
+#         custom      carga uniforme informada à mão
+#   span  vão em que a carga atua, começando em 1 (V1); opcional: sem "span",
+#         a carga atua em todos os vãos
+#
+# Parede (type: wall):
+#   height               altura da parede (m)
+#   wall                 mesmos campos da parede das vigas do pavimento:
+#     structural         false: alvenaria de vedação; true: alvenaria estrutural
+#     masonry_type       tipo de alvenaria. Vedação (structural: false):
+#                          Hollow concrete block (Class C - ABNT NBR 6136)
+#                          Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)
+#                          Autoclaved aerated concrete block (Class C25 - ABNT NBR 13438)
+#                          Glass block (decorative, non-fire-rated)
+#                        Estrutural (structural: true):
+#                          Hollow concrete block (Classes A and B - ABNT NBR 6136)
+#                          Hollow ceramic block with solid walls (Vertical holes - ABNT NBR 15270-1)
+#                          Hollow ceramic block with hollow walls (Vertical holes - ABNT NBR 15270-1)
+#                          Solid ceramic brick (ABNT NBR 15270-1)
+#                          Hollow calcium silicate block (Class E - ABNT NBR 14974-1)
+#                          Perforated calcium silicate block (Classes E, F and G - ABNT NBR 14974-1)
+#     nominal_thickness  espessura nominal do bloco (cm), uma das da Tabela 2
+#                        para o tipo escolhido (ex.: 9, 11.5, 14, 19)
+#     coating_thickness  revestimento por face (cm): 0, 1 ou 2
+#
+# Carga informada (type: custom):
+#   label     descrição mostrada no relatório
+#   value     intensidade (kN/m), positiva para baixo
+#   variable  true: carga variável (q); false: permanente (g). Opcional,
+#             padrão false
+#   psi_2     fator de combinação quase permanente ψ2, de 0 a 1 (NBR 8681);
+#             usado só quando variable é true. Opcional, padrão 0.3
+loads:
+  - type: own_weight
+
+  - type: wall
+    span: 2
+    height: 2.8
+    wall:
+      structural: false
+      masonry_type: Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)
+      nominal_thickness: 14
+      coating_thickness: 1
+
+  - type: custom
+    span: 1
+    label: Sobrecarga de uso
+    value: 3.5
+    variable: true
+    psi_2: 0.3
+
+
+# -----------------------------------------------------------------------------
+# Configurações de projeto
+# -----------------------------------------------------------------------------
+# As mesmas do pavimento (janela Ferramentas › Configurações).
+#   aggregate           rocha do agregado graúdo: basalt, diabase, granite,
+#                       gneiss, limestone ou sandstone
+#   max_aggregate_size  diâmetro máximo do agregado graúdo (cm)
+#   max_bar_types       máximo de diâmetros diferentes por armadura (1 a 10)
+#   max_layers          máximo de camadas de barras longitudinais (1 a 10)
+#   pavement_concrete   classe do concreto: C20, C25, C30, ... , C90
+#                       (de 5 em 5; mínimo conforme a classe de agressividade)
+#   pavement_steel      aço das armaduras: CA25, CA50 ou CA60
+#   building_category   categoria da edificação (ABNT NBR 6120, Tabela 10),
+#                       ex.: Residential buildings; Commercial, corporate, and
+#                       office buildings; Schools and educational institutions
+#   exposure_class      classe de agressividade ambiental (ABNT NBR 6118,
+#                       Tabela 6.1): 1 (fraca), 2 (moderada), 3 (forte) ou
+#                       4 (muito forte)
+#   ceiling_height      pé-direito (m); define a rigidez dos pilares e a
+#                       altura sugerida de uma parede nova
+config:
+  aggregate: granite
+  max_aggregate_size: 2.5
+  max_bar_types: 3
+  max_layers: 3
+  pavement_concrete: C30
+  pavement_steel: CA50
+  building_category: Residential buildings
+  exposure_class: 2
+  ceiling_height: 2.8

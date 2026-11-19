@@ -37,6 +37,10 @@ class IsolatedInputsGroup(FormSection):
         for box in (self._width, self._height):
             box.valueChanged.connect(self.changed)
 
+    def set_section(self, width_cm: float, height_cm: float) -> None:
+        self._width.setValue(width_cm)
+        self._height.setValue(height_cm)
+
     @property
     def width_cm(self) -> float:
         return self._width.value()

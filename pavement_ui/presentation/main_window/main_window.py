@@ -5,7 +5,11 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget
 
 from pavement_ui.core.model.element_kind import ElementKind
-from pavement_ui.core.ports import DrawingExporter, IsolatedBeamEngine
+from pavement_ui.core.ports import (
+    DrawingExporter,
+    IsolatedBeamEngine,
+    IsolatedBeamStore,
+)
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.dialogs import messages
@@ -62,6 +66,7 @@ class MainWindow(QMainWindow):
         executor: EngineExecutor,
         isolated_engine: IsolatedBeamEngine,
         drawing_exporter: DrawingExporter,
+        isolated_store: IsolatedBeamStore,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -70,6 +75,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(*_MINIMUM_SIZE_PX)
         self._session, self._bridge, self._executor = session, bridge, executor
         self._isolated_engine = isolated_engine
+        self._isolated_store = isolated_store
         self._isolated: IsolatedBeamWindow | None = None
         self._panels = {
             ElementKind.PILLAR: pillars_panel(session, bridge),
@@ -173,6 +179,7 @@ class MainWindow(QMainWindow):
                 self._isolated_engine,
                 self._drawing_exporter,
                 self._config.edit_over,
+                self._isolated_store,
                 self,
             )
         self._isolated.show()

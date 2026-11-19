@@ -16,7 +16,7 @@ from src.logger import suppress_logging
 from src.persistency import load_pavement, save_pavement
 
 
-def _yaml_detail(error: yaml.YAMLError) -> str:
+def yaml_error_line(error: yaml.YAMLError) -> str:
     """The 1-based line of a YAML error, when the parser reports one."""
     mark = getattr(error, "problem_mark", None)
     line = getattr(mark, "line", None)
@@ -61,7 +61,7 @@ class YamlProjectStore:
             raise PersistenceError(PersistenceErrorKind.NOT_FOUND, str(path)) from error
         except yaml.YAMLError as error:
             raise PersistenceError(
-                PersistenceErrorKind.INVALID_YAML, _yaml_detail(error)
+                PersistenceErrorKind.INVALID_YAML, yaml_error_line(error)
             ) from error
         except (ValueError, KeyError) as error:
             raise PersistenceError(

@@ -9,10 +9,38 @@ from pavement_ui.core.engine.keys import from_key, to_key
 from pavement_ui.core.model.settings import ConfigValues
 from src.config import APP_CONFIG, AppConfig
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
+from src.persistency import config_from_dict, config_to_dict
+from src.persistency.schema import ConfigDict
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 
 type ConfigSnapshot = dict[str, object]
+
+
+def to_dict(config: ConfigValues) -> ConfigDict:
+    """Return the settings in the engine's file format (the ``config`` section)"""
+    saved = snapshot()
+    try:
+        apply(config)
+        return config_to_dict(APP_CONFIG)
+    finally:
+        restore(saved)
+
+
+def from_dict(data: ConfigDict) -> ConfigValues:
+    """Read settings in the engine's file format
+
+    Raises:
+        ValueError: If a key is missing or holds an unknown option.
+    """
+    loaded = config_from_dict(data)
+    saved = snapshot()
+    try:
+        for name in config_to_dict(loaded):
+            setattr(APP_CONFIG, name, getattr(loaded, name))
+        return read()
+    finally:
+        restore(saved)
 
 
 def apply(config: ConfigValues) -> None:

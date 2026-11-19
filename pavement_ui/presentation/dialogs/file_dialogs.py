@@ -1,4 +1,4 @@
-"""Choose project files to open or save (*.yaml / *.yml), examples to open, and report files to export (*.pdf)."""
+"""Choose project and isolated beam files to open or save (*.yaml / *.viga.yaml), examples to open, and report files to export (*.pdf)."""
 
 import sys
 from pathlib import Path
@@ -49,6 +49,33 @@ def ask_save_path(parent: QWidget | None, current: Path | None) -> Path | None:
         return None
     path = Path(name)
     return path if path.suffix else path.with_suffix(s.FILE_EXTENSION)
+
+
+def ask_beam_open_path(parent: QWidget | None) -> Path | None:
+    """Ask for an isolated beam file to open; None if cancelled"""
+    name, _ = QFileDialog.getOpenFileName(
+        parent, s.OPEN_BEAM_TITLE, "", s.BEAM_FILE_FILTER
+    )
+    return Path(name) if name else None
+
+
+def ask_beam_save_path(parent: QWidget | None, current: Path | None) -> Path | None:
+    """Ask where to save an isolated beam; the name always ends in ".viga.yaml"
+
+    A plain ".yaml" / ".yml" ending is replaced. None if cancelled.
+    """
+    start = str(current) if current is not None else ""
+    name, _ = QFileDialog.getSaveFileName(
+        parent, s.SAVE_BEAM_TITLE, start, s.BEAM_FILE_FILTER
+    )
+    if not name:
+        return None
+    path = Path(name)
+    if path.name.lower().endswith(s.BEAM_FILE_EXTENSIONS):
+        return path
+    if path.suffix.lower() in (".yaml", ".yml"):
+        path = path.with_suffix("")
+    return path.with_name(path.name + s.BEAM_FILE_EXTENSION)
 
 
 def _ask_export_path(

@@ -80,6 +80,24 @@ class ProjectStore(Protocol):
     def open(self, path: Path) -> LoadedProject: ...
 
 
+@dataclass(frozen=True, slots=True)
+class LoadedIsolatedBeam:
+    """Inputs and settings read from an isolated beam file"""
+
+    data: IsolatedBeamInput
+    config: ConfigValues
+
+
+class IsolatedBeamStore(Protocol):
+    """Isolated beam files; both methods raise PersistenceError"""
+
+    def save(
+        self, path: Path, data: IsolatedBeamInput, config: ConfigValues
+    ) -> None: ...
+
+    def open(self, path: Path) -> LoadedIsolatedBeam: ...
+
+
 class DrawingExporter(Protocol):
     """Write the engine's drawings in CAD formats"""
 

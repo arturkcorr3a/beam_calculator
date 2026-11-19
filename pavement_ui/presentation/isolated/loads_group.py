@@ -1,5 +1,7 @@
 """Cargas: the list of loads on the beam, added, edited and removed with dialogs."""
 
+from collections.abc import Sequence
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -121,6 +123,12 @@ class LoadsGroup(QGroupBox):
             if load.span_index is None or load.span_index < count
         ]
         self._refresh()
+
+    def set_loads(self, loads: Sequence[IsolatedLoadInput]) -> None:
+        """Replace the list (each load's span must exist)"""
+        self._loads = list(loads)
+        self._refresh()
+        self.changed.emit()
 
     def set_wall_height(self, height_m: float) -> None:
         """Height of a new wall: the project's ceiling height (m)"""

@@ -1,6 +1,7 @@
 """Isolated beam calculator window (F11)."""
 
 from collections.abc import Callable
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -13,7 +14,11 @@ from PySide6.QtWidgets import (
 )
 
 from pavement_ui.core.model.isolated_beam_input import IsolatedBeamInput
-from pavement_ui.core.ports import DrawingExporter, IsolatedBeamEngine
+from pavement_ui.core.ports import (
+    DrawingExporter,
+    IsolatedBeamEngine,
+    IsolatedBeamStore,
+)
 from pavement_ui.core.results.outcomes import (
     IsolatedBeamOutcome,
     IsolatedBeamSuccess,
@@ -26,6 +31,9 @@ from pavement_ui.presentation.dialogs import messages
 from pavement_ui.presentation.execution.engine_executor import EngineExecutor
 from pavement_ui.presentation.isolated.beam_scheme_widget import BeamSchemeWidget
 from pavement_ui.presentation.isolated.config_summary_group import ConfigSummaryGroup
+from pavement_ui.presentation.isolated.isolated_file_controller import (
+    IsolatedFileController,
+)
 from pavement_ui.presentation.isolated.isolated_inputs_group import IsolatedInputsGroup
 from pavement_ui.presentation.isolated.isolated_results_tabs import IsolatedResultsTabs
 from pavement_ui.presentation.isolated.loads_group import LoadsGroup
@@ -49,6 +57,7 @@ class IsolatedBeamWindow(QWidget):
     match the inputs [Decisão]. The job runs on the shared engine executor:
     "Dimensionar" and the settings button wait while any job (also a pavement
     design) is running. edit_config opens the settings dialog over the given window.
+    The beam is saved and opened with the project settings (*.viga.yaml).
     """
 
     def __init__(
@@ -59,6 +68,7 @@ class IsolatedBeamWindow(QWidget):
         engine: IsolatedBeamEngine,
         exporter: DrawingExporter,
         edit_config: Callable[[QWidget], None],
+        store: IsolatedBeamStore,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent, Qt.WindowType.Window)
@@ -75,6 +85,9 @@ class IsolatedBeamWindow(QWidget):
         self._design = QPushButton(s.DESIGN)
         self._design.setObjectName("isoDesignButton")
         set_variant(self._design, "primary")
+        self._files = IsolatedFileController(
+            self, session, store, self._values, self._apply_input, self._on_path
+        )
         self._build_layout()
         self._overlay = BusyOverlay(self)
         self._spans.span_count_changed.connect(self._loads.set_span_count)
@@ -118,6 +131,8 @@ class IsolatedBeamWindow(QWidget):
         close.setObjectName("isoCloseButton")
         close.clicked.connect(self.close)
         footer = QHBoxLayout()
+        for button in self._files.buttons:
+            footer.addWidget(button)
         footer.addStretch(1)
         footer.addWidget(close)
         layout = QVBoxLayout(self)
@@ -141,6 +156,16 @@ class IsolatedBeamWindow(QWidget):
             loads=self._loads.loads(),
         )
 
+    def _apply_input(self, data: IsolatedBeamInput) -> None:
+        """Show a beam read from a file; spans first, so no load is dropped"""
+        self._inputs.set_section(data.width_cm, data.height_cm)
+        self._spans.set_values(data.span_lengths_m, data.pillars)
+        self._loads.set_loads(data.loads)
+        self._on_inputs_changed()
+
+    def _on_path(self, path: Path | None) -> None:
+        self.setWindowTitle(s.window_title(path.name if path else None))
+
     def _on_inputs_changed(self) -> None:
         self._loads.set_section(self._inputs.width_cm, self._inputs.height_cm)
         self._scheme.set_values(
@@ -153,6 +178,7 @@ class IsolatedBeamWindow(QWidget):
     def _on_busy(self, busy: bool) -> None:
         self._design.setEnabled(not busy)
         self._summary.set_edit_enabled(not busy)
+        self._files.set_enabled(not busy)
 
     def _run(self) -> None:
         if self._executor.busy:
