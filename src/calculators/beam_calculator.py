@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, cast
 
@@ -53,7 +54,7 @@ class BeamCalculator:
     def run(self) -> None:
         """Dimensions the beam span by span: builds the structural model, computes forces, then coordinates each span's stirrups with the longitudinal reinforcement of its interest points and distributes the stirrups in zones along the span.
 
-        The hogging moments at the supports are rounded for the support width (see ``_round_support_moments``); the moments used for the anchorage checks are not.
+        The hogging moments at the supports are rounded for the support width, except on rigid interior supports (see ``_round_support_moments``); the moments used for the anchorage checks are not.
 
         Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation. Once chosen, each span's bottom bars are extended into its supports where needed (see ``carry_span_bars_to_supports``), and then the end supports get the bars they lack to anchor the compression strut (see ``anchor_outer_supports``).
         """
@@ -63,7 +64,7 @@ class BeamCalculator:
         analysis = analyse_beam(structural_beam, supports, loads)
 
         interest_points = self._round_support_moments(
-            self._interest_points(analysis), analysis, structural_beam
+            self._interest_points(analysis), analysis, structural_beam, supports
         )
         moment_zeros = tuple(analysis.moment_zeros())  # cm
         self._build_stirrups(structural_beam, analysis)
@@ -86,6 +87,7 @@ class BeamCalculator:
                     [self._span_extreme(analysis, start, end)],
                     analysis,
                     structural_beam,
+                    supports,
                 )
                 log_operation(
                     f"No interest point in span {start:.2f}-{end:.2f} cm; using its greatest moment"
@@ -185,7 +187,7 @@ class BeamCalculator:
     ) -> tuple[float, ...]:
         """Reads the characteristic moment on each support, as seen by one span (kN.m).
 
-        A support with a rotational spring has a moment jump, so the span reads the side facing it: its start support from the right and its end support from the left. The other supports are read from the left.
+        A support with a rotational spring or a rigid one has a moment jump, so the span reads the side facing it: its start support from the right and its end support from the left. The other supports are read from the left.
 
         Args:
             span_index: Index of the span; it rests on supports ``span_index`` and ``span_index + 1``.
@@ -232,28 +234,39 @@ class BeamCalculator:
         points: list[tuple[float, float]],
         analysis: BeamAnalysis,
         structural_beam: RectangularBeam,
+        supports: list[BeamSupport],
     ) -> list[tuple[float, float]]:
         """Rounds the hogging moment of the points on a support, as allowed by NBR 6118:2026 item 14.6.3 (Figure 14.6).
 
         The support has a width, not a single point, so the peak of the moment diagram over it is reduced by ``ΔM = R·t/8``, with R the support reaction and t the support width along the beam. The reduced moment never changes sign. Positive moments and points away from the supports are kept as they are.
 
+        A rigid support is not rounded: its moment is the fixed-end moment, and item 14.6.6.1-b forbids a smaller hogging moment there.
+
         Args:
             points: `(position, moment)` pairs (position in cm, moment in kN.m, sagging positive).
             analysis: Solved beam, read for the support reactions.
             structural_beam: Beam whose supports give the pillar widths.
+            supports: Analysis supports, left to right, in the same order as the beam's supports; read for their rotational stiffness.
         """
         rounded: list[tuple[float, float]] = []
         for position, moment in points:
-            support = next(
+            index = next(
                 (
-                    support
-                    for support in structural_beam.supports
+                    index
+                    for index, support in enumerate(structural_beam.supports)
                     if abs(position - support.center)
                     <= SUPPORT_SPLIT_OFFSET + END_SUPPORT_TOLERANCE
                 ),
                 None,
             )
-            if support is None or moment >= 0:
+            if index is None or moment >= 0:
+                rounded.append((position, moment))
+                continue
+            support = structural_beam.supports[index]
+            if math.isinf(supports[index].rotational_stiffness):
+                log_operation(
+                    f"Support at {support.center:.2f} cm: rigid (NBR 6118:2026 14.6.6.1-b), moment {moment:.2f} kN.m not rounded"
+                )
                 rounded.append((position, moment))
                 continue
             reaction = analysis.reaction(support.center)  # kN
@@ -289,7 +302,7 @@ class BeamCalculator:
     ) -> list[tuple[float, float]]:
         """Splits every point on an interior support into two, SUPPORT_SPLIT_OFFSET to its left and right.
 
-        Each takes the support's moment on its own side (they differ where a rotational spring makes the moment jump). Points at the beam ends and elsewhere are kept as they are.
+        Each takes the support's moment on its own side (they differ where a rotational spring or a rigid support makes the moment jump). Points at the beam ends and elsewhere are kept as they are.
 
         Args:
             points: `(position, moment)` pairs (position in cm, moment in kN.m).
@@ -396,31 +409,32 @@ class BeamCalculator:
             span.set_stirrups(Stirrups(structural_beam, stirrup_calculator, self.label))
 
     def _build_supports(self) -> list[BeamSupport]:
-        """Builds an elastic-fixed support on each pillar along the beam.
+        """Builds a support on each pillar along the beam.
 
-        Each support restrains horizontal and vertical translation, and its rotation is restrained by the pillar's rotational stiffness (see ``Pillar.calculate_stiffness``). Positions accumulate the spans' effective lengths (cm).
+        Each support restrains horizontal and vertical translation. Its rotation is restrained by the pillar's rotational stiffness (see ``Pillar.calculate_stiffness_for_beam_supporting``), as NBR 6118:2026 item 14.6.6.1-c allows. An interior support wider than a quarter of the pillar's equivalent height is rigid instead (``math.inf``, see ``Pillar.is_rigid_inner_support``), so its hogging moment is the fixed-end moment (item 14.6.6.1-b). Positions accumulate the spans' effective lengths (cm).
 
         Returns:
             One support per span boundary, ordered left to right.
         """
-        # FIXME dont consider effective length caps on inner pillars
         axis = cast(Axis, self._beam.axis)
         positions = [0.0]
         for span in self._beam.spans:
             positions.append(
                 positions[-1] + span.get_effective_length(self._pillar_registry)
             )
-        return [
-            BeamSupport(
-                position,
-                self._pillar_registry[
-                    pillar_id
-                ].calculate_stiffness_for_beam_supporting(axis),
-            )
-            for position, pillar_id in zip(
-                positions, self._support_pillar_ids(), strict=True
-            )
-        ]
+        last = len(positions) - 1
+        supports: list[BeamSupport] = []
+        for index, (position, pillar_id) in enumerate(
+            zip(positions, self._support_pillar_ids(), strict=True)
+        ):
+            pillar = self._pillar_registry[pillar_id]
+            is_interior = 0 < index < last
+            if is_interior and pillar.is_rigid_inner_support(axis):
+                stiffness = math.inf
+            else:
+                stiffness = pillar.calculate_stiffness_for_beam_supporting(axis)
+            supports.append(BeamSupport(position, stiffness))
+        return supports
 
     def _support_pillar_ids(self) -> list[str]:
         """Returns the id of the pillar under each support, ordered left to right."""

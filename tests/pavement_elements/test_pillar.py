@@ -214,3 +214,36 @@ class TestCalculateStiffness:
             Concrete.C40.ecs / Concrete.C25.ecs,
             "Stiffness ratio should equal the Ecs ratio",
         )
+
+
+class TestIsRigidInnerSupport:
+    """NBR 6118:2026 14.6.6.1-b — interior support rigid when b_int > e/4, e = ceiling height."""
+
+    def test_wide_pillar_is_rigid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """b_int = 70 cm > e/4 = 62.5 cm (H = 2.5 m)."""
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+        pillar = Pillar(x=0, y=0, width=70, depth=20)
+        assert pillar.is_rigid_inner_support(Axis.X), "70 cm > 62.5 cm is rigid"
+
+    def test_width_equal_to_limit_is_elastic(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """b_int = e/4 = 62.5 cm is not "greater than" a quarter of the height."""
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+        pillar = Pillar(x=0, y=0, width=62.5, depth=20)
+        assert not pillar.is_rigid_inner_support(Axis.X), "b_int = e/4 is elastic"
+
+    def test_uses_extent_along_the_beam(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A 70×20 pillar is rigid for an X beam (b_int = 70) but not a Y beam (b_int = 20)."""
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+        pillar = Pillar(x=0, y=0, width=70, depth=20)
+        assert pillar.is_rigid_inner_support(Axis.X), "X beam reads the width"
+        assert not pillar.is_rigid_inner_support(Axis.Y), "Y beam reads the depth"
+
+    def test_follows_ceiling_height(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """b_int = 70 cm is rigid with H = 2.5 m (e/4 = 62.5) but not H = 3.0 m (e/4 = 75)."""
+        pillar = Pillar(x=0, y=0, width=70, depth=20)
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+        assert pillar.is_rigid_inner_support(Axis.X), "rigid with H = 2.5 m"
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 3.0)
+        assert not pillar.is_rigid_inner_support(Axis.X), "elastic with H = 3.0 m"

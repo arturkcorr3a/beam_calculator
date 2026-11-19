@@ -13,6 +13,8 @@ MIN_AREA_CM2 = 360.0  # cm² — ABNT NBR 6118 §13.2.3
 
 # PAPER get reference for this (https://wwwp.feb.unesp.br/pbastos/concreto2/Vigas.pdf)
 HALF_PILLAR_COEFFICIENT = 3  # 3EI/L — half-pillar with its far end pinned at mid-height
+# ABNT NBR 6118:2026 §14.6.6.1-b — interior support rigid when b_int > e/4
+RIGID_SUPPORT_HEIGHT_DIVISOR = 4
 
 
 @dataclass
@@ -98,6 +100,27 @@ class Pillar:
             f"Ic = {inertia:.0f} cm⁴, k = {stiffness:.1f} kN.m/rad"
         )
         return stiffness
+
+    def is_rigid_inner_support(self, axis: Axis) -> bool:
+        """Return whether this pillar, as an interior support, fixes the beam rigidly.
+
+        The support is rigid when its width along the beam, b_int, exceeds a quarter of the pillar's equivalent height e. Then the hogging moment cannot be smaller than the fixed-end moment. e is the distance between the mid-heights of the beams at the top and at the base of the lance; with equal beams on every floor it equals the ceiling height.
+
+        Args:
+            axis: Axis of the beam the pillar supports.
+
+        References:
+            ABNT NBR 6118:2026 — Section 14.6.6.1-b
+        """
+        width = self.get_parallel_extent(axis)  # cm, b_int
+        limit = APP_CONFIG.ceiling_height * 100 / RIGID_SUPPORT_HEIGHT_DIVISOR  # cm
+        is_rigid = width > limit
+        log_operation(
+            f"Pillar {self.id} as an interior support of a {axis.value} beam: "
+            f"b_int = {width:.1f} cm, e/4 = {limit:.1f} cm → "
+            f"{'rigid' if is_rigid else 'elastic'}"
+        )
+        return is_rigid
 
     def _validate_dimensions(self) -> None:
         """Enforce ABNT NBR 6118 minimum pillar cross-section requirements.

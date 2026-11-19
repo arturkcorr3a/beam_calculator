@@ -12,6 +12,8 @@ from src.analysis.model import BeamSupport, DistributedLoad
 from src.analysis.solver import analyse_beam
 from src.config import APP_CONFIG
 from src.config_options import Aggregate
+from src.pavement_elements.geometry_utils import Axis
+from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -26,6 +28,7 @@ SPRING_P3 = 2_753_955 / 100  # kN.m/rad
 SIDE_OFFSET = 1e-3  # cm, to read the shear just beside a support
 KN_CM_PER_KN_M = 100
 RELATIVE_TOLERANCE = 0.005  # 0.5 %, absorbs the book's rounded intermediates
+PILLAR_LANCE = 3.0  # m, column lance above and below the floor
 
 
 @pytest.fixture(autouse=True)
@@ -82,3 +85,16 @@ class TestElasticSupportMoments:
     def test_stiffer_spring_attracts_more_moment(self, analysis: BeamAnalysis) -> None:
         """Footnote 105 — P3 is stiffer than P1, so its moment is larger"""
         assert abs(analysis.bending_moment(LENGTH)) > abs(analysis.bending_moment(0))
+
+
+class TestInnerSupportClassification:
+    """Item 19 — P2 (b_int = 30 cm) is not wider than e/4 = 300/4 = 75 cm.
+
+    The book then models P2 as a simple support; the engine keeps the pillar's spring
+    there by design choice (Bastos, note 102), so only the classification is compared.
+    """
+
+    def test_p2_is_not_rigid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", PILLAR_LANCE)
+        p2 = Pillar(x=SPAN_1, y=0, width=30, depth=19)
+        assert not p2.is_rigid_inner_support(Axis.X), "b_int = 30 cm <= e/4 = 75 cm"

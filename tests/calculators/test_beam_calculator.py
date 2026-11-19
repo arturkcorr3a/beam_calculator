@@ -5,11 +5,14 @@ The integration test exercises the real end-to-end pipeline on a
 conservative 20×60 C25/CA50 single-span beam.
 """
 
+import math
 import types
 from itertools import pairwise
 
 import pytest
 
+from src.analysis.model import BeamSupport, DistributedLoad
+from src.analysis.solver import analyse_beam
 from src.calculators import beam_calculator
 from src.calculators.beam_calculator import BeamCalculator
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
@@ -20,6 +23,7 @@ from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import Stirrups, StirrupZone
+from src.structural_elements.rectangular_beam import RectangularBeam
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -89,11 +93,16 @@ def _make_calculator_stub(
     )
 
 
-def _make_registry() -> dict[str, Pillar]:
-    """Return 20x30 cm pillars keyed by the span stubs' pillar ids."""
+def _make_registry(widths: dict[str, float] | None = None) -> dict[str, Pillar]:
+    """Return 20x30 cm pillars keyed by the span stubs' pillar ids.
+
+    Args:
+        widths: Width (x extent, cm) per pillar id, replacing the default 20 cm; unknown ids add pillars.
+    """
+    widths = {"P1": 20.0, "P2": 20.0, **(widths or {})}
     return {
-        "P1": Pillar(x=0.0, y=0.0, width=20.0, depth=30.0),
-        "P2": Pillar(x=500.0, y=0.0, width=20.0, depth=30.0),
+        pillar_id: Pillar(x=0.0, y=0.0, width=width, depth=30.0, id=pillar_id)
+        for pillar_id, width in widths.items()
     }
 
 
@@ -160,6 +169,95 @@ class TestBuildSupports:
                 expected,
                 f"Support on {pillar_id} should use the pillar stiffness (kN.m/rad)",
             )
+
+    @staticmethod
+    def _three_support_stiffnesses(
+        monkeypatch: pytest.MonkeyPatch, widths: dict[str, float]
+    ) -> list[float]:
+        """Rotational stiffness of the supports on P1, P2 and P3 of a two-span X beam, H = 2.5 m (e/4 = 62.5 cm)."""
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+        spans = [_make_span_stub(), _make_span_stub()]
+        spans[1].start_pillar_id = "P2"
+        spans[1].end_pillar_id = "P3"
+        registry = _make_registry({"P3": 20.0, **widths})
+        bc = BeamCalculator(_make_beam_stub(spans=spans), registry)  # type: ignore[arg-type]
+        return [s.rotational_stiffness for s in bc._build_supports()]  # pyright: ignore[reportPrivateUsage]
+
+    def test_wide_interior_pillar_is_rigid(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """b_int = 70 cm > e/4 = 62.5 cm → fixed interior support (NBR 6118 14.6.6.1-b)."""
+        stiffnesses = self._three_support_stiffnesses(monkeypatch, {"P2": 70.0})
+        assert math.isinf(stiffnesses[1]), "Wide interior pillar should be rigid"
+        assert math.isfinite(stiffnesses[0]), "End support keeps its spring"
+        assert math.isfinite(stiffnesses[2]), "End support keeps its spring"
+
+    def test_narrow_interior_pillar_keeps_spring(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """b_int = 20 cm ≤ e/4 → the interior support keeps the pillar's spring (kN.m/rad)."""
+        stiffnesses = self._three_support_stiffnesses(monkeypatch, {})
+        expected = Pillar(
+            x=0.0, y=0.0, width=20.0, depth=30.0
+        ).calculate_stiffness_for_beam_supporting(Axis.X)
+        assert_approx(
+            stiffnesses[1], expected, "Narrow interior pillar keeps its spring"
+        )
+
+    def test_wide_end_pillar_keeps_spring(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A wide pillar at a beam end stays elastic (NBR 6118 14.6.6.1-c)."""
+        stiffnesses = self._three_support_stiffnesses(
+            monkeypatch, {"P1": 70.0, "P3": 70.0}
+        )
+        assert math.isfinite(stiffnesses[0]), "Wide start pillar keeps its spring"
+        assert math.isfinite(stiffnesses[2]), "Wide end pillar keeps its spring"
+
+    def test_rigid_interior_support_uncouples_the_spans(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Each side of a rigid interior support reads its span as if fixed there alone (kN.m)."""
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        spans = [
+            _make_span_stub(length_cm=400.0),
+            _make_span_stub(length_cm=600.0),
+        ]
+        spans[1].start_pillar_id = "P2"
+        spans[1].end_pillar_id = "P3"
+        registry = _make_registry({"P2": 70.0, "P3": 20.0})
+        bc = BeamCalculator(_make_beam_stub(spans=spans), registry)  # type: ignore[arg-type]
+        supports = bc._build_supports()  # pyright: ignore[reportPrivateUsage]
+        load = spans[0].permanent_load + spans[0].variable_load  # kN/m
+        analysis = analyse_beam(
+            bc._build_structural_beam(),  # pyright: ignore[reportPrivateUsage]
+            supports,
+            bc._build_loads(),  # pyright: ignore[reportPrivateUsage]
+        )
+
+        def alone(length: float, left: float, right: float) -> float:
+            """Moment at the rigid end of one span solved alone (kN.m)."""
+            beam = RectangularBeam(length, 20.0, 60.0, Steel.CA50)
+            single = analyse_beam(
+                beam,
+                [BeamSupport(0.0, left), BeamSupport(length, right)],
+                [DistributedLoad(0.0, length, load)],
+            )
+            return single.bending_moment(length if math.isinf(right) else 0.0)
+
+        assert_approx(
+            analysis.bending_moment(400.0),
+            alone(400.0, supports[0].rotational_stiffness, math.inf),
+            "Left side should match the 4 m span fixed at P2",
+            abs_tol=1e-3,
+        )
+        assert_approx(
+            analysis.bending_moment(400.0, from_right=True),
+            alone(600.0, math.inf, supports[2].rotational_stiffness),
+            "Right side should match the 6 m span fixed at P2",
+            abs_tol=1e-3,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -307,17 +405,37 @@ class TestRoundSupportMoments:
 
     @staticmethod
     def _round(
-        points: list[tuple[float, float]], reaction: float = 100.0
+        points: list[tuple[float, float]],
+        reaction: float = 100.0,
+        interior_stiffness: float = 1000.0,
     ) -> list[tuple[float, float]]:
-        """Run the rounding on supports at 0, 300 and 500 cm, 20 cm wide (kN reaction)."""
+        """Run the rounding on supports at 0, 300 and 500 cm, 20 cm wide (kN reaction).
+
+        Args:
+            interior_stiffness: Rotational stiffness of the support at 300 cm (kN.m/rad); the end supports get 1000 kN.m/rad.
+        """
         analysis = types.SimpleNamespace(reaction=lambda position: reaction)  # pyright: ignore[reportUnknownLambdaType]
-        supports = [
+        centers = (0.0, 300.0, 500.0)
+        geometry = [
             types.SimpleNamespace(center=c, left=c - 10.0, right=c + 10.0)
-            for c in (0.0, 300.0, 500.0)
+            for c in centers
         ]
-        structural_beam = types.SimpleNamespace(supports=supports)
+        structural_beam = types.SimpleNamespace(supports=geometry)
+        supports = [
+            BeamSupport(0.0, 1000.0),
+            BeamSupport(300.0, interior_stiffness),
+            BeamSupport(500.0, 1000.0),
+        ]
         bc = BeamCalculator(_make_beam_stub(), {})  # type: ignore[arg-type]
-        return bc._round_support_moments(points, analysis, structural_beam)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+        return bc._round_support_moments(points, analysis, structural_beam, supports)  # pyright: ignore[reportPrivateUsage, reportArgumentType]
+
+    def test_rigid_support_not_rounded(self) -> None:
+        """A rigid interior support keeps the fixed-end moment (NBR 6118 14.6.6.1-b)."""
+        points = [(299.99, -60.0), (300.01, -50.0)]
+
+        assert self._round(points, interior_stiffness=math.inf) == points, (
+            "rigid support moments should not be rounded"
+        )
 
     def test_interior_support_reduced_on_both_sides(self) -> None:
         """R = 100 kN, t = 20 cm → ΔM = 2.5 kN.m on each side of the split point."""
