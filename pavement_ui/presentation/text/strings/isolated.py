@@ -3,6 +3,17 @@
 from typing import Final
 
 TITLE: Final = "Calculadora de viga isolada"
+OPEN: Final = "Abrir…"
+SAVE: Final = "Salvar"
+SAVE_AS: Final = "Salvar como…"
+TOO_MANY_SPANS: Final = "a viga tem {count} vãos; o máximo é {maximum}."
+
+
+def window_title(file_name: str | None) -> str:
+    """Title with the open file's name, if any"""
+    return f"{TITLE} — {file_name}" if file_name else TITLE
+
+
 SECTION: Final = "Seção"
 WIDTH: Final = "Largura b (≥ 12)"
 HEIGHT: Final = "Altura h"
@@ -13,6 +24,7 @@ AGG_SIZE: Final = "Dim. máx. agregado"
 MAX_BAR_TYPES: Final = "Máx. diâmetros"
 MAX_LAYERS: Final = "Máx. camadas"
 CEILING_HEIGHT: Final = "Pé-direito"
+EDIT_CONFIG: Final = "Configurações do pavimento…"
 CM_VALUE: Final = "{value} cm"
 M_VALUE: Final = "{value} m"
 DESIGN: Final = "Dimensionar"

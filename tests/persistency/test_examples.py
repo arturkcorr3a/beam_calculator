@@ -15,7 +15,10 @@ from src.config import APP_CONFIG, AppConfig
 from src.persistency import load_pavement
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "resources" / "examples"
-EXAMPLE_FILES = sorted(EXAMPLES_DIR.glob("*.yaml"))
+# *.viga.yaml are isolated-beam files (pavement_ui), not pavements
+EXAMPLE_FILES = sorted(
+    path for path in EXAMPLES_DIR.glob("*.yaml") if not path.name.endswith(".viga.yaml")
+)
 TEMPLATE = EXAMPLES_DIR / "template.yaml"
 
 

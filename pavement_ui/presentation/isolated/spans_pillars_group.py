@@ -1,5 +1,7 @@
 """Vãos e pilares: span lengths and the pillar under each support."""
 
+from collections.abc import Sequence
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QGroupBox,
@@ -76,6 +78,16 @@ class SpansPillarsGroup(QGroupBox):
 
     def pillars(self) -> tuple[IsolatedPillarInput, ...]:
         return tuple(IsolatedPillarInput(w, d) for w, d in self._pillars.values())
+
+    def set_values(
+        self,
+        span_lengths_m: Sequence[float],
+        pillars: Sequence[IsolatedPillarInput],
+    ) -> None:
+        """Replace every span and pillar (one more pillar than spans)"""
+        self._set_span_count(len(span_lengths_m))
+        self._spans.set_values([(length,) for length in span_lengths_m])
+        self._pillars.set_values([(p.width_cm, p.depth_cm) for p in pillars])
 
     def _set_span_count(self, count: int) -> None:
         count = max(1, min(MAX_SPANS, count))

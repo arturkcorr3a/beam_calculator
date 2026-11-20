@@ -79,6 +79,11 @@ ABOUT_TEXT: Final = (
 # --- file dialogs -------------------------------------------------------------
 FILE_FILTER: Final = "Pavimento (*.yaml *.yml)"
 FILE_EXTENSION: Final = ".yaml"
+OPEN_BEAM_TITLE: Final = "Abrir viga isolada"
+SAVE_BEAM_TITLE: Final = "Salvar viga isolada"
+BEAM_FILE_FILTER: Final = "Viga isolada (*.viga.yaml *.viga.yml)"
+BEAM_FILE_EXTENSION: Final = ".viga.yaml"
+BEAM_FILE_EXTENSIONS: Final = (".viga.yaml", ".viga.yml")
 
 # --- report export ------------------------------------------------------------
 EXPORT_PDF_TITLE: Final = "Exportar relatório em PDF"

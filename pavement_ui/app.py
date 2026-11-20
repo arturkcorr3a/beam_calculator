@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from pavement_ui.core.engine.drawing_exporter import DxfDrawingExporter
 from pavement_ui.core.engine.isolated_beam_engine import IsolatedBeamCalculator
+from pavement_ui.core.engine.isolated_beam_store import YamlIsolatedBeamStore
 from pavement_ui.core.engine.pavement_gateway import PavementGateway
 from pavement_ui.core.engine.project_store import YamlProjectStore
 from pavement_ui.core.events import EventBus
@@ -45,7 +46,12 @@ def build_main_window() -> MainWindow:
     bridge = QtSessionBridge(bus)
     executor = EngineExecutor()
     window = MainWindow(
-        session, bridge, executor, IsolatedBeamCalculator(), DxfDrawingExporter()
+        session,
+        bridge,
+        executor,
+        IsolatedBeamCalculator(),
+        DxfDrawingExporter(),
+        YamlIsolatedBeamStore(),
     )
     bridge.setParent(window)
     executor.setParent(window)

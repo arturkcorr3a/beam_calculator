@@ -207,6 +207,12 @@ PATTERNS: tuple[MessagePattern, ...] = (
         r"^No category matching '(?P<value>[^']*)' was found\.$",
         "Categoria “{value}” não encontrada (NBR 6120, Tabela 10).",
     ),
+    # --- isolated beam files (pavement_ui.core.engine.isolated_beam_store) ---
+    _p(r"^Not an isolated beam file\.$", "O arquivo não é de uma viga isolada."),
+    _p(
+        r"^Invalid isolated beam field '(?P<value>[^']*)'\.$",
+        "Campo “{value}” ausente ou com valor inválido.",
+    ),
     # --- prefix added by dimension and detail: must stay last ---------------
     _p(rf"^Beam {_ID}: (?P<rest>.+)$", "Viga “{id}”: {rest}"),
 )
