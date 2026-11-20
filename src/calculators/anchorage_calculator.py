@@ -106,7 +106,7 @@ class AnchorageCalculator:
     def run_end_support(self, left: bool) -> None:
         """Anchor the layer bars into the end support they are centered on
 
-        Tensioned top bars (negative moment) run over the pillar to its outer face minus the covering, then bend down into it as a frame joint: D per Section 18.2.2 and a straight leg of l_b,nec (α = 0.7, hooked). The leg goes into the pillar, so the section height does not limit it. Other bars keep a standard hook at the support's center, which must fit in the section height.
+        Tensioned top bars (negative moment) run over the pillar to its outer face minus the covering, then bend down into it as a frame joint: D per Section 18.2.2 and a straight leg of l_b,nec (α = 0.7, hooked). The leg goes into the pillar, so the section height does not limit it. Other bars take a standard hook and run over the whole support, to its outer face minus the covering; the hook must fit in the section height.
 
         Args:
             left: Whether the support is on the left (x = 0); otherwise on the right (x = L).
@@ -127,7 +127,11 @@ class AnchorageCalculator:
         if not is_frame_joint:
             self.check_hook_fits()
             self.layer.set_hooks(self.left, True)
-            self.layer.set_anchorage_length(0.0, self.left)
+            horizontal_length = self._end_support_horizontal_length()  # cm
+            self.layer.set_anchorage_length(horizontal_length, self.left)
+            log_operation(
+                f"Anchorage length of {horizontal_length:.2f} cm set over the end support (full available length)."
+            )
             self._record()
             return
 
@@ -135,17 +139,7 @@ class AnchorageCalculator:
         leg_length = self.necessary_anchorage_length  # cm
         self.layer.set_frame_joint_hooks(self.left, leg_length)
 
-        support = self._extremity_support
-        center = self.reinforcement.center_position  # cm
-        outer_face_distance = (
-            center - support.left if self.left else support.right - center
-        )  # cm
-        horizontal_length = max(
-            self.get_adjusted_available_space_for_hooks(
-                outer_face_distance - RectangularBeam.nominal_covering
-            ),
-            0.0,
-        )  # cm
+        horizontal_length = self._end_support_horizontal_length()  # cm
         self.layer.set_anchorage_length(horizontal_length, self.left)
         bend_diameter = self.steel.frame_joint_bend_diameter(self.max_diameter)  # cm
         log_property(
@@ -155,6 +149,20 @@ class AnchorageCalculator:
             f"Anchorage length of {horizontal_length:.2f} cm set over the end support, bent into it as a frame joint."
         )
         self._record()
+
+    def _end_support_horizontal_length(self) -> float:
+        """Length from the support's center to the outer face minus the covering, adjusted for the hook covering (cm)"""
+        support = self._extremity_support
+        center = self.reinforcement.center_position  # cm
+        outer_face_distance = (
+            center - support.left if self.left else support.right - center
+        )  # cm
+        return max(
+            self.get_adjusted_available_space_for_hooks(
+                outer_face_distance - RectangularBeam.nominal_covering
+            ),
+            0.0,
+        )
 
     def support_anchorage_length(self, support_index: int, left: bool) -> float:
         """Calculate the bar length past the section needed to anchor inside a support
@@ -487,10 +495,14 @@ class AnchorageCalculator:
             )  # cm
             past_face = self.outer_support_anchorage_length  # cm
             if past_face <= space:
-                self.layer.set_anchorage_length(face_distance + past_face, self.left)
+                # Hooked bars use all the room inside the support
+                length_past_face = space if with_hooks else past_face  # cm
+                self.layer.set_anchorage_length(
+                    face_distance + length_past_face, self.left
+                )
                 hooks_state = "with hooks" if with_hooks else "without hooks"
                 log_operation(
-                    f"Anchorage length of {face_distance + past_face:.2f} cm set {hooks_state} ({past_face:.2f} cm past face)."
+                    f"Anchorage length of {face_distance + length_past_face:.2f} cm set {hooks_state} ({length_past_face:.2f} cm past face)."
                 )
                 self._record()
                 return None
