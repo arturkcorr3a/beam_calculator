@@ -1,0 +1,26 @@
+# beam_calculator — viga isolada
+# Unidades: seção e pilares em cm, vãos e altura de parede em m, cargas em kN/m.
+# O vão de uma carga começa em 1 (V1); sem 'span', vale para todos os vãos.
+
+section: {width: 19.0, height: 60.0}
+
+spans: [7.19, 7.14]
+
+pillars:
+- {width: 19.0, depth: 19.0}
+- {width: 30.0, depth: 19.0}
+- {width: 30.0, depth: 19.0}
+
+loads:
+- {type: custom, label: Carga do Exemplo, value: 22.62, variable: false, psi_2: 0.3}
+
+config:
+  aggregate: granite
+  max_aggregate_size: 2.5
+  max_bar_types: 3
+  max_layers: 3
+  pavement_concrete: C30
+  pavement_steel: CA50
+  building_category: Residential buildings
+  exposure_class: 1
+  ceiling_height: 3.0
