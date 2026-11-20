@@ -67,8 +67,8 @@ def build_pavement() -> Pavement:
         p21,
     ]
 
-    wall_14 = WallDefinition(False, "Hollow ceramic block", 14, 1)  # 1.5 kN/m²
-    wall_19 = WallDefinition(False, "Hollow ceramic block", 19, 1)  # 1.8 kN/m²
+    wall_14 = WallDefinition("Hollow ceramic block", 14, 1)  # 1.5 kN/m²
+    wall_19 = WallDefinition("Hollow ceramic block", 19, 1)  # 1.8 kN/m²
 
     v1 = ContinuousBeam([p1.id, p2.id, p3.id, p4.id], p1.id, 19, Alignment.TOP, wall_19)
     v2 = ContinuousBeam(

@@ -31,9 +31,8 @@ from tests.helpers import assert_approx
 
 @pytest.fixture
 def wall() -> WallDefinition:
-    """Non-structural hollow-block wall, 14 cm nominal, 1 cm coating."""
+    """Hollow-block wall, 14 cm nominal, 1 cm coating."""
     return WallDefinition(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,
         coating_thickness=1,
@@ -94,12 +93,12 @@ def horizontal_beam(
 
 
 class TestWallDefinition:
-    """WallDefinition.get_parameters_for_load returns the 4-tuple in field order."""
+    """WallDefinition.get_parameters_for_load returns the 3-tuple in field order."""
 
     def test_returns_correct_tuple(self, wall: WallDefinition) -> None:
         result = wall.get_parameters_for_load()
-        assert result == (False, "hollow concrete block", 14, 1), (
-            "get_parameters_for_load should return (structural, masonry_type, nominal, coating)"
+        assert result == ("hollow concrete block", 14, 1), (
+            "get_parameters_for_load should return (masonry_type, nominal, coating)"
         )
 
 
@@ -609,6 +608,30 @@ class TestLoadSpans:
         for span in horizontal_beam.spans:
             assert_approx(
                 span.permanent_load, 5.0, "load should be own_weight + wall = 5.0 kN/m"
+            )
+
+    def test_load_spans_without_wall_has_zero_wall_load(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        horizontal_beam.wall = None
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+        horizontal_beam.pre_size(registry_horizontal)
+
+        monkeypatch.setattr(
+            LinearLoads,
+            "get_concrete_element_own_weight",
+            lambda area: 2.0,  # type: ignore
+        )
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+
+        horizontal_beam.load_spans()
+
+        for span in horizontal_beam.spans:
+            assert_approx(
+                span.permanent_load, 2.0, "without a wall the load is own weight only"
             )
 
     def test_load_spans_keeps_own_weight_and_wall_components(

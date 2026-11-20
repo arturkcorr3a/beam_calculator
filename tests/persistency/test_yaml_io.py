@@ -71,7 +71,6 @@ def build_pavement() -> Pavement:
         pavement.add_pillar(pillar)
 
     wall = WallDefinition(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,  # cm
         coating_thickness=1,  # cm per face
@@ -207,7 +206,6 @@ def test_unknown_pillar_reference_raises() -> None:
                 "width": 16,
                 "alignment": "bottom",
                 "wall": {
-                    "structural": False,
                     "masonry_type": "hollow concrete block",
                     "nominal_thickness": 14,
                     "coating_thickness": 1,
@@ -412,7 +410,7 @@ class TestLayout:
         )
 
     def test_nested_mappings_are_indented(self, text: str) -> None:
-        assert "\n    wall:\n      structural: " in text, (
+        assert "\n    wall:\n      masonry_type: " in text, (
             "the wall mapping should be nested under its beam"
         )
 

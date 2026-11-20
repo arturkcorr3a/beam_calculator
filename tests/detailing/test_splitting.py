@@ -280,7 +280,7 @@ def long_span_pavement() -> Pavement:
     ]
     for pillar in pillars:
         pavement.add_pillar(pillar)
-    wall = WallDefinition(False, "hollow concrete block", 14, 1)
+    wall = WallDefinition("hollow concrete block", 14, 1)
     pavement.add_beam(
         ContinuousBeam(
             [p.id for p in pillars], pillars[0].id, 20, Alignment.CENTER, wall

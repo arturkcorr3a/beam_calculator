@@ -77,8 +77,8 @@ class TConcL4Example(SimpleExample):
             p21,
         ]
 
-        wall_14 = WallDefinition(False, "Hollow ceramic block", 14, 1)
-        wall_19 = WallDefinition(False, "Hollow ceramic block", 19, 1)
+        wall_14 = WallDefinition("Hollow ceramic block", 14, 1)
+        wall_19 = WallDefinition("Hollow ceramic block", 19, 1)
 
         v1 = ContinuousBeam(
             [p1.id, p2.id, p3.id, p4.id], p1.id, 19, Alignment.TOP, wall_19

@@ -45,15 +45,13 @@ _MAX_PRE_SIZE_ITERATIONS = 10  # guard for the height ↔ effective span fixed p
 
 @dataclass
 class WallDefinition:
-    structural: bool
     masonry_type: str
     nominal_thickness: float
     coating_thickness: int
 
-    def get_parameters_for_load(self) -> tuple[bool, str, float, int]:
+    def get_parameters_for_load(self) -> tuple[str, float, int]:
         """Returns the parameters needed for calculating the wall load."""
         return (
-            self.structural,
             self.masonry_type,
             self.nominal_thickness,
             self.coating_thickness,
@@ -72,7 +70,7 @@ class ContinuousBeam:
     reference_pillar_id: str
     width: float
     alignment: Alignment
-    wall: WallDefinition
+    wall: WallDefinition | None  # None: no wall on the beam, zero wall load
 
     id: str = field(default="", kw_only=True)  # empty: generated from the counter
     axis: Axis | None = field(default=None, init=False)
@@ -489,8 +487,10 @@ class ContinuousBeam:
         own_weight = LinearLoads.get_concrete_element_own_weight(area_m2)  # kN/m
         # Wall occupies the clear height below the beam: ceiling height - beam height.
         wall_height = max(APP_CONFIG.ceiling_height - self.height / 100, 0.0)  # m
-        wall_weight = LinearLoads.get_wall_load(
-            *self.wall.get_parameters_for_load(), wall_height
+        wall_weight = (
+            LinearLoads.get_wall_load(*self.wall.get_parameters_for_load(), wall_height)
+            if self.wall is not None
+            else 0.0
         )  # kN/m
         log_operation(
             f"Loads: self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m"
