@@ -1065,11 +1065,11 @@ class TestRunOuterSupport:
         )
         clamps = ac.run(available_space=37.0, left=True)
         ac.left = True  # hooks are on, so the length is the hooked one
-        expected = 13.75 + ac.outer_support_anchorage_length  # cm
+        expected = 13.75 + 48.2  # cm, face distance + room with the hook cover
         assert clamps is None, "No clamps when hooked bars fit"
         for bar in layer_16mm_good.bars:
             assert bar.left_hook_enabled, "Bars need hooks to fit"
-            assert_approx(bar.left_length, expected, "Face distance + past face (cm)")
+            assert_approx(bar.left_length, expected, "Face distance + room (cm)")
 
     def test_clamps_complete_anchorage(self, layer_16mm_good: Layer) -> None:
         """Support -10..10: room 17.5 cm, 15.7 cm with the hook cover"""
@@ -1355,7 +1355,11 @@ class TestRunEndSupport:
         for bar in layer.bars:
             assert bar.left_hook_enabled, "The bar keeps its hook"
             assert bar.left_hook_geometry is None, "The hook is the standard one"
-            assert bar.left_length == 0.0, "No length past the support's center"
+            assert_approx(
+                bar.left_length,
+                10.0 - max(3.0, 3 * 1.6),
+                "Axis to the outer face, with the hook cover (cm)",
+            )
 
     @pytest.mark.usefixtures("tall_hooks")
     def test_other_bars_check_hook_fits(self, layer_16mm_good: Layer) -> None:

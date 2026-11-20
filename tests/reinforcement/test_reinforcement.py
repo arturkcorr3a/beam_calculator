@@ -41,6 +41,7 @@ def beam_double() -> RectangularBeam:
         width=20.0,
         height=60.0,
         length=500.0,
+        supports=[Support(0.0, -10.0, 10.0), Support(500.0, 490.0, 510.0)],
     )
     return cast(RectangularBeam, beam)
 
@@ -497,7 +498,7 @@ class TestEndSupportAnchorage:
         reinforcement = _make_reinforcement(beam_double, center_position=0.0)
         reinforcement.set_required_area(4.02)
         for bar in _bars(reinforcement):
-            assert bar.left_length == 0, "No left anchorage at the beam start"
+            assert bar.left_length > 0, "Left bar runs over the start support"
             assert bar.right_length > 0, "Right anchorage should be calculated"
             assert bar.left_hook_enabled is True, (
                 "Left hook should anchor the bar into the start support"
@@ -511,7 +512,7 @@ class TestEndSupportAnchorage:
         reinforcement = _make_reinforcement(beam_double, center_position=500.0)
         reinforcement.set_required_area(4.02)
         for bar in _bars(reinforcement):
-            assert bar.right_length == 0, "No right anchorage at the beam end"
+            assert bar.right_length > 0, "Right bar runs over the end support"
             assert bar.left_length > 0, "Left anchorage should be calculated"
             assert bar.right_hook_enabled is True, (
                 "Right hook should anchor the bar into the end support"
@@ -593,13 +594,18 @@ class TestEndSupportAnchorage:
     def test_top_compressed_bars_keep_standard_hook(
         self, pillar_beam: RectangularBeam
     ) -> None:
-        """Compressed top bars at x = 0 keep the standard hook with zero length (cm)."""
+        """Compressed top bars at x = 0 keep the standard hook and run to the outer face (cm)."""
         reinforcement = _make_top_reinforcement(pillar_beam, 0.0, is_tensioned=False)
         reinforcement.set_required_area(4.02)
         for bar in _bars(reinforcement):
             assert bar.left_hook_enabled is True, "The bar keeps its hook"
             assert bar.left_hook_geometry is None, "The hook is the standard one"
-            assert bar.left_length == 0, "No left anchorage at the beam start"
+            expected_length = 10.0 - max(
+                RectangularBeam.nominal_covering, 3 * bar.diameter_mm / 10
+            )  # cm
+            assert_approx(
+                bar.left_length, expected_length, "Axis to the outer face (cm)"
+            )
 
 
 @pytest.fixture
