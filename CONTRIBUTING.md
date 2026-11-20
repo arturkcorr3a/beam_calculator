@@ -86,9 +86,9 @@ tags:
 
 The `0.y.z` versions are the development ones; `v1.0.0` is the delivered TCC.
 
-To publish, go to **Actions → Release → Run workflow** on `master` and choose
-the part that goes up (`patch`, `minor` or `major`); tick *pre-release* for a
-test version (`v0.3.0-rc1`, `rc2`...). The workflow
+Every merge to `master` publishes the next **patch** version by itself. For a
+`minor` or `major` one, go to **Actions → Release → Run workflow** on `master`
+and choose the part that goes up; tick *pre-release* for a test version (`v0.3.0-rc1`, `rc2`...). The workflow
 ([.github/workflows/release.yml](.github/workflows/release.yml)) computes the
 next version from the tags (`packaging/next_version.sh`), builds and tests the
 Windows, Fedora and Linux packages, and only then creates the tag and the GitHub
@@ -97,7 +97,7 @@ Release, with the pull requests merged since the previous version as notes.
 artifacts. Pushing a `v*` tag by hand publishes it as well.
 
 Only the repository owner publishes, and only from `master`: the workflow
-refuses a publishing run started or re-run by anyone else, run from another
+refuses a publishing run (a merge included) by anyone else, run from another
 branch, or for a tag on a commit that is not in `master`. On GitHub, the
 `release` environment of the publishing job admits only `master` and `v*` tags,
 whatever the workflow file says. Anyone with write access can still run `none`

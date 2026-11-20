@@ -2,12 +2,14 @@
 # Publish from Actions → Release → Run workflow, choosing which part of the
 # version goes up: the workflow computes the next version, builds, tests, and
 # only then creates its tag and Release. "none" builds and tests without
-# publishing (the packages are in the run's artifacts). Pushing a v* tag by
-# hand also publishes it.
+# publishing (the packages are in the run's artifacts). Every merge to master
+# publishes a patch version by itself. Pushing a v* tag by hand also
+# publishes it.
 name: Release
 
 on:
   push:
+    branches: [master]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -49,7 +51,7 @@ jobs:
           RC: ${{ inputs.prerelease && 'rc' || '' }}
         run: |
           # A test build publishes nothing: anyone with write access may run it
-          if [[ "$GITHUB_EVENT_NAME" != push && "$BUMP" == none ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$BUMP" == none ]]; then
             echo "tag=" >> "$GITHUB_OUTPUT"
             echo "### Version: none (test build)" >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -62,7 +64,7 @@ jobs:
             fi
           done
           # ...and only from master, also for a tag pushed by hand
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
             if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
               echo "::error::The tag $GITHUB_REF_NAME is not on a commit of master"
               exit 1
@@ -71,6 +73,9 @@ jobs:
           elif [[ "$GITHUB_REF" != refs/heads/master ]]; then
             echo "::error::Versions are published from master only"
             exit 1
+          elif [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            # A merge to master: always a patch version
+            tag="$(packaging/next_version.sh patch)"
           else
             tag="$(packaging/next_version.sh "$BUMP" "$RC")"
           fi
