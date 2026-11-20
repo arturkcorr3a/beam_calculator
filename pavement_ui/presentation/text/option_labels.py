@@ -23,7 +23,6 @@ class OptionKind(Enum):
     USAGE = auto()
     MASONRY = auto()
     LOG_LEVEL = auto()
-    LOG_OUTPUT = auto()
     SLAB_TYPE = auto()
     EDGE = auto()
     SUPPORT_CONDITION = auto()
@@ -49,11 +48,6 @@ _EXPOSURES: Final = {
     "MODERATE": "II – Moderada",
     "SEVERE": "III – Forte",
     "VERY_SEVERE": "IV – Muito forte",
-}
-_LOG_OUTPUTS: Final = {
-    "CONSOLE": "Console",
-    "FILE": "Arquivo",
-    "BOTH": "Console e arquivo",
 }
 _SLAB_TYPES: Final = {
     "one_way": "Armada em uma direção",
@@ -87,8 +81,6 @@ def _labels(kind: OptionKind) -> Mapping[str, str]:
             return CATEGORY_LABELS
         case OptionKind.USAGE:
             return USAGE_LABELS
-        case OptionKind.LOG_OUTPUT:
-            return _LOG_OUTPUTS
         case OptionKind.SLAB_TYPE:
             return _SLAB_TYPES
         case OptionKind.EDGE:

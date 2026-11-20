@@ -52,7 +52,6 @@ class EngineOptions:
     building_categories: tuple[str, ...] = ()
     alignments: tuple[str, ...] = ()
     log_levels: tuple[str, ...] = ()
-    log_outputs: tuple[str, ...] = ()
     masonry: tuple[MasonryOption, ...] = ()
     usages_by_category: tuple[tuple[str, tuple[str, ...]], ...] = ()
     log_dir: str = ""

@@ -130,5 +130,4 @@ CONFIG_CATEGORY_HINT: Final = (
 CONFIG_CEILING: Final = "Pé-direito"
 CONFIG_LOG: Final = "Memorial de cálculo (não é salvo no arquivo)"
 CONFIG_LOG_LEVEL: Final = "Nível de detalhe"
-CONFIG_LOG_OUTPUT: Final = "Saída"
 CONFIG_LOG_HINT: Final = "Pasta: {folder}\nArquivo: beam_calculator_<data-hora>.log"

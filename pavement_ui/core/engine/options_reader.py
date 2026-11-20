@@ -6,7 +6,7 @@ from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.data.nbr6120_2019.table_2.data import TABLE_2
 from src.data.nbr6120_2019.table_2.model import MasonryType, Thickness
 from src.data.nbr6120_2019.table_10.data import TABLE_10
-from src.logger import LogLevel, LogOutput, default_logs_dir
+from src.logger import LogLevel, default_logs_dir
 from src.pavement_elements.geometry_utils import Alignment
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -63,7 +63,6 @@ def read_options() -> EngineOptions:
         building_categories=tuple(to_key(c) for c in OccupancyCategory),
         alignments=tuple(to_key(a) for a in _ALIGNMENT_ORDER),
         log_levels=tuple(to_key(level) for level in LogLevel),
-        log_outputs=tuple(to_key(o) for o in LogOutput),
         masonry=_masonry(),
         usages_by_category=_usages_by_category(),
         log_dir=str(default_logs_dir()),
