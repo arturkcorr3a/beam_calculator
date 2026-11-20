@@ -221,3 +221,6 @@ __marimo__/
 /docs/
 /notas.md
 /example.ipynb
+
+# Claude Code worktrees (claude -w)
+/.claude/worktrees/
