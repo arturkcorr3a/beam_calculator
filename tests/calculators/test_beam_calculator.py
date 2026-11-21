@@ -985,6 +985,55 @@ class TestRunIntegration:
             "run() should populate the beam's reinforcement list"
         )
 
+    def test_run_skips_skin_reinforcement_up_to_60(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A 60 cm high beam may omit the skin reinforcement"""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+        span = _make_span_stub(permanent_load=15.0, variable_load=5.0, length_cm=500.0)
+        beam_stub = _make_beam_stub(spans=[span], beam_id="V_low")
+
+        BeamCalculator(beam_stub, _make_registry()).run()  # type: ignore[arg-type]
+
+        assert span.skin_reinforcement is None, "h = 60 cm needs no skin bars"
+
+    def test_run_chooses_skin_reinforcement_above_60(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A 70 cm high beam gets skin bars over the web between its bottom and top bars (cm)"""
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C25)
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA50)
+        span = _make_span_stub(permanent_load=15.0, variable_load=5.0, length_cm=500.0)
+        beam_stub = _make_beam_stub(spans=[span], beam_id="V_high", height=70.0)
+
+        BeamCalculator(beam_stub, _make_registry()).run()  # type: ignore[arg-type]
+
+        layout = span.skin_reinforcement.layout
+        assert layout is not None, "h = 70 cm needs skin bars"
+        assert layout.area_per_face >= 0.001 * 20.0 * 70.0, (
+            "skin bars cover 0.10 % of the web per face (cm²)"
+        )
+        # cm, from each point's bottom bars to its top bars
+        bands: list[tuple[float, float]] = []
+        for calculator in beam_stub.rebar_calculators:
+            tensioned = calculator.tensioned_reinforcement
+            compressed = calculator.compressed_reinforcement
+            bottom, top = (
+                (tensioned, compressed)
+                if tensioned.is_bottom_reinforcement
+                else (compressed, tensioned)
+            )
+            bands.append((bottom.face_extent(), 70.0 - top.face_extent()))
+        assert (layout.band_start, layout.band_end) in bands, (
+            "the band runs from a point's bottom bars to its top bars (cm)"
+        )
+        assert_approx(
+            layout.band_height,
+            max(end - start for start, end in bands),
+            "the point with the widest band governs (cm)",
+        )
+
     def test_run_keeps_results_for_reading(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

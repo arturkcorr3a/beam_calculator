@@ -293,6 +293,26 @@ class TestClampsFit:
         assert not top.clamps_fit(10, 9), "Nine φ10 clamps pass mid-height"
 
 
+class TestFaceExtent:
+    """Distance from the face to the inner edge of its bars (cover 2.5 + stirrup 1.0 cm)."""
+
+    def test_single_layer(self, reinforcement: Reinforcement) -> None:
+        """2φ16: 3.5 + 1.6 = 5.1 cm"""
+        _place_layers(reinforcement, (16, 16))
+        assert_approx(reinforcement.face_extent(), 5.1, "extent (cm)")
+
+    def test_two_layers(self, reinforcement: Reinforcement) -> None:
+        """2φ16 + 2φ12.5: 3.5 + 1.6 + 2 + 1.25 = 8.35 cm"""
+        _place_layers(reinforcement, (16, 16), (12.5, 12.5))
+        assert_approx(reinforcement.face_extent(), 8.35, "extent (cm)")
+
+    def test_no_bars_counts_construction_bar(
+        self, reinforcement: Reinforcement
+    ) -> None:
+        """No chosen bars: a construction bar with the stirrup's φ1.0, 3.5 + 1.0 = 4.5 cm"""
+        assert_approx(reinforcement.face_extent(), 4.5, "extent (cm)")
+
+
 class TestValidateLayerIndex:
     """Tests for the layer-index bounds check."""
 
