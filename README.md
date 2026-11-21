@@ -13,7 +13,7 @@ according to the Brazilian standard ABNT NBR 6118. You draw the floor plan
   a calculation log of every run.
 
 An isolated continuous beam calculator is also available, outside the floor plan.
-Its beams can be saved and opened as `.viga.yaml` files, together with the
+Its beams can be saved and opened as `.beam.yaml` files, together with the
 project settings.
 
 **Language:** the interface, the reports and the drawings are currently
@@ -48,11 +48,11 @@ repository). Open one with **Arquivo → Abrir exemplo…**: it opens as an unti
 project, so **Salvar** asks where to save your copy and the example stays
 unchanged.
 
-- `pavimento_residencial.yaml`: residential floor with 21 pillars and 8 slabs;
-- `pavimento_laje_rebaixada.yaml`: 8 pillars and 3 slabs, one of them lowered;
-- `template.yaml`: a small pavement in which every field is explained (meaning,
+- `residencial.pavement.yaml`: residential floor with 21 pillars and 8 slabs;
+- `laje_rebaixada.pavement.yaml`: 8 pillars and 3 slabs, one of them lowered;
+- `template.pavement.yaml`: a small pavement in which every field is explained (meaning,
   unit and accepted values), to start a project by editing the file by hand;
-- `template.viga.yaml`: the same for the isolated beam calculator, a two-span
+- `template.beam.yaml`: the same for the isolated beam calculator, a two-span
   beam with every field explained. Open it with the calculator's **Abrir…**
   button (it replaces the project settings with the file's ones).
 

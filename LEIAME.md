@@ -13,7 +13,7 @@ pavimento tipo segundo a ABNT NBR 6118. Você desenha a planta do pavimento
   grava um memorial de cálculo a cada execução.
 
 Também há uma calculadora de viga contínua isolada, fora da planta. As vigas
-dela podem ser salvas e abertas em arquivos `.viga.yaml`, junto com as
+dela podem ser salvas e abertas em arquivos `.beam.yaml`, junto com as
 configurações do projeto.
 
 **Idioma:** por enquanto, a interface, os relatórios e os desenhos estão
@@ -46,11 +46,11 @@ O programa vem com pavimentos de exemplo e um modelo comentado, na pasta
 um deles em **Arquivo → Abrir exemplo…**: ele abre como projeto sem título, então
 **Salvar** pergunta onde gravar a sua cópia e o exemplo não é alterado.
 
-- `pavimento_residencial.yaml`: pavimento residencial com 21 pilares e 8 lajes;
-- `pavimento_laje_rebaixada.yaml`: 8 pilares e 3 lajes, uma delas rebaixada;
-- `template.yaml`: um pavimento pequeno com cada campo explicado (significado,
+- `residencial.pavement.yaml`: pavimento residencial com 21 pilares e 8 lajes;
+- `laje_rebaixada.pavement.yaml`: 8 pilares e 3 lajes, uma delas rebaixada;
+- `template.pavement.yaml`: um pavimento pequeno com cada campo explicado (significado,
   unidade e valores aceitos), para começar um projeto editando o arquivo à mão;
-- `template.viga.yaml`: o mesmo para a calculadora de viga isolada, uma viga de
+- `template.beam.yaml`: o mesmo para a calculadora de viga isolada, uma viga de
   dois vãos com cada campo explicado. Abra-o pelo botão **Abrir…** da
   calculadora (ele substitui as configurações do projeto pelas do arquivo).
 

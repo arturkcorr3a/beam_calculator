@@ -57,7 +57,7 @@ class IsolatedBeamWindow(QWidget):
     match the inputs [Decisão]. The job runs on the shared engine executor:
     "Dimensionar" and the settings button wait while any job (also a pavement
     design) is running. edit_config opens the settings dialog over the given window.
-    The beam is saved and opened with the project settings (*.viga.yaml).
+    The beam is saved and opened with the project settings (*.beam.yaml).
     """
 
     def __init__(

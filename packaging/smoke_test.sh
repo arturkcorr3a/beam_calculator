@@ -13,7 +13,7 @@ examples="$(dirname "$exe")/exemplos"
 logs="${XDG_STATE_HOME:-$HOME/.local/state}/beam_calculator/log"
 
 # Arquivo › Abrir exemplo… opens this folder
-if [[ ! -f "$examples/template.yaml" ]]; then
+if [[ ! -f "$examples/template.pavement.yaml" ]]; then
     echo "No example pavements in $examples" >&2
     exit 1
 fi

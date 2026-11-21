@@ -3,8 +3,8 @@
 Usage::
 
     python -m src.main --example t_concreto2 [--log-level ELEMENT] [--log-output console]
-    python -m src.main --load pavimento_laje_rebaixada [--log-level GENERAL] [--log-output both]
-    python -m src.main --load pavimento_residencial --display SAVE
+    python -m src.main --load laje_rebaixada [--log-level GENERAL] [--log-output both]
+    python -m src.main --load residencial --display SAVE
 
 ``--display`` draws the detailed beams of the resulting pavement: SHOW opens each beam's sheet in a
 window, SAVE writes every drawing to
@@ -33,6 +33,7 @@ from src.persistency import load_pavement
 
 EXAMPLES_DIR = Path(__file__).parent / "examples"
 PAVEMENTS_DIR = Path(__file__).parent.parent / "resources" / "examples"
+PAVEMENT_EXTENSION = ".pavement.yaml"
 RESULTS_DIR = Path(__file__).parent.parent / "results"
 EXAMPLES_PACKAGE = "src.examples"
 _INTERFACE_MODULE = "simple_example"
@@ -61,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument(
         "--load",
         metavar="PATH",
-        help="YAML file in resources/examples/ to load and resolve (.yaml is optional).",
+        help="YAML file in resources/examples/ to load and resolve (.pavement.yaml is optional).",
     )
     parser.add_argument(
         "--log-level",
@@ -98,14 +99,18 @@ def available_examples() -> list[str]:
 
 
 def available_pavements() -> list[str]:
-    """List the YAML file names in resources/examples/, sorted"""
-    return sorted(path.name for path in PAVEMENTS_DIR.glob("*.yaml"))
+    """List the pavement file names (*.pavement.yaml) in resources/examples/, sorted"""
+    return sorted(path.name for path in PAVEMENTS_DIR.glob(f"*{PAVEMENT_EXTENSION}"))
 
 
 def resolve_pavement(name: str) -> Path:
-    """Map a ``--load`` value to a file in resources/examples/, adding ``.yaml`` if missing"""
+    """Map a ``--load`` value to a file in resources/examples/, adding ``.pavement.yaml`` if missing"""
     path = PAVEMENTS_DIR / name
-    return path if path.suffix == ".yaml" else path.with_name(f"{path.name}.yaml")
+    return (
+        path
+        if name.endswith(PAVEMENT_EXTENSION)
+        else path.with_name(f"{path.name}{PAVEMENT_EXTENSION}")
+    )
 
 
 def find_example(module: ModuleType) -> SimpleExample:
@@ -210,7 +215,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 f"file '{load}' not found in {PAVEMENTS_DIR}; "
                 f"available: {', '.join(available_pavements())}"
             )
-        name = path.stem
+        name = path.name.removesuffix(PAVEMENT_EXTENSION)
         apply_log_options(log_level, log_output)
         pavement = load_pavement(path)
         pavement.resolve()
