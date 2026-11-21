@@ -20,19 +20,17 @@ _MASONRY = (
     MasonryType(
         type_description="Hollow concrete block (Class C - ABNT NBR 6136)",
         thicknesses=(
-            Thickness( 6.5, 1.0, 1.4, 1.8),
-            Thickness( 9.0, 1.1, 1.5, 1.9),
+            Thickness(6.5, 1.0, 1.4, 1.8),
+            Thickness(9.0, 1.1, 1.5, 1.9),
             Thickness(11.5, 1.3, 1.7, 2.1),
             Thickness(14.0, 1.4, 1.8, 2.2),
             Thickness(19.0, 1.8, 2.2, 2.6),
         ),
     ),
     MasonryType(
-        type_description=(
-            "Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)"
-        ),
+        type_description=("Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)"),
         thicknesses=(
-            Thickness( 9.0, 0.7, 1.1, 1.6),
+            Thickness(9.0, 0.7, 1.1, 1.6),
             Thickness(11.5, 0.9, 1.3, 1.7),
             Thickness(14.0, 1.1, 1.5, 1.9),
             Thickness(19.0, 1.4, 1.8, 2.3),
@@ -40,11 +38,10 @@ _MASONRY = (
     ),
     MasonryType(
         type_description=(
-            "Autoclaved aerated concrete block "
-            "(Class C25 - ABNT NBR 13438)"
+            "Autoclaved aerated concrete block (Class C25 - ABNT NBR 13438)"
         ),
         thicknesses=(
-            Thickness( 7.5, 0.5, 0.9, 1.3),
+            Thickness(7.5, 0.5, 0.9, 1.3),
             Thickness(10.0, 0.6, 1.0, 1.4),
             Thickness(12.5, 0.8, 1.2, 1.6),
             Thickness(15.0, 0.9, 1.3, 1.7),
@@ -54,9 +51,7 @@ _MASONRY = (
     ),
     MasonryType(
         type_description="Glass block (decorative, non-fire-rated)",
-        thicknesses=(
-            Thickness(8.0, 0.8, None, None),
-        ),
+        thicknesses=(Thickness(8.0, 0.8, None, None),),
     ),
 )
 
