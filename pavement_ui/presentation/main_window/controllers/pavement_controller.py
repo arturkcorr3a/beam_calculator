@@ -32,6 +32,6 @@ class PavementController:
         self._forms[kind].focus_first()
 
     def clear(self) -> None:
-        """Remove every element after confirmation; the numbering continues"""
+        """Remove every element after confirmation; the numbering restarts"""
         if messages.confirm_clear(self._window):
             self._session.clear_pavement()

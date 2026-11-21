@@ -6,6 +6,7 @@ from typing import Final
 CANCEL: Final = "Cancelar"
 CLEAR: Final = "Apagar"
 NEW: Final = "Novo"
+REMOVE: Final = "Excluir"
 SAVE: Final = "Salvar"
 
 # --- inclusion ----------------------------------------------------------------
@@ -26,13 +27,21 @@ STRUCTURE_VALID_DETAIL: Final = (
 DESIGN_TITLE: Final = "Dimensionar"
 DESIGN_INTERRUPTED: Final = "O dimensionamento foi interrompido."
 DESIGN_UNEXPECTED: Final = "Ocorreu um erro inesperado no cálculo."
+BUDGET_TITLE: Final = "Orçamento"
+BUDGET_FAILED: Final = "Não foi possível calcular o orçamento."
+BUDGET_PRICE_LABEL: Final = "Preço do concreto (R$/m³):"
 
 # --- confirmations ------------------------------------------------------------
 CLEAR_TITLE: Final = "Apagar pavimento"
 CLEAR_QUESTION: Final = "Apagar todos os pilares, vigas e lajes?"
 CLEAR_DETAIL: Final = (
     "Esta ação não pode ser desfeita. "
-    "A numeração dos novos elementos continua de onde parou."
+    "A numeração dos novos elementos recomeça em P1, V1 e L1."
+)
+REMOVE_PILLAR_TITLE: Final = "Excluir pilar"
+REMOVE_PILLAR_QUESTION: Final = "Excluir {pillar}?"
+REMOVE_PILLAR_DETAIL: Final = (
+    "Também serão excluídos os elementos que usam este pilar: {ids}."
 )
 NEW_TITLE: Final = "Novo projeto"
 NEW_QUESTION: Final = "Começar um novo projeto?"
@@ -77,13 +86,14 @@ ABOUT_TEXT: Final = (
 )
 
 # --- file dialogs -------------------------------------------------------------
-FILE_FILTER: Final = "Pavimento (*.yaml *.yml)"
-FILE_EXTENSION: Final = ".yaml"
+FILE_FILTER: Final = "Pavimento (*.pavement.yaml *.pavement.yml)"
+FILE_EXTENSION: Final = ".pavement.yaml"
+FILE_EXTENSIONS: Final = (".pavement.yaml", ".pavement.yml")
 OPEN_BEAM_TITLE: Final = "Abrir viga isolada"
 SAVE_BEAM_TITLE: Final = "Salvar viga isolada"
-BEAM_FILE_FILTER: Final = "Viga isolada (*.viga.yaml *.viga.yml)"
-BEAM_FILE_EXTENSION: Final = ".viga.yaml"
-BEAM_FILE_EXTENSIONS: Final = (".viga.yaml", ".viga.yml")
+BEAM_FILE_FILTER: Final = "Viga isolada (*.beam.yaml *.beam.yml)"
+BEAM_FILE_EXTENSION: Final = ".beam.yaml"
+BEAM_FILE_EXTENSIONS: Final = (".beam.yaml", ".beam.yml")
 
 # --- report export ------------------------------------------------------------
 EXPORT_PDF_TITLE: Final = "Exportar relatório em PDF"
@@ -130,5 +140,4 @@ CONFIG_CATEGORY_HINT: Final = (
 CONFIG_CEILING: Final = "Pé-direito"
 CONFIG_LOG: Final = "Memorial de cálculo (não é salvo no arquivo)"
 CONFIG_LOG_LEVEL: Final = "Nível de detalhe"
-CONFIG_LOG_OUTPUT: Final = "Saída"
 CONFIG_LOG_HINT: Final = "Pasta: {folder}\nArquivo: beam_calculator_<data-hora>.log"

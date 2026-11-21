@@ -11,6 +11,7 @@ from src.reinforcement.stirrups import Stirrups
 if TYPE_CHECKING:
     from src.pavement_elements.continuous_beam import ContinuousBeam
     from src.pavement_elements.slab import Slab
+    from src.reinforcement.skin_reinforcement import SkinReinforcement
 
 
 @dataclass
@@ -37,6 +38,9 @@ class Span:
         default=0.0, init=False
     )  # kN, greatest |V| inside the span, set when stirrups are dimensioned
     stirrups: Stirrups = field(init=False)
+    skin_reinforcement: SkinReinforcement | None = field(
+        default=None, init=False
+    )  # None when the beam is too low to need it
     load_components: list[LoadComponent] = field(
         default_factory=list[LoadComponent], init=False
     )

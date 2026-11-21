@@ -6,14 +6,17 @@ pavimento tipo segundo a ABNT NBR 6118. Você desenha a planta do pavimento
 
 - distribui as cargas das lajes para as vigas (cargas da ABNT NBR 6120);
 - pré-dimensiona lajes e vigas e verifica as flechas de lajes e vigas;
-- analisa cada viga contínua e dimensiona as armaduras longitudinais e os
-  estribos, com ancoragem, emendas por traspasse e barras de apoio;
+- analisa cada viga contínua e dimensiona as armaduras longitudinais, os
+  estribos e, nas vigas com mais de 60 cm de altura, a armadura de pele, com
+  ancoragem, emendas por traspasse e barras de apoio;
 - detalha as barras e calcula os quantitativos de aço, concreto e fôrma;
+- orça o aço (SINAPI, 10/2026) e o concreto (preço informado pelo usuário) das
+  vigas, em valores líquidos, com exportação em PDF;
 - exporta os desenhos das vigas (PDF e DXF) e o relatório de cálculo (PDF), e
   grava um memorial de cálculo a cada execução.
 
 Também há uma calculadora de viga contínua isolada, fora da planta. As vigas
-dela podem ser salvas e abertas em arquivos `.viga.yaml`, junto com as
+dela podem ser salvas e abertas em arquivos `.beam.yaml`, junto com as
 configurações do projeto.
 
 **Idioma:** por enquanto, a interface, os relatórios e os desenhos estão
@@ -46,11 +49,11 @@ O programa vem com pavimentos de exemplo e um modelo comentado, na pasta
 um deles em **Arquivo → Abrir exemplo…**: ele abre como projeto sem título, então
 **Salvar** pergunta onde gravar a sua cópia e o exemplo não é alterado.
 
-- `pavimento_residencial.yaml`: pavimento residencial com 21 pilares e 8 lajes;
-- `pavimento_laje_rebaixada.yaml`: 8 pilares e 3 lajes, uma delas rebaixada;
-- `template.yaml`: um pavimento pequeno com cada campo explicado (significado,
+- `residencial.pavement.yaml`: pavimento residencial com 21 pilares e 8 lajes;
+- `laje_rebaixada.pavement.yaml`: 8 pilares e 3 lajes, uma delas rebaixada;
+- `template.pavement.yaml`: um pavimento pequeno com cada campo explicado (significado,
   unidade e valores aceitos), para começar um projeto editando o arquivo à mão;
-- `template.viga.yaml`: o mesmo para a calculadora de viga isolada, uma viga de
+- `template.beam.yaml`: o mesmo para a calculadora de viga isolada, uma viga de
   dois vãos com cada campo explicado. Abra-o pelo botão **Abrir…** da
   calculadora (ele substitui as configurações do projeto pelas do arquivo).
 
@@ -79,8 +82,13 @@ python -m pavement_ui
 - **Vigas retangulares.** A contribuição da laje como mesa (viga T) não é
   considerada, e os momentos fletores não são redistribuídos.
 - **Estado-limite último na flexão e no cisalhamento**, só com combinações
-  normais (ABNT NBR 6118, Tabela 11.1). Torção, armadura de pele e abertura de
-  fissuras (ELS-W) não são verificadas.
+  normais (ABNT NBR 6118, Tabela 11.1). Torção e abertura de fissuras (ELS-W)
+  não são verificadas.
+- **Armadura de pele até a face dos pilares.** Vigas com mais de 60 cm de
+  altura recebem a armadura de pele mínima de cada vão (ABNT NBR 6118,
+  17.3.5.2.3), detalhada, desenhada e contada nos quantitativos, com a marca
+  "(PELE)". As barras de cada vão ficam só no vão livre, de face a face dos
+  pilares, sem comprimento de ancoragem nos apoios.
 - **A flecha (ELS-DEF)** é verificada só contra o limite de aceitabilidade
   sensorial visual, l/250.
 - **Um aço e uma classe de concreto por projeto**, só armadura passiva (sem

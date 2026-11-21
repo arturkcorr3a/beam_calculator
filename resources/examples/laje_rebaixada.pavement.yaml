@@ -1,6 +1,6 @@
 # beam_calculator — pavimento
 # Unidades: coordenadas e dimensões em cm, cargas em kN/m², pé-direito em m.
-# Modelo comentado, com todos os campos e valores aceitos: template.yaml,
+# Modelo comentado, com todos os campos e valores aceitos: template.pavement.yaml,
 # na pasta de exemplos.
 
 # Pilares: centro (x, y) e seção (width × depth), em cm
@@ -60,7 +60,6 @@ beams:
     width: 19
     alignment: center
     wall:
-      structural: false
       masonry_type: hollow concrete block
       nominal_thickness: 14
       coating_thickness: 1
@@ -70,7 +69,6 @@ beams:
     width: 14
     alignment: center
     wall:
-      structural: false
       masonry_type: hollow concrete block
       nominal_thickness: 14
       coating_thickness: 1
@@ -80,7 +78,6 @@ beams:
     width: 19
     alignment: center
     wall:
-      structural: false
       masonry_type: hollow concrete block
       nominal_thickness: 14
       coating_thickness: 1
@@ -90,7 +87,6 @@ beams:
     width: 19
     alignment: left
     wall:
-      structural: false
       masonry_type: hollow concrete block
       nominal_thickness: 14
       coating_thickness: 1
@@ -100,7 +96,6 @@ beams:
     width: 14
     alignment: center
     wall:
-      structural: false
       masonry_type: hollow concrete block
       nominal_thickness: 14
       coating_thickness: 1
@@ -110,7 +105,6 @@ beams:
     width: 19
     alignment: right
     wall:
-      structural: false
       masonry_type: hollow concrete block
       nominal_thickness: 14
       coating_thickness: 1

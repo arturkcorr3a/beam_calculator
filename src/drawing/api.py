@@ -23,12 +23,17 @@ PNG_DPI = 200
 
 
 def check_detailing(detailing: DetailingBeam) -> None:
-    """Check that every bar, clamp and stirrup of a beam has its mark
+    """Check that every bar, skin bar, clamp and stirrup of a beam has its mark
 
     Raises:
         DrawingError: If any mark is missing, as after ``beam.detail()`` without ``pavement.resolve()``.
     """
-    items = [*detailing.bars, *detailing.clamps, *detailing.stirrups]
+    items = [
+        *detailing.bars,
+        *detailing.skin_bars,
+        *detailing.clamps,
+        *detailing.stirrups,
+    ]
     if any(item.mark is None for item in items):
         raise DrawingError(f"{detailing.beam_id}: {MISSING_MARKS}")
 

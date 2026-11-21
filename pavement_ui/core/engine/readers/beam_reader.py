@@ -8,6 +8,7 @@ from pavement_ui.core.engine.readers.design_point_reader import read_point
 from pavement_ui.core.engine.readers.diagram_sampler import sample
 from pavement_ui.core.engine.readers.drawing_reader import read_drawing, report_config
 from pavement_ui.core.engine.readers.reinforcement_reader import read_stirrup
+from pavement_ui.core.engine.readers.skin_design_reader import read_skin_design
 from pavement_ui.core.engine.readers.stirrup_design_reader import read_stirrup_design
 from pavement_ui.core.results.beam_design import LoadEntry, LoadSource
 from pavement_ui.core.results.beam_result import BeamResult, SpanResult, SupportMark
@@ -91,6 +92,7 @@ def _spans(
             stirrup=read_stirrup(span.stirrups),
             loads=_loads(span),
             stirrup_design=read_stirrup_design(span.stirrups),
+            skin_design=read_skin_design(span.skin_reinforcement),
         )
         for index, span in enumerate(beam.spans, start=1)
     )

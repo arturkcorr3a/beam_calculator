@@ -95,10 +95,22 @@ STIRRUP_ZONES: Final = "Zonas de estribos"
 COL_STRETCH: Final = "Trecho (m)"
 COL_SPACING: Final = "s (cm)"
 STRETCH: Final = "{start} – {end}"
-BARS: Final = "4.6 Resumo das armaduras longitudinais"
+SKIN: Final = "4.6 Armadura de pele"
+SKIN_NOT_REQUIRED: Final = (
+    "Dispensada: a viga tem altura de até 60 cm (NBR 6118 §17.3.5.2.3)."
+)
+SKIN_TEXT: Final = (
+    "Barras em cada face lateral da alma, entre as barras inferiores e as "
+    "superiores, no vão livre (PELE)."
+)
+COL_SKIN_REQ: Final = "A_s,pele,nec (cm²/face)"
+COL_SKIN_BARS: Final = "Barras por face"
+COL_SKIN_EF: Final = "A_s,pele,ef (cm²/face)"
+COL_SKIN_BAND: Final = "Faixa y (cm)"
+BARS: Final = "4.7 Resumo das armaduras longitudinais"
 BARS_TEXT: Final = (
     "Comprimentos da parte reta, medidos do ponto central (ponto de "
-    "dimensionamento; meio da barra, nas de montagem) até cada ponta. "
+    "dimensionamento; meio da barra, nas de montagem e de pele) até cada ponta. "
     "Os ganchos somam ao comprimento de corte."
 )
 COL_MARK: Final = "Posição"
@@ -113,6 +125,7 @@ FACE_BOTTOM: Final = "inferior"
 FACE_TOP: Final = "superior"
 FACE_LAYER: Final = "{face} · camada {layer}"
 FACE_CONSTRUCTION: Final = "{face} · montagem"
+FACE_SKIN: Final = "laterais (PELE)"
 
 # --- beam: 5 consumption ------------------------------------------------------
 CONSUMPTION: Final = "5. Consumo de materiais"
@@ -181,3 +194,27 @@ COL_MASS: Final = "Massa (kg)"
 COL_STEEL: Final = "Aço (kg)"
 COL_CONCRETE: Final = "Concreto (m³)"
 COL_FORMWORK: Final = "Fôrma (m²)"
+
+# --- budget -------------------------------------------------------------------
+BUDGET_REPORT_TITLE: Final = "Orçamento das vigas — {name}"
+BUDGET_FILE_NAME: Final = "orcamento_{name}.pdf"
+BUDGET_TEXT: Final = (
+    "Custo de material só das vigas, em valores líquidos: sem perdas, lajes, "
+    "pilares, fôrma e mão de obra."
+)
+BUDGET_REFERENCES: Final = "Referências de preço"
+STEEL_REFERENCE: Final = "{reference}"
+CONCRETE_REFERENCE: Final = "Preço informado pelo usuário em {date}"
+BUDGET_STEEL: Final = "Aço {grade}"
+BUDGET_STEEL_TEXT: Final = (
+    "Insumo dobrado e cortado quando o SINAPI o tem para a bitola; senão, vergalhão."
+)
+BUDGET_CONCRETE: Final = "Concreto"
+BUDGET_SUMMARY: Final = "Resumo"
+COL_SINAPI: Final = "Insumo SINAPI"
+COL_PRICE_KG: Final = "R$/kg"
+COL_PRICE_M3: Final = "R$/m³"
+COL_COST: Final = "Custo (R$)"
+COL_CLASS: Final = "Classe"
+COL_VOLUME: Final = "Volume (m³)"
+DATE_TIME_FORMAT: Final = "%d/%m/%Y %H:%M"

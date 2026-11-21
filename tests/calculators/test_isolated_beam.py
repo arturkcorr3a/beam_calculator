@@ -22,7 +22,6 @@ from tests.helpers import assert_approx
 
 _PILLAR = IsolatedPillar(20.0, 20.0)
 _WALL = WallDefinition(
-    structural=False,
     masonry_type="hollow concrete block",
     nominal_thickness=14,
     coating_thickness=1,

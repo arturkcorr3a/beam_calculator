@@ -293,7 +293,6 @@ class TestLoadBeamSpans:
 def _auto_id_beam() -> ContinuousBeam:
     """Build a minimal beam with a counter-generated id."""
     wall = WallDefinition(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,
         coating_thickness=1,
@@ -585,7 +584,11 @@ class TestPrintBeamReports:
         p = Pavement()
         beam = _make_beam_double("VA")
         beam.detailing = types.SimpleNamespace(  # type: ignore[assignment]
-            report=lambda: "detailing:VA", bars=[], clamps=[], stirrups=[]
+            report=lambda: "detailing:VA",
+            bars=[],
+            skin_bars=[],
+            clamps=[],
+            stirrups=[],
         )
         p.add_beam(beam)
 
@@ -734,7 +737,7 @@ def resolved_single_panel() -> Pavement:
     pavement = Pavement()
     for pillar in corners:
         pavement.add_pillar(pillar)
-    wall = WallDefinition(False, "hollow concrete block", 14, 1)
+    wall = WallDefinition("hollow concrete block", 14, 1)
     for ids, alignment in [
         ([bottom_left.id, bottom_right.id], Alignment.BOTTOM),
         ([top_left.id, top_right.id], Alignment.TOP),

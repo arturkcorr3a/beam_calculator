@@ -75,7 +75,7 @@ class TestPillarExtent:
                 f"{beam.beam_id}: 10 cm under the lowest leg, 20 cm at least"
             )
             bottoms.append(bottom)
-        assert min(bottoms) < -50.0, "V6's frame-node leg goes about 41 cm down"
+        assert min(bottoms) < -45.0, "V6's frame-node leg goes about 36 cm down"
 
 
 class TestElevation:

@@ -6,7 +6,7 @@ from src.config_options import Aggregate, ExposureClass, OccupancyCategory
 from src.data.nbr6120_2019.table_2.data import TABLE_2
 from src.data.nbr6120_2019.table_2.model import MasonryType, Thickness
 from src.data.nbr6120_2019.table_10.data import TABLE_10
-from src.logger import LogLevel, LogOutput, default_logs_dir
+from src.logger import LogLevel, default_logs_dir
 from src.pavement_elements.geometry_utils import Alignment
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -30,15 +30,13 @@ def _thickness_option(thickness: Thickness) -> ThicknessOption:
     return ThicknessOption(thickness.nominal_cm, coatings)
 
 
-def _masonry_option(masonry: MasonryType, structural: bool) -> MasonryOption:
+def _masonry_option(masonry: MasonryType) -> MasonryOption:
     thicknesses = tuple(_thickness_option(t) for t in masonry.thicknesses)
-    return MasonryOption(masonry.type_description, structural, thicknesses)
+    return MasonryOption(masonry.type_description, thicknesses)
 
 
 def _masonry() -> tuple[MasonryOption, ...]:
-    non_bearing = (_masonry_option(m, False) for m in TABLE_2.non_bearing_masonry)
-    structural = (_masonry_option(m, True) for m in TABLE_2.structural_masonry)
-    return (*non_bearing, *structural)
+    return tuple(_masonry_option(m) for m in TABLE_2.masonry)
 
 
 def _usages_by_category() -> tuple[tuple[str, tuple[str, ...]], ...]:
@@ -63,7 +61,6 @@ def read_options() -> EngineOptions:
         building_categories=tuple(to_key(c) for c in OccupancyCategory),
         alignments=tuple(to_key(a) for a in _ALIGNMENT_ORDER),
         log_levels=tuple(to_key(level) for level in LogLevel),
-        log_outputs=tuple(to_key(o) for o in LogOutput),
         masonry=_masonry(),
         usages_by_category=_usages_by_category(),
         log_dir=str(default_logs_dir()),

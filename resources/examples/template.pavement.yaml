@@ -78,20 +78,13 @@ pillars:
 #                          bottom  face inferior alinhada (viga horizontal)
 #                          left    face esquerda alinhada (viga vertical)
 #                          right   face direita alinhada (viga vertical)
-#   wall                 parede apoiada sobre a viga (ABNT NBR 6120, Tabela 2):
-#     structural         false: alvenaria de vedação; true: alvenaria estrutural
-#     masonry_type       tipo de alvenaria. Vedação (structural: false):
+#   wall                 parede apoiada sobre a viga (ABNT NBR 6120, Tabela 2);
+#                        null: viga sem parede (carga de parede zero):
+#     masonry_type       tipo de alvenaria de vedação:
 #                          Hollow concrete block (Class C - ABNT NBR 6136)
 #                          Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)
 #                          Autoclaved aerated concrete block (Class C25 - ABNT NBR 13438)
 #                          Glass block (decorative, non-fire-rated)
-#                        Estrutural (structural: true):
-#                          Hollow concrete block (Classes A and B - ABNT NBR 6136)
-#                          Hollow ceramic block with solid walls (Vertical holes - ABNT NBR 15270-1)
-#                          Hollow ceramic block with hollow walls (Vertical holes - ABNT NBR 15270-1)
-#                          Solid ceramic brick (ABNT NBR 15270-1)
-#                          Hollow calcium silicate block (Class E - ABNT NBR 14974-1)
-#                          Perforated calcium silicate block (Classes E, F and G - ABNT NBR 14974-1)
 #     nominal_thickness  espessura nominal do bloco (cm), uma das da Tabela 2
 #                        para o tipo escolhido (ex.: 9, 11.5, 14, 19)
 #     coating_thickness  revestimento por face (cm): 0, 1 ou 2
@@ -101,7 +94,6 @@ beams:
     width: 16
     alignment: bottom
     wall:
-      structural: false
       masonry_type: Hollow ceramic block
       nominal_thickness: 14
       coating_thickness: 1
@@ -111,7 +103,6 @@ beams:
     width: 16
     alignment: top
     wall:
-      structural: false
       masonry_type: Hollow ceramic block
       nominal_thickness: 14
       coating_thickness: 1
@@ -121,7 +112,6 @@ beams:
     width: 16
     alignment: left
     wall:
-      structural: false
       masonry_type: Hollow ceramic block
       nominal_thickness: 14
       coating_thickness: 1
@@ -131,7 +121,6 @@ beams:
     width: 16
     alignment: right
     wall:
-      structural: false
       masonry_type: Hollow ceramic block
       nominal_thickness: 14
       coating_thickness: 1

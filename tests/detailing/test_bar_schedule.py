@@ -5,6 +5,7 @@ from dataclasses import replace
 from src.detailing.bar_schedule import ScheduleRow, build_schedule, schedule_table
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.span_stirrups import SpanStirrups
 from src.properties.steel import Steel
@@ -121,3 +122,41 @@ class TestScheduleTable:
             "300",
             "600",
         ], "Mark, kind, diameter, quantity, unit and total lengths"
+
+
+def _skin(
+    start: float = 10.0,
+    end: float = 235.0,
+    diameter_mm: float = 8,
+    mark: str | None = None,
+) -> DetailedSkinBars:
+    """Build the skin bars of span P1–P2: two rows, at 15 and 25 cm"""
+    return DetailedSkinBars(
+        start_pillar_id="P1",
+        end_pillar_id="P2",
+        diameter_mm=diameter_mm,
+        steel=Steel.CA50,
+        heights=(15.0, 25.0),
+        start=start,
+        end=end,
+        mark=mark,
+    )
+
+
+class TestSkinRows:
+    """Skin bars get schedule rows of kind "skin"."""
+
+    def test_skin_row(self) -> None:
+        beam = _beam()
+        beam.skin_bars = [_skin(mark="N4")]
+        rows = build_schedule([beam])
+        assert rows == [
+            ScheduleRow(
+                mark="N4", kind="skin", diameter_mm=8, quantity=4, unit_length=225
+            )
+        ], "2 rows x 2 side faces of 225 cm"
+
+    def test_unmarked_skin_left_out(self) -> None:
+        beam = _beam()
+        beam.skin_bars = [_skin()]
+        assert build_schedule([beam]) == [], "no mark, no row"

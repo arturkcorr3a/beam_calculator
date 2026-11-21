@@ -40,8 +40,6 @@ class LogValues:
 
     Attributes:
         level_key: Log level key (e.g. "GENERAL").
-        output_key: Log output key (e.g. "BOTH").
     """
 
     level_key: str = "GENERAL"
-    output_key: str = "BOTH"

@@ -71,8 +71,7 @@ class Table2:
         reference: Normative reference.
         description: Human-readable description of the table contents.
         units: Mapping of physical quantity to unit string.
-        structural_masonry: Masonry types classified as structural.
-        non_bearing_masonry: Masonry types classified as non-bearing (infill).
+        masonry: Non-bearing (infill) masonry types; structural masonry is out of scope.
         weight_composition_notes: Footnotes on weight composition assumptions.
     """
 
@@ -80,19 +79,14 @@ class Table2:
     reference: str
     description: str
     units: dict[str, str]
-    structural_masonry: tuple[MasonryType, ...]
-    non_bearing_masonry: tuple[MasonryType, ...]
+    masonry: tuple[MasonryType, ...]
     weight_composition_notes: tuple[str, ...]
 
-    def find_masonry_type(self, description: str, structural: bool) -> MasonryType:
-        """Find a masonry type by (partial, case-insensitive) description match, with a structural filter flag."""
-        masonries = self.structural_masonry if structural else self.non_bearing_masonry
-
+    def find_masonry_type(self, description: str) -> MasonryType:
+        """Find a masonry type by (partial, case-insensitive) description match."""
         query = description.lower()
-        for masonry in masonries:
+        for masonry in self.masonry:
             if query in masonry.type_description.lower():
-                log_property(
-                    f"masonry: '{masonry.type_description}' ({'structural' if structural else 'non-bearing'})"
-                )
+                log_property(f"masonry: '{masonry.type_description}'")
                 return masonry
         raise KeyError(f"No masonry type matching '{description}' was found.")

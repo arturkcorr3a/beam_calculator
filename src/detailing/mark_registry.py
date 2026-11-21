@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.span_stirrups import SpanStirrups
 from src.properties.steel import Steel
 from src.structural_elements.rebar import HookGeometry
@@ -29,6 +30,22 @@ class BarKey:
     steel: Steel
     straight_length: float  # cm
     hooks: tuple[tuple[float, float], tuple[float, float]]
+
+
+@dataclass(frozen=True, kw_only=True)
+class SkinKey:
+    """What makes two skin bars identical
+
+    A key of its own, so a skin bar never shares a mark with a top or bottom bar.
+
+    Attributes:
+        diameter_mm: Bar diameter φ (mm).
+        length: Cut length of one bar (cm).
+    """
+
+    diameter_mm: float
+    steel: Steel
+    length: float  # cm
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -87,6 +104,13 @@ def _hook_key(hook: HookGeometry | None, length: float) -> tuple[float, float]:
     return _NO_HOOK if hook is None else (hook.pin_diameter, length)
 
 
+def skin_key(skin: DetailedSkinBars) -> SkinKey:
+    """Return the identity of a span's skin bars: diameter, steel and cut length"""
+    return SkinKey(
+        diameter_mm=skin.diameter_mm, steel=skin.steel, length=skin.total_length
+    )
+
+
 def clamp_key(clamps: DetailedClamps) -> ClampKey:
     """Return the identity of a clamp set's clamps: diameter, steel, leg length and width"""
     return ClampKey(
@@ -114,22 +138,24 @@ class MarkRegistry:
     Identical bars get the same mark in any beam, so the bar schedule counts them together. Marks are numbered in the order their keys are first seen.
     """
 
-    _marks: dict[BarKey | ClampKey | StirrupKey, str] = field(
-        default_factory=dict[BarKey | ClampKey | StirrupKey, str]
+    _marks: dict[BarKey | SkinKey | ClampKey | StirrupKey, str] = field(
+        default_factory=dict[BarKey | SkinKey | ClampKey | StirrupKey, str]
     )
 
-    def mark_for(self, key: BarKey | ClampKey | StirrupKey) -> str:
+    def mark_for(self, key: BarKey | SkinKey | ClampKey | StirrupKey) -> str:
         """Return a key's mark, giving it the next free one (N1, N2, …) if it is new"""
         return self._marks.setdefault(key, f"N{len(self._marks) + 1}")
 
     def assign(self, beam: DetailingBeam) -> None:
-        """Write the marks of a beam's bars, clamps and stirrups, in that order
+        """Write the marks of a beam's bars, skin bars, clamps and stirrups, in that order
 
-        Bars go bottom face first, by layer and left to right.
+        Bars go bottom face first, by layer and left to right; skin bars go left to right.
         """
         for is_bottom in (True, False):
             for bar in beam.bars_on_face(is_bottom):
                 bar.mark = self.mark_for(bar_key(bar))
+        for skin in beam.skin_bars:
+            skin.mark = self.mark_for(skin_key(skin))
         for clamps in beam.clamps:
             clamps.mark = self.mark_for(clamp_key(clamps))
         for stirrups in beam.stirrups:

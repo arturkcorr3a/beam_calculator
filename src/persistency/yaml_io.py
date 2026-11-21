@@ -27,7 +27,7 @@ from src.persistency.serialization import config_to_dict, pavement_to_dict
 HEADER = (
     "# beam_calculator — pavimento\n"
     "# Unidades: coordenadas e dimensões em cm, cargas em kN/m², pé-direito em m.\n"
-    "# Modelo comentado, com todos os campos e valores aceitos: template.yaml,\n"
+    "# Modelo comentado, com todos os campos e valores aceitos: template.pavement.yaml,\n"
     "# na pasta de exemplos.\n"
 )
 

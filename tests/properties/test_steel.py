@@ -316,37 +316,39 @@ class TestLinearMass:
 
 
 class TestAvailableSizes:
-    """Tests for the available rebar diameters (mm)."""
+    """Tests for the available rebar diameters (mm): the NBR 7480 sizes with a SINAPI price."""
 
     def test_ca25_available_sizes(self, steel_ca25: Steel) -> None:
-        expected_sizes: list[float] = [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
+        expected_sizes: list[float] = [6.3, 8, 10, 12.5, 16, 20, 25, 32]
         assert steel_ca25.available_sizes == expected_sizes, (
-            "CA-25 should offer the standard NBR 7480 rebar diameters"
+            "CA-25 should offer the NBR 7480 diameters that have a SINAPI price"
         )
 
     def test_ca50_available_sizes(self, steel_ca50: Steel) -> None:
-        expected_sizes: list[float] = [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
+        expected_sizes: list[float] = [6.3, 8, 10, 12.5, 16, 20, 25, 32]
         assert steel_ca50.available_sizes == expected_sizes, (
-            "CA-50 should offer the standard NBR 7480 rebar diameters"
+            "CA-50 should offer the NBR 7480 diameters that have a SINAPI price"
         )
 
     def test_ca60_available_sizes(self, steel_ca60: Steel) -> None:
-        expected_sizes: list[float] = [
-            3.4,
-            3.8,
-            4.2,
-            4.6,
-            5.0,
-            5.5,
-            6.0,
-            6.4,
-            7.0,
-            8.0,
-            9.5,
-            10.0,
-        ]
+        expected_sizes: list[float] = [4.2, 5.0, 6.0, 7.0, 8.0, 9.5]
         assert steel_ca60.available_sizes == expected_sizes, (
-            "CA-60 should offer the thin-wire NBR 7480 rebar diameters"
+            "CA-60 should offer the thin-wire NBR 7480 diameters that have a SINAPI price"
+        )
+
+    @pytest.mark.parametrize("steel", [Steel.CA25, Steel.CA50])
+    @pytest.mark.parametrize("diameter", [22.0, 40.0])
+    def test_unpriced_ribbed_sizes_removed(self, steel: Steel, diameter: float) -> None:
+        assert steel.is_size_available(diameter) is False, (
+            f"{steel.name} φ{diameter:g} has no SINAPI price and should not be offered"
+        )
+
+    @pytest.mark.parametrize("diameter", [3.4, 3.8, 4.6, 5.5, 6.4, 10.0])
+    def test_unpriced_ca60_sizes_removed(
+        self, steel_ca60: Steel, diameter: float
+    ) -> None:
+        assert steel_ca60.is_size_available(diameter) is False, (
+            f"CA-60 φ{diameter:g} has no SINAPI price and should not be offered"
         )
 
 

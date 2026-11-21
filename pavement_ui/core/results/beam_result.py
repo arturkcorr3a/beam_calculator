@@ -11,6 +11,7 @@ from pavement_ui.core.results.beam_design import (
     AnchorageEntry,
     BarEntry,
     LoadEntry,
+    SkinDesign,
     StirrupDesign,
 )
 from pavement_ui.core.results.reinforcement import BarLayer, StirrupSpec
@@ -50,6 +51,7 @@ class SpanResult:
         vsd_kn: Design shear the stirrups were dimensioned for (kN).
         loads: The loads making up g and q, by source.
         stirrup_design: Shear design of the stirrups; None when not read.
+        skin_design: Skin reinforcement of the span; None when not required.
     """
 
     index: int
@@ -66,6 +68,7 @@ class SpanResult:
     stirrup: StirrupSpec
     loads: tuple[LoadEntry, ...] = ()
     stirrup_design: StirrupDesign | None = None
+    skin_design: SkinDesign | None = None
 
 
 class PointKind(Enum):

@@ -5,6 +5,7 @@ from math import ceil, floor
 from src.calculators.stirrup_calculator import MIN_SPACING
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.span_stirrups import SpanStirrups
 from src.logger import log_operation
@@ -61,7 +62,7 @@ def right_end_limit(beam: DetailingBeam, diameter_mm: float, hooked: bool) -> fl
 def round_detailing(detailing: DetailingBeam) -> None:
     """Round every length of a detailing beam to whole centimeters
 
-    Bars, clamps and stirrups are replaced by rounded copies (see ``round_bar``, ``round_clamps`` and ``round_stirrups``). Each clamp set's bend follows the rounded end of the bars it anchors.
+    Bars, clamps, stirrups and skin bars are replaced by rounded copies (see ``round_bar``, ``round_clamps``, ``round_stirrups`` and ``round_skin_bars``). Each clamp set's bend follows the rounded end of the bars it anchors.
 
     Raises:
         ValueError: If a clamp set has no bar ending at its bend, or a stirrup spacing rounds below the minimum.
@@ -74,8 +75,9 @@ def round_detailing(detailing: DetailingBeam) -> None:
     ]
     detailing.bars = [rounded_bars[id(bar)] for bar in detailing.bars]
     detailing.stirrups = [round_stirrups(stirrups) for stirrups in detailing.stirrups]
+    detailing.skin_bars = [round_skin_bars(skin) for skin in detailing.skin_bars]
     log_operation(
-        f"Rounded to whole centimeters: {len(detailing.bars)} bar run(s), {len(detailing.clamps)} clamp set(s), {len(detailing.stirrups)} stirrup set(s)"
+        f"Rounded to whole centimeters: {len(detailing.bars)} bar run(s), {len(detailing.clamps)} clamp set(s), {len(detailing.stirrups)} stirrup set(s), {len(detailing.skin_bars)} skin bar set(s)"
     )
 
 
@@ -99,6 +101,14 @@ def round_bar(beam: DetailingBeam, bar: DetailedBar) -> DetailedBar:
         left_hook_length=round_up(bar.left_hook_length),
         right_hook_length=round_up(bar.right_hook_length),
     )
+
+
+def round_skin_bars(skin: DetailedSkinBars) -> DetailedSkinBars:
+    """Return a copy of a span's skin bars with whole-centimeter ends
+
+    Each end rounds inward, so the bars never enter the pillars.
+    """
+    return replace(skin, start=round_up(skin.start), end=round_down(skin.end))
 
 
 def round_clamps(clamps: DetailedClamps, anchored_bar: DetailedBar) -> DetailedClamps:

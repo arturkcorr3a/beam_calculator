@@ -151,6 +151,20 @@ PATTERNS: tuple[MessagePattern, ...] = (
         "(VRd2 = {num_b} kN). Aumente a seção ou a classe do concreto.",
     ),
     _p(
+        rf"^A beam with h = (?P<num_h>{_NUM}) cm > (?P<num_min>{_NUM}) cm needs skin "
+        r"reinforcement in CA-50 or CA-60, but the project steel is (?P<steel>CA-\d+)\. "
+        r"Change the project steel to CA-50 or CA-60\.$",
+        "A viga tem h = {num_h} cm > {num_min} cm e exige armadura de pele em CA-50 "
+        "ou CA-60 (NBR 6118 §17.3.5.2.3), mas o aço do projeto é {steel}. Troque o "
+        "aço do projeto para CA-50 ou CA-60.",
+    ),
+    _p(
+        rf"^No room for skin reinforcement: the bottom bars \((?P<num_b>{_NUM}) cm\) "
+        rf"and the top bars \((?P<num_t>{_NUM}) cm\) fill the (?P<num_h>{_NUM}) cm web\.$",
+        "Não sobra espaço para a armadura de pele: as barras inferiores "
+        "({num_b} cm) e as superiores ({num_t} cm) ocupam a alma de {num_h} cm.",
+    ),
+    _p(
         r"^No valid reinforcement combination found\.$",
         "Nenhuma combinação de barras válida foi encontrada.",
     ),
@@ -206,6 +220,15 @@ PATTERNS: tuple[MessagePattern, ...] = (
     _p(
         r"^No category matching '(?P<value>[^']*)' was found\.$",
         "Categoria “{value}” não encontrada (NBR 6120, Tabela 10).",
+    ),
+    # --- budget (src.data.sinapi_2026_10.steel_prices) ---------------------
+    _p(
+        rf"^No SINAPI price for CA(?P<grade>\d+) φ(?P<num_d>{_NUM}) mm\.$",
+        "O SINAPI não tem preço para barras CA-{grade} de {num_d} mm.",
+    ),
+    _p(
+        rf"^Concrete price must not be negative: R\$ (?P<num_p>{_NUM})/m³\.$",
+        "O preço do concreto não pode ser negativo (informado: R$ {num_p}/m³).",
     ),
     # --- isolated beam files (pavement_ui.core.engine.isolated_beam_store) ---
     _p(r"^Not an isolated beam file\.$", "O arquivo não é de uma viga isolada."),

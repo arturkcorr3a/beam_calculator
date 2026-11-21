@@ -56,6 +56,11 @@ COL_TOTAL: Final = "Total (cm)"
 KIND_BAR: Final = "Barra"
 KIND_CLAMP: Final = "Grampo"
 KIND_STIRRUP: Final = "Estribo"
+QUANTITIES_BUDGET: Final = "Orçamento…"
+
+# --- budget -------------------------------------------------------------------
+BUDGET_TITLE: Final = "Orçamento das vigas — {file}"
+BUDGET_TOTAL: Final = "Total: {total}"
 
 # --- beam detail (A7) ---------------------------------------------------------
 BEAM_TITLE: Final = "Viga {id} — resultado detalhado"
@@ -74,6 +79,7 @@ COL_Q: Final = "q (kN/m)"
 COL_VK: Final = "Vk (kN)"
 COL_VSD: Final = "Vsd (kN)"
 COL_STIRRUPS: Final = "Estribos"
+COL_SKIN: Final = "Pele (por face)"
 COL_POINT: Final = "Ponto"
 COL_X: Final = "x (m)"
 COL_MK: Final = "Mk (kN·m)"

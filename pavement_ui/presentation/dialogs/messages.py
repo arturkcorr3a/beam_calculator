@@ -3,6 +3,8 @@
 Engine texts are translated here; callers pass the original messages.
 """
 
+from collections.abc import Sequence
+
 from PySide6.QtWidgets import QMessageBox, QWidget
 
 from pavement_ui.core.errors import PersistenceError
@@ -89,6 +91,13 @@ def show_design_rule_error(parent: QWidget | None, message: str) -> None:
     ).exec()
 
 
+def show_budget_error(parent: QWidget | None, message: str) -> None:
+    """The engine refused the budget, e.g. a diameter without a SINAPI price"""
+    _box(
+        parent, _Icon.Critical, s.BUDGET_TITLE, s.BUDGET_FAILED, translate(message)
+    ).exec()
+
+
 def show_design_unexpected(parent: QWidget | None, failure: UnexpectedFailure) -> None:
     """An unexpected error; the traceback goes to the expandable details"""
     box = _box(
@@ -106,6 +115,21 @@ def confirm_clear(parent: QWidget | None) -> bool:
         s.CLEAR_QUESTION,
         s.CLEAR_DETAIL,
         s.CLEAR,
+        True,
+    )
+
+
+def confirm_remove_pillar(
+    parent: QWidget | None, pillar_id: str, dependents: Sequence[str]
+) -> bool:
+    """Ask before removing a pillar together with the elements that reference it"""
+    return _confirm(
+        parent,
+        _Icon.Warning,
+        s.REMOVE_PILLAR_TITLE,
+        s.REMOVE_PILLAR_QUESTION.format(pillar=pillar_id),
+        s.REMOVE_PILLAR_DETAIL.format(ids=", ".join(dependents)),
+        s.REMOVE,
         True,
     )
 

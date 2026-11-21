@@ -11,6 +11,7 @@ PILLAR = "VIGA-PILAR"
 AXIS = "VIGA-EIXO"
 MAIN_BAR = "ARM-PRINCIPAL"
 CONSTRUCTION_BAR = "ARM-MONTAGEM"
+SKIN_BAR = "ARM-PELE"
 STIRRUP = "ARM-ESTRIBO"
 CLAMP = "ARM-GRAMPO"
 SECTION_BAR = "ARM-SECAO"
@@ -59,6 +60,7 @@ LAYERS: dict[str, LayerStyle] = {
         LayerStyle(
             CONSTRUCTION_BAR, 11, CONTINUOUS, 0.30, "#d9686a", "Barra de montagem"
         ),
+        LayerStyle(SKIN_BAR, 32, CONTINUOUS, 0.30, "#b45309", "Armadura de pele"),
         LayerStyle(
             STIRRUP, 3, CONTINUOUS, 0.25, "#2e7d32", "Estribo e zona de estribos"
         ),

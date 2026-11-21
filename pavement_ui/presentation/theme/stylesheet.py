@@ -52,6 +52,17 @@ QLineEdit, QComboBox {{
     padding: 3px 6px;
     min-height: 20px;
 }}
+QListWidget {{
+    background: {t.SURFACE};
+    border: 1px solid {t.BORDER_INPUT};
+    border-radius: {t.RADIUS_PX}px;
+}}
+QListWidget:focus {{
+    border-color: {t.ACCENT};
+}}
+QListWidget::item:disabled {{
+    color: {t.TEXT_MUTED};
+}}
 QSpinBox, QDoubleSpinBox {{
     background: {t.SURFACE};
     border: 1px solid {t.BORDER_INPUT};
@@ -60,6 +71,14 @@ QSpinBox, QDoubleSpinBox {{
 }}
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{
     border-color: {t.ACCENT};
+}}
+QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {{
+    background: {t.CHROME_BG};
+    border-color: {t.BORDER};
+    color: {t.TEXT_MUTED};
+}}
+QLabel:disabled {{
+    color: {t.TEXT_MUTED};
 }}
 QPushButton {{
     background: {t.SURFACE};

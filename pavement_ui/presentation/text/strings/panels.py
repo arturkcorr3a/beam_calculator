@@ -30,13 +30,15 @@ COL_Y: Final = "Y (m)"
 COL_WIDTH: Final = "Largura (cm)"
 COL_DEPTH: Final = "Profund. (cm)"
 
+# --- pillar choice ------------------------------------------------------------
+PILLAR_CHOICE: Final = "{id}  ({x}; {y}) m"
+NO_PILLARS_HINT: Final = "Nenhum pilar cadastrado: inclua pilares na aba Pilares."
+
 # --- beams --------------------------------------------------------------------
 BEAM_FORM: Final = "Nova viga contínua"
-BEAM_PILLARS: Final = "IDs dos pilares"
-BEAM_PILLARS_PLACEHOLDER: Final = "P1, P2, P3"
-BEAM_PILLARS_HINT: Final = "Pilares separados por vírgula, mínimo 2, em qualquer ordem."
+BEAM_PILLARS: Final = "Pilares de apoio"
+BEAM_PILLARS_HINT: Final = "Marque os pilares da viga: mínimo 2, em qualquer ordem."
 BEAM_REFERENCE: Final = "Pilar de referência"
-BEAM_REFERENCE_PLACEHOLDER: Final = "P1"
 BEAM_WIDTH: Final = "Largura bw (≥ 12)"
 BEAM_ALIGNMENT: Final = "Alinhamento"
 BEAM_ADD: Final = "Incluir viga"
@@ -50,11 +52,12 @@ COL_ALIGNMENT: Final = "Alinh."
 COL_WALL: Final = "Parede"
 PILLAR_LIST_JOIN: Final = ", "
 WALL_CELL: Final = "{masonry} {thickness} cm"
+WALL_NONE_CELL: Final = "Sem parede"
 WALL_TOOLTIP: Final = "{masonry}, {thickness} cm, revestimento {coating} cm por face"
 
 # --- wall ---------------------------------------------------------------------
 WALL_FORM: Final = "Parede sobre a viga"
-WALL_STRUCTURAL: Final = "Alvenaria estrutural"
+WALL_PRESENT: Final = "Com parede sobre a viga"
 WALL_MASONRY: Final = "Alvenaria"
 WALL_THICKNESS: Final = "Espessura nominal"
 WALL_COATING: Final = "Revestimento"
@@ -65,8 +68,7 @@ COATING_ITEM: Final = "{value} cm por face"
 # --- slabs --------------------------------------------------------------------
 SLAB_FORM: Final = "Nova laje"
 SLAB_CORNERS: Final = "Pilares de canto"
-SLAB_CORNERS_PLACEHOLDER: Final = "P1, P2, P5, P4"
-SLAB_CORNERS_HINT: Final = "Exatamente 4 IDs, em qualquer ordem."
+SLAB_CORNERS_HINT: Final = "Marque exatamente 4 pilares, em qualquer ordem."
 SLAB_USAGE: Final = "Uso"
 SLAB_USAGE_HINT: Final = "Opções da categoria “{category}” (NBR 6120, Tabela 10)."
 SLAB_NO_USAGES_HINT: Final = (

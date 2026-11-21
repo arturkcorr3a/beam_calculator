@@ -25,11 +25,14 @@ def _pillar(pillar: Pillar, new_id: str) -> PillarRecord:
 
 
 def _beam(beam: ContinuousBeam, new_id: str, ids: dict[str, str]) -> BeamRecord:
-    wall = WallRecord(
-        structural=beam.wall.structural,
-        masonry_key=beam.wall.masonry_type,
-        nominal_thickness_cm=beam.wall.nominal_thickness,
-        coating_cm=beam.wall.coating_thickness,
+    wall = (
+        None
+        if beam.wall is None
+        else WallRecord(
+            masonry_key=beam.wall.masonry_type,
+            nominal_thickness_cm=beam.wall.nominal_thickness,
+            coating_cm=beam.wall.coating_thickness,
+        )
     )
     return BeamRecord(
         id=new_id,

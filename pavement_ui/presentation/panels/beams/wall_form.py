@@ -4,7 +4,7 @@ Only values tabulated in NBR 6120 Table 2 are offered: the engine looks the wall
 up only during the calculation, so a free value would fail late (spec §8.5).
 """
 
-from PySide6.QtWidgets import QCheckBox, QComboBox, QWidget
+from PySide6.QtWidgets import QComboBox, QWidget
 
 from pavement_ui.core.model.records import WallRecord
 from pavement_ui.core.options import EngineOptions, MasonryOption, ThicknessOption
@@ -25,21 +25,17 @@ _DEFAULT_COATING_KEY = "1"
 
 
 class WallForm(FormSection):
-    """Structural flag, masonry type, nominal thickness and coating per face"""
+    """Masonry type, nominal thickness and coating per face"""
 
     def __init__(self, options: EngineOptions, parent: QWidget | None = None) -> None:
         super().__init__(s.WALL_FORM, _LABEL_WIDTH_PX, parent)
         self._options = options
-        self._structural = QCheckBox(s.WALL_STRUCTURAL)
-        self._structural.setObjectName("wallStructural")
         self._masonry = self._combo("wallMasonry")
         self._thickness = self._combo("wallThickness")
         self._coating = self._combo("wallCoating")
-        self.add_widget(self._structural)
         self.add_row(s.WALL_MASONRY, self._masonry)
         self.add_row(s.WALL_THICKNESS, self._thickness)
         self._height_hint = self.add_row(s.WALL_COATING, self._coating, "")
-        self._structural.toggled.connect(self._reload_masonry)
         self._masonry.currentIndexChanged.connect(self._reload_thickness)
         self._masonry.currentIndexChanged.connect(
             lambda: self._masonry.setToolTip(self._masonry.currentText())
@@ -70,7 +66,7 @@ class WallForm(FormSection):
         return next((t for t in masonry.thicknesses if str(t.nominal_cm) == key), None)
 
     def _reload_masonry(self) -> None:
-        keys = [m.key for m in self._options.masonry_for(self._structural.isChecked())]
+        keys = [m.key for m in self._options.masonry]
         fill_combo(self._masonry, keys, lambda key: label(OptionKind.MASONRY, key))
 
     def _reload_thickness(self) -> None:
@@ -99,7 +95,6 @@ class WallForm(FormSection):
 
     def set_record(self, record: WallRecord) -> None:
         """Show a wall; values missing from the catalogue keep the current item"""
-        self._structural.setChecked(record.structural)
         select_key(self._masonry, record.masonry_key)
         select_key(self._thickness, str(record.nominal_thickness_cm))
         select_key(self._coating, str(record.coating_cm))
@@ -108,7 +103,6 @@ class WallForm(FormSection):
         """The wall as selected (all values come from the engine's catalogue)"""
         thickness = self._thickness_option()
         return WallRecord(
-            structural=self._structural.isChecked(),
             masonry_key=selected_key(self._masonry) or "",
             nominal_thickness_cm=thickness.nominal_cm if thickness is not None else 0.0,
             coating_cm=int(selected_key(self._coating) or 0),

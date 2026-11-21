@@ -1,10 +1,11 @@
-"""Section 4 of the beam report: properties, points, bending, anchorage, stirrups."""
+"""Section 4 of the beam report: properties, points, bending, anchorage, stirrups, skin bars."""
 
 from pavement_ui.core.results.beam_result import BeamResult
 from pavement_ui.core.results.materials import MaterialsInfo
 from pavement_ui.presentation.formatting.elements import fmt_point_label
 from pavement_ui.presentation.formatting.numbers import fmt_number
 from pavement_ui.presentation.formatting.reinforcement import (
+    fmt_skin,
     fmt_stirrup,
     fmt_tension_cell,
 )
@@ -160,6 +161,41 @@ def _write_stirrups(builder: ReportBuilder, result: BeamResult) -> None:
     builder.table([s.COL_SPAN, s.COL_STRETCH, s.COL_SPACING], zone_rows, 2)
 
 
+def _write_skin(builder: ReportBuilder, result: BeamResult) -> None:
+    builder.heading(s.SKIN, 3)
+    spans = [span for span in result.spans if span.skin_design is not None]
+    if not spans:
+        builder.paragraph(s.SKIN_NOT_REQUIRED, muted=True)
+        return
+    builder.paragraph(s.SKIN_TEXT, muted=True)
+    rows: list[list[str]] = []
+    for span in spans:
+        design = span.skin_design
+        assert design is not None  # filtered above
+        rows.append(
+            [
+                span_name(span),
+                fmt_number(design.required_area_cm2, 2),
+                fmt_skin(design),
+                fmt_number(design.provided_area_cm2, 2),
+                s.STRETCH.format(
+                    start=fmt_number(design.band_start_cm, 1),
+                    end=fmt_number(design.band_end_cm, 1),
+                ),
+            ]
+        )
+    builder.table(
+        [
+            s.COL_SPAN,
+            s.COL_SKIN_REQ,
+            s.COL_SKIN_BARS,
+            s.COL_SKIN_EF,
+            s.COL_SKIN_BAND,
+        ],
+        rows,
+    )
+
+
 def write_design(
     builder: ReportBuilder, result: BeamResult, materials: MaterialsInfo
 ) -> None:
@@ -170,4 +206,5 @@ def write_design(
     _write_bending(builder, result)
     _write_anchorage(builder, result)
     _write_stirrups(builder, result)
+    _write_skin(builder, result)
     write_bars(builder, result.bars)

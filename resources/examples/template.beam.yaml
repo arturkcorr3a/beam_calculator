@@ -75,19 +75,11 @@ pillars:
 # Parede (type: wall):
 #   height               altura da parede (m)
 #   wall                 mesmos campos da parede das vigas do pavimento:
-#     structural         false: alvenaria de vedação; true: alvenaria estrutural
-#     masonry_type       tipo de alvenaria. Vedação (structural: false):
+#     masonry_type       tipo de alvenaria de vedação:
 #                          Hollow concrete block (Class C - ABNT NBR 6136)
 #                          Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)
 #                          Autoclaved aerated concrete block (Class C25 - ABNT NBR 13438)
 #                          Glass block (decorative, non-fire-rated)
-#                        Estrutural (structural: true):
-#                          Hollow concrete block (Classes A and B - ABNT NBR 6136)
-#                          Hollow ceramic block with solid walls (Vertical holes - ABNT NBR 15270-1)
-#                          Hollow ceramic block with hollow walls (Vertical holes - ABNT NBR 15270-1)
-#                          Solid ceramic brick (ABNT NBR 15270-1)
-#                          Hollow calcium silicate block (Class E - ABNT NBR 14974-1)
-#                          Perforated calcium silicate block (Classes E, F and G - ABNT NBR 14974-1)
 #     nominal_thickness  espessura nominal do bloco (cm), uma das da Tabela 2
 #                        para o tipo escolhido (ex.: 9, 11.5, 14, 19)
 #     coating_thickness  revestimento por face (cm): 0, 1 ou 2
@@ -106,7 +98,6 @@ loads:
     span: 2
     height: 2.8
     wall:
-      structural: false
       masonry_type: Hollow ceramic block (Horizontal holes - ABNT NBR 15270-1)
       nominal_thickness: 14
       coating_thickness: 1

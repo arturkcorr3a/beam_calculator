@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 def build_report(beam: DetailingBeam) -> str:
     """Describe a detailing beam as plain text
 
-    Lists the section, the longitudinal bars of each face (by layer, left to right), the clamps, the stirrups of each span and the beam's bar schedule. Positions (x) follow the beam's analysis axis; heights (y) are measured from the bottom face.
+    Lists the section, the longitudinal bars of each face (by layer, left to right), the skin bars of each span, the clamps, the stirrups of each span and the beam's bar schedule. Positions (x) follow the beam's analysis axis; heights (y) are measured from the bottom face.
 
     Returns:
         Multi-line plain-text report.
@@ -27,6 +27,8 @@ def build_report(beam: DetailingBeam) -> str:
         face = "bottom" if is_bottom else "top"
         lines += ["", f"Longitudinal bars — {face}"]
         lines += _bars(beam.bars_on_face(is_bottom))
+    lines += ["", "Skin bars"]
+    lines += _skin_bars(beam)
     lines += ["", "Lap splices"]
     lines += _lap_splices(beam)
     lines += ["", "Clamps"]
@@ -90,6 +92,34 @@ def _bars(bars: list[DetailedBar]) -> list[str]:
 def _hook(hook: HookGeometry | None, length: float) -> str:
     """Summarize a hook as its extra cut length (cm), or 'no' if there is none"""
     return "no" if hook is None else f"{length:.1f}"
+
+
+def _skin_bars(beam: DetailingBeam) -> list[str]:
+    """Tabulate the skin bars: mark, span, bars, row heights, extent and cut length"""
+    if not beam.skin_bars:
+        return ["  none"]
+    rows = [
+        [
+            skin.mark or "—",
+            skin.span_name,
+            f"2x{len(skin.heights)}φ{skin.diameter_mm:g}",
+            ", ".join(f"{y:.1f}" for y in skin.heights),
+            f"{skin.start:.1f}",
+            f"{skin.end:.1f}",
+            f"{skin.total_length:.1f}",
+        ]
+        for skin in beam.skin_bars
+    ]
+    headers = [
+        "Mark",
+        "Span",
+        "Bars",
+        "y (cm)",
+        "From (cm)",
+        "To (cm)",
+        "Length (cm)",
+    ]
+    return format_table(headers, rows, "  ")
 
 
 def _lap_splices(beam: DetailingBeam) -> list[str]:

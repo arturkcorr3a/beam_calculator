@@ -91,7 +91,6 @@ def build_pavement():
     # ADD BEAMS -------
 
     wall = WallDefinition(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,
         coating_thickness=1,

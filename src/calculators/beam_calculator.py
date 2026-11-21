@@ -24,6 +24,7 @@ from src.logger import log_operation, logger_label
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.geometry_utils import Axis
 from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE, Reinforcement
+from src.reinforcement.skin_reinforcement import SkinReinforcement
 from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rectangular_beam import RectangularBeam
 from src.structural_elements.support import Support
@@ -58,6 +59,8 @@ class BeamCalculator:
         The hogging moments at the supports are rounded for the support width, except on rigid interior supports (see ``_round_support_moments``); the moments used for the anchorage checks are not.
 
         Each interior support is dimensioned by both adjacent spans; only the governing result (see ``_keep_governing_support_results``) is stored and checked for deformation. Once chosen, each span's bottom bars are extended into its supports where needed (see ``carry_span_bars_to_supports``), and then the end supports get the bars they lack to anchor the compression strut (see ``anchor_outer_supports``).
+
+        Right after its stirrups are coordinated, and before the deformation check, each span gets its skin reinforcement (see ``_build_skin_reinforcement``).
         """
         supports = self._build_supports()
         loads = self._build_loads()
@@ -108,6 +111,9 @@ class BeamCalculator:
                     )
                 )
             coordinate_span(calculators, span.stirrups)
+            span.skin_reinforcement = self._build_skin_reinforcement(
+                structural_beam, calculators
+            )
             span_calculators.append(calculators)
             span.stirrups.distribute(analysis, start, end)
             results.extend(
@@ -524,6 +530,26 @@ class BeamCalculator:
             support_moments=support_moments,
             moment_positions=moment_positions,
         )
+
+    def _build_skin_reinforcement(
+        self, structural_beam: RectangularBeam, calculators: list[RebarCalculator]
+    ) -> SkinReinforcement | None:
+        """Chooses a span's skin reinforcement from its coordinated interest points, or None when the beam is low enough to omit it.
+
+        Raises:
+            ValueError: Propagated from ``SkinReinforcement`` (steel not CA-50/CA-60, or no room between the bottom and top bars).
+
+        References:
+            ABNT NBR 6118:2026 — Section 17.3.5.2.3
+        """
+        if not SkinReinforcement.is_required(structural_beam.height):
+            log_operation(
+                f"Skin reinforcement not required (h = {structural_beam.height:g} cm)"
+            )
+            return None
+        skin = SkinReinforcement(structural_beam, self.label)
+        skin.choose(calculators)
+        return skin
 
     def _store_reinforcement(self, calculator: RebarCalculator) -> None:
         """Appends the point's tensioned reinforcement (and compressed, if doubly reinforced) to the beam."""

@@ -44,7 +44,6 @@ def _build_pavement() -> Pavement:
         pavement.add_pillar(pillar)
 
     wall = WallDefinition(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,
         coating_thickness=1,
@@ -138,7 +137,6 @@ def _minimal_pillar(pid: str = "P1") -> PillarDict:
 def _minimal_wall() -> WallDict:
     """Build a minimal valid wall dict."""
     return WallDict(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,
         coating_thickness=1,
@@ -473,7 +471,7 @@ class TestMalformedWall:
 
     @pytest.mark.parametrize(
         "missing_key",
-        ["structural", "masonry_type", "nominal_thickness", "coating_thickness"],
+        ["masonry_type", "nominal_thickness", "coating_thickness"],
     )
     def test_missing_wall_key(self, missing_key: str) -> None:
         wall: dict[str, object] = dict(_minimal_wall())
@@ -490,6 +488,32 @@ class TestMalformedWall:
         }
         with pytest.raises(ValueError, match=f"missing '{missing_key}' in Wall"):
             pavement_from_dict(document)
+
+
+class TestOptionalWall:
+    """A beam may have no wall; the removed 'structural' key is rejected."""
+
+    @staticmethod
+    def _document(wall: object) -> PavementDict:
+        pillar2 = PillarDict(id="P2", x=500.0, y=0.0, width=20.0, depth=25.0)
+        beam: dict[str, object] = dict(_minimal_beam("P1", "P2"))
+        beam["wall"] = wall
+        return {
+            "pillars": [_minimal_pillar("P1"), pillar2],
+            "beams": [beam],  # type: ignore[list-item]
+            "slabs": [],
+        }
+
+    def test_null_wall_loads_as_none(self) -> None:
+        pavement = pavement_from_dict(self._document(None))
+        assert next(iter(pavement.beams.values())).wall is None, (
+            "wall: null should load as a beam without wall"
+        )
+
+    def test_structural_key_is_rejected(self) -> None:
+        wall = {**_minimal_wall(), "structural": False}
+        with pytest.raises(ValueError, match="'structural' in Wall"):
+            pavement_from_dict(self._document(wall))
 
 
 # ---------------------------------------------------------------------------

@@ -34,6 +34,11 @@ def beams_panel(
     def follow_config() -> None:
         form.wall.set_ceiling_height(session.config.ceiling_height_m)
 
+    def follow_records() -> None:
+        form.set_pillars(session.records.pillars)
+
     bridge.config_changed.connect(follow_config)
+    bridge.records_changed.connect(follow_records)
     follow_config()
+    follow_records()
     return panel

@@ -1,4 +1,4 @@
-"""Memorial de cálculo: log level and output — never saved to the project file."""
+"""Memorial de cálculo: log level — never saved to the project file."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget
@@ -22,15 +22,9 @@ class LogSection(FormSection):
         self._level = key_combo(
             "cfgLogLevel", options.log_levels, lambda k: label(OptionKind.LOG_LEVEL, k)
         )
-        self._output = key_combo(
-            "cfgLogOutput",
-            options.log_outputs,
-            lambda k: label(OptionKind.LOG_OUTPUT, k),
-        )
-        self.add_row(s.CONFIG_LOG_LEVEL, self._level)
         hint = self.add_row(
-            s.CONFIG_LOG_OUTPUT,
-            self._output,
+            s.CONFIG_LOG_LEVEL,
+            self._level,
             s.CONFIG_LOG_HINT.format(folder=options.log_dir),
         )
         if hint is not None:  # the folder can be copied to open it elsewhere
@@ -38,10 +32,8 @@ class LogSection(FormSection):
 
     def load(self, log: LogValues) -> None:
         select_key(self._level, log.level_key)
-        select_key(self._output, log.output_key)
 
     def values(self) -> LogValues:
         return LogValues(
             level_key=selected_key(self._level) or LogValues().level_key,
-            output_key=selected_key(self._output) or LogValues().output_key,
         )

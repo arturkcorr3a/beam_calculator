@@ -13,6 +13,7 @@ from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
 from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.skin_reinforcement import SkinLayout
 from src.reinforcement.stirrups import StirrupZone
 from src.structural_elements.rebar import HookGeometry, Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -95,6 +96,7 @@ def _beam(
     spacing: float | None = 15.0,
     zones: tuple[list[StirrupZone], list[StirrupZone]] = ([], []),
     slab_thicknesses: tuple[float | None, float | None] = (None, None),
+    skins: tuple[object | None, object | None] = (None, None),
 ) -> ContinuousBeam:
     """Build a dimensioned two-span beam double with φ6.3 stirrups
 
@@ -102,6 +104,7 @@ def _beam(
         spacing: Chosen (edge) stirrup spacing of both spans (cm).
         zones: Design spacing zones of each span, along the beam (cm); empty when the stirrups were not distributed.
         slab_thicknesses: Thickness of the two slabs on the first span (cm), None for no slab.
+        skins: Skin reinforcement of each span, None for none.
     """
     first_span_slabs = tuple(
         None if thickness is None else types.SimpleNamespace(thickness=thickness)
@@ -119,11 +122,13 @@ def _beam(
                 steel=Steel.CA50,
                 zones=span_zones,
             ),
+            skin_reinforcement=skin,
         )
-        for (start_id, end_id), span_zones, slabs in zip(
+        for (start_id, end_id), span_zones, slabs, skin in zip(
             [("P1", "P2"), ("P2", "P3")],
             zones,
             [first_span_slabs, (None, None)],
+            skins,
             strict=True,
         )
     ]
@@ -504,3 +509,53 @@ class TestBuildErrors:
         bottom_reinforcement.required_area = None
         with pytest.raises(ValueError, match="no required or provided area"):
             build_detailing_beam(_beam(structural_beam, [bottom_reinforcement]))
+
+
+def _skin(diameter_mm: float = 8.0, bars: int = 3) -> types.SimpleNamespace:
+    """Build a span's skin reinforcement double: rows every 10 cm in a band from 5 cm"""
+    return types.SimpleNamespace(
+        steel=Steel.CA50,
+        layout=SkinLayout(
+            diameter_mm=diameter_mm,
+            bars_per_face=bars,
+            spacing=10.0,
+            band_start=5.0,
+            band_end=5.0 + 10.0 * (bars + 1),
+        ),
+    )
+
+
+class TestSkinBars:
+    """Skin bars run in each span's clear span, kept apart from the face bars."""
+
+    def test_no_skin_reinforcement(self, structural_beam: RectangularBeam) -> None:
+        detailing = build_detailing_beam(_beam(structural_beam, []))
+        assert detailing.skin_bars == [], "spans without skin get no skin bars"
+
+    def test_one_set_per_span_with_skin(self, structural_beam: RectangularBeam) -> None:
+        detailing = build_detailing_beam(
+            _beam(structural_beam, [], skins=(_skin(), None))
+        )
+        assert len(detailing.skin_bars) == 1, "only the first span has skin"
+        assert detailing.skin_bars[0].span_name == "P1–P2", "first span"
+        assert detailing.bars == [], "skin bars stay out of the face bars"
+
+    def test_runs_between_pillar_faces(self, structural_beam: RectangularBeam) -> None:
+        """Second span: from P2's right face (265) to P3's left face (490)"""
+        detailing = build_detailing_beam(
+            _beam(structural_beam, [], skins=(None, _skin()))
+        )
+        skin = detailing.skin_bars[0]
+        assert_approx(skin.start, 265.0, "start at the inner face of P2 (cm)")
+        assert_approx(skin.end, 490.0, "end at the inner face of P3 (cm)")
+
+    def test_rows_and_quantity(self, structural_beam: RectangularBeam) -> None:
+        """Three rows a spacing apart from the band start: 15, 25 and 35 cm; two bars each"""
+        detailing = build_detailing_beam(
+            _beam(structural_beam, [], skins=(_skin(8.0, 3), None))
+        )
+        skin = detailing.skin_bars[0]
+        assert skin.heights == (15.0, 25.0, 35.0), "row heights from the bottom (cm)"
+        assert skin.quantity == 6, "one bar on each side face per row"
+        assert skin.diameter_mm == 8.0, "diameter of the layout (mm)"
+        assert skin.steel == Steel.CA50, "steel of the skin reinforcement"

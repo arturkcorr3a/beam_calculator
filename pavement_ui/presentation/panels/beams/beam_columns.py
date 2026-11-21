@@ -9,6 +9,8 @@ from pavement_ui.presentation.widgets.column_table_model import ColumnSpec
 
 def _wall_cell(record: BeamRecord) -> str:
     wall = record.wall
+    if wall is None:
+        return s.WALL_NONE_CELL
     return s.WALL_CELL.format(
         masonry=short_label(OptionKind.MASONRY, wall.masonry_key),
         thickness=fmt_length_cm(wall.nominal_thickness_cm),
@@ -17,6 +19,8 @@ def _wall_cell(record: BeamRecord) -> str:
 
 def _wall_tooltip(record: BeamRecord) -> str:
     wall = record.wall
+    if wall is None:
+        return s.WALL_NONE_CELL
     return s.WALL_TOOLTIP.format(
         masonry=label(OptionKind.MASONRY, wall.masonry_key),
         thickness=fmt_length_cm(wall.nominal_thickness_cm),

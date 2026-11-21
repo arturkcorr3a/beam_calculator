@@ -22,6 +22,11 @@ def fmt_with_unit(value: float, decimals: int, unit: str) -> str:
     return f"{fmt_number(value, decimals)} {unit}"
 
 
+def fmt_money(value: float) -> str:
+    """Format an amount in reais, e.g. 1050.05 → "R$ 1.050,05" """
+    return f"R$ {fmt_number(value, 2)}"
+
+
 def fmt_length_cm(value_cm: float) -> str:
     """Format a section dimension (cm): no decimals when whole, else one (e.g. "14", "12,5")"""
     decimals = 0 if float(value_cm).is_integer() else 1

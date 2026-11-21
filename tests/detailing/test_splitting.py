@@ -10,12 +10,15 @@ from typing import cast
 import pytest
 
 from src.analysis.beam_analysis import BeamAnalysis
+from src.calculators.lap_splice_calculator import construction_lap_length
 from src.config import APP_CONFIG
 from src.detailing.construction_bars import add_construction_bars
 from src.detailing.detailed_bar import BarRole, DetailedBar
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.lap_splice import LapSplice
 from src.detailing.post_processor import _STEPS  # pyright: ignore[reportPrivateUsage]
+from src.detailing.rounding import round_up
 from src.detailing.splitting import MAX_BAR_LENGTH, split_long_bars
 from src.logger import suppress_logging
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
@@ -280,7 +283,7 @@ def long_span_pavement() -> Pavement:
     ]
     for pillar in pillars:
         pavement.add_pillar(pillar)
-    wall = WallDefinition(False, "hollow concrete block", 14, 1)
+    wall = WallDefinition("hollow concrete block", 14, 1)
     pavement.add_beam(
         ContinuousBeam(
             [p.id for p in pillars], pillars[0].id, 20, Alignment.CENTER, wall
@@ -312,3 +315,50 @@ class TestRealBeam:
                 and (bar.end == lap.end or bar.start == lap.start)
             ]
             assert len(lapped) == 2, "Each lap joins the two pieces of one run"
+
+
+def _skin(
+    start: float = 10.0,
+    end: float = 235.0,
+    diameter_mm: float = 8,
+    mark: str | None = None,
+) -> DetailedSkinBars:
+    """Build the skin bars of span P1–P2: two rows, at 15 and 25 cm"""
+    return DetailedSkinBars(
+        start_pillar_id="P1",
+        end_pillar_id="P2",
+        diameter_mm=diameter_mm,
+        steel=Steel.CA50,
+        heights=(15.0, 25.0),
+        start=start,
+        end=end,
+        mark=mark,
+    )
+
+
+class TestSplitSkin:
+    """Skin bars longer than 12 m become equal pieces with the construction lap."""
+
+    def test_short_skin_kept(self) -> None:
+        beam = _beam(_bar(1200))
+        beam.skin_bars = [_skin(0.0, 1200.0)]
+        split_long_bars(beam)
+        assert [(s.start, s.end) for s in beam.skin_bars] == [(0.0, 1200.0)], (
+            "a 1200 cm skin bar fits a commercial bar"
+        )
+
+    def test_long_skin_split_with_construction_lap(self) -> None:
+        """Rows at 15 and 25 cm of a 60 cm beam lie in the good bond zone"""
+        beam = _beam(_bar(1200))
+        beam.skin_bars = [_skin(0.0, 1300.0)]
+        split_long_bars(beam)
+        lap = round_up(construction_lap_length(8, Steel.CA50, True))  # cm
+        pieces = beam.skin_bars
+        assert len(pieces) == 2, "two pieces fit 1300 cm"
+        assert pieces[0].start == 0.0, "the first piece starts at the run's start"
+        assert pieces[-1].end == 1300.0, "the last piece ends at the run's end"
+        assert pieces[0].end - pieces[1].start == lap, "pieces overlap by the lap"
+        assert all(piece.total_length <= MAX_BAR_LENGTH for piece in pieces), (
+            "every piece fits a commercial bar"
+        )
+        assert beam.lap_splices == [], "skin laps are not recorded"

@@ -2,6 +2,7 @@
 
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.detailing_report import build_report
 from src.detailing.lap_splice import LapSplice
@@ -146,3 +147,38 @@ class TestBuildReport:
         assert beam.report() == build_report(beam), (
             "DetailingBeam.report should be the built report"
         )
+
+
+def _skin(
+    start: float = 10.0,
+    end: float = 235.0,
+    diameter_mm: float = 8,
+    mark: str | None = None,
+) -> DetailedSkinBars:
+    """Build the skin bars of span P1–P2: two rows, at 15 and 25 cm"""
+    return DetailedSkinBars(
+        start_pillar_id="P1",
+        end_pillar_id="P2",
+        diameter_mm=diameter_mm,
+        steel=Steel.CA50,
+        heights=(15.0, 25.0),
+        start=start,
+        end=end,
+        mark=mark,
+    )
+
+
+class TestSkinReport:
+    """The report lists the skin bars of each span."""
+
+    def test_no_skin_says_none(self) -> None:
+        lines = build_report(_beam()).splitlines()
+        index = lines.index("Skin bars")
+        assert lines[index + 1] == "  none", "a beam without skin bars says none"
+
+    def test_skin_row(self) -> None:
+        beam = _beam()
+        beam.skin_bars = [_skin(mark="N9")]
+        row = next(line for line in build_report(beam).splitlines() if "N9" in line)
+        for cell in ("P1–P2", "2x2φ8", "15.0, 25.0", "10.0", "235.0", "225.0"):
+            assert cell in row, f"the skin row should show {cell!r}"
