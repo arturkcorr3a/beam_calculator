@@ -41,6 +41,11 @@ def slabs_panel(
             shown_category[0] = category
             form.set_category(category)
 
+    def follow_records() -> None:
+        form.set_pillars(session.records.pillars)
+
     bridge.config_changed.connect(follow_config)
+    bridge.records_changed.connect(follow_records)
     follow_config()
+    follow_records()
     return panel

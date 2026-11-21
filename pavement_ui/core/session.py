@@ -1,12 +1,12 @@
 """ProjectSession: the use cases of the main window."""
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from pavement_ui.core.errors import EngineRuleError, SessionBusyError
 from pavement_ui.core.events import EventBus, SessionEvent
 from pavement_ui.core.model.element_kind import ElementKind
 from pavement_ui.core.model.id_generator import IdGenerator
-from pavement_ui.core.model.id_parsing import parse_id_list
 from pavement_ui.core.model.pavement_records import PavementRecords
 from pavement_ui.core.model.records import (
     BeamRecord,
@@ -76,8 +76,8 @@ class ProjectSession:
 
     def add_beam(
         self,
-        pillar_ids_text: str,
-        reference_text: str,
+        pillar_ids: Sequence[str],
+        reference_id: str,
         width_cm: float,
         alignment_key: str,
         wall: WallRecord | None,
@@ -85,8 +85,8 @@ class ProjectSession:
         """Register a beam with the next ID; raises EngineRuleError if refused
 
         Args:
-            pillar_ids_text: Pillar IDs as typed (see ``parse_id_list``).
-            reference_text: Reference pillar ID as typed.
+            pillar_ids: IDs of the supporting pillars.
+            reference_id: ID of the pillar the alignment refers to.
             width_cm: Beam width bw (cm).
             alignment_key: Engine alignment key.
             wall: The wall on the beam; None for a beam without wall.
@@ -94,8 +94,8 @@ class ProjectSession:
         self._ensure_idle()
         record = BeamRecord(
             self._ids.peek(ElementKind.BEAM),
-            parse_id_list(pillar_ids_text),
-            reference_text.strip().upper(),
+            tuple(pillar_ids),
+            reference_id,
             width_cm,
             alignment_key,
             wall,
@@ -105,18 +105,18 @@ class ProjectSession:
         return record
 
     def add_slab(
-        self, corner_ids_text: str, usage_key: str, lowered_cm: int
+        self, corner_ids: Sequence[str], usage_key: str, lowered_cm: int
     ) -> SlabRecord:
         """Register a slab with the next ID; raises EngineRuleError if refused
 
         Args:
-            corner_ids_text: Corner pillar IDs as typed (see ``parse_id_list``).
+            corner_ids: IDs of the corner pillars.
             lowered_cm: Lowering below the floor level (cm).
         """
         self._ensure_idle()
         record = SlabRecord(
             self._ids.peek(ElementKind.SLAB),
-            parse_id_list(corner_ids_text),
+            tuple(corner_ids),
             usage_key,
             lowered_cm,
         )
