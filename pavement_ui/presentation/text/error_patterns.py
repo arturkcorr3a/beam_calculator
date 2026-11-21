@@ -207,6 +207,15 @@ PATTERNS: tuple[MessagePattern, ...] = (
         r"^No category matching '(?P<value>[^']*)' was found\.$",
         "Categoria “{value}” não encontrada (NBR 6120, Tabela 10).",
     ),
+    # --- budget (src.data.sinapi_2026_10.steel_prices) ---------------------
+    _p(
+        rf"^No SINAPI price for CA(?P<grade>\d+) φ(?P<num_d>{_NUM}) mm\.$",
+        "O SINAPI não tem preço para barras CA-{grade} de {num_d} mm.",
+    ),
+    _p(
+        rf"^Concrete price must not be negative: R\$ (?P<num_p>{_NUM})/m³\.$",
+        "O preço do concreto não pode ser negativo (informado: R$ {num_p}/m³).",
+    ),
     # --- isolated beam files (pavement_ui.core.engine.isolated_beam_store) ---
     _p(r"^Not an isolated beam file\.$", "O arquivo não é de uma viga isolada."),
     _p(

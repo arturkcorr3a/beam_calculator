@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QWidget
 
-from pavement_ui.core.ports import DrawingExporter
+from pavement_ui.core.ports import BudgetCalculator, DrawingExporter
 from pavement_ui.core.results.outcomes import DesignSuccess
 from pavement_ui.core.session import ProjectSession
 from pavement_ui.presentation.results.beam.beam_detail_window import BeamDetailWindow
@@ -35,10 +35,12 @@ class ResultWindows:
         session: ProjectSession,
         bridge: QtSessionBridge,
         drawing_exporter: DrawingExporter,
+        budget_calculator: BudgetCalculator,
         parent: QWidget,
     ) -> None:
         self._session = session
         self._drawing_exporter = drawing_exporter
+        self._budget_calculator = budget_calculator
         self._parent = parent
         self._summary: ResultsWindow | None = None
         self._quantities: QuantitiesWindow | None = None
@@ -72,8 +74,10 @@ class ResultWindows:
         if success is None:
             return
         if self._quantities is None:
-            self._quantities = QuantitiesWindow(self._parent)
-        self._quantities.set_results(success.quantities, self._file_name())
+            self._quantities = QuantitiesWindow(self._budget_calculator, self._parent)
+        self._quantities.set_results(
+            success.quantities, success.materials, self._file_name()
+        )
         _show(self._quantities)
 
     def open_beam(self, beam_id: str) -> None:
@@ -133,7 +137,9 @@ class ResultWindows:
         if self._summary is not None:
             self._summary.set_results(success, self._file_name())
         if self._quantities is not None:
-            self._quantities.set_results(success.quantities, self._file_name())
+            self._quantities.set_results(
+                success.quantities, success.materials, self._file_name()
+            )
         beams = {b.beam_id: b for b in success.beams}
         for beam_id in list(self._beams):
             if beam_id in beams:

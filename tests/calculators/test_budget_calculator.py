@@ -31,6 +31,9 @@ class TestCalculateBudget:
         budget = calculate_budget([_steel(6.3, 5.0)], 0.0, 0.0, Steel.CA50)
         (item,) = budget.steel
         assert item.sinapi_code == 34449, "CA-50 φ6.3 comes cut and bent"
+        assert item.description == "ACO CA-50, 6,3 MM, DOBRADO E CORTADO", (
+            "the SINAPI description, verbatim"
+        )
         assert item.price_per_kg == 9.31, "SINAPI 34449 costs R$ 9.31/kg"
         assert_approx(item.cost, 46.55, "5 × 9.31 R$")
 

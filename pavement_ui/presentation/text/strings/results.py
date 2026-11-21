@@ -56,6 +56,11 @@ COL_TOTAL: Final = "Total (cm)"
 KIND_BAR: Final = "Barra"
 KIND_CLAMP: Final = "Grampo"
 KIND_STIRRUP: Final = "Estribo"
+QUANTITIES_BUDGET: Final = "Orçamento…"
+
+# --- budget -------------------------------------------------------------------
+BUDGET_TITLE: Final = "Orçamento das vigas — {file}"
+BUDGET_TOTAL: Final = "Total: {total}"
 
 # --- beam detail (A7) ---------------------------------------------------------
 BEAM_TITLE: Final = "Viga {id} — resultado detalhado"

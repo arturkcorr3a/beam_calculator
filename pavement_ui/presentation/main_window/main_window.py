@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget
 
 from pavement_ui.core.model.element_kind import ElementKind
 from pavement_ui.core.ports import (
+    BudgetCalculator,
     DrawingExporter,
     IsolatedBeamEngine,
     IsolatedBeamStore,
@@ -67,6 +68,7 @@ class MainWindow(QMainWindow):
         isolated_engine: IsolatedBeamEngine,
         drawing_exporter: DrawingExporter,
         isolated_store: IsolatedBeamStore,
+        budget_calculator: BudgetCalculator,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -108,7 +110,9 @@ class MainWindow(QMainWindow):
         )
         self._overlay = BusyOverlay(self)
         self._drawing_exporter = drawing_exporter
-        self._results = ResultWindows(session, bridge, drawing_exporter, self)
+        self._results = ResultWindows(
+            session, bridge, drawing_exporter, budget_calculator, self
+        )
         self._connect_actions()
         self._connect_state(bridge)
         self._refresh()

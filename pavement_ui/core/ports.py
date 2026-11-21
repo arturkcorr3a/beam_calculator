@@ -6,6 +6,7 @@ Every method raising ``EngineRuleError`` passes on the engine's original text.
 """
 
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
@@ -19,8 +20,11 @@ from pavement_ui.core.model.records import (
 )
 from pavement_ui.core.model.settings import ConfigValues, LogValues
 from pavement_ui.core.options import EngineOptions
+from pavement_ui.core.results.budget import BudgetResult
+from pavement_ui.core.results.materials import MaterialsInfo
 from pavement_ui.core.results.outcomes import DesignOutcome, IsolatedBeamOutcome
 from pavement_ui.core.results.plan_geometry import PlanGeometry
+from pavement_ui.core.results.quantities import QuantitiesResult
 from pavement_ui.core.results.vector_drawing import VectorDrawing
 
 
@@ -106,6 +110,25 @@ class DrawingExporter(Protocol):
 
         Raises:
             OSError: If the file cannot be written.
+        """
+        ...
+
+
+class BudgetCalculator(Protocol):
+    """Price the net quantities of a design"""
+
+    def budget(
+        self,
+        quantities: QuantitiesResult,
+        materials: MaterialsInfo,
+        concrete_price_per_m3: float,
+        priced_at: datetime,
+    ) -> BudgetResult:
+        """Price the steel with SINAPI and the concrete with the given price, without waste
+
+        Raises:
+            EngineRuleError: If SINAPI has no price for a diameter or the price
+                is negative.
         """
         ...
 

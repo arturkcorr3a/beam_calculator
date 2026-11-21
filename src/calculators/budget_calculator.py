@@ -17,12 +17,14 @@ class SteelCost:
         diameter_mm: Bar diameter φ (mm).
         mass_kg: Net mass (kg).
         sinapi_code: SINAPI material code of the unit price.
+        description: SINAPI description of that material, verbatim.
         price_per_kg: Unit price (R$/kg).
     """
 
     diameter_mm: float
     mass_kg: float
     sinapi_code: int
+    description: str
     price_per_kg: float
 
     @property
@@ -98,6 +100,7 @@ def calculate_budget(
                 diameter_mm=item.diameter_mm,
                 mass_kg=item.mass_kg,
                 sinapi_code=price.code,
+                description=price.description,
                 price_per_kg=price.price_per_kg,
             )
         )

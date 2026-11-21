@@ -9,6 +9,8 @@ pavimento tipo segundo a ABNT NBR 6118. Você desenha a planta do pavimento
 - analisa cada viga contínua e dimensiona as armaduras longitudinais e os
   estribos, com ancoragem, emendas por traspasse e barras de apoio;
 - detalha as barras e calcula os quantitativos de aço, concreto e fôrma;
+- orça o aço (SINAPI, 10/2026) e o concreto (preço informado pelo usuário) das
+  vigas, em valores líquidos, com exportação em PDF;
 - exporta os desenhos das vigas (PDF e DXF) e o relatório de cálculo (PDF), e
   grava um memorial de cálculo a cada execução.
 
