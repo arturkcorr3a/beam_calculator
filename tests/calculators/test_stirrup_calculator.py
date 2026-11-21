@@ -6,6 +6,7 @@ import pytest
 
 from src.calculators.stirrup_calculator import StirrupCalculator
 from src.config import APP_CONFIG
+from src.errors import StrutCrushingError
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from tests.helpers import assert_approx
@@ -288,10 +289,12 @@ class TestVerifyCompressedStrutResistance:
         sc.verify_compressed_strut_resistance()  # must not raise
 
     def test_raises_when_v_sd_exceeds_v_rd2(self, beam: types.SimpleNamespace) -> None:
-        """ValueError when V_Sd > V_Rd2."""
+        """StrutCrushingError when V_Sd > V_Rd2."""
         sc_over = StirrupCalculator(beam, design_shear_force=500.0)  # pyright: ignore[reportArgumentType]
         sc_over.effective_depth = 56.0
-        with pytest.raises(ValueError, match="exceeds compressed strut resistance"):
+        with pytest.raises(
+            StrutCrushingError, match="exceeds compressed strut resistance"
+        ):
             sc_over.verify_compressed_strut_resistance()
 
 
@@ -309,7 +312,9 @@ class TestCalculate:
         assert sc.effective_depth == 56.0, "effective_depth should be set to 56 cm"
 
     def test_raises_when_strut_exceeded(self, beam: types.SimpleNamespace) -> None:
-        """calculate() raises ValueError when V_Sd > V_Rd2."""
+        """calculate() raises StrutCrushingError when V_Sd > V_Rd2."""
         sc_over = StirrupCalculator(beam, design_shear_force=500.0)  # pyright: ignore[reportArgumentType]
-        with pytest.raises(ValueError, match="exceeds compressed strut resistance"):
+        with pytest.raises(
+            StrutCrushingError, match="exceeds compressed strut resistance"
+        ):
             sc_over.calculate(56.0)

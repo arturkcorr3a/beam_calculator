@@ -11,6 +11,7 @@ from src.calculators.support_bars import (
     carry_span_bars_to_supports,
     support_area_share,
 )
+from src.errors import SupportBarsShortError
 from src.properties.steel import Steel
 from src.reinforcement.layer import Layer
 from src.reinforcement.reinforcement import Reinforcement
@@ -213,5 +214,5 @@ class TestCarrySpanBarsToSupports:
     def test_share_not_met_raises(self) -> None:
         """All layers (0.785 cm²) are below 1/3 of 6.0 cm² = 2.0 cm²"""
         reinforcement = _reinforcement([_layer(0, 1)], 6.0)
-        with pytest.raises(ValueError, match="below"):
+        with pytest.raises(SupportBarsShortError, match="below"):
             _run(reinforcement)

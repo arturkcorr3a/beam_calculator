@@ -8,6 +8,7 @@ from src.checkers.deformation_check_result import DeformationCheckResult
 from src.checkers.slab_deformation_checker import SlabDeformationChecker
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.errors import SlabThicknessExceededError
 from src.loading.superficial_loads import SuperficialLoads
 from src.logger import (
     log_element,
@@ -289,8 +290,8 @@ class Slab(metaclass=_SlabMeta):
             log_iteration(f"h = {self.thickness} cm: fail")
             self.thickness += 1
             if self.thickness > self.max_thickness:
-                raise ValueError(
-                    f"Slab '{self.id}' cannot be stabilized; required thickness exceeds {self.max_thickness} cm."
+                raise SlabThicknessExceededError(
+                    slab_id=self.id, max_thickness=self.max_thickness
                 )
             # The effective spans depend on the thickness (0.3 h cap)
             checker.lx, checker.ly = self.effective_dimensions

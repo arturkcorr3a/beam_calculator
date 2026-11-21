@@ -17,6 +17,7 @@ from src.calculators import beam_calculator
 from src.calculators.beam_calculator import BeamCalculator
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
+from src.errors import DeformationLimitExceededError
 from src.loading.forces import LOAD_FACTOR
 from src.pavement_elements.geometry_utils import Axis
 from src.pavement_elements.pillar import Pillar
@@ -562,7 +563,7 @@ class TestVerifyDeformation:
     def test_raises_when_deformation_exceeds(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """_verify_deformation() raises ValueError when checker.verify returns False."""
+        """_verify_deformation() raises DeformationLimitExceededError when checker.verify returns False."""
         # Make immediate_deflection and long_term_deflection available for the error message
         monkeypatch.setattr(BeamDeformationChecker, "verify", lambda self, h: False)  # type: ignore
         monkeypatch.setattr(
@@ -585,13 +586,20 @@ class TestVerifyDeformation:
         bc = BeamCalculator(_make_beam_stub(spans=[span]), {})  # type: ignore[arg-type]
         structural_beam = self._make_structural_beam_stub()
         rebar_calculator = self._make_rebar_calculator_stub()
-        with pytest.raises(ValueError, match="Deformation exceeds"):
+        with pytest.raises(
+            DeformationLimitExceededError, match="Deformation exceeds"
+        ) as raised:
             bc._verify_deformation(  # type: ignore[arg-type]
                 structural_beam,  # type: ignore[arg-type]
                 self._make_analysis_stub(),  # type: ignore[arg-type]
                 rebar_calculator,  # type: ignore[arg-type]
                 250.0,
             )
+        error = raised.value
+        assert_approx(error.position, 250.0, "position of the failed point (cm)")
+        assert_approx(error.immediate_deflection, 5.0, "immediate deflection (cm)")
+        assert_approx(error.long_term_deflection, 15.0, "long-term deflection (cm)")
+        assert_approx(error.acceptable_deflection, 1.0, "acceptable deflection (cm)")
 
 
 # ---------------------------------------------------------------------------

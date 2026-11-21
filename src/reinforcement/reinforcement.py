@@ -6,6 +6,7 @@ from typing import cast
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.config import APP_CONFIG
+from src.errors import NoReinforcementLayoutError
 from src.logger import (
     log_element,
     log_iteration,
@@ -188,10 +189,11 @@ class Reinforcement:
         supports.
 
         Raises:
-            ValueError: If the required area or moment shift is not set, if
+            ValueError: If the required area or moment shift is not set, or if
                 clamps are needed but the effective depth or design shear is not
-                set, or if no option can be laid out and anchored, even with
-                clamps.
+                set.
+            NoReinforcementLayoutError: If no option can be laid out and
+                anchored, even with clamps.
         """
         log_operation(
             f"Choosing reinforcement for required area: {self.required_area:.2f} cm²"
@@ -218,7 +220,7 @@ class Reinforcement:
             best_layers = self._select_best_layers(allow_clamp=True)
         if best_layers is None:
             self.clear_chosen_bars()
-            raise ValueError("No valid reinforcement combination found.")
+            raise NoReinforcementLayoutError()
 
         self.chosen_bars = best_layers
         self.is_chosen = True

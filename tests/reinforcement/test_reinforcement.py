@@ -7,6 +7,7 @@ from unittest.mock import PropertyMock, patch
 import pytest
 
 from src.config import APP_CONFIG
+from src.errors import NoReinforcementLayoutError
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
@@ -531,7 +532,9 @@ class TestEndSupportAnchorage:
         reinforcement.design_shear = 100.0  # kN
         with (
             patch.object(Rebar, "hook_height", new_callable=PropertyMock) as height,
-            pytest.raises(ValueError, match="No valid reinforcement combination"),
+            pytest.raises(
+                NoReinforcementLayoutError, match="No valid reinforcement combination"
+            ),
         ):
             height.return_value = 100.0  # cm, taller than the 60 cm section
             reinforcement.set_required_area(4.02)
@@ -701,7 +704,9 @@ class TestClampPass:
             Support(_SHORT_BEAM_LENGTH, _SHORT_BEAM_LENGTH, _SHORT_BEAM_LENGTH),
         ]
         reinforcement = _make_clamp_ready_reinforcement(_make_short_beam(supports))
-        with pytest.raises(ValueError, match="No valid reinforcement combination"):
+        with pytest.raises(
+            NoReinforcementLayoutError, match="No valid reinforcement combination"
+        ):
             reinforcement.set_required_area(2.0)
 
     def test_clamp_pass_requires_depth_and_shear(

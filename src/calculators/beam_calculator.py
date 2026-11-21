@@ -18,6 +18,7 @@ from src.calculators.support_bars import (
 )
 from src.checkers.beam_deformation_checker import BeamDeformationChecker
 from src.config import APP_CONFIG
+from src.errors import DeformationLimitExceededError
 from src.loading.forces import design_effort_elu
 from src.logger import log_operation, logger_label
 from src.pavement_elements.beam_span import Span
@@ -552,7 +553,7 @@ class BeamCalculator:
         """Verifies the ELS deflection limit at a single interest point using its own span's loads.
 
         Raises:
-            ValueError: If the long-term deflection at the point exceeds the limit.
+            DeformationLimitExceededError: If the long-term deflection at the point exceeds the limit.
         """
         span = self._span_at(position)
 
@@ -576,6 +577,11 @@ class BeamCalculator:
             log_operation("Deformation is within acceptable limits.")
             return
 
-        log_message = f"Deformation exceeds acceptable limits at {position:.2f} cm. Immediate deflection: {checker.immediate_deflection:.2f} cm, Long-term deflection: {checker.long_term_deflection:.2f} cm, Acceptable deflection: {checker.acceptable_deflection:.2f} cm."
-        log_operation(log_message)
-        raise ValueError(log_message)
+        error = DeformationLimitExceededError(
+            position=position,
+            immediate_deflection=checker.immediate_deflection,
+            long_term_deflection=checker.long_term_deflection,
+            acceptable_deflection=checker.acceptable_deflection,
+        )
+        log_operation(error.message)
+        raise error

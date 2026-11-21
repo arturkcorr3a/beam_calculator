@@ -2,6 +2,7 @@ from math import ceil, cos, floor, pi, sin
 
 from src.calculators.utils import cotan
 from src.config import APP_CONFIG
+from src.errors import StrutCrushingError
 from src.logger import log_element, log_operation, logger_label
 from src.structural_elements.rectangular_beam import RectangularBeam
 
@@ -40,10 +41,15 @@ class StirrupCalculator:
         return self.required_ratio  # cm²/cm
 
     def verify_compressed_strut_resistance(self) -> None:
-        """Verify that the design shear force does not exceed the compressed strut resistance (V_Rd2). NBR 6118 - Section 17.4.2.2."""
+        """Verify that the design shear force does not exceed the compressed strut resistance (V_Rd2). NBR 6118 - Section 17.4.2.2.
+
+        Raises:
+            StrutCrushingError: If V_Sd exceeds V_Rd2.
+        """
         if self.design_shear_force > self.compressed_strut_resistance:
-            raise ValueError(
-                f"Design shear force (V_Sd = {self.design_shear_force:.2f} kN) exceeds compressed strut resistance (V_Rd2 = {self.compressed_strut_resistance:.2f} kN). Design not verified."
+            raise StrutCrushingError(
+                design_shear_force=self.design_shear_force,
+                strut_resistance=self.compressed_strut_resistance,
             )
         log_operation(
             "Shear force does not exceed the compressed strut resistance (V_Rd2) - OK."

@@ -12,6 +12,7 @@ from src.detailing.bar_schedule import build_schedule
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.mark_registry import BarKey, MarkRegistry, bar_key
+from src.errors import SlabPreSizingDivergedError
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment, Axis
 from src.pavement_elements.pavement import Pavement, reset_element_id_counters
@@ -446,8 +447,12 @@ class TestPreSizeSlabs:
         p.add_slab(unstable)
         p.add_slab(stable)
 
-        with pytest.raises(ValueError, match=r"after 3 passes; still resizing: LU\.$"):
+        with pytest.raises(
+            SlabPreSizingDivergedError, match=r"after 3 passes; still resizing: LU\.$"
+        ) as raised:
             p.pre_size_slabs()
+        assert raised.value.passes == 3, "the error should keep the passes run"
+        assert raised.value.slab_ids == ["LU"], "the error should name the slab"
         assert calls[0] == 3, "pre_size should run exactly once per allowed pass"
 
 

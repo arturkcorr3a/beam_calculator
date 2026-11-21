@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from src.calculators.rebar_calculator import EFFECTIVE_DEPTH_TOLERANCE, RebarCalculator
+from src.errors import EffectiveDepthDivergedError
 from src.logger import log_element, log_general, log_iteration
 from src.reinforcement.stirrups import Stirrups
 
@@ -75,7 +76,8 @@ def coordinate_span(calculators: list[RebarCalculator], stirrups: Stirrups) -> N
         stirrups: The span's stirrups; chosen in place.
 
     Raises:
-        ValueError: If no calculators are given, or if d neither converges nor cycles within MAX_ITERATIONS passes.
+        ValueError: If no calculators are given.
+        EffectiveDepthDivergedError: If d neither converges nor cycles within MAX_ITERATIONS passes.
     """
     if not calculators:
         raise ValueError("At least one rebar calculator is needed to coordinate.")
@@ -124,9 +126,7 @@ def coordinate_span(calculators: list[RebarCalculator], stirrups: Stirrups) -> N
             )
             return
 
-    raise ValueError(
-        f"Effective depth (d) did not converge within {MAX_ITERATIONS} stirrup-longitudinal reinforcement passes."
-    )
+    raise EffectiveDepthDivergedError(max_iterations=MAX_ITERATIONS)
 
 
 def _dimension_longitudinal(

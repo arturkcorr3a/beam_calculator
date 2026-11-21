@@ -3,6 +3,7 @@ from math import ceil
 from typing import NamedTuple
 
 from src.config import APP_CONFIG
+from src.errors import ClampsDoNotFitError
 from src.logger import log_operation, log_property, logger_label
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -67,7 +68,7 @@ class AnchorageClampCalculator:
         """Choose the clamps for this extremity, reusing the side's existing ones when they are enough
 
         Raises:
-            ValueError: If no clamp arrangement fits in the section.
+            ClampsDoNotFitError: If no clamp arrangement fits in the section.
         """
         force_on_rebar = self._calculate_force_on_rebar()
         force_on_clamp = self._calculate_force_on_clamp(force_on_rebar)
@@ -143,7 +144,7 @@ class AnchorageClampCalculator:
             The clamp diameter (mm) and the number of clamps.
 
         Raises:
-            ValueError: If no clamp arrangement fits in the section.
+            ClampsDoNotFitError: If no clamp arrangement fits in the section.
         """
         candidates: list[tuple[float, int, float]] = []  # (area cm², quantity, φ mm)
         for diameter in APP_CONFIG.pavement_steel.available_sizes:
@@ -154,9 +155,9 @@ class AnchorageClampCalculator:
             candidates.append((2 * quantity * leg_area, quantity, diameter))
 
         if not candidates:
-            error_message = f"No clamp arrangement fits in the section for {required_area:.2f} cm^2."
-            log_operation(error_message)
-            raise ValueError(error_message)
+            error = ClampsDoNotFitError(required_area=required_area)
+            log_operation(error.message)
+            raise error
 
         threshold_area = min(area for area, _, _ in candidates) * (
             1 + CLAMP_AREA_TOLERANCE_RATIO

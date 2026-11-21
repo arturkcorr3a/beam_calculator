@@ -12,6 +12,7 @@ from src.calculators.isolated_beam import (
 )
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.errors import DeformationLimitExceededError, ReinforcementAreaExceededError
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
@@ -191,6 +192,57 @@ class TestDimensioning:
             "reactions should add up to (g + q) × total length (kN)",
             abs_tol=1e-3,
         )
+
+
+class TestDesignFailures:
+    """Design failures leave dimension() with their type and the beam's id."""
+
+    @pytest.fixture(autouse=True)
+    def _materials(self, monkeypatch: pytest.MonkeyPatch) -> None:  # pyright: ignore[reportUnusedFunction]
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+
+    def test_deflection_over_the_limit(self) -> None:
+        """15 × 30 cm over 8.00 m with g = 5 and q = 5 kN/m fails ELS-DEF"""
+        beam, pillars = build_isolated_beam(
+            [800.0],
+            15.0,
+            30.0,
+            [_PILLAR] * 2,
+            [
+                OwnWeightLoad(),
+                CustomLoad("g", 5.0),
+                CustomLoad("uso", 5.0, variable=True, psi_2=0.3),
+            ],
+        )
+        with pytest.raises(DeformationLimitExceededError) as raised:
+            beam.dimension(pillars)
+        error = raised.value
+        assert error.beam_id == beam.id, "the error should name the beam"
+        assert error.long_term_deflection > error.acceptable_deflection, (
+            "the long-term deflection should exceed the limit"
+        )
+        assert str(error).startswith(f"Beam '{beam.id}': Deformation exceeds"), (
+            "the text should keep the old prefixed message"
+        )
+
+    def test_reinforcement_over_the_maximum(self) -> None:
+        """15 × 25 cm over 7.00 m with g = 8 and q = 4 kN/m needs more than 4% A_c"""
+        beam, pillars = build_isolated_beam(
+            [700.0],
+            15.0,
+            25.0,
+            [_PILLAR] * 2,
+            [
+                OwnWeightLoad(),
+                CustomLoad("g", 8.0),
+                CustomLoad("uso", 4.0, variable=True, psi_2=0.3),
+            ],
+        )
+        with pytest.raises(ReinforcementAreaExceededError) as raised:
+            beam.dimension(pillars)
+        assert raised.value.beam_id == beam.id, "the error should name the beam"
+        assert_approx(raised.value.max_area, 15.0, "max area = 4% of 15 × 25 cm (cm²)")
 
 
 class TestStaggering:

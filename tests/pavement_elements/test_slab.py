@@ -10,6 +10,7 @@ import pytest
 import src.pavement_elements.slab as _slab_module
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.errors import SlabThicknessExceededError
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
@@ -631,7 +632,7 @@ class TestPreSize:
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
         _skip_support_resolution(monkeypatch, s)
 
-        with pytest.raises(ValueError, match="cannot be stabilized"):
+        with pytest.raises(SlabThicknessExceededError, match="cannot be stabilized"):
             s.pre_size({})
 
     @pytest.mark.xfail(
@@ -734,7 +735,7 @@ class TestPreSize:
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
         _skip_support_resolution(monkeypatch, s)
 
-        with pytest.raises(ValueError, match="cannot be stabilized"):
+        with pytest.raises(SlabThicknessExceededError, match="cannot be stabilized"):
             s.pre_size({})
         assert s.deflection_check is None, "a failed pre_size should store no check"
 

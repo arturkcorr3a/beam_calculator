@@ -9,6 +9,7 @@ from src.detailing.quantities import (
     build_quantities,
     quantities_table,
 )
+from src.errors import SlabPreSizingDivergedError
 from src.logger import log_element, log_general, log_iteration, logger_label
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -133,7 +134,7 @@ class Pavement:
         A slab's thickness depends on its neighbors' (through the support conditions), so passes repeat until no slab is resized.
 
         Raises:
-            ValueError: If slabs are still being resized after MAX_SLAB_PRE_SIZE_PASSES passes (the sizing does not converge).
+            SlabPreSizingDivergedError: If slabs are still being resized after MAX_SLAB_PRE_SIZE_PASSES passes (the sizing does not converge).
         """
         log_general("Pre-sizing slabs...")
 
@@ -146,10 +147,7 @@ class Pavement:
                     for slab, is_stable in zip(self.slabs.values(), stable, strict=True)
                     if is_stable is not True
                 ]
-                raise ValueError(
-                    f"Slab pre-sizing did not converge after {pass_num} passes; "
-                    f"still resizing: {', '.join(unstable_ids)}."
-                )
+                raise SlabPreSizingDivergedError(passes=pass_num, slab_ids=unstable_ids)
             pass_num += 1
             log_iteration(f"Passing {pass_num} starting...", "Slabs Pre-sizing")
             for i, slab in enumerate(self.slabs.values()):
