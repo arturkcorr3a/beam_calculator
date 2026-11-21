@@ -4,6 +4,7 @@ import pytest
 
 from src.data.nbr6120_2019.table_10.data import TABLE_10
 from src.data.nbr6120_2019.table_10.model import BuildingCategory, Table10
+from src.errors import TableLookupError
 from tests.helpers import assert_approx
 
 # ---------------------------------------------------------------------------
@@ -67,21 +68,21 @@ class TestBuildingCategoryGetLocationLoad:
 
     def test_no_match_raises_key_error(self, residential: BuildingCategory) -> None:
         """A description that matches nothing raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             residential.get_location_load("nonexistent location xyz")
 
     def test_empty_locations_helipads_always_raises(
         self, helipads: BuildingCategory
     ) -> None:
         """Helipads category has no locations; any query raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             helipads.get_location_load("landing pad")
 
     def test_empty_locations_warehouses_always_raises(
         self, general_warehouses: BuildingCategory
     ) -> None:
         """General use warehouses category has no locations; any query raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             general_warehouses.get_location_load("storage area")
 
     def test_first_match_returned_for_ambiguous_query(
@@ -126,7 +127,7 @@ class TestTable10FindCategory:
 
     def test_no_match_raises_key_error(self, table: Table10) -> None:
         """A description that matches nothing raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             table.find_category("nonexistent category xyz")
 
     def test_finds_helipads(self, table: Table10) -> None:

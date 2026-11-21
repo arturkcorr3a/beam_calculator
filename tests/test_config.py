@@ -10,6 +10,7 @@ import pytest
 
 from src.config import AppConfig
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
+from src.errors import ConcreteClassTooLowError
 from src.logger import LogLevel, LogOutput
 from src.persistency.deserialization import config_from_dict
 from src.persistency.schema import ConfigDict
@@ -286,7 +287,7 @@ class TestValidateConcreteClass:
     ) -> None:
         config.exposure_class = exposure_class
         config.pavement_concrete = concrete
-        with pytest.raises(ValueError, match="below the minimum"):
+        with pytest.raises(ConcreteClassTooLowError, match="below the minimum"):
             config.validate_concrete_class()
 
     @pytest.mark.parametrize(
@@ -315,7 +316,7 @@ class TestValidateConcreteClass:
     ) -> None:
         config.exposure_class = ExposureClass.MODERATE
         config.pavement_concrete = Concrete.C20
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ConcreteClassTooLowError) as exc_info:
             config.validate_concrete_class()
         assert str(exc_info.value) == (
             "Concrete C20 is below the minimum C25 required for exposure class 2."

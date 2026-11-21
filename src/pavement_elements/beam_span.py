@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
+from src.errors import InputError
 from src.loading.load_component import LoadComponent
 from src.pavement_elements.geometry_utils import Axis, effective_span
 from src.pavement_elements.pillar import Pillar
@@ -91,7 +92,7 @@ class Span:
         elif self.supported_slabs[1] is None:
             self.supported_slabs = (self.supported_slabs[0], slab)
         else:
-            raise ValueError(
+            raise InputError(
                 f"Span between '{self.start_pillar_id}' and '{self.end_pillar_id}' already supports two slabs."
             )
 

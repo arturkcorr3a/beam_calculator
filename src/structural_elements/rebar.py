@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from math import pi
 
+from src.errors import InputError
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
 )
@@ -44,7 +45,7 @@ class Rebar:
 
     def __post_init__(self):
         if not self.steel.is_size_available(self.diameter_mm):
-            raise ValueError(
+            raise InputError(
                 f"Diameter {self.diameter_mm} mm is not available for the specified steel type."
             )
 

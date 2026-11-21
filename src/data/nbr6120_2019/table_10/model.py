@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from src.errors import TableLookupError
 from src.logger import log_property, logger_label
 
 
@@ -29,7 +30,11 @@ class BuildingCategory:
             if query in loc.description.lower():
                 log_property(f"live load for '{description}' = {loc.distributed_load:.2f} kN/m²")
                 return loc.distributed_load
-        raise KeyError(f"No location matching '{description}' was found.")
+        raise TableLookupError(
+            f"No location matching '{description}' was found.",
+            table="ABNT NBR 6120:2019 — Table 10",
+            value=description,
+        )
 
 
 @logger_label("ABNT NBR 6120:2019 - Table 10")
@@ -60,4 +65,8 @@ class Table10:
             if query in cat.description.lower():
                 log_property(f"occupancy category: '{cat.description}'")
                 return cat
-        raise KeyError(f"No category matching '{description}' was found.")
+        raise TableLookupError(
+            f"No category matching '{description}' was found.",
+            table="ABNT NBR 6120:2019 — Table 10",
+            value=description,
+        )

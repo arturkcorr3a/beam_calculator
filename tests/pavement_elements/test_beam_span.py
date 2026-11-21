@@ -5,6 +5,7 @@ from typing import cast
 
 import pytest
 
+from src.errors import InputError
 from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
@@ -234,7 +235,7 @@ class TestAddSupportedSlab:
         slab_c = cast(Slab, types.SimpleNamespace(id="LC", thickness=14))
         x_span.add_supported_slab(slab_a)
         x_span.add_supported_slab(slab_b)
-        with pytest.raises(ValueError, match="already supports two slabs"):
+        with pytest.raises(InputError, match="already supports two slabs"):
             x_span.add_supported_slab(slab_c)
 
 

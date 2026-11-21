@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from src.errors import TableLookupError
 from src.logger import log_property, logger_label
 
 
@@ -41,4 +42,8 @@ class Table7:
             if query in material.description.lower():
                 log_property(f"fill material: '{material.description}', avg={material.weight_avg} kN/m³")
                 return material
-        raise KeyError(f"No material matching '{description}' was found.")
+        raise TableLookupError(
+            f"No material matching '{description}' was found.",
+            table="ABNT NBR 6120:2019 — Table 7",
+            value=description,
+        )

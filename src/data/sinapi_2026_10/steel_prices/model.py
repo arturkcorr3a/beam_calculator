@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from math import isclose
 
+from src.errors import SteelPriceNotFoundError
 from src.logger import log_property, logger_label
 from src.properties.steel import Steel
 
@@ -58,11 +59,11 @@ class SteelPriceTable:
         """Return the item that prices a bar: cut and bent when SINAPI has one, else straight rebar
 
         Raises:
-            ValueError: If no item covers the grade and diameter.
+            SteelPriceNotFoundError: If no item covers the grade and diameter.
         """
         candidates = [item for item in self.items if item.covers(steel, diameter_mm)]
         if not candidates:
-            raise ValueError(f"No SINAPI price for {steel.name} φ{diameter_mm:g} mm.")
+            raise SteelPriceNotFoundError(steel=steel.name, diameter_mm=diameter_mm)
         item = max(candidates, key=lambda candidate: candidate.cut_and_bent)
         log_property(
             f"φ{diameter_mm:g} {steel.name}: SINAPI {item.code}, R$ {item.price_per_kg:.2f}/kg"

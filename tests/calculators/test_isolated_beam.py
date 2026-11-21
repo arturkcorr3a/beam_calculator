@@ -12,12 +12,21 @@ from src.calculators.isolated_beam import (
 )
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
-from src.errors import DeformationLimitExceededError, ReinforcementAreaExceededError
+from src.errors import (
+    BeamInputError,
+    BeamTooNarrowError,
+    DeformationLimitExceededError,
+    InputError,
+    PillarTooSmallError,
+    ReinforcementAreaExceededError,
+    SkinSteelError,
+)
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
+from src.properties.steel import Steel
 from tests.helpers import assert_approx
 
 _PILLAR = IsolatedPillar(20.0, 20.0)
@@ -110,31 +119,31 @@ class TestInvalidInput:
     """Inconsistent inputs are refused with a ValueError."""
 
     def test_wrong_pillar_count(self) -> None:
-        with pytest.raises(ValueError, match="needs 3 pillars"):
+        with pytest.raises(InputError, match="needs 3 pillars"):
             build_isolated_beam([400.0, 500.0], 15.0, 40.0, [_PILLAR] * 2, [])
 
     def test_non_positive_length(self) -> None:
-        with pytest.raises(ValueError, match="must be positive"):
+        with pytest.raises(InputError, match="must be positive"):
             build_isolated_beam([0.0], 15.0, 40.0, [_PILLAR] * 2, [])
 
     def test_span_index_out_of_range(self) -> None:
-        with pytest.raises(ValueError, match="Load on span 3"):
+        with pytest.raises(InputError, match="Load on span 3"):
             _two_spans([OwnWeightLoad(span_index=2)])
 
     def test_psi_2_out_of_range(self) -> None:
-        with pytest.raises(ValueError, match="psi_2"):
+        with pytest.raises(InputError, match="psi_2"):
             _two_spans([CustomLoad("uso", 2.0, variable=True, psi_2=1.5)])
 
     def test_narrow_beam(self) -> None:
-        with pytest.raises(ValueError, match="at least 12"):
+        with pytest.raises(BeamTooNarrowError, match="at least 12"):
             build_isolated_beam([400.0], 10.0, 40.0, [_PILLAR] * 2, [])
 
     def test_small_pillar(self) -> None:
-        with pytest.raises(ValueError, match="at least 14"):
+        with pytest.raises(PillarTooSmallError, match="at least 14"):
             build_isolated_beam([400.0], 12.0, 40.0, [IsolatedPillar(12, 30)] * 2, [])
 
     def test_pillar_not_covering_the_beam(self) -> None:
-        with pytest.raises(ValueError, match="does not fully cover"):
+        with pytest.raises(BeamInputError, match="does not fully cover"):
             build_isolated_beam([400.0], 25.0, 40.0, [_PILLAR] * 2, [])
 
 
@@ -242,6 +251,23 @@ class TestDesignFailures:
             beam.dimension(pillars)
         assert raised.value.beam_id == beam.id, "the error should name the beam"
         assert_approx(raised.value.max_area, 15.0, "max area = 4% of 15 × 25 cm (cm²)")
+
+    def test_skin_bars_in_ca25(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A 70 cm beam needs skin bars, which CA-25 cannot provide"""
+        monkeypatch.setattr(APP_CONFIG, "pavement_steel", Steel.CA25)
+        beam, pillars = build_isolated_beam(
+            [600.0],
+            15.0,
+            70.0,
+            [_PILLAR] * 2,
+            [OwnWeightLoad(), CustomLoad("uso", 3.0, variable=True, psi_2=0.3)],
+        )
+        with pytest.raises(SkinSteelError) as raised:
+            beam.dimension(pillars)
+        assert raised.value.beam_id == beam.id, "the error should name the beam"
+        assert str(raised.value).startswith(f"Beam '{beam.id}': A beam with h = 70"), (
+            "the text should keep the old prefixed message"
+        )
 
 
 class TestStaggering:

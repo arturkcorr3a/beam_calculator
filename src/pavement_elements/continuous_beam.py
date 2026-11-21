@@ -11,7 +11,15 @@ from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.post_processor import detail_beam
-from src.errors import BeamCalculatorError, BeamDesignError, BeamDetailingError
+from src.errors import (
+    BeamCalculatorError,
+    BeamDesignError,
+    BeamDetailingError,
+    BeamInputError,
+    BeamTooNarrowError,
+    SkinSteelError,
+    UnknownPillarError,
+)
 from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
@@ -116,28 +124,30 @@ class ContinuousBeam:
 
     def _validate_pillar_count(self) -> None:
         if len(self.pillar_ids) < 2:
-            raise ValueError(f"Beam '{self.id}' must have at least 2 pillars.")
+            raise BeamInputError(
+                f"Beam '{self.id}' must have at least 2 pillars.", beam_id=self.id
+            )
 
     def _validate_reference_pillar(self) -> None:
         """Ensures the reference pillar is included in the beam's pillar_ids."""
         if self.reference_pillar_id not in self.pillar_ids:
-            raise ValueError(
-                "Reference pillar ID must be included in the beam's pillar_ids."
+            raise BeamInputError(
+                "Reference pillar ID must be included in the beam's pillar_ids.",
+                beam_id=self.id,
             )
 
     def _validate_width(self) -> None:
         """Enforce ABNT NBR 6118 minimum beam width requirement.
 
         Raises:
-            ValueError: If width is below 12 cm.
+            BeamTooNarrowError: If width is below 12 cm.
 
         References:
             ABNT NBR 6118:2014 — Section 13.2.2
         """
         if self.width < _MIN_BEAM_WIDTH_CM:
-            raise ValueError(
-                f"Beam '{self.id}' width must be at least {_MIN_BEAM_WIDTH_CM} cm. "
-                f"Got {self.width} cm."
+            raise BeamTooNarrowError(
+                width=self.width, min_width=_MIN_BEAM_WIDTH_CM, beam_id=self.id
             )
 
     def clear_resolved(self) -> None:
@@ -185,6 +195,8 @@ class ContinuousBeam:
         Raises:
             BeamDesignError: If the beam cannot be designed, with ``beam_id`` set,
                 since the calculators' messages do not name the beam.
+            SkinSteelError: If the beam needs skin bars the project steel cannot
+                provide, with ``beam_id`` set.
             BeamCalculatorError: Any other engine error, with its type and text kept.
             ValueError: If a library fails; the message is prefixed with the beam id.
         """
@@ -192,7 +204,7 @@ class ContinuousBeam:
         self.detailing = None
         try:
             BeamCalculator(self, pillar_registry).run()
-        except (BeamDesignError, BeamDetailingError) as error:
+        except (BeamDesignError, BeamDetailingError, SkinSteelError) as error:
             self._name_beam(error)
             raise
         except BeamCalculatorError:
@@ -226,7 +238,9 @@ class ContinuousBeam:
         log_element(f"detailed with {len(self.detailing.bars)} bar run(s)")
         return self.detailing
 
-    def _name_beam(self, error: BeamDesignError | BeamDetailingError) -> None:
+    def _name_beam(
+        self, error: BeamDesignError | BeamDetailingError | SkinSteelError
+    ) -> None:
         """Set this beam as the error's ``beam_id``, unless an inner beam already did"""
         if error.beam_id is None:
             error.beam_id = self.id
@@ -555,8 +569,8 @@ class ContinuousBeam:
         """Ensures all pillar_ids exist in the provided pillar_registry."""
         for pillar_id in self.pillar_ids:
             if pillar_id not in pillar_registry:
-                raise ValueError(
-                    f"Beam '{self.id}': pillar '{pillar_id}' does not exist in the registry."
+                raise UnknownPillarError(
+                    owner_kind="Beam", owner_id=self.id, pillar_id=pillar_id
                 )
 
     def _determine_axis(self, pillar_registry: dict[str, Pillar]) -> Axis:
@@ -607,8 +621,9 @@ class ContinuousBeam:
                 case Alignment.CENTER:
                     centerline = reference_pillar.y
                 case _:
-                    raise ValueError(
-                        f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'"
+                    raise BeamInputError(
+                        f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'",
+                        beam_id=self.id,
                     )
         elif self.axis == Axis.Y:
             pillar_reach = reference_pillar.get_x_range()
@@ -620,8 +635,9 @@ class ContinuousBeam:
                 case Alignment.CENTER:
                     centerline = reference_pillar.x
                 case _:
-                    raise ValueError(
-                        f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'"
+                    raise BeamInputError(
+                        f"Invalid alignment for beam '{self.id}'. Alignment: '{self.alignment.value}'",
+                        beam_id=self.id,
                     )
         else:
             raise ValueError(
@@ -647,10 +663,11 @@ class ContinuousBeam:
             pillar = pillar_registry[pillar_id]
             pillar_low, pillar_high = get_pillar_perpendicular_range(pillar, self.axis)
             if pillar_low > beam_low + TOLERANCE or pillar_high < beam_high - TOLERANCE:
-                raise ValueError(
+                raise BeamInputError(
                     f"Beam '{self.id}': pillar '{pillar.id}' cross-section "
                     f"[{pillar_low:.4f}, {pillar_high:.4f}] cm does not fully cover the beam "
-                    f"width band [{beam_low:.4f}, {beam_high:.4f}] cm "
+                    f"width band [{beam_low:.4f}, {beam_high:.4f}] cm ",
+                    beam_id=self.id,
                 )
 
     def _get_range(self) -> tuple[float, float]:
@@ -698,8 +715,9 @@ class ContinuousBeam:
 
         if skipped:
             skipped_pillar_ids = ", ".join(f"'{pillar.id}'" for pillar in skipped)
-            raise ValueError(
-                f"Beam '{self.id}' skips pillar(s) {skipped_pillar_ids} that lie on the same  axis line between its endpoints."
+            raise BeamInputError(
+                f"Beam '{self.id}' skips pillar(s) {skipped_pillar_ids} that lie on the same  axis line between its endpoints.",
+                beam_id=self.id,
             )
 
     def _pillars_touching_beam(

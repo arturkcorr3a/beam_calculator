@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 
 from src.calculators.rebar_calculator import RebarCalculator
-from src.errors import SkinReinforcementNoRoomError
+from src.errors import SkinReinforcementNoRoomError, SkinSteelError
 from src.properties.steel import Steel
 from src.reinforcement.skin_reinforcement import SkinReinforcement
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -66,7 +66,7 @@ class TestSteel:
 
     def test_ca25_raises(self) -> None:
         with pytest.raises(
-            ValueError, match=r"h = 70 cm > 60 cm .* project steel is CA-25\."
+            SkinSteelError, match=r"h = 70 cm > 60 cm .* project steel is CA-25\."
         ):
             SkinReinforcement(_beam(20.0, 70.0, Steel.CA25))
 

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from src.data.sinapi_2026_10.steel_prices.data import STEEL_PRICES
 from src.detailing.quantities import SteelQuantity
+from src.errors import InputError
 from src.logger import log_operation, log_property
 from src.properties.steel import Steel
 
@@ -80,16 +81,16 @@ def calculate_budget(
         grade: Steel grade of all the bars.
 
     Raises:
-        ValueError: If the volume or the concrete price is negative, or if
-            SINAPI has no price for a diameter.
+        InputError: If the volume or the concrete price is negative.
+        SteelPriceNotFoundError: If SINAPI has no price for a diameter.
 
     References:
         SINAPI — Insumos, família 43055, 10/2026, média Brasil
     """
     if concrete_m3 < 0:
-        raise ValueError(f"Concrete volume must not be negative: {concrete_m3} m³.")
+        raise InputError(f"Concrete volume must not be negative: {concrete_m3} m³.")
     if concrete_price_per_m3 < 0:
-        raise ValueError(
+        raise InputError(
             f"Concrete price must not be negative: R$ {concrete_price_per_m3}/m³."
         )
     costs: list[SteelCost] = []

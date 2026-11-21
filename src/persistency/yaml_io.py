@@ -19,6 +19,7 @@ from typing import Any, cast
 import yaml
 
 from src.config import APP_CONFIG
+from src.errors import MalformedFileError
 from src.pavement_elements.pavement import Pavement
 from src.persistency.deserialization import config_from_dict, pavement_from_dict
 from src.persistency.schema import ConfigDict, PavementDict
@@ -130,14 +131,15 @@ def load_pavement(path: str | Path) -> Pavement:
         The reconstructed, unresolved pavement.
 
     Raises:
-        ValueError: If the file is empty, its top level is not a mapping, or it
-            is otherwise malformed (see pavement_from_dict / config_from_dict).
+        MalformedFileError: If the file is empty, its top level is not a
+            mapping, or it is otherwise malformed (see pavement_from_dict /
+            config_from_dict).
     """
     with Path(path).open("r", encoding="utf-8") as file:
         data: object = yaml.safe_load(file)
 
     if not isinstance(data, dict):
-        raise ValueError("malformed pavement file: expected a mapping at the top level")
+        raise MalformedFileError("expected a mapping at the top level")
     document = cast(dict[str, Any], data)
 
     if "config" in document:

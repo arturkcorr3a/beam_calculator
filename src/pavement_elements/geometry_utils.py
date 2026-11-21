@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from src.errors import BeamInputError, InputError
+
 if TYPE_CHECKING:
     from src.pavement_elements.pillar import Pillar
 
@@ -28,11 +30,11 @@ class Alignment(Enum):
         horizontal_alignments = {Alignment.TOP, Alignment.CENTER, Alignment.BOTTOM}
         vertical_alignments = {Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT}
         if axis == Axis.X and self not in horizontal_alignments:
-            raise ValueError(
+            raise BeamInputError(
                 f"Alignment '{self.value}' is not valid for horizontal (X-axis) beams."
             )
         if axis == Axis.Y and self not in vertical_alignments:
-            raise ValueError(
+            raise BeamInputError(
                 f"Alignment '{self.value}' is not valid for vertical (Y-axis) beams."
             )
 
@@ -91,16 +93,16 @@ def effective_span(
         Effective span l_ef (cm).
 
     Raises:
-        ValueError: If height is not positive or the supports leave no clear span.
+        InputError: If height is not positive or the supports leave no clear span.
 
     References:
         ABNT NBR 6118:2014 — Section 14.6.2.4 (beams), Section 14.7.2.2 (slabs), Figure 14.5
     """
     if height <= 0:
-        raise ValueError(f"Height must be positive. Got {height} cm.")
+        raise InputError(f"Height must be positive. Got {height} cm.")
     clear_span = axis_distance - support_width_1 / 2 - support_width_2 / 2
     if clear_span <= 0:
-        raise ValueError(
+        raise InputError(
             f"Supports leave no clear span: axis distance {axis_distance} cm, "
             f"support widths {support_width_1} cm and {support_width_2} cm."
         )

@@ -37,7 +37,22 @@ from src.errors.detailing import (
     StirrupSpacingTooSmallError,
 )
 from src.errors.drawing import DrawingError, DxfAuditError, SheetFitError
-from src.errors.input import InputError
+from src.errors.file import MalformedFileError
+from src.errors.input import (
+    BeamInputError,
+    BeamTooNarrowError,
+    ConcreteClassTooLowError,
+    DuplicateElementError,
+    InputError,
+    MaterialError,
+    PillarInputError,
+    PillarTooSmallError,
+    SkinSteelError,
+    SlabInputError,
+    SlabLoweredTooMuchError,
+    UnknownPillarError,
+)
+from src.errors.lookup import SteelPriceNotFoundError, TableLookupError
 from src.errors.precondition import EnginePreconditionError
 
 __all__ = [
@@ -46,28 +61,42 @@ __all__ = [
     "BeamCalculatorError",
     "BeamDesignError",
     "BeamDetailingError",
+    "BeamInputError",
+    "BeamTooNarrowError",
     "ClampsDoNotFitError",
+    "ConcreteClassTooLowError",
     "DeformationLimitExceededError",
     "DesignError",
     "DetailingError",
     "DrawingError",
+    "DuplicateElementError",
     "DxfAuditError",
     "EffectiveDepthDivergedError",
     "EnginePreconditionError",
     "HookDoesNotFitError",
     "InputError",
     "LapTooLongError",
+    "MalformedFileError",
+    "MaterialError",
     "NoReinforcementLayoutError",
+    "PillarInputError",
+    "PillarTooSmallError",
     "ReinforcementAreaExceededError",
     "SheetFitError",
     "SkinReinforcementNoRoomError",
+    "SkinSteelError",
     "SlabDesignError",
+    "SlabInputError",
+    "SlabLoweredTooMuchError",
     "SlabPreSizingDivergedError",
     "SlabThicknessExceededError",
     "SpliceDiameterError",
     "SplicePositionError",
+    "SteelPriceNotFoundError",
     "StirrupBendUndefinedError",
     "StirrupSpacingTooSmallError",
     "StrutCrushingError",
     "SupportBarsShortError",
+    "TableLookupError",
+    "UnknownPillarError",
 ]

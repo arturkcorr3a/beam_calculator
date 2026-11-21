@@ -12,7 +12,11 @@ from src.detailing.bar_schedule import build_schedule
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.mark_registry import BarKey, MarkRegistry, bar_key
-from src.errors import SlabPreSizingDivergedError
+from src.errors import (
+    ConcreteClassTooLowError,
+    DuplicateElementError,
+    SlabPreSizingDivergedError,
+)
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment, Axis
 from src.pavement_elements.pavement import Pavement, reset_element_id_counters
@@ -134,7 +138,7 @@ class TestAddPillar:
         p = Pavement()
         pillar = Pillar(x=0, y=0, width=20, depth=20)
         p.add_pillar(pillar)
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(DuplicateElementError, match="already exists"):
             p.add_pillar(pillar)
 
 
@@ -156,7 +160,7 @@ class TestAddBeam:
         p = Pavement()
         beam = _make_beam_double("V_test")
         p.add_beam(beam)
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(DuplicateElementError, match="already exists"):
             p.add_beam(beam)
 
 
@@ -178,7 +182,7 @@ class TestAddSlab:
         p = Pavement()
         slab = _make_slab_double("L_test")
         p.add_slab(slab)
-        with pytest.raises(ValueError, match="already exists"):
+        with pytest.raises(DuplicateElementError, match="already exists"):
             p.add_slab(slab)
 
 
@@ -195,7 +199,7 @@ class TestValidate:
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
         monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C20)
-        with pytest.raises(ValueError, match="below the minimum"):
+        with pytest.raises(ConcreteClassTooLowError, match="below the minimum"):
             Pavement().validate()
 
     def test_calls_clear_then_resolve_on_all_beams(self) -> None:

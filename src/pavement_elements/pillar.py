@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from itertools import count
 
 from src.config import APP_CONFIG
+from src.errors import PillarTooSmallError
 from src.logger import log_operation
 from src.pavement_elements.geometry_utils import Axis
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
@@ -126,19 +127,25 @@ class Pillar:
         """Enforce ABNT NBR 6118 minimum pillar cross-section requirements.
 
         Raises:
-            ValueError: If either dimension is below 14 cm, or if the gross
-                cross-sectional area is below 360 cm².
+            PillarTooSmallError: If either dimension is below 14 cm, or if the
+                gross cross-sectional area is below 360 cm².
 
         References:
             ABNT NBR 6118:2014 — Section 13.2.3
         """
         if self.width < MIN_DIMENSION_CM or self.depth < MIN_DIMENSION_CM:
-            raise ValueError(
+            raise PillarTooSmallError(
                 f"Pillar dimensions must be at least {MIN_DIMENSION_CM} cm. "
-                f"Got {self.width}×{self.depth} cm."
+                f"Got {self.width}×{self.depth} cm.",
+                pillar_id=self.id,
+                width=self.width,
+                depth=self.depth,
             )
         if self.width * self.depth < MIN_AREA_CM2:
-            raise ValueError(
+            raise PillarTooSmallError(
                 f"Pillar gross area must be at least {MIN_AREA_CM2} cm². "
-                f"Got {self.width * self.depth:.1f} cm²."
+                f"Got {self.width * self.depth:.1f} cm².",
+                pillar_id=self.id,
+                width=self.width,
+                depth=self.depth,
             )

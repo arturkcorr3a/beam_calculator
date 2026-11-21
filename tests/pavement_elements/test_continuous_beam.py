@@ -10,7 +10,13 @@ from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.detailing.detailing_beam import DetailingBeam
-from src.errors import BeamDesignError, BeamDetailingError, DesignError
+from src.errors import (
+    BeamDesignError,
+    BeamDetailingError,
+    BeamInputError,
+    BeamTooNarrowError,
+    DesignError,
+)
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
@@ -124,7 +130,7 @@ class TestExplicitId:
         )
 
     def test_construction_error_names_explicit_id(self, wall: WallDefinition) -> None:
-        with pytest.raises(ValueError, match=r"^Beam 'V7' must have at least 2"):
+        with pytest.raises(BeamInputError, match=r"^Beam 'V7' must have at least 2"):
             ContinuousBeam(["P1"], "P1", 16, Alignment.CENTER, wall, id="V7")
 
 
@@ -132,7 +138,9 @@ class TestConstructionValidation:
     """ContinuousBeam raises ValueError for invalid construction args."""
 
     def test_reference_not_in_pillar_ids_raises(self, wall: WallDefinition) -> None:
-        with pytest.raises(ValueError, match="Reference pillar ID must be included"):
+        with pytest.raises(
+            BeamInputError, match="Reference pillar ID must be included"
+        ):
             ContinuousBeam(
                 pillar_ids=["P1", "P2"],
                 reference_pillar_id="P99",
@@ -142,7 +150,7 @@ class TestConstructionValidation:
             )
 
     def test_fewer_than_two_pillars_raises(self, wall: WallDefinition) -> None:
-        with pytest.raises(ValueError, match="at least 2 pillars"):
+        with pytest.raises(BeamInputError, match="at least 2 pillars"):
             ContinuousBeam(
                 pillar_ids=["P1"],
                 reference_pillar_id="P1",
@@ -152,7 +160,7 @@ class TestConstructionValidation:
             )
 
     def test_width_below_12_raises(self, wall: WallDefinition) -> None:
-        with pytest.raises(ValueError, match="width must be at least 12.0 cm"):
+        with pytest.raises(BeamTooNarrowError, match="width must be at least 12.0 cm"):
             ContinuousBeam(
                 pillar_ids=["P1", "P2"],
                 reference_pillar_id="P1",
@@ -480,7 +488,7 @@ class TestValidateNoSkippedPillars:
             alignment=Alignment.BOTTOM,
             wall=wall,
         )
-        with pytest.raises(ValueError, match="skips pillar"):
+        with pytest.raises(BeamInputError, match="skips pillar"):
             b.resolve_and_validate(registry)
 
     def test_skipped_straddling_pillar_raises(self, wall: WallDefinition) -> None:
@@ -497,7 +505,7 @@ class TestValidateNoSkippedPillars:
             alignment=Alignment.CENTER,
             wall=wall,
         )
-        with pytest.raises(ValueError, match=rf"skips pillar\(s\) '{p_deep.id}'"):
+        with pytest.raises(BeamInputError, match=rf"skips pillar\(s\) '{p_deep.id}'"):
             b.resolve_and_validate(registry)
 
 

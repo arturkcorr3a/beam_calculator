@@ -10,7 +10,12 @@ import pytest
 import src.pavement_elements.slab as _slab_module
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
-from src.errors import SlabThicknessExceededError
+from src.errors import (
+    SlabInputError,
+    SlabLoweredTooMuchError,
+    SlabThicknessExceededError,
+    UnknownPillarError,
+)
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
@@ -155,7 +160,7 @@ class TestExplicitId:
         )
 
     def test_construction_error_names_explicit_id(self) -> None:
-        with pytest.raises(ValueError, match=r"^Slab 'L9' must have exactly 4"):
+        with pytest.raises(SlabInputError, match=r"^Slab 'L9' must have exactly 4"):
             Slab(("PA", "PB", "PC"), "Bedrooms", id="L9")  # type: ignore[arg-type]  # pyright: ignore[reportArgumentType]
 
 
@@ -163,11 +168,11 @@ class TestValidatePillarCount:
     """Slab raises when constructed with fewer than 4 corner pillars."""
 
     def test_three_pillars_raises(self) -> None:
-        with pytest.raises(ValueError, match="must have exactly 4 corner pillars"):
+        with pytest.raises(SlabInputError, match="must have exactly 4 corner pillars"):
             Slab(corner_pillar_ids=("P1", "P2", "P3"), local="Bedrooms")  # type: ignore[arg-type]
 
     def test_five_pillars_raises(self) -> None:
-        with pytest.raises(ValueError, match="must have exactly 4 corner pillars"):
+        with pytest.raises(SlabInputError, match="must have exactly 4 corner pillars"):
             Slab(corner_pillar_ids=("P1", "P2", "P3", "P4", "P5"), local="Bedrooms")  # type: ignore[arg-type]
 
 
@@ -414,7 +419,7 @@ class TestValidatePillarsExist:
             local="Bedrooms",
         )
         registry = {"PA": Mock(), "PB": Mock(), "PC": Mock()}  # PD is absent
-        with pytest.raises(ValueError, match="does not exist in the registry"):
+        with pytest.raises(UnknownPillarError, match="does not exist in the registry"):
             s._validate_pillars_exist(registry)  # type: ignore[arg-type]  # pyright: ignore[reportPrivateUsage]
 
     def test_message_names_the_slab(self) -> None:
@@ -423,7 +428,7 @@ class TestValidatePillarsExist:
             local="Bedrooms",
         )
         registry = {"PA": Mock(), "PB": Mock(), "PC": Mock()}  # PD is absent
-        with pytest.raises(ValueError, match=rf"^Slab '{s.id}': pillar 'PD'"):
+        with pytest.raises(UnknownPillarError, match=rf"^Slab '{s.id}': pillar 'PD'"):
             s._validate_pillars_exist(registry)  # type: ignore[arg-type]  # pyright: ignore[reportPrivateUsage]
 
 
@@ -438,7 +443,9 @@ class TestResolveEdgeMessage:
             "top_left": Pillar(0.0, 400.0, 20.0, 30.0),
             "top_right": Pillar(500.0, 400.0, 20.0, 30.0),
         }
-        with pytest.raises(ValueError, match=r"No valid beam found for top edge\.$"):
+        with pytest.raises(
+            SlabInputError, match=r"No valid beam found for top edge\.$"
+        ):
             s._resolve_edge(Edges.TOP, {})  # pyright: ignore[reportPrivateUsage]
 
     def test_no_span_between_corners_raises(self) -> None:
@@ -466,7 +473,9 @@ class TestResolveEdgeMessage:
                 get_spans_between=get_spans_between,
             ),
         )
-        with pytest.raises(ValueError, match=r"top edge has no span between pillars"):
+        with pytest.raises(
+            SlabInputError, match=r"top edge has no span between pillars"
+        ):
             s._resolve_edge(Edges.TOP, {"V_top": beam})  # pyright: ignore[reportPrivateUsage]
         assert s.edges[Edges.TOP].spans == [], "the edge should stay unresolved"
 
@@ -782,7 +791,7 @@ class TestLowered:
         assert s.is_lowered, "a slab with lowered > 0 is lowered"
 
     def test_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="lowered must be >= 0"):
+        with pytest.raises(SlabInputError, match="lowered must be >= 0"):
             Slab(
                 corner_pillar_ids=("P1", "P2", "P3", "P4"), local="Bedrooms", lowered=-1
             )
@@ -811,8 +820,13 @@ class TestLowered:
         )
         s.thickness = 10
         s.lowered = 21
-        with pytest.raises(ValueError, match="V_bottom"):
+        with pytest.raises(SlabLoweredTooMuchError, match="V_bottom") as raised:
             s.validate_lowered()
+        error = raised.value
+        assert error.slab_id == s.id, "the error should name the slab"
+        assert error.beam_id == "V_bottom", "the shortest beam governs"
+        assert_approx(error.max_lowered, 20.0, "30 cm beam minus 10 cm slab (cm)")
+        assert_approx(error.lowered, 21.0, "the lowering asked for (cm)")
 
 
 # ---------------------------------------------------------------------------

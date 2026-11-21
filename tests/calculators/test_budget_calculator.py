@@ -7,6 +7,7 @@ import pytest
 
 from src.calculators.budget_calculator import calculate_budget
 from src.detailing.quantities import SteelQuantity
+from src.errors import InputError, SteelPriceNotFoundError
 from src.properties.steel import Steel
 from tests.helpers import assert_approx
 
@@ -43,7 +44,7 @@ class TestCalculateBudget:
         assert_approx(budget.total, 900.0, "2 × 450 R$")
 
     def test_unpriced_diameter_raises(self) -> None:
-        with pytest.raises(ValueError, match="No SINAPI price"):
+        with pytest.raises(SteelPriceNotFoundError, match="No SINAPI price"):
             calculate_budget([_steel(22.0, 1.0)], 0.0, 0.0, Steel.CA50)
 
     @pytest.mark.parametrize(
@@ -52,5 +53,5 @@ class TestCalculateBudget:
     def test_negative_concrete_raises(
         self, concrete_m3: float, concrete_price_per_m3: float
     ) -> None:
-        with pytest.raises(ValueError, match="must not be negative"):
+        with pytest.raises(InputError, match="must not be negative"):
             calculate_budget([], concrete_m3, concrete_price_per_m3, Steel.CA50)

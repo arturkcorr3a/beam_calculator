@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from math import ceil, floor
 from typing import TYPE_CHECKING
 
-from src.errors import SkinReinforcementNoRoomError
+from src.errors import SkinReinforcementNoRoomError, SkinSteelError
 from src.logger import log_element, log_operation, logger_label
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -83,16 +83,16 @@ class SkinReinforcement:
         """Start a span's skin reinforcement, with no bars chosen yet
 
         Raises:
-            ValueError: If the beam's steel is neither CA-50 nor CA-60.
+            SkinSteelError: If the beam's steel is neither CA-50 nor CA-60.
 
         References:
             ABNT NBR 6118:2026 — Section 17.3.5.2.3
         """
         if beam.steel not in ALLOWED_STEELS:
-            raise ValueError(
-                f"A beam with h = {beam.height:g} cm > {MIN_REQUIRED_HEIGHT:g} cm needs "
-                f"skin reinforcement in CA-50 or CA-60, but the project steel is "
-                f"CA-{beam.steel.value}. Change the project steel to CA-50 or CA-60."
+            raise SkinSteelError(
+                beam_height=beam.height,
+                min_height=MIN_REQUIRED_HEIGHT,
+                steel_grade=beam.steel.value,
             )
         self.beam = beam
         self.steel = beam.steel

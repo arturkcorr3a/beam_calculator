@@ -9,7 +9,7 @@ from src.detailing.quantities import (
     build_quantities,
     quantities_table,
 )
-from src.errors import SlabPreSizingDivergedError
+from src.errors import DuplicateElementError, SlabPreSizingDivergedError
 from src.logger import log_element, log_general, log_iteration, logger_label
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -61,13 +61,13 @@ class Pavement:
 
     def add_pillar(self, pillar: Pillar) -> None:
         if pillar.id in self.pillars:
-            raise ValueError(f"Pillar '{pillar.id}' already exists.")
+            raise DuplicateElementError(kind="Pillar", element_id=pillar.id)
         self.pillars[pillar.id] = pillar
         log_element(f"Added pillar '{pillar.id}' at ({pillar.x}, {pillar.y})")
 
     def add_beam(self, beam: ContinuousBeam) -> None:
         if beam.id in self.beams:
-            raise ValueError(f"Beam '{beam.id}' already exists.")
+            raise DuplicateElementError(kind="Beam", element_id=beam.id)
         self.beams[beam.id] = beam
         log_element(
             f"Added beam '{beam.id}' from {(beam.pillar_ids[0])} to {(beam.pillar_ids[-1])}"
@@ -75,7 +75,7 @@ class Pavement:
 
     def add_slab(self, slab: Slab) -> None:
         if slab.id in self.slabs:
-            raise ValueError(f"Slab '{slab.id}' already exists.")
+            raise DuplicateElementError(kind="Slab", element_id=slab.id)
         self.slabs[slab.id] = slab
         log_element(
             f"Added slab '{slab.id}' between {', '.join(slab.corner_pillar_ids)}"

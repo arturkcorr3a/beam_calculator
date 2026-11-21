@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import ceil
 
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
+from src.errors import ConcreteClassTooLowError
 from src.logger import LogLevel, LogOutput, configure_logger
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -73,18 +74,18 @@ class AppConfig:
         """Ensure the pavement concrete meets the minimum for the exposure class
 
         Raises:
-            ValueError: If the pavement concrete fck is below the minimum
-                required for the configured exposure class.
+            ConcreteClassTooLowError: If the pavement concrete fck is below the
+                minimum required for the configured exposure class.
 
         References:
             ABNT NBR 6118:2026 — Section 7.4.2, Table 7.1
         """
         minimum_fck = self.exposure_class.minimum_fck
         if self.pavement_concrete.value < minimum_fck:
-            raise ValueError(
-                f"Concrete {self.pavement_concrete.name} is below the minimum "
-                f"C{minimum_fck} required for exposure class "
-                f"{self.exposure_class.value}."
+            raise ConcreteClassTooLowError(
+                concrete=self.pavement_concrete.name,
+                minimum_fck=minimum_fck,
+                exposure_class=self.exposure_class.value,
             )
 
 
