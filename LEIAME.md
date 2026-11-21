@@ -6,8 +6,9 @@ pavimento tipo segundo a ABNT NBR 6118. Você desenha a planta do pavimento
 
 - distribui as cargas das lajes para as vigas (cargas da ABNT NBR 6120);
 - pré-dimensiona lajes e vigas e verifica as flechas de lajes e vigas;
-- analisa cada viga contínua e dimensiona as armaduras longitudinais e os
-  estribos, com ancoragem, emendas por traspasse e barras de apoio;
+- analisa cada viga contínua e dimensiona as armaduras longitudinais, os
+  estribos e, nas vigas com mais de 60 cm de altura, a armadura de pele, com
+  ancoragem, emendas por traspasse e barras de apoio;
 - detalha as barras e calcula os quantitativos de aço, concreto e fôrma;
 - exporta os desenhos das vigas (PDF e DXF) e o relatório de cálculo (PDF), e
   grava um memorial de cálculo a cada execução.
@@ -81,10 +82,11 @@ python -m pavement_ui
 - **Estado-limite último na flexão e no cisalhamento**, só com combinações
   normais (ABNT NBR 6118, Tabela 11.1). Torção e abertura de fissuras (ELS-W)
   não são verificadas.
-- **Armadura de pele só calculada.** Vigas com mais de 60 cm de altura recebem
-  a armadura de pele mínima de cada vão (ABNT NBR 6118, 17.3.5.2.3), listada no
-  relatório da viga; ela ainda não é detalhada, desenhada nem entra nos
-  quantitativos.
+- **Armadura de pele até a face dos pilares.** Vigas com mais de 60 cm de
+  altura recebem a armadura de pele mínima de cada vão (ABNT NBR 6118,
+  17.3.5.2.3), detalhada, desenhada e contada nos quantitativos, com a marca
+  "(PELE)". As barras de cada vão ficam só no vão livre, de face a face dos
+  pilares, sem comprimento de ancoragem nos apoios.
 - **A flecha (ELS-DEF)** é verificada só contra o limite de aceitabilidade
   sensorial visual, l/250.
 - **Um aço e uma classe de concreto por projeto**, só armadura passiva (sem
