@@ -64,7 +64,9 @@ class TestSteel:
         assert skin.steel == Steel.CA60, "CA-60 is allowed"
 
     def test_ca25_raises(self) -> None:
-        with pytest.raises(ValueError, match="CA-50 or CA-60"):
+        with pytest.raises(
+            ValueError, match=r"h = 70 cm > 60 cm .* project steel is CA-25\."
+        ):
             SkinReinforcement(_beam(20.0, 70.0, Steel.CA25))
 
 

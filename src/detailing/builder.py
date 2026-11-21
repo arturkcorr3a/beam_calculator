@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 from src.detailing.clear_span import ClearSpan
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.span_stirrups import SpanStirrups
 from src.reinforcement.clamps import Clamps
@@ -25,9 +26,9 @@ _ZONE_TOLERANCE = 1e-3  # cm, zones shorter than this after clipping are dropped
 
 
 def build_detailing_beam(beam: ContinuousBeam) -> DetailingBeam:
-    """Copy a dimensioned beam's bars, clamps and stirrups into a new detailing beam
+    """Copy a dimensioned beam's bars, clamps, stirrups and skin bars into a new detailing beam
 
-    The design objects are only read: every bar run, clamp set and stirrup set is a new object. Each layer becomes one bar run per diameter, with the layer's own lengths and hooks. Error messages do not name the beam; ``ContinuousBeam.detail`` prefixes them.
+    The design objects are only read: every bar run, clamp set, stirrup set and skin bar set is a new object. Each layer becomes one bar run per diameter, with the layer's own lengths and hooks. Error messages do not name the beam; ``ContinuousBeam.detail`` prefixes them.
 
     Raises:
         ValueError: If the beam has not been dimensioned (no analysis or no stirrups on a span), a stirrup has no diameter or spacing, or a reinforcement has no required or provided area.
@@ -53,6 +54,7 @@ def build_detailing_beam(beam: ContinuousBeam) -> DetailingBeam:
         detailing.clamps += _clamps(reinforcement)
     detailing.stirrups = _stirrups(beam, structural_beam, supports)
     detailing.clear_spans = _clear_spans(beam, structural_beam.height, supports)
+    detailing.skin_bars = _skin_bars(beam, supports)
     return detailing
 
 
@@ -258,6 +260,39 @@ def _clear_spans(
         )
         for span, (start, end) in zip(beam.spans, pairwise(supports), strict=True)
     ]
+
+
+def _skin_bars(
+    beam: ContinuousBeam, supports: tuple[Support, ...]
+) -> list[DetailedSkinBars]:
+    """Lay each span's skin bars between the inner faces of its pillars
+
+    The bars stay in the clear span, without entering the pillars. The rows are evenly spaced in the band between the bottom and top bars: the first one a spacing above the band's start. Spans without skin reinforcement get none.
+
+    References:
+        ABNT NBR 6118:2026 — Section 17.3.5.2.3
+    """
+    detailed: list[DetailedSkinBars] = []
+    for span, (start, end) in zip(beam.spans, pairwise(supports), strict=True):
+        skin = span.skin_reinforcement
+        if skin is None or skin.layout is None:
+            continue
+        layout = skin.layout
+        detailed.append(
+            DetailedSkinBars(
+                start_pillar_id=span.start_pillar_id,
+                end_pillar_id=span.end_pillar_id,
+                diameter_mm=layout.diameter_mm,
+                steel=skin.steel,
+                heights=tuple(
+                    layout.band_start + row * layout.spacing
+                    for row in range(1, layout.bars_per_face + 1)
+                ),
+                start=start.right,
+                end=end.left,
+            )
+        )
+    return detailed
 
 
 def _side_height(height: float, slab: Slab | None) -> float:

@@ -7,6 +7,7 @@ from src.calculators.lap_splice_calculator import (
     construction_lap_length,
 )
 from src.detailing.detailed_bar import BarRole, DetailedBar
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.lap_splice import (
     LapSplice,
@@ -16,6 +17,7 @@ from src.detailing.lap_splice import (
 )
 from src.detailing.rounding import round_down, round_up
 from src.logger import log_operation
+from src.reinforcement.layer import Layer
 
 MAX_BAR_LENGTH = (
     1200.0  # cm, supply length (ABNT NBR 7480 - Section 4.5.1), hooks included
@@ -26,7 +28,7 @@ _TENSION_TOLERANCE = 1e-9  # kN.m, tensions closer than this are a tie
 def split_long_bars(detailing: DetailingBeam) -> None:
     """Split every bar run longer than a commercial bar into lap-spliced pieces
 
-    A run whose cut length, hooks included, passes 12 m is cut into the fewest pieces that fit (see ``_split``). Main runs are split first, bottom face first, by layer and left to right, so the laps they make count in the share of the later ones. Laps of main runs are recorded in ``lap_splices``; laps of construction runs are not, as in ``add_construction_bars``.
+    A run whose cut length, hooks included, passes 12 m is cut into the fewest pieces that fit (see ``_split``). Main runs are split first, bottom face first, by layer and left to right, so the laps they make count in the share of the later ones. Laps of main runs are recorded in ``lap_splices``; laps of construction runs are not, as in ``add_construction_bars``. Long skin bars are split last (see ``_split_skin``).
 
     Raises:
         ValueError: If a long run has bars above 32 mm, the beam has no analysis, or no splice position meets Table 9.3.
@@ -50,6 +52,15 @@ def split_long_bars(detailing: DetailingBeam) -> None:
         index = next(i for i, other in enumerate(bars) if other is bar)
         _split(detailing, bars, index)
     detailing.bars = bars
+    detailing.skin_bars = [
+        piece
+        for skin in detailing.skin_bars
+        for piece in (
+            _split_skin(detailing, skin)
+            if skin.total_length > MAX_BAR_LENGTH
+            else [skin]
+        )
+    ]
 
 
 def _split(detailing: DetailingBeam, bars: list[DetailedBar], index: int) -> None:
@@ -121,6 +132,44 @@ def _split(detailing: DetailingBeam, bars: list[DetailedBar], index: int) -> Non
         f"Split {face} layer {bar.layer_index} {bar.quantity}φ{bar.diameter_mm:g} [{bar.start:g}–{bar.end:g}] ({bar.total_length:g} cm) into "
         + ", ".join(f"[{p.start:g}–{p.end:g}]" for p in pieces)
     )
+
+
+def _split_skin(
+    detailing: DetailingBeam, skin: DetailedSkinBars
+) -> list[DetailedSkinBars]:
+    """Cut a span's skin bars into the fewest equal pieces of at most 12 m, from left to right
+
+    The skin bars carry no calculated force, so consecutive pieces overlap by the construction lap, as construction bars do. The lap is taken in the poor bond zone if any row lies there. The laps are not recorded in ``lap_splices``.
+
+    Raises:
+        ValueError: If the lap does not fit in a commercial bar.
+
+    References:
+        ABNT NBR 6118:2026 — Section 9.5.2.3
+    """
+    # PAPER: lap of skin bars taken as that of construction bars (no calculated force)
+    good_adherence = all(
+        Layer.is_good_adherence_position(y, detailing.height) for y in skin.heights
+    )
+    lap = round_up(
+        construction_lap_length(skin.diameter_mm, skin.steel, good_adherence)
+    )  # cm
+    if lap >= MAX_BAR_LENGTH:
+        raise ValueError(
+            f"A {lap:g} cm lap of φ{skin.diameter_mm:g} skin bars does not fit in a {MAX_BAR_LENGTH:g} cm bar."
+        )
+    count = ceil((skin.total_length - lap) / (MAX_BAR_LENGTH - lap))
+    piece = round_up((skin.total_length + (count - 1) * lap) / count)  # cm
+    starts = [skin.start + index * (piece - lap) for index in range(count)]  # cm
+    pieces = [
+        replace(skin, start=start, end=min(start + piece, skin.end)) for start in starts
+    ]
+    pieces[-1] = replace(pieces[-1], end=skin.end)
+    log_operation(
+        f"Split skin bars of span {skin.span_name} φ{skin.diameter_mm:g} [{skin.start:g}–{skin.end:g}] ({skin.total_length:g} cm) into "
+        + ", ".join(f"[{p.start:g}–{p.end:g}]" for p in pieces)
+    )
+    return pieces
 
 
 def _splice_position(

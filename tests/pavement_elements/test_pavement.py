@@ -580,7 +580,11 @@ class TestPrintBeamReports:
         p = Pavement()
         beam = _make_beam_double("VA")
         beam.detailing = types.SimpleNamespace(  # type: ignore[assignment]
-            report=lambda: "detailing:VA", bars=[], clamps=[], stirrups=[]
+            report=lambda: "detailing:VA",
+            bars=[],
+            skin_bars=[],
+            clamps=[],
+            stirrups=[],
         )
         p.add_beam(beam)
 

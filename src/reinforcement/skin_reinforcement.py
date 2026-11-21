@@ -78,7 +78,9 @@ class SkinReinforcement:
         """
         if beam.steel not in ALLOWED_STEELS:
             raise ValueError(
-                f"Skin reinforcement must be CA-50 or CA-60. Got {beam.steel.name}."
+                f"A beam with h = {beam.height:g} cm > {MIN_REQUIRED_HEIGHT:g} cm needs "
+                f"skin reinforcement in CA-50 or CA-60, but the project steel is "
+                f"CA-{beam.steel.value}. Change the project steel to CA-50 or CA-60."
             )
         self.beam = beam
         self.steel = beam.steel

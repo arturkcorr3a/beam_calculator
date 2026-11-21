@@ -6,6 +6,7 @@ import re
 PHI = "φ"  # φ, present in Arial and DejaVu Sans
 
 CONSTRUCTION_MARK = "(MONTAGEM)"
+SKIN_MARK = "(PELE)"
 CLAMP_MARK = "(GRAMPO)"
 
 _WHOLE_TOLERANCE = 0.05  # cm

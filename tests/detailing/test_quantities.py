@@ -6,6 +6,7 @@ The beam is 20 x 60 cm, with two clear spans of 225 and 300 cm. φ10 weighs 0.61
 from src.detailing.clear_span import ClearSpan
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.quantities import (
     PavementQuantities,
@@ -186,3 +187,33 @@ class TestQuantitiesTable:
             "Steel, concrete and formwork of the beam"
         )
         assert lines[6].split()[0] == "Total", "Totals close the table"
+
+
+def _skin(
+    start: float = 10.0,
+    end: float = 235.0,
+    diameter_mm: float = 8,
+    mark: str | None = None,
+) -> DetailedSkinBars:
+    """Build the skin bars of span P1–P2: two rows, at 15 and 25 cm"""
+    return DetailedSkinBars(
+        start_pillar_id="P1",
+        end_pillar_id="P2",
+        diameter_mm=diameter_mm,
+        steel=Steel.CA50,
+        heights=(15.0, 25.0),
+        start=start,
+        end=end,
+        mark=mark,
+    )
+
+
+class TestSkinSteel:
+    """Skin bars count in the steel through the bar schedule."""
+
+    def test_skin_mass(self) -> None:
+        beam = _beam()
+        beam.skin_bars = [_skin(mark="N1", diameter_mm=10)]
+        item = build_quantities([beam]).beams[0].steel[0]
+        assert_approx(item.length_m, 9.0, "4 bars of 2.25 m")
+        assert_approx(item.mass_kg, 9 * _PHI_10, "9 m of φ10 (kg)", abs_tol=1e-6)

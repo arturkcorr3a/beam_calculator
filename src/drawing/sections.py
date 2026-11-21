@@ -10,6 +10,7 @@ from math import sqrt
 
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.span_stirrups import SpanStirrups
 from src.drawing.annotations import dimension, vertical_dimension
@@ -73,7 +74,7 @@ _SHAPE_LINE_GAP_MM = 0.6  # half the gap between the two text lines of a shape
 
 @dataclass(frozen=True)
 class SectionPoint:
-    """One bar or clamp leg crossing a section
+    """One bar, clamp leg or skin bar crossing a section
 
     Attributes:
         u: Offset from the section's center (cm).
@@ -81,7 +82,7 @@ class SectionPoint:
         diameter_mm: Bar diameter φ (mm).
     """
 
-    source: DetailedBar | DetailedClamps
+    source: DetailedBar | DetailedClamps | DetailedSkinBars
     u: float
     y: float
     diameter_mm: float
@@ -115,9 +116,9 @@ def stirrups_at(beam: DetailingBeam, x: float) -> SpanStirrups | None:
 
 
 def section_points(beam: DetailingBeam, x: float) -> list[SectionPoint]:
-    """Return every bar and clamp leg crossing a section, as offsets and heights (cm)
+    """Return every bar, clamp leg and skin bar crossing a section, as offsets and heights (cm)
 
-    The bars of each layer go in the order of ``arrange_row``, spread by ``row_offsets`` between the stirrup's inner faces; the clamps whose legs cover the section put a leg in each inner corner.
+    The bars of each layer go in the order of ``arrange_row``, spread by ``row_offsets`` between the stirrup's inner faces; the clamps whose legs cover the section put a leg in each inner corner; the skin bars of the span put a bar against each side of the stirrup, at each row's height.
     """
     stirrups = stirrups_at(beam, x)
     stirrup_diameter = 0.0 if stirrups is None else stirrups.diameter_mm / MM_PER_CM
@@ -143,6 +144,14 @@ def section_points(beam: DetailingBeam, x: float) -> list[SectionPoint]:
                 points += [
                     SectionPoint(clamps, -offset, y, clamps.diameter_mm),
                     SectionPoint(clamps, offset, y, clamps.diameter_mm),
+                ]
+    for skin in beam.skin_bars:
+        if skin.start <= x <= skin.end:
+            offset = (inner_width - skin.diameter_mm / MM_PER_CM) / 2  # cm
+            for y in skin.heights:
+                points += [
+                    SectionPoint(skin, -offset, y, skin.diameter_mm),
+                    SectionPoint(skin, offset, y, skin.diameter_mm),
                 ]
     return points
 
@@ -177,13 +186,13 @@ def _rectangle(
     )
 
 
-def _label_text(source: DetailedBar | DetailedClamps) -> str:
-    """Return the label of a bar run or clamp set in a section, such as 2 N10 φ10"""
+def _label_text(source: DetailedBar | DetailedClamps | DetailedSkinBars) -> str:
+    """Return the label of a bar run, clamp set or skin bar set in a section, such as 2 N10 φ10"""
     return section_piece_label(source.quantity, str(source.mark), source.diameter_mm)
 
 
 def section_labels(beam: DetailingBeam, x: float, config: DrawingConfig) -> list[str]:
-    """Return the labels of a section: one per bar run and clamp set, and the stirrups'"""
+    """Return the labels of a section: one per bar run, clamp set and skin bar set, and the stirrups'"""
     labels = list(dict.fromkeys(_label_text(p.source) for p in section_points(beam, x)))
     stirrups = stirrups_at(beam, x)
     if stirrups is not None:

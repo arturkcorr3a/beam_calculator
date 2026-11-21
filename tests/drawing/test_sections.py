@@ -31,7 +31,7 @@ def _texts(drawing: Drawing, layer: str = TEXT) -> list[Text]:
 
 
 def _expected_circles(beam: DetailingBeam, x: float) -> int:
-    """Return how many bars and clamp legs cross a section"""
+    """Return how many bars, clamp legs and skin bars cross a section"""
     bars = sum(
         run.quantity
         for is_bottom in (False, True)
@@ -45,7 +45,8 @@ def _expected_circles(beam: DetailingBeam, x: float) -> int:
         )
         if min(clamps.position, tip) <= x <= max(clamps.position, tip):
             legs += 2 * clamps.quantity
-    return bars + legs
+    skin = sum(s.quantity for s in beam.skin_bars if s.start <= x <= s.end)
+    return bars + legs + skin
 
 
 def _check_section_bars(beam: DetailingBeam) -> None:
@@ -67,7 +68,7 @@ def _check_section_bars(beam: DetailingBeam) -> None:
         )
         drawing = draw_section(beam, x, letter, (0.0, 0.0), CONFIG)
         assert len(_circles(drawing)) == _expected_circles(beam, x), (
-            f"{beam.beam_id} {letter}: one circle per bar and clamp leg"
+            f"{beam.beam_id} {letter}: one circle per bar, clamp leg and skin bar"
         )
         labels = [
             t for t in _texts(drawing) if not t.text.startswith(("CORTE", "ESC."))

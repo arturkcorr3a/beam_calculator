@@ -13,6 +13,7 @@ from src.drawing.annotations import (
     bar_layer,
     clamp_hover,
     dimension,
+    skin_hover,
 )
 from src.drawing.bar_rows import bar_rows
 from src.drawing.config import DEFAULT_CONFIG, DrawingConfig
@@ -37,6 +38,7 @@ from src.drawing.layers import (
     CUT,
     DIMENSION,
     PILLAR,
+    SKIN_BAR,
     STIRRUP,
     TEXT,
 )
@@ -294,11 +296,18 @@ def beam_faces(beam: DetailingBeam) -> Drawing:
 
 
 def bars(beam: DetailingBeam) -> Drawing:
-    """Return every bar run on the elevation, hooks included; overlapping runs share their height"""
+    """Return every bar run on the elevation, hooks included; overlapping runs share their height
+
+    Each row of skin bars is a straight line at its height, over its span.
+    """
     drawing = Drawing()
     for bar in beam.bars_on_face(False) + beam.bars_on_face(True):
         points, bulges = bar_path(bar)
         drawing.add(Polyline(points, bulges, bar_layer(bar), meta=bar_hover(beam, bar)))
+    for skin in beam.skin_bars:
+        meta = skin_hover(skin)
+        for y in skin.heights:
+            drawing.add(Line((skin.start, y), (skin.end, y), SKIN_BAR, meta))
     return drawing
 
 
