@@ -144,8 +144,15 @@ class ElementPanel[R: _Identified](QWidget):
 
     def _on_remove(self) -> None:
         element_id = self.selected_id()
-        if element_id is not None and self.isEnabled():
-            self._session.remove(self._kind, element_id)
+        if element_id is None or not self.isEnabled():
+            return
+        if self._kind is ElementKind.PILLAR:
+            dependents = self._session.records.pillar_dependents(element_id)
+            if dependents and not messages.confirm_remove_pillar(
+                self, element_id, dependents
+            ):
+                return
+        self._session.remove(self._kind, element_id)
 
     def _on_selection(self) -> None:
         element_id = self.selected_id()
