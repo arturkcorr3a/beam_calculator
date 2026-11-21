@@ -6,7 +6,7 @@ from pavement_ui.presentation.text.strings.common import APP_NAME, UNTITLED
 
 
 def window_title(file_name: str | None) -> str:
-    """Build the main window title, e.g. "beam_calculator — exemplo.yaml"
+    """Build the main window title, e.g. "beam_calculator — exemplo.pavement.yaml"
 
     Args:
         file_name: Name of the open project file, or None when unsaved.

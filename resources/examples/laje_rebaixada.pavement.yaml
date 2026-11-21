@@ -1,6 +1,6 @@
 # beam_calculator — pavimento
 # Unidades: coordenadas e dimensões em cm, cargas em kN/m², pé-direito em m.
-# Modelo comentado, com todos os campos e valores aceitos: template.yaml,
+# Modelo comentado, com todos os campos e valores aceitos: template.pavement.yaml,
 # na pasta de exemplos.
 
 # Pilares: centro (x, y) e seção (width × depth), em cm

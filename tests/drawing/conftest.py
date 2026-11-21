@@ -66,4 +66,4 @@ def t_concreto2() -> Pavement:
 @pytest.fixture(scope="session")
 def laje_rebaixada() -> Pavement:
     """The laje_rebaixada example (6 beams, 3 slabs), resolved once per session"""
-    return _resolved(lambda: load_pavement(EXAMPLES / "pavimento_laje_rebaixada.yaml"))
+    return _resolved(lambda: load_pavement(EXAMPLES / "laje_rebaixada.pavement.yaml"))

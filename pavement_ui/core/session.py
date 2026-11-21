@@ -8,6 +8,7 @@ from pavement_ui.core.events import EventBus, SessionEvent
 from pavement_ui.core.model.element_kind import ElementKind
 from pavement_ui.core.model.id_generator import IdGenerator
 from pavement_ui.core.model.pavement_records import PavementRecords
+from pavement_ui.core.model.project_name import project_name
 from pavement_ui.core.model.records import (
     BeamRecord,
     PillarRecord,
@@ -179,7 +180,9 @@ class ProjectSession:
         """
         if self.validate().status is not ValidationStatus.VALID:
             return None
-        name = self.current_path.stem if self.current_path is not None else None
+        name = (
+            project_name(self.current_path) if self.current_path is not None else None
+        )
         job = self._engine.make_design_job(self.records, self.config, name)
         self.design = DesignState(running=True, last_outcome=self.design.last_outcome)
         self._bus.publish(SessionEvent.DESIGN_STARTED)

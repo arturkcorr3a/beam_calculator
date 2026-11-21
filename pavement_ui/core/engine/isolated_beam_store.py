@@ -1,4 +1,4 @@
-"""YamlIsolatedBeamStore: isolated beam files (``*.viga.yaml``) with the project settings.
+"""YamlIsolatedBeamStore: isolated beam files (``*.beam.yaml``) with the project settings.
 
 The file holds the beam (section, spans, pillars, loads) and the project
 settings in the engine's ``config`` format, so it reopens exactly as saved.

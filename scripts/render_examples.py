@@ -1,4 +1,4 @@
-"""Render the drawings of the pavimento_residencial example (t_concreto2) for a visual check (not run in CI)
+"""Render the drawings of the residencial example (t_concreto2) for a visual check (not run in CI)
 
 Writes one sheet per beam, ``out/drawing/V1.dxf``/``.png``/``.pdf`` … ``V10.*``,
 and ``out/drawing/pavement.pdf`` with every sheet, one per page.
@@ -20,9 +20,9 @@ from src.logger import LogLevel, configure_logger  # noqa: E402
 from src.persistency import load_pavement  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-SAVED = ROOT / "resources" / "examples" / "pavimento_residencial.yaml"
+SAVED = ROOT / "resources" / "examples" / "residencial.pavement.yaml"
 OUT = ROOT / "out" / "drawing"
-NAME = "pavimento_residencial"
+NAME = "residencial"
 
 
 def main() -> None:

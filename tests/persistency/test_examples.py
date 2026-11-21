@@ -15,11 +15,9 @@ from src.config import APP_CONFIG, AppConfig
 from src.persistency import load_pavement
 
 EXAMPLES_DIR = Path(__file__).resolve().parents[2] / "resources" / "examples"
-# *.viga.yaml are isolated-beam files (pavement_ui), not pavements
-EXAMPLE_FILES = sorted(
-    path for path in EXAMPLES_DIR.glob("*.yaml") if not path.name.endswith(".viga.yaml")
-)
-TEMPLATE = EXAMPLES_DIR / "template.yaml"
+# *.beam.yaml are isolated-beam files (pavement_ui), not pavements
+EXAMPLE_FILES = sorted(EXAMPLES_DIR.glob("*.pavement.yaml"))
+TEMPLATE = EXAMPLES_DIR / "template.pavement.yaml"
 
 
 @pytest.fixture(autouse=True)
@@ -32,7 +30,9 @@ def restore_app_config() -> Generator[None]:
 
 
 def test_examples_folder_has_the_template_and_examples() -> None:
-    assert TEMPLATE in EXAMPLE_FILES, "resources/examples/ should hold template.yaml"
+    assert TEMPLATE in EXAMPLE_FILES, (
+        "resources/examples/ should hold template.pavement.yaml"
+    )
     assert len(EXAMPLE_FILES) >= 2, "there should be examples besides the template"
 
 
