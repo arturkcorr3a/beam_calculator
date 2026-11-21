@@ -3,7 +3,7 @@ from typing import assert_never
 
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
-from src.errors import BeamTooNarrowError, InputError
+from src.errors import BeamTooNarrowError, EnginePreconditionError, InputError
 from src.logger import log_element, logger_label
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.properties.steel import Steel
@@ -134,7 +134,7 @@ class RectangularBeam(metaclass=_BeamMeta):
             Position of the nearest face along the beam (cm).
 
         Raises:
-            ValueError: If there is no support face on the requested side.
+            EnginePreconditionError: If there is no support face on the requested side.
         """
         faces = [face for s in self.supports for face in (s.left, s.right)]
         if left:
@@ -146,7 +146,7 @@ class RectangularBeam(metaclass=_BeamMeta):
 
         if nearest is None:
             side = "left" if left else "right"
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"No support face to the {side} of position {position} cm."
             )
         return nearest

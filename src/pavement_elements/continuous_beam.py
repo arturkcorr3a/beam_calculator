@@ -17,6 +17,7 @@ from src.errors import (
     BeamDetailingError,
     BeamInputError,
     BeamTooNarrowError,
+    EnginePreconditionError,
     SkinSteelError,
     UnknownPillarError,
 )
@@ -254,10 +255,10 @@ class ContinuousBeam:
             Multi-line plain-text report.
 
         Raises:
-            ValueError: If the beam has no spans or its stirrups were not set (not dimensioned).
+            EnginePreconditionError: If the beam has no spans or its stirrups were not set (not dimensioned).
         """
         if not self.spans or not all(hasattr(span, "stirrups") for span in self.spans):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Beam '{self.id}' has not been dimensioned. Can't report its state."
             )
 
@@ -506,7 +507,7 @@ class ContinuousBeam:
             start_pillar_id not in self.pillar_ids
             or end_pillar_id not in self.pillar_ids
         ):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Both pillars must be part of the beam's pillar_ids. Given: '{start_pillar_id}', '{end_pillar_id}'"
             )
 
@@ -549,7 +550,7 @@ class ContinuousBeam:
     def get_most_loaded_span_for_els(self) -> Span:
         """Returns the span with the highest total load (permanent + variable)."""
         if not self.spans:
-            raise ValueError(f"Beam '{self.id}' has no spans to evaluate.")
+            raise EnginePreconditionError(f"Beam '{self.id}' has no spans to evaluate.")
         most_loaded_span_for_els = max(
             self.spans,
             key=lambda span: almost_permanent_combination_els(
@@ -601,7 +602,7 @@ class ContinuousBeam:
     def _validate_alignment(self) -> None:
         """Validates that the beam's alignment is compatible with its axis."""
         if self.axis is None:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Beam '{self.id}' has no axis set. Can't validate alignment."
             )
         self.alignment.validate(self.axis)
@@ -640,7 +641,7 @@ class ContinuousBeam:
                         beam_id=self.id,
                     )
         else:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Beam '{self.id}' has no axis set. Can't calculate centerline."
             )
         self.centerline = centerline
@@ -653,7 +654,7 @@ class ContinuousBeam:
         Validates that each pillar's perpendicular cross-section fully contains the beam's width band.
         """
         if self.axis is None or self.centerline is None:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Beam '{self.id}' has no axis or centerline set. Can't validate pillar support."
             )
 
@@ -673,7 +674,7 @@ class ContinuousBeam:
     def _get_range(self) -> tuple[float, float]:
         """Returns the coordinates range of the beam perpendicular to its axis (min, max)."""
         if self.centerline is None:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Beam '{self.id}' has no centerline set. Can't calculate range."
             )
         beam_low = self.centerline - self.width / 2
@@ -685,7 +686,7 @@ class ContinuousBeam:
         Ensures no pillar on the same axis line is omitted from pillar_ids.
         """
         if self.axis is None:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Beam '{self.id}' has no axis set. Can't validate skipped pillars."
             )
 

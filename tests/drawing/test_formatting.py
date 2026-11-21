@@ -23,6 +23,7 @@ from src.drawing.formatting import (
     text_width,
     zone_quantity_label,
 )
+from src.errors import EnginePreconditionError
 from tests.drawing.helpers import close
 
 
@@ -62,7 +63,7 @@ class TestNumbers:
         assert fmt_roman(number) == expected, f"{number} should read {expected}"
 
     def test_fmt_roman_out_of_range(self) -> None:
-        with pytest.raises(ValueError, match="Roman"):
+        with pytest.raises(EnginePreconditionError, match="Roman"):
             fmt_roman(0)
 
     def test_fmt_date(self) -> None:

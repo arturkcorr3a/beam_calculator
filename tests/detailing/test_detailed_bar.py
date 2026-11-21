@@ -3,6 +3,7 @@
 import pytest
 
 from src.detailing.detailed_bar import BarRole, DetailedBar
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 from src.structural_elements.rebar import HookGeometry
 from tests.helpers import assert_approx
@@ -51,11 +52,13 @@ class TestValidation:
     """Runs need at least one bar and a non-negative extent."""
 
     def test_zero_quantity_raises(self) -> None:
-        with pytest.raises(ValueError, match="at least 1 bar"):
+        with pytest.raises(EnginePreconditionError, match="at least 1 bar"):
             _bar(quantity=0)
 
     def test_end_before_start_raises(self) -> None:
-        with pytest.raises(ValueError, match="cannot end before it starts"):
+        with pytest.raises(
+            EnginePreconditionError, match="cannot end before it starts"
+        ):
             _bar(start=100.0, end=99.0)
 
     def test_zero_length_allowed(self) -> None:

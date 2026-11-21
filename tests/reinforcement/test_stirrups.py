@@ -9,7 +9,7 @@ import pytest
 from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.stirrup_calculator import MIN_SPACING, StirrupCalculator
 from src.config import APP_CONFIG
-from src.errors import StirrupBendUndefinedError
+from src.errors import NoStirrupLayoutError, StirrupBendUndefinedError
 from src.loading.forces import LOAD_FACTOR
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -125,7 +125,7 @@ class TestChoose:
 
     def test_unreachable_ratio_raises_value_error(self, stirrups: Stirrups) -> None:
         stirrups.required_ratio = 999.0
-        with pytest.raises(ValueError, match="No stirrup meets"):
+        with pytest.raises(NoStirrupLayoutError, match="No stirrup meets"):
             stirrups.choose()
 
     def test_max_spacing_below_minimum_raises_value_error(
@@ -135,7 +135,7 @@ class TestChoose:
         stirrups.calculator = cast(
             StirrupCalculator, types.SimpleNamespace(max_spacing=4.0)
         )  # below MIN_SPACING (5 cm): the spacing loop never runs
-        with pytest.raises(ValueError, match="No stirrup meets"):
+        with pytest.raises(NoStirrupLayoutError, match="No stirrup meets"):
             stirrups.choose()
 
     def test_accepts_minimum_spacing(self, stirrups: Stirrups) -> None:

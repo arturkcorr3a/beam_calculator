@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 
 from src.checkers.deformation_check_result import DeformationCheckResult
 from src.config import APP_CONFIG
+from src.errors import EnginePreconditionError
 from src.loading.forces import (
     calculate_cracking_moment,
 )
@@ -59,10 +60,10 @@ class DeformationChecker(ABC):
             The verification's inputs, intermediate values and verdict.
 
         Raises:
-            ValueError: If ``verify`` has not been called yet.
+            EnginePreconditionError: If ``verify`` has not been called yet.
         """
         if self.height <= 0:
-            raise ValueError(
+            raise EnginePreconditionError(
                 "Deformation has not been verified yet. Call verify first."
             )
         long_term_deflection = self.long_term_deflection

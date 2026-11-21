@@ -17,6 +17,7 @@ from src.config import APP_CONFIG
 from src.config_options import OccupancyCategory
 from src.data.carvalho.table_7.data import SLAB_MOMENT_COEFFICIENTS_TABLE
 from src.data.carvalho.table_7_2.data import TABLE_7_2
+from src.errors import EnginePreconditionError
 from src.pavement_elements.slab import Slab
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 from src.properties.concrete import Concrete
@@ -264,7 +265,7 @@ class TestCoefficientForServiceMoment:
     )
     def test_invalid_inputs_raise_value_error(self, ratio: float, case: int) -> None:
         """get_mu raises ValueError for out-of-range inputs."""
-        with pytest.raises(ValueError):
+        with pytest.raises(EnginePreconditionError):
             SLAB_MOMENT_COEFFICIENTS_TABLE.get_mu(ratio, case)
 
 
@@ -294,7 +295,7 @@ class TestAlphaForDeflection:
     )
     def test_invalid_inputs_raise_value_error(self, ratio: float, case: int) -> None:
         """TABLE_7_2.get_alpha raises ValueError for invalid inputs."""
-        with pytest.raises(ValueError):
+        with pytest.raises(EnginePreconditionError):
             TABLE_7_2.get_alpha(ratio, case)
 
 

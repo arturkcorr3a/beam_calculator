@@ -21,7 +21,12 @@ from src.detailing.lap_splice import LapSplice
 from src.detailing.post_processor import _STEPS  # pyright: ignore[reportPrivateUsage]
 from src.detailing.rounding import round_up
 from src.detailing.splitting import MAX_BAR_LENGTH, split_long_bars
-from src.errors import LapTooLongError, SpliceDiameterError, SplicePositionError
+from src.errors import (
+    EnginePreconditionError,
+    LapTooLongError,
+    SpliceDiameterError,
+    SplicePositionError,
+)
 from src.logger import suppress_logging
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -270,7 +275,7 @@ class TestOtherRuns:
 
     def test_missing_analysis_raises(self) -> None:
         beam = _beam(_bar(1300), with_analysis=False)
-        with pytest.raises(ValueError, match="no analysis"):
+        with pytest.raises(EnginePreconditionError, match="no analysis"):
             split_long_bars(beam)
 
     def test_missing_analysis_fine_without_long_runs(self) -> None:

@@ -190,3 +190,52 @@ class SkinReinforcementNoRoomError(BeamDesignError):
         super().__init__(message)
         self.band_height = band_height
         self.bars_per_face = bars_per_face
+
+
+class NoStirrupLayoutError(BeamDesignError):
+    """No stirrup diameter and spacing meets the required transverse reinforcement
+
+    A wider or taller section, or a stronger concrete, is the usual fix.
+
+    Attributes:
+        required_ratio: Required transverse reinforcement per length A_sw/s (cm²/cm).
+        min_diameter_mm: Smallest stirrup diameter tried (mm).
+        max_diameter_mm: Largest stirrup diameter tried (mm).
+        min_spacing: Smallest spacing tried (cm).
+        max_spacing: Largest spacing allowed, s_max (cm).
+
+    References:
+        ABNT NBR 6118:2026 — Sections 17.4.2.2 and 18.3.3.2
+    """
+
+    def __init__(
+        self,
+        *,
+        required_ratio: float,
+        min_diameter_mm: float,
+        max_diameter_mm: float,
+        min_spacing: float,
+        max_spacing: float,
+    ) -> None:
+        super().__init__(
+            f"No stirrup meets A_sw/s = {required_ratio:.4f} cm²/cm with diameters "
+            f"from {min_diameter_mm:.1f} to {max_diameter_mm:.1f} mm and spacings "
+            f"from {min_spacing:.1f} cm up to s_max = {max_spacing:.1f} cm."
+        )
+        self.required_ratio = required_ratio
+        self.min_diameter_mm = min_diameter_mm
+        self.max_diameter_mm = max_diameter_mm
+        self.min_spacing = min_spacing
+        self.max_spacing = max_spacing
+
+
+class MaxLayersExceededError(BeamDesignError):
+    """The bars need more layers than the configured maximum
+
+    Attributes:
+        max_layers: Maximum number of layers (``AppConfig.max_layers``).
+    """
+
+    def __init__(self, message: str, *, max_layers: int) -> None:
+        super().__init__(message)
+        self.max_layers = max_layers

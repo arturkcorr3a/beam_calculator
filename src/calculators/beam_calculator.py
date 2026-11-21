@@ -537,7 +537,8 @@ class BeamCalculator:
         """Chooses a span's skin reinforcement from its coordinated interest points, or None when the beam is low enough to omit it.
 
         Raises:
-            ValueError: Propagated from ``SkinReinforcement`` (steel not CA-50/CA-60, or no room between the bottom and top bars).
+            SkinSteelError: Propagated from ``SkinReinforcement`` if the steel is not CA-50/CA-60.
+            SkinReinforcementNoRoomError: Propagated from ``SkinReinforcement`` if there is no room between the bottom and top bars.
 
         References:
             ABNT NBR 6118:2026 — Section 17.3.5.2.3

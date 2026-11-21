@@ -3,6 +3,8 @@
 import datetime
 import re
 
+from src.errors import EnginePreconditionError
+
 PHI = "φ"  # φ, present in Arial and DejaVu Sans
 
 CONSTRUCTION_MARK = "(MONTAGEM)"
@@ -54,10 +56,12 @@ def fmt_roman(number: int) -> str:
     """Return a positive integer below 40 in Roman numerals
 
     Raises:
-        ValueError: If the number is not between 1 and 39.
+        EnginePreconditionError: If the number is not between 1 and 39.
     """
     if not 1 <= number <= 39:
-        raise ValueError(f"Roman numerals are only written from 1 to 39. Got {number}.")
+        raise EnginePreconditionError(
+            f"Roman numerals are only written from 1 to 39. Got {number}."
+        )
     text = ""
     for value, symbol in _ROMAN:
         while number >= value:

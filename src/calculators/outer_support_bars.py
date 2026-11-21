@@ -90,8 +90,10 @@ def anchor_outer_supports(
         The new reinforcements, one per end support that needed bars.
 
     Raises:
-        ValueError: Propagated from the new reinforcement if no layer is left
-            or no bar layout fits and anchors.
+        EnginePreconditionError: Propagated from the new reinforcement if no
+            layer is left.
+        NoReinforcementLayoutError: Propagated from the new reinforcement if no
+            bar layout fits and anchors.
 
     References:
         ABNT NBR 6118:2026 — Sections 18.3.2.4-b and 18.3.2.4.1

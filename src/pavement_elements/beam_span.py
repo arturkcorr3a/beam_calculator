@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast
 
-from src.errors import InputError
+from src.errors import EnginePreconditionError, InputError
 from src.loading.load_component import LoadComponent
 from src.pavement_elements.geometry_utils import Axis, effective_span
 from src.pavement_elements.pillar import Pillar
@@ -56,7 +56,7 @@ class Span:
         elif axis == Axis.Y:
             return abs(end_pillar.y - start_pillar.y)
         else:
-            raise ValueError("Invalid axis for length calculation.")
+            raise EnginePreconditionError("Invalid axis for length calculation.")
 
     def get_effective_length(
         self, pillar_registry: dict[str, Pillar], height: float | None = None
@@ -103,7 +103,9 @@ class Span:
         elif self.supported_slabs[1] is slab:
             return self.supported_slabs[0]
         else:
-            raise ValueError(f"Slab '{slab.id}' is not supported by this span.")
+            raise EnginePreconditionError(
+                f"Slab '{slab.id}' is not supported by this span."
+            )
 
     def add_load(
         self, load: float, permanent: bool = True, psi_2: float | None = None
@@ -120,13 +122,15 @@ class Span:
                 for permanent loads.
 
         Raises:
-            ValueError: If a variable load is added without psi_2.
+            EnginePreconditionError: If a variable load is added without psi_2.
         """
         if permanent:
             self.permanent_load += load
             return
         if psi_2 is None:
-            raise ValueError("A variable load needs its quasi-permanent factor psi_2.")
+            raise EnginePreconditionError(
+                "A variable load needs its quasi-permanent factor psi_2."
+            )
         self.variable_load += load
         self.psi_2 = max(self.psi_2, psi_2)
 
@@ -145,10 +149,12 @@ class Span:
                 required when the component has a variable part.
 
         Raises:
-            ValueError: If the component has a variable part but no psi_2.
+            EnginePreconditionError: If the component has a variable part but no psi_2.
         """
         if component.variable and psi_2 is None:
-            raise ValueError("A variable load needs its quasi-permanent factor psi_2.")
+            raise EnginePreconditionError(
+                "A variable load needs its quasi-permanent factor psi_2."
+            )
         self.load_components.append(component)
         self.add_load(component.permanent, permanent=True)
         if psi_2 is not None:

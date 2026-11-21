@@ -8,6 +8,7 @@ from enum import Enum
 from math import atan, atan2, ceil, cos, hypot, pi, radians, sin, tan
 
 from src.drawing.formatting import text_width
+from src.errors import EnginePreconditionError
 
 Point = tuple[float, float]
 
@@ -74,14 +75,14 @@ class Polyline:
         """Validate the vertices and the bulges
 
         Raises:
-            ValueError: If there are fewer than two vertices or the bulges do not match them.
+            EnginePreconditionError: If there are fewer than two vertices or the bulges do not match them.
         """
         if len(self.points) < 2:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"A polyline needs at least 2 points. Got {len(self.points)}."
             )
         if len(self.bulges) != len(self.points):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"A polyline needs one bulge per point. Got {len(self.bulges)} "
                 f"bulges for {len(self.points)} points."
             )
@@ -222,11 +223,13 @@ def arc_center(start: Point, end: Point, bulge: float) -> tuple[Point, float]:
     """Return the center and the radius of the arc of a segment with a bulge (cm)
 
     Raises:
-        ValueError: If the bulge is zero or the segment has no length.
+        EnginePreconditionError: If the bulge is zero or the segment has no length.
     """
     chord = hypot(end[0] - start[0], end[1] - start[1])
     if abs(bulge) < _BULGE_TOLERANCE or chord == 0:
-        raise ValueError("Only a segment with a bulge and a length has an arc.")
+        raise EnginePreconditionError(
+            "Only a segment with a bulge and a length has an arc."
+        )
     angle = 4 * atan(bulge)
     offset = (chord / 2) / tan(angle / 2)  # from the chord's middle, to its left
     normal = (-(end[1] - start[1]) / chord, (end[0] - start[0]) / chord)
@@ -302,10 +305,10 @@ class Drawing:
         """Return the bounding box as x min, y min, x max, y max (cm)
 
         Raises:
-            ValueError: If the drawing is empty.
+            EnginePreconditionError: If the drawing is empty.
         """
         if not self.items:
-            raise ValueError("An empty drawing has no bounds.")
+            raise EnginePreconditionError("An empty drawing has no bounds.")
         points = [point for item in self.items for point in item_points(item)]
         xs = [x for x, _ in points]
         ys = [y for _, y in points]

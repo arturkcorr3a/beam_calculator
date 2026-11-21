@@ -133,7 +133,7 @@ def detail_isolated_beam(beam: ContinuousBeam) -> DetailingBeam:
     with this beam alone.
 
     Raises:
-        ValueError: Propagated from ``ContinuousBeam.detail``.
+        BeamCalculatorError: Propagated from ``ContinuousBeam.detail``.
     """
     detailing = beam.detail()
     MarkRegistry().assign(detailing)
@@ -146,7 +146,7 @@ def _validate(
     pillars: Sequence[IsolatedPillar],
     loads: Sequence[IsolatedLoad],
 ) -> None:
-    """Raise ValueError on inputs the beam and pillar classes do not check."""
+    """Raise InputError on inputs the beam and pillar classes do not check."""
     if not span_lengths:
         raise InputError("The beam must have at least one span.")
     if len(pillars) != len(span_lengths) + 1:

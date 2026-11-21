@@ -16,6 +16,7 @@ from src.errors import (
     BeamInputError,
     BeamTooNarrowError,
     DesignError,
+    EnginePreconditionError,
 )
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
@@ -229,7 +230,7 @@ class TestGetRange:
     """_get_range returns the beam's perpendicular band; raises before resolution."""
 
     def test_raises_before_resolution(self, horizontal_beam: ContinuousBeam) -> None:
-        with pytest.raises(ValueError, match="has no centerline set"):
+        with pytest.raises(EnginePreconditionError, match="has no centerline set"):
             horizontal_beam._get_range()  # pyright: ignore[reportPrivateUsage]
 
     def test_returns_correct_band_after_resolution(
@@ -296,7 +297,7 @@ class TestGetSpansBetween:
     ) -> None:
         horizontal_beam.resolve_and_validate(registry_horizontal)
         p1, _, _ = pillars_horizontal
-        with pytest.raises(ValueError, match="Both pillars must be part"):
+        with pytest.raises(EnginePreconditionError, match="Both pillars must be part"):
             horizontal_beam.get_spans_between(p1.id, "P99")
 
 
@@ -882,13 +883,14 @@ class TestDetail:
             "detail() should keep the new detailing on the beam"
         )
 
-    def test_error_names_the_beam(self, horizontal_beam: ContinuousBeam) -> None:
-        expected = rf"^Beam '{horizontal_beam.id}': The beam has not been dimensioned"
-        with pytest.raises(ValueError, match=expected) as raised:
+    def test_precondition_error_passes_unchanged(
+        self, horizontal_beam: ContinuousBeam
+    ) -> None:
+        """Detailing an undimensioned beam is a bug: its error keeps type and text"""
+        with pytest.raises(
+            EnginePreconditionError, match=r"^The beam has not been dimensioned"
+        ):
             horizontal_beam.detail()
-        assert isinstance(raised.value.__cause__, ValueError), (
-            "the builder's error should be chained as the cause"
-        )
 
     def test_keeps_engine_error_type(
         self, horizontal_beam: ContinuousBeam, monkeypatch: pytest.MonkeyPatch
@@ -942,7 +944,7 @@ class TestGetMostLoadedSpanForEls:
             alignment=Alignment.BOTTOM,
             wall=wall,
         )
-        with pytest.raises(ValueError, match="has no spans to evaluate"):
+        with pytest.raises(EnginePreconditionError, match="has no spans to evaluate"):
             b.get_most_loaded_span_for_els()
 
     def test_returns_heavier_span(
@@ -1060,7 +1062,7 @@ class TestReport:
     ) -> None:
         horizontal_beam.resolve_and_validate(registry_horizontal)
 
-        with pytest.raises(ValueError, match="has not been dimensioned"):
+        with pytest.raises(EnginePreconditionError, match="has not been dimensioned"):
             horizontal_beam.report(registry_horizontal)
 
     def test_reports_section_and_materials(

@@ -16,7 +16,12 @@ from src.detailing.lap_splice import (
     splice_length,
 )
 from src.detailing.rounding import round_down, round_up
-from src.errors import LapTooLongError, SpliceDiameterError, SplicePositionError
+from src.errors import (
+    EnginePreconditionError,
+    LapTooLongError,
+    SpliceDiameterError,
+    SplicePositionError,
+)
 from src.logger import log_operation
 from src.reinforcement.layer import Layer
 
@@ -32,7 +37,7 @@ def split_long_bars(detailing: DetailingBeam) -> None:
     A run whose cut length, hooks included, passes 12 m is cut into the fewest pieces that fit (see ``_split``). Main runs are split first, bottom face first, by layer and left to right, so the laps they make count in the share of the later ones. Laps of main runs are recorded in ``lap_splices``; laps of construction runs are not, as in ``add_construction_bars``. Long skin bars are split last (see ``_split_skin``).
 
     Raises:
-        ValueError: If the beam has no analysis.
+        EnginePreconditionError: If the beam has no analysis.
         SpliceDiameterError: If a long run has bars above 32 mm.
         LapTooLongError: If a lap does not fit in a commercial bar.
         SplicePositionError: If no splice position meets Table 9.3.
@@ -76,7 +81,7 @@ def _split(detailing: DetailingBeam, bars: list[DetailedBar], index: int) -> Non
 
     Raises:
         SpliceDiameterError: If the bars are above 32 mm.
-        ValueError: If the beam has no analysis.
+        EnginePreconditionError: If the beam has no analysis.
         LapTooLongError: If the lap does not fit in a commercial bar.
         SplicePositionError: If no position in a window meets Table 9.3.
 
@@ -92,7 +97,9 @@ def _split(detailing: DetailingBeam, bars: list[DetailedBar], index: int) -> Non
         )
     analysis = detailing.analysis
     if analysis is None:
-        raise ValueError("The beam has no analysis to place the splices of long bars.")
+        raise EnginePreconditionError(
+            "The beam has no analysis to place the splices of long bars."
+        )
     longest = round_up(_lap_length(bar, share=1.0))  # cm
     if longest >= MAX_BAR_LENGTH:
         raise LapTooLongError(

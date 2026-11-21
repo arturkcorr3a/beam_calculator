@@ -8,7 +8,7 @@ from src.detailing.detailed_clamps import DetailedClamps
 from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.span_stirrups import SpanStirrups
-from src.errors import StirrupSpacingTooSmallError
+from src.errors import EnginePreconditionError, StirrupSpacingTooSmallError
 from src.logger import log_operation
 from src.reinforcement.stirrups import StirrupZone
 
@@ -66,7 +66,7 @@ def round_detailing(detailing: DetailingBeam) -> None:
     Bars, clamps, stirrups and skin bars are replaced by rounded copies (see ``round_bar``, ``round_clamps``, ``round_stirrups`` and ``round_skin_bars``). Each clamp set's bend follows the rounded end of the bars it anchors.
 
     Raises:
-        ValueError: If a clamp set has no bar ending at its bend.
+        EnginePreconditionError: If a clamp set has no bar ending at its bend.
         StirrupSpacingTooSmallError: If a stirrup spacing rounds below the minimum.
     """
     anchored = [_anchored_bar(clamps, detailing.bars) for clamps in detailing.clamps]
@@ -134,7 +134,7 @@ def _anchored_bar(clamps: DetailedClamps, bars: list[DetailedBar]) -> DetailedBa
     """Find a bar run of the clamps' source point and face whose end sits at the clamps' bend
 
     Raises:
-        ValueError: If no bar run ends at the bend.
+        EnginePreconditionError: If no bar run ends at the bend.
     """
     for bar in bars:
         bar_end = bar.start if clamps.left else bar.end
@@ -144,7 +144,7 @@ def _anchored_bar(clamps: DetailedClamps, bars: list[DetailedBar]) -> DetailedBa
             and abs(bar_end - clamps.position) <= ROUNDING_TOLERANCE
         ):
             return bar
-    raise ValueError(
+    raise EnginePreconditionError(
         f"No bar ends at the clamps' bend at {clamps.position:.2f} cm (source {clamps.source_position:.2f} cm)."
     )
 

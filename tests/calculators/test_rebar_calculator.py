@@ -13,7 +13,7 @@ import pytest
 from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.config_options import Aggregate, ExposureClass
-from src.errors import ReinforcementAreaExceededError
+from src.errors import EnginePreconditionError, ReinforcementAreaExceededError
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import (
@@ -550,7 +550,7 @@ class TestEffectiveDepthErrors:
         # Mark the tensioned reinforcement as chosen but leave bars empty
         calc.tensioned_reinforcement.is_chosen = True
         # chosen_bars[0].bars is already [] from construction
-        with pytest.raises(ValueError, match="no bars have been set"):
+        with pytest.raises(EnginePreconditionError, match="no bars have been set"):
             _ = calc.d
 
 

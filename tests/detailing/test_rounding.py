@@ -21,7 +21,7 @@ from src.detailing.rounding import (
     round_up,
 )
 from src.detailing.span_stirrups import SpanStirrups
-from src.errors import StirrupSpacingTooSmallError
+from src.errors import EnginePreconditionError, StirrupSpacingTooSmallError
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import StirrupZone
 from src.structural_elements.rebar import HookGeometry
@@ -302,7 +302,9 @@ class TestRoundDetailing:
         beam = _beam()
         beam.bars = [_bar(25.3, 234.6)]
         beam.clamps = [_clamps(505.2)]
-        with pytest.raises(ValueError, match="No bar ends at the clamps' bend"):
+        with pytest.raises(
+            EnginePreconditionError, match="No bar ends at the clamps' bend"
+        ):
             round_detailing(beam)
 
     def test_registered_as_first_step(self) -> None:

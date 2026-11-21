@@ -5,6 +5,7 @@ from math import pi
 import pytest
 
 from src.calculators.utils import cotan
+from src.errors import EnginePreconditionError
 from tests.helpers import assert_approx
 
 
@@ -33,22 +34,22 @@ class TestCotan:
 
     def test_raises_at_zero(self) -> None:
         """cotan(0) raises ValueError (cotangent undefined)."""
-        with pytest.raises(ValueError, match="undefined"):
+        with pytest.raises(EnginePreconditionError, match="undefined"):
             cotan(0)
 
     def test_raises_at_pi(self) -> None:
         """cotan(pi) raises ValueError (cotangent undefined)."""
-        with pytest.raises(ValueError, match="undefined"):
+        with pytest.raises(EnginePreconditionError, match="undefined"):
             cotan(pi)
 
     def test_raises_at_two_pi(self) -> None:
         """cotan(2*pi) raises ValueError (cotangent undefined)."""
-        with pytest.raises(ValueError, match="undefined"):
+        with pytest.raises(EnginePreconditionError, match="undefined"):
             cotan(2 * pi)
 
     def test_tolerance_edge_still_raises(self) -> None:
         """cotan(pi + 5e-6) still raises because abs_tol=1e-5 (5e-6 < 1e-5)."""
-        with pytest.raises(ValueError, match="undefined"):
+        with pytest.raises(EnginePreconditionError, match="undefined"):
             cotan(pi + 5e-6)
 
     def test_just_outside_tolerance_does_not_raise(self) -> None:

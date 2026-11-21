@@ -8,6 +8,7 @@ from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_report import build_report
 from src.detailing.lap_splice import LapSplice
 from src.detailing.span_stirrups import SpanStirrups
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 from src.structural_elements.support import Support
 
@@ -47,10 +48,10 @@ class DetailingBeam:
         """Validate the supports
 
         Raises:
-            ValueError: If there are fewer than two supports.
+            EnginePreconditionError: If there are fewer than two supports.
         """
         if len(self.supports) < 2:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Beam '{self.beam_id}' needs at least 2 supports to be detailed."
             )
 

@@ -19,7 +19,9 @@ from src.errors.design import (
     DeformationLimitExceededError,
     DesignError,
     EffectiveDepthDivergedError,
+    MaxLayersExceededError,
     NoReinforcementLayoutError,
+    NoStirrupLayoutError,
     ReinforcementAreaExceededError,
     SkinReinforcementNoRoomError,
     SlabDesignError,
@@ -29,6 +31,7 @@ from src.errors.design import (
 )
 from src.errors.detailing import (
     BeamDetailingError,
+    BendPinUndefinedError,
     DetailingError,
     LapTooLongError,
     SpliceDiameterError,
@@ -53,7 +56,11 @@ from src.errors.input import (
     UnknownPillarError,
 )
 from src.errors.lookup import SteelPriceNotFoundError, TableLookupError
-from src.errors.precondition import EnginePreconditionError
+from src.errors.precondition import (
+    EnginePreconditionError,
+    NumericalError,
+    UnknownNameError,
+)
 
 __all__ = [
     "AnchorageError",
@@ -63,6 +70,7 @@ __all__ = [
     "BeamDetailingError",
     "BeamInputError",
     "BeamTooNarrowError",
+    "BendPinUndefinedError",
     "ClampsDoNotFitError",
     "ConcreteClassTooLowError",
     "DeformationLimitExceededError",
@@ -78,7 +86,10 @@ __all__ = [
     "LapTooLongError",
     "MalformedFileError",
     "MaterialError",
+    "MaxLayersExceededError",
     "NoReinforcementLayoutError",
+    "NoStirrupLayoutError",
+    "NumericalError",
     "PillarInputError",
     "PillarTooSmallError",
     "ReinforcementAreaExceededError",
@@ -98,5 +109,6 @@ __all__ = [
     "StrutCrushingError",
     "SupportBarsShortError",
     "TableLookupError",
+    "UnknownNameError",
     "UnknownPillarError",
 ]

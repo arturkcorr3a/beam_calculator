@@ -4,6 +4,7 @@ import pytest
 
 from src.detailing.detailed_bar import DetailedBar
 from src.detailing.detailing_beam import DetailingBeam
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 from src.structural_elements.support import Support
 
@@ -46,7 +47,7 @@ class TestExtent:
         assert (beam.start, beam.end) == (-10.0, 510.0), "Outer faces (cm)"
 
     def test_needs_two_supports(self) -> None:
-        with pytest.raises(ValueError, match="at least 2 supports"):
+        with pytest.raises(EnginePreconditionError, match="at least 2 supports"):
             DetailingBeam(
                 beam_id="V1",
                 width=20.0,

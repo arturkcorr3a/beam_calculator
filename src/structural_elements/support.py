@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from src.errors import EnginePreconditionError
+
 _EXTREMITY_TOLERANCE = 1e-3  # cm
 
 
@@ -22,10 +24,10 @@ class Support:
         """Validate that the center lies between the faces
 
         Raises:
-            ValueError: If the faces are not ordered as left <= center <= right.
+            EnginePreconditionError: If the faces are not ordered as left <= center <= right.
         """
         if not self.left <= self.center <= self.right:
-            raise ValueError(
+            raise EnginePreconditionError(
                 "Support faces must satisfy left <= center <= right. "
                 f"Got left={self.left}, center={self.center}, right={self.right} cm."
             )

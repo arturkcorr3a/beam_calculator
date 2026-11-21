@@ -83,7 +83,7 @@ class Pavement:
 
     def validate(self) -> None:
         """
-        Performs validations and resolutions for its elements (pillars, beams, slabs). Raises ValueError on any validation failure, including a pavement concrete below the minimum for the configured exposure class.
+        Performs validations and resolutions for its elements (pillars, beams, slabs). Raises an InputError on any validation failure, including a pavement concrete below the minimum for the configured exposure class.
         """
 
         APP_CONFIG.validate_concrete_class()
@@ -191,7 +191,7 @@ class Pavement:
         The marks are numbered from N1 across the whole pavement, beam by beam, once every beam is detailed: identical bars get the same mark in any beam.
 
         Raises:
-            ValueError: Propagated from ContinuousBeam.detail if a beam has not been dimensioned or its post-processing fails.
+            BeamCalculatorError: Propagated from ContinuousBeam.detail if a beam has not been dimensioned or its post-processing fails.
         """
         log_general("Beams' detailing starting")
         detailings = [beam.detail() for beam in self.beams.values()]
@@ -222,7 +222,7 @@ class Pavement:
         A detailed beam's report is followed by its detailing report, and the last one by the pavement's bar schedule and quantities.
 
         Raises:
-            ValueError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
+            EnginePreconditionError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
         """
         for beam in self.beams.values():
             print(beam.report(self.pillars))

@@ -1,5 +1,7 @@
 from math import pi, sqrt
 
+from src.errors import NumericalError
+
 
 class SectionPropertiesCalculator:
     """
@@ -76,7 +78,7 @@ class SectionPropertiesCalculator:
 
         discriminant = (a2**2) - (4.0 * a1 * a3)
         if discriminant < 0:
-            raise ArithmeticError(
+            raise NumericalError(
                 "Calculation error: The discriminant of the neutral axis equation is negative."
             )
         neutral_axis_depth = (-a2 + sqrt(discriminant)) / (2.0 * a1)  # x_II

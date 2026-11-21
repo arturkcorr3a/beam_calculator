@@ -5,7 +5,11 @@ from dataclasses import dataclass
 from math import ceil, floor
 from typing import TYPE_CHECKING
 
-from src.errors import SkinReinforcementNoRoomError, SkinSteelError
+from src.errors import (
+    EnginePreconditionError,
+    SkinReinforcementNoRoomError,
+    SkinSteelError,
+)
 from src.logger import log_element, log_operation, logger_label
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -150,10 +154,13 @@ class SkinReinforcement:
             calculators: The span's coordinated calculators.
 
         Raises:
-            ValueError: If no calculator is given, or propagated from ``choose_for``.
+            EnginePreconditionError: If no calculator is given.
+            SkinReinforcementNoRoomError: Propagated from ``choose_for``.
         """
         if not calculators:
-            raise ValueError("Skin reinforcement needs at least one interest point.")
+            raise EnginePreconditionError(
+                "Skin reinforcement needs at least one interest point."
+            )
         layouts = [self._choose_for_point(calculator) for calculator in calculators]
         self.layout = max(
             layouts, key=lambda layout: (layout.bars_per_face, layout.area_per_face)

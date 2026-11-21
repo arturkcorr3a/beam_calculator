@@ -7,7 +7,11 @@ from typing import cast
 import pytest
 
 from src.calculators.rebar_calculator import RebarCalculator
-from src.errors import SkinReinforcementNoRoomError, SkinSteelError
+from src.errors import (
+    EnginePreconditionError,
+    SkinReinforcementNoRoomError,
+    SkinSteelError,
+)
 from src.properties.steel import Steel
 from src.reinforcement.skin_reinforcement import SkinReinforcement
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -203,5 +207,7 @@ class TestChoose:
         assert skin.layout is layout, "the choice is stored"
 
     def test_no_points_raises(self, skin: SkinReinforcement) -> None:
-        with pytest.raises(ValueError, match="at least one interest point"):
+        with pytest.raises(
+            EnginePreconditionError, match="at least one interest point"
+        ):
             skin.choose([])

@@ -7,7 +7,11 @@ from unittest.mock import PropertyMock, patch
 import pytest
 
 from src.config import APP_CONFIG
-from src.errors import NoReinforcementLayoutError
+from src.errors import (
+    EnginePreconditionError,
+    MaxLayersExceededError,
+    NoReinforcementLayoutError,
+)
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
@@ -319,7 +323,9 @@ class TestValidateLayerIndex:
 
     def test_out_of_range_raises(self, reinforcement: Reinforcement) -> None:
         reinforcement.set_required_area(4.02)
-        with pytest.raises(ValueError, match="Layer index must be between 0 and"):
+        with pytest.raises(
+            EnginePreconditionError, match="Layer index must be between 0 and"
+        ):
             reinforcement._validate_layer_index(99)  # pyright: ignore[reportPrivateUsage]
 
 
@@ -736,7 +742,9 @@ class TestClampPass:
         reinforcement = _make_reinforcement(
             _make_short_beam(wide_supports), center_position=_SHORT_BEAM_LENGTH / 2
         )
-        with pytest.raises(ValueError, match="Effective depth and design shear"):
+        with pytest.raises(
+            EnginePreconditionError, match="Effective depth and design shear"
+        ):
             reinforcement.set_required_area(2.0)
 
 
@@ -836,7 +844,7 @@ class TestLayerReachesSupport:
         )
 
     def test_empty_layer_raises(self, two_span_reinforcement: Reinforcement) -> None:
-        with pytest.raises(ValueError, match="no bars"):
+        with pytest.raises(EnginePreconditionError, match="no bars"):
             two_span_reinforcement.layer_reaches_support(1, 1, left=False)
 
 
@@ -998,7 +1006,7 @@ class TestStackedReinforcement:
         self, two_span_reinforcement: Reinforcement, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "max_layers", 1)
-        with pytest.raises(ValueError, match="No layer left"):
+        with pytest.raises(MaxLayersExceededError, match="No layer left"):
             _support_point(two_span_reinforcement, stacked=True)
 
 
@@ -1070,7 +1078,7 @@ class TestLayerMomentBand:
 
     def test_empty_layer_raises(self, beam_double: RectangularBeam) -> None:
         reinforcement = _staggered(beam_double)
-        with pytest.raises(ValueError, match="no bars"):
+        with pytest.raises(EnginePreconditionError, match="no bars"):
             reinforcement.layer_moment_band(2)
 
 

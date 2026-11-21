@@ -6,7 +6,9 @@ from src.errors.design import (
     DeformationLimitExceededError,
     DesignError,
     EffectiveDepthDivergedError,
+    MaxLayersExceededError,
     NoReinforcementLayoutError,
+    NoStirrupLayoutError,
     ReinforcementAreaExceededError,
     SkinReinforcementNoRoomError,
     SlabDesignError,
@@ -136,3 +138,24 @@ class TestLeafMessages:
         assert str(error) == message, "the text should be the engine's message"
         assert error.band_height == 2.0, "the band height should be kept (cm)"
         assert error.bars_per_face == 3, "the bars that did not fit should be kept"
+
+    def test_no_stirrup_layout(self) -> None:
+        error = NoStirrupLayoutError(
+            required_ratio=0.1234,
+            min_diameter_mm=5.0,
+            max_diameter_mm=15.0,
+            min_spacing=5.0,
+            max_spacing=30.0,
+        )
+        assert isinstance(error, BeamDesignError), "it is a beam design error"
+        assert str(error) == (
+            "No stirrup meets A_sw/s = 0.1234 cm²/cm with diameters from 5.0 to "
+            "15.0 mm and spacings from 5.0 cm up to s_max = 30.0 cm."
+        ), "the text should match the engine's message"
+
+    def test_max_layers_exceeded(self) -> None:
+        message = "Cannot distribute bars within the maximum number of layers."
+        error = MaxLayersExceededError(message, max_layers=3)
+        assert isinstance(error, BeamDesignError), "it is a beam design error"
+        assert str(error) == message, "the text should be the engine's message"
+        assert error.max_layers == 3, "the layer limit should be kept"

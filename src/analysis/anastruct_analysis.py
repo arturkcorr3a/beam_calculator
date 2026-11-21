@@ -8,6 +8,7 @@ from anastruct.fem.system import SystemElements
 
 from src.analysis.model import BeamSupport, DistributedLoad
 from src.config import APP_CONFIG
+from src.errors import EnginePreconditionError
 from src.logger import log_property
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -151,7 +152,7 @@ class AnaStructBeamAnalysis:
         """Build and solve the beam.
 
         Raises:
-            ValueError: If a support or load lies outside the beam, or a support has a negative rotational stiffness.
+            EnginePreconditionError: If a support or load lies outside the beam, or a support has a negative rotational stiffness.
         """
         self._section = section
         self._validate(supports, loads)
@@ -227,13 +228,13 @@ class AnaStructBeamAnalysis:
         """Return the vertical support reaction at a support position (kN, upward positive).
 
         Raises:
-            ValueError: If there is no support at the position.
+            EnginePreconditionError: If there is no support at the position.
         """
         for support_position, node_id in self._support_nodes.items():
             if abs(support_position - position) <= _POSITION_TOLERANCE:
                 node = self._system.get_node_results_system(node_id)
                 return -float(cast(float, node["Fy"]))
-        raise ValueError(f"No support at {position} cm.")
+        raise EnginePreconditionError(f"No support at {position} cm.")
 
     def moment_zeros(self) -> list[float]:
         """Return the sorted positions where the bending moment is zero (cm)."""
@@ -320,23 +321,23 @@ class AnaStructBeamAnalysis:
         """Reject supports and loads the model cannot represent.
 
         Raises:
-            ValueError: If a support or load lies outside the beam, or a support
+            EnginePreconditionError: If a support or load lies outside the beam, or a support
                 has a negative rotational stiffness.
         """
         length = self._section.length
         for support in supports:
             if not 0 <= support.position <= length:
-                raise ValueError(
+                raise EnginePreconditionError(
                     f"Support at {support.position} cm lies outside the beam (0–{length} cm)."
                 )
             if support.rotational_stiffness < 0:
-                raise ValueError(
+                raise EnginePreconditionError(
                     "Rotational stiffness must be non-negative; got "
                     f"{support.rotational_stiffness} kN.m/rad at {support.position} cm."
                 )
         for load in loads:
             if not 0 <= load.start < load.end <= length:
-                raise ValueError(
+                raise EnginePreconditionError(
                     f"Load from {load.start} to {load.end} cm lies outside the beam "
                     f"(0–{length} cm) or has no extent."
                 )
@@ -356,7 +357,7 @@ class AnaStructBeamAnalysis:
         for index, node_position in enumerate(node_positions):
             if abs(node_position - position) <= _POSITION_TOLERANCE:
                 return index + 1
-        raise ValueError(f"No node at {position} cm.")
+        raise EnginePreconditionError(f"No node at {position} cm.")
 
     @staticmethod
     def _add_support(
@@ -403,7 +404,7 @@ class AnaStructBeamAnalysis:
         On a node shared by two elements, returns the one that ends there, or the one that starts there when ``from_right``.
 
         Raises:
-            ValueError: If the position lies outside the beam.
+            EnginePreconditionError: If the position lies outside the beam.
         """
         elements = reversed(self._elements) if from_right else self._elements
         for element in elements:
@@ -413,7 +414,7 @@ class AnaStructBeamAnalysis:
                 <= element.end + _POSITION_TOLERANCE
             ):
                 return element
-        raise ValueError(f"Position {position} cm lies outside the beam.")
+        raise EnginePreconditionError(f"Position {position} cm lies outside the beam.")
 
 
 def _deduplicate(sorted_positions: list[float]) -> list[float]:

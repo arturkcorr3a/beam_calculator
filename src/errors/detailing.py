@@ -148,3 +148,22 @@ class StirrupBendUndefinedError(BeamDetailingError):
             "(φ_t > 10 mm)."
         )
         self.diameter_mm = diameter_mm
+
+
+class BendPinUndefinedError(BeamDetailingError):
+    """The norm gives no bending pin for the bar (CA-60 from 20 mm)
+
+    Raised while the hooks are laid out, during dimensioning as well as detailing.
+
+    Attributes:
+        diameter_mm: Bar diameter (mm).
+
+    References:
+        ABNT NBR 6118:2026 — Section 9.4.2.3, Table 9.1
+    """
+
+    def __init__(self, *, diameter_mm: float) -> None:
+        super().__init__(
+            f"No bending pin for CA-60 bars with {diameter_mm} mm (φ >= 20 mm)."
+        )
+        self.diameter_mm = diameter_mm

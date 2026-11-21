@@ -6,7 +6,11 @@ from typing import cast
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.config import APP_CONFIG
-from src.errors import NoReinforcementLayoutError
+from src.errors import (
+    EnginePreconditionError,
+    MaxLayersExceededError,
+    NoReinforcementLayoutError,
+)
 from src.logger import (
     log_element,
     log_iteration,
@@ -79,7 +83,7 @@ class Reinforcement:
                 characteristic bending moment equals a given value (kN.m).
 
         Raises:
-            ValueError: If ``stacked_on`` already fills every layer.
+            MaxLayersExceededError: If ``stacked_on`` already fills every layer.
         """
         self.beam = beam
         self.steel = beam.steel
@@ -89,8 +93,9 @@ class Reinforcement:
             stacked_on.used_layers_top_index if stacked_on is not None else 0
         )
         if self.first_layer_index >= APP_CONFIG.max_layers:
-            raise ValueError(
-                f"No layer left to stack bars on: {self.first_layer_index} of {APP_CONFIG.max_layers} layers already used."
+            raise MaxLayersExceededError(
+                f"No layer left to stack bars on: {self.first_layer_index} of {APP_CONFIG.max_layers} layers already used.",
+                max_layers=APP_CONFIG.max_layers,
             )
         self.chosen_bars: tuple[Layer, ...] = self._build_empty_layers()
         self.is_chosen = False
@@ -142,7 +147,7 @@ class Reinforcement:
             The (lower, upper) characteristic moments of the band (kN.m), signed.
 
         Raises:
-            ValueError: If the layer has no bars.
+            EnginePreconditionError: If the layer has no bars.
 
         References:
             ABNT NBR 6118:2026 — Section 18.3.2.3.1 (Figure 18.3)
@@ -151,7 +156,7 @@ class Reinforcement:
         if not self.is_staggered:
             return None
         if not self.chosen_bars[layer_index].bars:
-            raise ValueError(f"Layer {layer_index} has no bars.")
+            raise EnginePreconditionError(f"Layer {layer_index} has no bars.")
         indexes = [i for i, layer in enumerate(self.chosen_bars) if layer.bars]
         bands = layer_moment_bands(
             [self.chosen_bars[i].area for i in indexes],
@@ -189,7 +194,7 @@ class Reinforcement:
         supports.
 
         Raises:
-            ValueError: If the required area or moment shift is not set, or if
+            EnginePreconditionError: If the required area or moment shift is not set, or if
                 clamps are needed but the effective depth or design shear is not
                 set.
             NoReinforcementLayoutError: If no option can be laid out and
@@ -199,9 +204,13 @@ class Reinforcement:
             f"Choosing reinforcement for required area: {self.required_area:.2f} cm²"
         )
         if self.required_area is None:
-            raise ValueError("Required area must be set before choosing reinforcement.")
+            raise EnginePreconditionError(
+                "Required area must be set before choosing reinforcement."
+            )
         if self.moment_shift is None:
-            raise ValueError("Moment shift must be set before choosing reinforcement.")
+            raise EnginePreconditionError(
+                "Moment shift must be set before choosing reinforcement."
+            )
 
         self.rebar_choice_options = RebarChooser.instance().ranked_solutions(
             self.steel, self.required_area
@@ -214,7 +223,7 @@ class Reinforcement:
             )
             if self.effective_depth is None or self.design_shear is None:
                 self.clear_chosen_bars()
-                raise ValueError(
+                raise EnginePreconditionError(
                     "Effective depth and design shear must be set before allowing clamps."
                 )
             best_layers = self._select_best_layers(allow_clamp=True)
@@ -319,7 +328,8 @@ class Reinforcement:
                 extremity supports.
 
         Raises:
-            ValueError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed), or if the standard hooks do not fit in the section height.
+            AnchorageLengthError: Propagated from the anchorage calculator if there isn't enough space for anchorage, even after adding hooks (and clamps, when allowed).
+            HookDoesNotFitError: Propagated from the anchorage calculator if the standard hooks do not fit in the section height.
         """
         log_operation("Running anchorage calculation for chosen reinforcement layers.")
         moment_shift = cast(float, self.moment_shift)
@@ -442,10 +452,12 @@ class Reinforcement:
         """Build the anchorage calculator of one chosen layer
 
         Raises:
-            ValueError: If the moment shift is not set.
+            EnginePreconditionError: If the moment shift is not set.
         """
         if self.moment_shift is None:
-            raise ValueError("Moment shift must be set before anchoring the bars.")
+            raise EnginePreconditionError(
+                "Moment shift must be set before anchoring the bars."
+            )
         return AnchorageCalculator(
             reinforcement=self,
             moment_shift=self.moment_shift,
@@ -467,14 +479,14 @@ class Reinforcement:
             left: Whether the support is on the left of the center; otherwise on the right.
 
         Raises:
-            ValueError: If the layer has no bars or the moment shift is not set.
+            EnginePreconditionError: If the layer has no bars or the moment shift is not set.
 
         References:
             ABNT NBR 6118:2026 — Section 18.3.2.4.1
         """
         layer = self.chosen_bars[layer_index]
         if not layer.bars:
-            raise ValueError(f"Layer {layer_index} has no bars.")
+            raise EnginePreconditionError(f"Layer {layer_index} has no bars.")
         if layer.get_clamps(left) is not None:
             return True  # clamps are only set where the bars end anchored in a support
         calculator = self._layer_anchorage_calculator(layer_index)
@@ -497,7 +509,8 @@ class Reinforcement:
             left: Whether the support is on the left of the center; otherwise on the right.
 
         Raises:
-            ValueError: If the moment shift is not set, or propagated from the anchorage calculator if the bars cannot be anchored inside the support.
+            EnginePreconditionError: If the moment shift is not set.
+            AnchorageError: Propagated from the anchorage calculator if the bars cannot be anchored inside the support.
 
         References:
             ABNT NBR 6118:2026 — Sections 18.3.2.4-c and 18.3.2.4.1
@@ -674,11 +687,11 @@ class Reinforcement:
             non-empty layer (cm), and that layer's largest bar diameter (cm).
 
         Raises:
-            ValueError: If no layer has bars.
+            EnginePreconditionError: If no layer has bars.
         """
         used = [i for i, layer in enumerate(self.chosen_bars) if layer.bars]
         if not used:
-            raise ValueError("No bars chosen to stack on.")
+            raise EnginePreconditionError("No bars chosen to stack on.")
         last = used[-1]
         diameter = max(b.diameter_mm for b in self.chosen_bars[last].bars) / 10  # cm
         return self._layer_offset(last) + diameter, diameter
@@ -746,10 +759,10 @@ class Reinforcement:
     def _validate_layer_index(self, layer_index: int) -> None:
         """
         Validates that the layer index is within the valid range.
-        Raises a ValueError if the index is out of bounds.
+        Raises EnginePreconditionError if the index is out of bounds.
         """
         if not 0 <= layer_index < len(self.chosen_bars):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Layer index must be between 0 and {len(self.chosen_bars) - 1}."
             )
 
@@ -808,13 +821,14 @@ class Reinforcement:
             diameter group continues.
 
         Raises:
-            ValueError: If the bars need more than the maximum number of layers.
+            MaxLayersExceededError: If the bars need more than the maximum number of layers.
         """
         while count > 0:
             if current_layer >= len(self.chosen_bars):
                 self.clear_chosen_bars()
-                raise ValueError(
-                    "Cannot distribute bars within the maximum number of layers."
+                raise MaxLayersExceededError(
+                    "Cannot distribute bars within the maximum number of layers.",
+                    max_layers=len(self.chosen_bars),
                 )
             if self.check_for_enough_space(
                 self.chosen_bars[current_layer].bars + [rebar]

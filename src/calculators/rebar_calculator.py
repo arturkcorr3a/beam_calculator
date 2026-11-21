@@ -9,7 +9,7 @@ from src.calculators.layout_selection import (
     select_layout,
 )
 from src.config import APP_CONFIG
-from src.errors import ReinforcementAreaExceededError
+from src.errors import EnginePreconditionError, ReinforcementAreaExceededError
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -475,7 +475,7 @@ class RebarCalculator:
             Effective covering (cm).
 
         Raises:
-            ValueError: If the reinforcement is chosen but its first layer has
+            EnginePreconditionError: If the reinforcement is chosen but its first layer has
                 no bars.
         """
         if not reinforcement.is_chosen:
@@ -483,7 +483,7 @@ class RebarCalculator:
 
         first_layer = reinforcement.chosen_bars[0]
         if not first_layer.bars:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"{kind} reinforcement is marked chosen, but no bars have been set in the first layer. Cannot calculate effective depth ({depth_name})."
             )
         covering = reinforcement.effective_covering()  # cm

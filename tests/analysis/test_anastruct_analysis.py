@@ -18,6 +18,7 @@ from src.analysis.beam_analysis import BeamAnalysis
 from src.analysis.model import BeamSupport, DistributedLoad
 from src.analysis.solver import analyse_beam
 from src.config import APP_CONFIG
+from src.errors import EnginePreconditionError
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -345,7 +346,7 @@ class TestPointQueries:
         self, simply_supported_beam: AnaStructBeamAnalysis
     ) -> None:
         """Asking for a reaction where there is no support raises ValueError."""
-        with pytest.raises(ValueError, match="No support"):
+        with pytest.raises(EnginePreconditionError, match="No support"):
             simply_supported_beam.reaction(250.0)
 
     def test_max_abs_shear(self, simply_supported_beam: AnaStructBeamAnalysis) -> None:
@@ -464,7 +465,7 @@ class TestRotationalSprings:
     def test_negative_stiffness_raises(self) -> None:
         """A negative rotational stiffness raises ValueError."""
         supports = [BeamSupport(0.0, -1.0), BeamSupport(600.0)]
-        with pytest.raises(ValueError, match="non-negative"):
+        with pytest.raises(EnginePreconditionError, match="non-negative"):
             _solve(supports)
 
 
@@ -504,7 +505,7 @@ class TestModelBuilding:
     def test_support_outside_beam_raises(self) -> None:
         """A support beyond the beam length raises ValueError."""
         supports = [BeamSupport(0.0), BeamSupport(700.0)]
-        with pytest.raises(ValueError, match="outside the beam"):
+        with pytest.raises(EnginePreconditionError, match="outside the beam"):
             _solve(supports)
 
 

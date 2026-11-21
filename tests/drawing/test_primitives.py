@@ -17,6 +17,7 @@ from src.drawing.primitives import (
     arc_center,
     arc_points,
 )
+from src.errors import EnginePreconditionError, UnknownNameError
 from tests.drawing.helpers import close
 
 _QUARTER_BULGE = tan(3.141592653589793 / 8)
@@ -47,7 +48,7 @@ class TestArcs:
         )
 
     def test_zero_bulge_has_no_center(self) -> None:
-        with pytest.raises(ValueError, match="bulge"):
+        with pytest.raises(EnginePreconditionError, match="bulge"):
             arc_center((0.0, 0.0), (1.0, 0.0), 0.0)
 
 
@@ -55,7 +56,7 @@ class TestPolyline:
     """A polyline has one bulge per point."""
 
     def test_bulge_count_checked(self) -> None:
-        with pytest.raises(ValueError, match="one bulge per point"):
+        with pytest.raises(EnginePreconditionError, match="one bulge per point"):
             Polyline(((0.0, 0.0), (1.0, 0.0)), (0.0,), "COTA")
 
     def test_closed_segments(self) -> None:
@@ -104,7 +105,7 @@ class TestDrawing:
         assert drawing.items[0] != item, "The original is left alone"
 
     def test_empty_bounds(self) -> None:
-        with pytest.raises(ValueError, match="empty"):
+        with pytest.raises(EnginePreconditionError, match="empty"):
             Drawing().bounds()
 
     def test_layers_in_order(self) -> None:
@@ -139,5 +140,5 @@ class TestLayers:
         ), "Main bars are red, 0.50 mm"
 
     def test_unknown_layer(self) -> None:
-        with pytest.raises(KeyError, match="NOPE"):
+        with pytest.raises(UnknownNameError, match="NOPE"):
             layer_style("NOPE")

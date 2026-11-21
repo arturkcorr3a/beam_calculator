@@ -5,7 +5,11 @@ from src.calculators.anchorage_clamp_calculator import (
     AnchorageClampCalculatorLabel,
 )
 from src.config import APP_CONFIG
-from src.errors import AnchorageLengthError, HookDoesNotFitError
+from src.errors import (
+    AnchorageLengthError,
+    EnginePreconditionError,
+    HookDoesNotFitError,
+)
 from src.logger import log_operation, log_property, logger_label
 from src.properties.steel import Steel
 from src.reinforcement.anchorage_summary import AnchorageSummary
@@ -257,7 +261,7 @@ class AnchorageCalculator:
             The clamps set on the side's layers.
 
         Raises:
-            ValueError: Propagated from the clamp calculator if the reinforcement's effective depth or design shear is not set.
+            EnginePreconditionError: If the reinforcement's effective depth or design shear is not set.
             ClampsDoNotFitError: If no clamp arrangement fits.
         """
         clamps = self._build_clamp_calculator(
@@ -287,13 +291,13 @@ class AnchorageCalculator:
             necessary_length: Anchorage length the hooked bars would need (cm).
 
         Raises:
-            ValueError: If the reinforcement's effective depth or design shear
+            EnginePreconditionError: If the reinforcement's effective depth or design shear
                 is not set.
         """
         effective_depth = self.reinforcement.effective_depth
         design_shear = self.reinforcement.design_shear
         if effective_depth is None or design_shear is None:
-            raise ValueError(
+            raise EnginePreconditionError(
                 "Effective depth and design shear must be set before calculating clamps."
             )
         return AnchorageClampCalculator(

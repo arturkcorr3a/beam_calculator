@@ -10,7 +10,11 @@ import pytest
 
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.config import APP_CONFIG
-from src.errors import AnchorageLengthError, HookDoesNotFitError
+from src.errors import (
+    AnchorageLengthError,
+    EnginePreconditionError,
+    HookDoesNotFitError,
+)
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
@@ -865,7 +869,9 @@ class TestClampFallback:
         self, layer_16mm_good: Layer, wide_supports: list[Support]
     ) -> None:
         ac = _make_clamp_ac(layer_16mm_good, wide_supports, effective_depth=None)
-        with pytest.raises(ValueError, match="Effective depth and design shear"):
+        with pytest.raises(
+            EnginePreconditionError, match="Effective depth and design shear"
+        ):
             ac.run(available_space=_TIGHT_SPACE, left=True, allow_clamp=True)
 
 

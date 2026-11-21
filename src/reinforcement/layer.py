@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+from src.errors import EnginePreconditionError
 from src.reinforcement.clamps import Clamps
 from src.structural_elements.rebar import HookGeometry, Rebar
 
@@ -49,7 +50,9 @@ class Layer:
         self, necessary_anchorage_length: float, left: bool
     ) -> None:
         if len(self.bars) == 0:
-            raise ValueError("No bars in the layer to set anchorage length.")
+            raise EnginePreconditionError(
+                "No bars in the layer to set anchorage length."
+            )
 
         for bar in self.bars:
             if left:
@@ -67,10 +70,12 @@ class Layer:
             enable: Whether the bars have hooks on that side.
 
         Raises:
-            ValueError: If the layer has no bars.
+            EnginePreconditionError: If the layer has no bars.
         """
         if len(self.bars) == 0:
-            raise ValueError("No bars in the layer to enable/disable hooks.")
+            raise EnginePreconditionError(
+                "No bars in the layer to enable/disable hooks."
+            )
 
         for bar in self.bars:
             if left:
@@ -90,7 +95,7 @@ class Layer:
             tip_length: Straight length after the curve (cm).
 
         Raises:
-            ValueError: If the layer has no bars.
+            EnginePreconditionError: If the layer has no bars.
 
         References:
             ABNT NBR 6118:2026 — Section 18.2.2

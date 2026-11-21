@@ -8,6 +8,7 @@ import pytest
 from src.config import APP_CONFIG
 from src.detailing.builder import build_detailing_beam
 from src.detailing.detailed_bar import BarRole, DetailedBar
+from src.errors import EnginePreconditionError
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -419,7 +420,7 @@ class TestBuildStirrups:
             [bottom_reinforcement],
             zones=([StirrupZone(50.0, 250.0, 15.0)], [StirrupZone(250.0, 500.0, 15.0)]),
         )
-        with pytest.raises(ValueError, match="do not cover the stretch"):
+        with pytest.raises(EnginePreconditionError, match="do not cover the stretch"):
             build_detailing_beam(beam)
 
 
@@ -493,21 +494,25 @@ class TestBuildErrors:
     ) -> None:
         beam = _beam(structural_beam, [bottom_reinforcement])
         beam.analysis = None
-        with pytest.raises(ValueError, match="has not been dimensioned"):
+        with pytest.raises(EnginePreconditionError, match="has not been dimensioned"):
             build_detailing_beam(beam)
 
     def test_stirrups_without_spacing_raise(
         self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
     ) -> None:
         beam = _beam(structural_beam, [bottom_reinforcement], spacing=None)
-        with pytest.raises(ValueError, match="no stirrup diameter or spacing"):
+        with pytest.raises(
+            EnginePreconditionError, match="no stirrup diameter or spacing"
+        ):
             build_detailing_beam(beam)
 
     def test_missing_required_area_raises(
         self, structural_beam: RectangularBeam, bottom_reinforcement: Reinforcement
     ) -> None:
         bottom_reinforcement.required_area = None
-        with pytest.raises(ValueError, match="no required or provided area"):
+        with pytest.raises(
+            EnginePreconditionError, match="no required or provided area"
+        ):
             build_detailing_beam(_beam(structural_beam, [bottom_reinforcement]))
 
 

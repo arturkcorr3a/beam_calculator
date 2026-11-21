@@ -3,6 +3,7 @@
 from src.errors.base import BeamCalculatorError
 from src.errors.detailing import (
     BeamDetailingError,
+    BendPinUndefinedError,
     DetailingError,
     LapTooLongError,
     SpliceDiameterError,
@@ -87,4 +88,10 @@ class TestLeafMessages:
         error = StirrupBendUndefinedError(diameter_mm=12.5)
         assert str(error) == (
             "No stirrup bend diameter for CA-60 bars with 12.5 mm (φ_t > 10 mm)."
+        ), "the text should match the engine's message"
+
+    def test_bend_pin_undefined(self) -> None:
+        error = BendPinUndefinedError(diameter_mm=20)
+        assert str(error) == (
+            "No bending pin for CA-60 bars with 20 mm (φ >= 20 mm)."
         ), "the text should match the engine's message"

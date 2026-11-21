@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.errors import NumericalError
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from tests.helpers import assert_approx
 
@@ -123,7 +124,7 @@ class TestCrackedSectionMomentOfInertia:
         negative_effective_depth_cm = -55.0
         tension_reinforcement_area_cm2 = 10.0
         modular_ratio = 10.0
-        with pytest.raises(ArithmeticError, match="discriminant"):
+        with pytest.raises(NumericalError, match="discriminant"):
             SectionPropertiesCalculator.cracked_section_moment_of_inertia(
                 width_cm,
                 negative_effective_depth_cm,

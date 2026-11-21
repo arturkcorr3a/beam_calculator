@@ -3,6 +3,7 @@
 import pytest
 
 from src.calculators.layout_selection import LayoutPass, select_layout
+from src.errors import EnginePreconditionError
 from tests.helpers import assert_approx
 
 # Bar areas (cm²): 3φ16 = 6.03, 2φ20 = 6.28, 4φ16 = 8.04
@@ -64,7 +65,7 @@ class TestSelectLayout:
         assert not is_safe, "1.57 cm² compressed is below the 2.0 cm² required"
 
     def test_empty_raises(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(EnginePreconditionError):
             select_layout([], (1.0, 0.0))
 
 

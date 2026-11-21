@@ -66,7 +66,7 @@ class Rebar:
         The straight length already reaches the outer face of the hook's leg, so the hook adds the quarter arc and the 8φ tip, minus the D/2 + φ the straight length covers past the curve start: π(D + φ)/4 + 8φ - (D/2 + φ).
 
         Raises:
-            ValueError: Propagated from the bending pin if the norm gives none for the bar.
+            BendPinUndefinedError: Propagated from the bending pin if the norm gives none for the bar.
 
         References:
             ABNT NBR 6118:2026 — Section 9.4.2.3
@@ -80,7 +80,7 @@ class Rebar:
         D/2 + φ/2 + 8φ.
 
         Raises:
-            ValueError: Propagated from the bending pin if the norm gives none for the bar.
+            BendPinUndefinedError: Propagated from the bending pin if the norm gives none for the bar.
 
         References:
             ABNT NBR 6118:2026 — Section 9.4.2.3
@@ -92,7 +92,7 @@ class Rebar:
         """Return the standard 90° hook: Table 9.1 pin and 8φ tip
 
         Raises:
-            ValueError: Propagated from the bending pin if the norm gives none for the bar.
+            BendPinUndefinedError: Propagated from the bending pin if the norm gives none for the bar.
         """
         diameter_cm = self.diameter_mm / 10  # cm
         return HookGeometry(
@@ -126,7 +126,7 @@ class Rebar:
             left: Whether to read the left side; otherwise the right.
 
         Raises:
-            ValueError: Propagated from the bending pin if the norm gives none for the bar.
+            BendPinUndefinedError: Propagated from the bending pin if the norm gives none for the bar.
         """
         enabled = self.left_hook_enabled if left else self.right_hook_enabled
         return self._side_hook(left) if enabled else None

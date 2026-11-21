@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 from src.structural_elements.rebar import HookGeometry
 
@@ -59,12 +60,14 @@ class DetailedBar:
         """Validate the quantity and the extent
 
         Raises:
-            ValueError: If the quantity is below 1 or the bar ends before it starts.
+            EnginePreconditionError: If the quantity is below 1 or the bar ends before it starts.
         """
         if self.quantity < 1:
-            raise ValueError(f"A bar run needs at least 1 bar. Got {self.quantity}.")
+            raise EnginePreconditionError(
+                f"A bar run needs at least 1 bar. Got {self.quantity}."
+            )
         if self.end < self.start:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"A bar cannot end before it starts. Got start={self.start}, end={self.end} cm."
             )
 

@@ -26,7 +26,7 @@ class Alignment(Enum):
     RIGHT = "right"  # vertical beam: beam right face flush with pillar right face
 
     def validate(self, axis: Axis) -> None:
-        """Raises ValueError if the alignment is not valid for the given axis."""
+        """Raises BeamInputError if the alignment is not valid for the given axis."""
         horizontal_alignments = {Alignment.TOP, Alignment.CENTER, Alignment.BOTTOM}
         vertical_alignments = {Alignment.LEFT, Alignment.CENTER, Alignment.RIGHT}
         if axis == Axis.X and self not in horizontal_alignments:

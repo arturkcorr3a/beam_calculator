@@ -9,6 +9,7 @@ from src.detailing.detailed_clamps import DetailedClamps
 from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.span_stirrups import SpanStirrups
+from src.errors import EnginePreconditionError
 from src.reinforcement.clamps import Clamps
 from src.reinforcement.layer import Layer
 from src.reinforcement.reinforcement import Reinforcement
@@ -31,12 +32,12 @@ def build_detailing_beam(beam: ContinuousBeam) -> DetailingBeam:
     The design objects are only read: every bar run, clamp set, stirrup set and skin bar set is a new object. Each layer becomes one bar run per diameter, with the layer's own lengths and hooks. Error messages do not name the beam; ``ContinuousBeam.detail`` prefixes them.
 
     Raises:
-        ValueError: If the beam has not been dimensioned (no analysis or no stirrups on a span), a stirrup has no diameter or spacing, or a reinforcement has no required or provided area.
+        EnginePreconditionError: If the beam has not been dimensioned (no analysis or no stirrups on a span), a stirrup has no diameter or spacing, or a reinforcement has no required or provided area.
     """
     structural_beam = _structural_beam(beam)
     supports = tuple(structural_beam.supports)
     if len(supports) != len(beam.spans) + 1:
-        raise ValueError(
+        raise EnginePreconditionError(
             f"{len(supports)} supports for {len(beam.spans)} spans; can't detail the bars."
         )
 
@@ -62,7 +63,7 @@ def _structural_beam(beam: ContinuousBeam) -> RectangularBeam:
     """Return the section the beam was dimensioned with
 
     Raises:
-        ValueError: If the beam has no analysis, no spans, or a span without stirrups.
+        EnginePreconditionError: If the beam has no analysis, no spans, or a span without stirrups.
     """
     is_dimensioned = (
         beam.analysis is not None
@@ -70,7 +71,9 @@ def _structural_beam(beam: ContinuousBeam) -> RectangularBeam:
         and all(hasattr(span, "stirrups") for span in beam.spans)
     )
     if not is_dimensioned:
-        raise ValueError("The beam has not been dimensioned; can't detail its bars.")
+        raise EnginePreconditionError(
+            "The beam has not been dimensioned; can't detail its bars."
+        )
     return beam.spans[0].stirrups.beam
 
 
@@ -147,12 +150,12 @@ def _area_ratio(reinforcement: Reinforcement) -> float:
     """Return the required over the provided steel area of a reinforcement
 
     Raises:
-        ValueError: If the required area is not set or no area is provided.
+        EnginePreconditionError: If the required area is not set or no area is provided.
     """
     required_area = reinforcement.required_area  # cm²
     area = reinforcement.area  # cm²
     if required_area is None or area <= 0:
-        raise ValueError(
+        raise EnginePreconditionError(
             f"Reinforcement at {reinforcement.center_position:.2f} cm has no required or provided area."
         )
     return required_area / area
@@ -200,7 +203,7 @@ def _stirrups(
     The stirrups' outer faces sit on the nominal cover, which sets their outer dimensions and cut length.
 
     Raises:
-        ValueError: If a span's stirrups have no diameter or spacing, or their zones do not cover the stretch between the pillars' faces.
+        EnginePreconditionError: If a span's stirrups have no diameter or spacing, or their zones do not cover the stretch between the pillars' faces.
     """
     covers = 2 * RectangularBeam.nominal_covering  # cm
     outer_width = structural_beam.width - covers  # cm
@@ -210,7 +213,9 @@ def _stirrups(
         stirrups = span.stirrups
         span_name = f"{span.start_pillar_id}–{span.end_pillar_id}"
         if stirrups.diameter is None or stirrups.spacing is None:
-            raise ValueError(f"Span {span_name} has no stirrup diameter or spacing.")
+            raise EnginePreconditionError(
+                f"Span {span_name} has no stirrup diameter or spacing."
+            )
         start, end = supports[index].right, supports[index + 1].left  # cm
         zones = _clipped_zones(stirrups, start, end)
         if (
@@ -218,7 +223,7 @@ def _stirrups(
             or abs(zones[0].start - start) > _ZONE_TOLERANCE
             or abs(zones[-1].end - end) > _ZONE_TOLERANCE
         ):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Span {span_name}: the stirrup zones do not cover the stretch between the pillars' faces ({start:.1f}–{end:.1f} cm)."
             )
         diameter_mm = round(stirrups.diameter * _MM_PER_CM, 2)

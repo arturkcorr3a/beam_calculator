@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.errors import StirrupBendUndefinedError
+from src.errors import BendPinUndefinedError, StirrupBendUndefinedError
 from src.properties.steel import GAMMA_S, Steel
 from tests.helpers import assert_approx
 
@@ -207,7 +207,7 @@ class TestBendPinDiameter:
         )
 
     def test_ca60_large_bar_raises(self, steel_ca60: Steel) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(BendPinUndefinedError):
             steel_ca60.bend_pin_diameter(20)
 
 

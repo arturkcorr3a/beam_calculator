@@ -76,7 +76,7 @@ class SlabDeformationChecker(DeformationChecker):
             The verification's values; ``permanent_load`` includes the own weight.
 
         Raises:
-            ValueError: If ``verify`` has not been called yet.
+            EnginePreconditionError: If ``verify`` has not been called yet.
         """
         with self.own_weight_for_current_height(self.height):
             return super().result()

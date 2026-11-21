@@ -3,7 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from src.errors import SupportBarsShortError
+from src.errors import EnginePreconditionError, SupportBarsShortError
 from src.logger import log_operation, log_property
 from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE, Reinforcement
 
@@ -103,11 +103,11 @@ def _carry_to_support(
     """Extend the reinforcement's layers into one support, in order, until the share is met
 
     Raises:
-        ValueError: If the required area is not set.
+        EnginePreconditionError: If the required area is not set.
         SupportBarsShortError: If the share is not met even with every layer extended.
     """
     if reinforcement.required_area is None or reinforcement.span_moment is None:
-        raise ValueError(
+        raise EnginePreconditionError(
             f"Reinforcement at {reinforcement.center_position:.2f} cm has no required area or span moment."
         )
     support_moment = reinforcement.support_moment(support_index)  # kN.m

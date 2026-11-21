@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 
 from src.data.carvalho.utils import find_bracket_and_fraction
+from src.errors import EnginePreconditionError
 from src.logger import log_property, logger_label
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 
@@ -19,7 +20,7 @@ class SlabDeflectionEntry:
     def get_alpha(self, case: int) -> float:
         """Return the alpha coefficient for the specified boundary case (1 to 9)."""
         if case not in range(1, 10):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Invalid case: {case}. Must be an integer between 1 and 9."
             )
         result = self.cases[case - 1]
@@ -74,7 +75,7 @@ class Table72:
             Dimensionless deflection coefficient alpha.
 
         Raises:
-            ValueError: If case is not in [1, 9] or lambda_val < 1.0.
+            EnginePreconditionError: If case is not in [1, 9] or lambda_val < 1.0.
         """
         self._validate_inputs(lambda_val, case)
 
@@ -98,11 +99,11 @@ class Table72:
     def _validate_inputs(self, lambda_val: float, case: int) -> None:
         """Helper to validate constraints on input parameters."""
         if case not in range(1, 10):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Invalid case: {case}. Must be an integer between 1 and 9."
             )
         if lambda_val < 1.0:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Invalid aspect ratio (lambda) = {lambda_val:.3f}. "
                 "Aspect ratio (ly/lx) must be >= 1.0. Verify your span assignments (ly >= lx)."
             )
@@ -183,6 +184,6 @@ class Table72:
         if num_fixed == 4:
             return 9
 
-        raise ValueError(
+        raise EnginePreconditionError(
             f"Could not determine Table 7.2 case from support conditions: {support_conditions}"
         )

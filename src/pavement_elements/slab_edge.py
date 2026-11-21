@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal
 
+from src.errors import EnginePreconditionError
 from src.loading.combination_factors import almost_permanent_reduction_factor
 from src.loading.load_component import LoadComponent, LoadKind
 from src.logger import log_interaction, log_property, logger_label
@@ -49,7 +50,7 @@ class SlabEdge:
     def beam(self) -> ContinuousBeam:
         """Returns the supporting beam for this edge."""
         if self._beam is None:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Slab edge '{self.edge.value}' has no resolved supporting beam."
             )
         return self._beam
@@ -79,7 +80,7 @@ class SlabEdge:
                 span lengths.
 
         Raises:
-            ValueError: If the edge has no supporting spans.
+            EnginePreconditionError: If the edge has no supporting spans.
         """
         self.support_condition = "pinned"
         if self.slab.is_lowered:
@@ -109,11 +110,11 @@ class SlabEdge:
         """Total length (cm) of the spans along this edge
 
         Raises:
-            ValueError: If the edge has no supporting spans.
+            EnginePreconditionError: If the edge has no supporting spans.
         """
         length = sum(span.get_length(pillar_registry) for span in self.spans)
         if length <= 0:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"{self.label} {self.edge.value} edge has no supporting spans."
             )
         return length
@@ -122,7 +123,7 @@ class SlabEdge:
         """Distribute the slab's tributary load along this edge's supporting spans (kN/m)
 
         Raises:
-            ValueError: If the edge has no supporting spans.
+            EnginePreconditionError: If the edge has no supporting spans.
         """
         edge_length_m = self._length(pillar_registry) / 100
         self.permanent_linear_load = (

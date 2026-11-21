@@ -2,6 +2,8 @@
 
 from collections.abc import Sequence
 
+from src.errors import EnginePreconditionError
+
 type MomentBand = tuple[float, float]  # kN.m, (lower, upper)
 
 
@@ -20,7 +22,7 @@ def layer_moment_bands(
         The (lower, upper) moments of each layer's band (kN.m), in the same order. The first lower is exactly zero and the last upper is exactly the section moment.
 
     Raises:
-        ValueError: If there is no layer or the total area is not positive.
+        EnginePreconditionError: If there is no layer or the total area is not positive.
 
     References:
         ABNT NBR 6118:2026 — Section 18.3.2.3.1 (Figure 18.3)
@@ -28,7 +30,7 @@ def layer_moment_bands(
     """
     total_area = sum(layer_areas)  # cm²
     if not layer_areas or total_area <= 0:
-        raise ValueError("The layers must have a positive total area.")
+        raise EnginePreconditionError("The layers must have a positive total area.")
     bands: list[MomentBand] = []
     lower = 0.0  # kN.m
     cumulative_area = 0.0  # cm²
