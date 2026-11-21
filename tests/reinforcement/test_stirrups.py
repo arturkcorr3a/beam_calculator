@@ -9,6 +9,7 @@ import pytest
 from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.stirrup_calculator import MIN_SPACING, StirrupCalculator
 from src.config import APP_CONFIG
+from src.errors import StirrupBendUndefinedError
 from src.loading.forces import LOAD_FACTOR
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
@@ -72,7 +73,7 @@ class TestClosedLengthFor:
         )
 
     def test_bar_without_bend_diameter_raises(self) -> None:
-        with pytest.raises(ValueError, match="No stirrup bend diameter"):
+        with pytest.raises(StirrupBendUndefinedError, match="No stirrup bend diameter"):
             Stirrups.closed_length_for(15.0, 55.0, 12.5, Steel.CA60)
 
 

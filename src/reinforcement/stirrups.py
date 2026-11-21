@@ -243,7 +243,7 @@ class Stirrups:
             steel: Steel of the bar, for the bend diameter.
 
         Raises:
-            ValueError: Propagated from the bend diameter if the norm gives none for the bar.
+            StirrupBendUndefinedError: Propagated from the bend diameter if the norm gives none for the bar.
 
         References:
             ABNT NBR 6118:2026 — Section 9.4.6.1, Table 9.2

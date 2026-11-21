@@ -2,6 +2,7 @@ from enum import Enum, EnumMeta
 from functools import cached_property
 from math import pi
 
+from src.errors import StirrupBendUndefinedError
 from src.logger import log_property, logger_label
 
 GAMMA_S = 1.15  # ABNT NBR 6118 - Section 12.4.1
@@ -155,8 +156,8 @@ class Steel(Enum, metaclass=_SteelMeta):
             Bend diameter in cm.
 
         Raises:
-            ValueError: If the norm gives no diameter for the bar (CA-60 with
-                φ_t > 10 mm).
+            StirrupBendUndefinedError: If the norm gives no diameter for the bar
+                (CA-60 with φ_t > 10 mm).
 
         References:
             ABNT NBR 6118:2026 — Section 9.4.6.1, Table 9.2
@@ -171,9 +172,7 @@ class Steel(Enum, metaclass=_SteelMeta):
                 case Steel.CA50:
                     ratio = 5 if is_small else 8
                 case Steel.CA60:
-                    raise ValueError(
-                        f"No stirrup bend diameter for CA-60 bars with {diameter_mm} mm (φ_t > 10 mm)."
-                    )
+                    raise StirrupBendUndefinedError(diameter_mm=diameter_mm)
         return ratio * diameter_mm / 10
 
     def linear_mass(self, diameter_mm: float) -> float:

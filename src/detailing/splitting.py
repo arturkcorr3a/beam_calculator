@@ -16,6 +16,7 @@ from src.detailing.lap_splice import (
     splice_length,
 )
 from src.detailing.rounding import round_down, round_up
+from src.errors import LapTooLongError, SpliceDiameterError, SplicePositionError
 from src.logger import log_operation
 from src.reinforcement.layer import Layer
 
@@ -31,7 +32,10 @@ def split_long_bars(detailing: DetailingBeam) -> None:
     A run whose cut length, hooks included, passes 12 m is cut into the fewest pieces that fit (see ``_split``). Main runs are split first, bottom face first, by layer and left to right, so the laps they make count in the share of the later ones. Laps of main runs are recorded in ``lap_splices``; laps of construction runs are not, as in ``add_construction_bars``. Long skin bars are split last (see ``_split_skin``).
 
     Raises:
-        ValueError: If a long run has bars above 32 mm, the beam has no analysis, or no splice position meets Table 9.3.
+        ValueError: If the beam has no analysis.
+        SpliceDiameterError: If a long run has bars above 32 mm.
+        LapTooLongError: If a lap does not fit in a commercial bar.
+        SplicePositionError: If no splice position meets Table 9.3.
 
     References:
         ABNT NBR 6118:2026 — Section 9.5.2
@@ -71,23 +75,30 @@ def _split(detailing: DetailingBeam, bars: list[DetailedBar], index: int) -> Non
     The run is replaced by its pieces in ``bars`` as the laps are placed, so each lap counts the ones before it.
 
     Raises:
-        ValueError: If the bars are above 32 mm, the beam has no analysis, the lap does not fit in a commercial bar, or no position in a window meets Table 9.3.
+        SpliceDiameterError: If the bars are above 32 mm.
+        ValueError: If the beam has no analysis.
+        LapTooLongError: If the lap does not fit in a commercial bar.
+        SplicePositionError: If no position in a window meets Table 9.3.
 
     References:
         ABNT NBR 6118:2026 — Sections 9.5.2, 9.5.2.1 and 9.5.2.2, Tables 9.3 and 9.4
     """
     bar = bars[index]
     if bar.diameter_mm > MAX_LAP_DIAMETER_MM:
-        raise ValueError(
-            f"A {bar.total_length:g} cm φ{bar.diameter_mm:g} run needs a splice, but bars above {MAX_LAP_DIAMETER_MM:g} mm cannot be lap spliced."
+        raise SpliceDiameterError(
+            run_length=bar.total_length,
+            diameter_mm=bar.diameter_mm,
+            max_diameter_mm=MAX_LAP_DIAMETER_MM,
         )
     analysis = detailing.analysis
     if analysis is None:
         raise ValueError("The beam has no analysis to place the splices of long bars.")
     longest = round_up(_lap_length(bar, share=1.0))  # cm
     if longest >= MAX_BAR_LENGTH:
-        raise ValueError(
-            f"A {longest:g} cm lap of φ{bar.diameter_mm:g} bars does not fit in a {MAX_BAR_LENGTH:g} cm bar."
+        raise LapTooLongError(
+            lap_length=longest,
+            diameter_mm=bar.diameter_mm,
+            max_bar_length=MAX_BAR_LENGTH,
         )
     count = ceil((bar.total_length - longest) / (MAX_BAR_LENGTH - longest))
 
@@ -142,7 +153,7 @@ def _split_skin(
     The skin bars carry no calculated force, so consecutive pieces overlap by the construction lap, as construction bars do. The lap is taken in the poor bond zone if any row lies there. The laps are not recorded in ``lap_splices``.
 
     Raises:
-        ValueError: If the lap does not fit in a commercial bar.
+        LapTooLongError: If the lap does not fit in a commercial bar.
 
     References:
         ABNT NBR 6118:2026 — Section 9.5.2.3
@@ -155,8 +166,11 @@ def _split_skin(
         construction_lap_length(skin.diameter_mm, skin.steel, good_adherence)
     )  # cm
     if lap >= MAX_BAR_LENGTH:
-        raise ValueError(
-            f"A {lap:g} cm lap of φ{skin.diameter_mm:g} skin bars does not fit in a {MAX_BAR_LENGTH:g} cm bar."
+        raise LapTooLongError(
+            lap_length=lap,
+            diameter_mm=skin.diameter_mm,
+            max_bar_length=MAX_BAR_LENGTH,
+            skin=True,
         )
     count = ceil((skin.total_length - lap) / (MAX_BAR_LENGTH - lap))
     piece = round_up((skin.total_length + (count - 1) * lap) / count)  # cm
@@ -187,7 +201,7 @@ def _splice_position(
         The lap's start and length (cm).
 
     Raises:
-        ValueError: If every position in the window splices too many bars in one section (Table 9.3).
+        SplicePositionError: If every position in the window splices too many bars in one section (Table 9.3).
     """
     best: tuple[float, float, float] | None = None  # (tension, start, length)
     position = low
@@ -208,8 +222,11 @@ def _splice_position(
                 best = (tension, position, round_up(_lap_length(bar, share)))
         position += 1
     if best is None:
-        raise ValueError(
-            f"No splice position for {bar.quantity}φ{bar.diameter_mm:g} between {low:g} and {high:g} cm keeps the bars spliced in one section within Table 9.3."
+        raise SplicePositionError(
+            quantity=bar.quantity,
+            diameter_mm=bar.diameter_mm,
+            window_start=low,
+            window_end=high,
         )
     return best[1], best[2]
 

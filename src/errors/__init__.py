@@ -27,7 +27,15 @@ from src.errors.design import (
     SlabThicknessExceededError,
     StrutCrushingError,
 )
-from src.errors.detailing import BeamDetailingError, DetailingError
+from src.errors.detailing import (
+    BeamDetailingError,
+    DetailingError,
+    LapTooLongError,
+    SpliceDiameterError,
+    SplicePositionError,
+    StirrupBendUndefinedError,
+    StirrupSpacingTooSmallError,
+)
 from src.errors.drawing import DrawingError, DxfAuditError, SheetFitError
 from src.errors.input import InputError
 from src.errors.precondition import EnginePreconditionError
@@ -48,6 +56,7 @@ __all__ = [
     "EnginePreconditionError",
     "HookDoesNotFitError",
     "InputError",
+    "LapTooLongError",
     "NoReinforcementLayoutError",
     "ReinforcementAreaExceededError",
     "SheetFitError",
@@ -55,6 +64,10 @@ __all__ = [
     "SlabDesignError",
     "SlabPreSizingDivergedError",
     "SlabThicknessExceededError",
+    "SpliceDiameterError",
+    "SplicePositionError",
+    "StirrupBendUndefinedError",
+    "StirrupSpacingTooSmallError",
     "StrutCrushingError",
     "SupportBarsShortError",
 ]

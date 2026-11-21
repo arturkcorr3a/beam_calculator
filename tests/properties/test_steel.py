@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.errors import StirrupBendUndefinedError
 from src.properties.steel import GAMMA_S, Steel
 from tests.helpers import assert_approx
 
@@ -266,7 +267,7 @@ class TestStirrupBendDiameter:
         )
 
     def test_ca60_above_10_mm_raises(self) -> None:
-        with pytest.raises(ValueError, match="No stirrup bend diameter"):
+        with pytest.raises(StirrupBendUndefinedError, match="No stirrup bend diameter"):
             Steel.CA60.stirrup_bend_diameter(12.5)
 
 

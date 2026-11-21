@@ -21,6 +21,7 @@ from src.detailing.rounding import (
     round_up,
 )
 from src.detailing.span_stirrups import SpanStirrups
+from src.errors import StirrupSpacingTooSmallError
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import StirrupZone
 from src.structural_elements.rebar import HookGeometry
@@ -264,8 +265,15 @@ class TestRoundStirrups:
         assert stirrups.cut_length == 150.0, "The cut length rounds up (cm)"
 
     def test_spacing_below_minimum_raises(self) -> None:
-        with pytest.raises(ValueError, match="below the minimum"):
+        """4.7 cm rounds down to 4 cm, below the 5 cm left for the vibrator"""
+        with pytest.raises(
+            StirrupSpacingTooSmallError, match="below the minimum"
+        ) as raised:
             round_stirrups(_stirrups(StirrupZone(10.0, 235.0, 4.7)))
+        assert raised.value.spacing == 4.0, "the rounded spacing should be kept (cm)"
+        assert raised.value.min_spacing == 5.0, (
+            "the minimum spacing should be kept (cm)"
+        )
 
 
 class TestRoundDetailing:

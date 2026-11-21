@@ -12,6 +12,7 @@ import pytest
 from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.lap_splice_calculator import construction_lap_length
 from src.config import APP_CONFIG
+from src.detailing import splitting
 from src.detailing.construction_bars import add_construction_bars
 from src.detailing.detailed_bar import BarRole, DetailedBar
 from src.detailing.detailed_skin_bars import DetailedSkinBars
@@ -20,6 +21,7 @@ from src.detailing.lap_splice import LapSplice
 from src.detailing.post_processor import _STEPS  # pyright: ignore[reportPrivateUsage]
 from src.detailing.rounding import round_up
 from src.detailing.splitting import MAX_BAR_LENGTH, split_long_bars
+from src.errors import LapTooLongError, SpliceDiameterError, SplicePositionError
 from src.logger import suppress_logging
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -217,8 +219,10 @@ class TestTable93:
                 diameter_mm=10,
             )
         )
-        with pytest.raises(ValueError, match="Table 9.3"):
+        with pytest.raises(SplicePositionError, match="Table 9.3") as raised:
             split_long_bars(beam)
+        assert raised.value.quantity == 2, "the error should keep the bar count"
+        assert raised.value.diameter_mm == 10, "the error should keep the diameter (mm)"
 
 
 class TestOtherRuns:
@@ -246,8 +250,23 @@ class TestOtherRuns:
 
     def test_bars_above_32_mm_raise(self) -> None:
         beam = _beam(_bar(1300, diameter_mm=40))
-        with pytest.raises(ValueError, match="cannot be lap spliced"):
+        with pytest.raises(
+            SpliceDiameterError, match="cannot be lap spliced"
+        ) as raised:
             split_long_bars(beam)
+        assert raised.value.diameter_mm == 40, "the error should keep the diameter (mm)"
+        assert raised.value.max_diameter_mm == 32, "laps stop at φ32 (mm)"
+
+    def test_lap_longer_than_a_bar_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With 30 cm commercial bars, the φ10 lap no longer fits in one"""
+        monkeypatch.setattr(splitting, "MAX_BAR_LENGTH", 30.0)
+        beam = _beam(_bar(1300))
+        with pytest.raises(LapTooLongError, match="lap of φ10 bars") as raised:
+            split_long_bars(beam)
+        assert raised.value.lap_length >= 30.0, "the lap should not fit the bar (cm)"
+        assert raised.value.skin is False, "the run is a main run"
 
     def test_missing_analysis_raises(self) -> None:
         beam = _beam(_bar(1300), with_analysis=False)
@@ -362,3 +381,14 @@ class TestSplitSkin:
             "every piece fits a commercial bar"
         )
         assert beam.lap_splices == [], "skin laps are not recorded"
+
+    def test_skin_lap_longer_than_a_bar_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With 15 cm commercial bars, the φ8 construction lap no longer fits"""
+        monkeypatch.setattr(splitting, "MAX_BAR_LENGTH", 15.0)
+        beam = _beam(_bar(10))
+        beam.skin_bars = [_skin(0.0, 1300.0)]
+        with pytest.raises(LapTooLongError, match="lap of φ8 skin bars") as raised:
+            split_long_bars(beam)
+        assert raised.value.skin is True, "the run is a skin run"
