@@ -31,7 +31,6 @@ def pillar(record: PillarRecord) -> Pillar:
 def wall(record: WallRecord) -> WallDefinition:
     """Build the wall definition of a beam"""
     return WallDefinition(
-        structural=record.structural,
         masonry_type=record.masonry_key,
         nominal_thickness=record.nominal_thickness_cm,
         coating_thickness=record.coating_cm,
@@ -45,7 +44,7 @@ def beam(record: BeamRecord) -> ContinuousBeam:
         reference_pillar_id=record.reference_id,
         width=record.width_cm,
         alignment=from_key(Alignment, record.alignment_key),
-        wall=wall(record.wall),
+        wall=None if record.wall is None else wall(record.wall),
         id=record.id,
     )
 

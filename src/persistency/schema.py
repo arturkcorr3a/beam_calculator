@@ -6,7 +6,6 @@ from typing import TypedDict
 
 
 class WallDict(TypedDict):
-    structural: bool
     masonry_type: str
     nominal_thickness: float
     coating_thickness: int
@@ -25,7 +24,7 @@ class BeamDict(TypedDict):
     reference_pillar_id: str
     width: float
     alignment: str  # Alignment value, e.g. "bottom"
-    wall: WallDict
+    wall: WallDict | None  # None: no wall on the beam
 
 
 class SlabDict(TypedDict):

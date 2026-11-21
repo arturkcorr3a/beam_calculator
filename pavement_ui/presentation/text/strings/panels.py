@@ -50,11 +50,12 @@ COL_ALIGNMENT: Final = "Alinh."
 COL_WALL: Final = "Parede"
 PILLAR_LIST_JOIN: Final = ", "
 WALL_CELL: Final = "{masonry} {thickness} cm"
+WALL_NONE_CELL: Final = "Sem parede"
 WALL_TOOLTIP: Final = "{masonry}, {thickness} cm, revestimento {coating} cm por face"
 
 # --- wall ---------------------------------------------------------------------
 WALL_FORM: Final = "Parede sobre a viga"
-WALL_STRUCTURAL: Final = "Alvenaria estrutural"
+WALL_PRESENT: Final = "Com parede sobre a viga"
 WALL_MASONRY: Final = "Alvenaria"
 WALL_THICKNESS: Final = "Espessura nominal"
 WALL_COATING: Final = "Revestimento"

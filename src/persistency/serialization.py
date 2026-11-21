@@ -20,17 +20,18 @@ from src.persistency.schema import (
 )
 
 
-def _wall_to_dict(wall: WallDefinition) -> WallDict:
+def _wall_to_dict(wall: WallDefinition | None) -> WallDict | None:
     """Serializes a wall definition to a plain dict.
 
     Args:
-        wall: The wall definition to serialize.
+        wall: The wall definition to serialize; None when the beam has no wall.
 
     Returns:
-        A dict with the wall's structural flag, masonry type, nominal thickness (cm) and coating thickness (cm).
+        A dict with the wall's masonry type, nominal thickness (cm) and coating thickness (cm), or None without a wall.
     """
+    if wall is None:
+        return None
     return {
-        "structural": wall.structural,
         "masonry_type": wall.masonry_type,
         "nominal_thickness": wall.nominal_thickness,
         "coating_thickness": wall.coating_thickness,

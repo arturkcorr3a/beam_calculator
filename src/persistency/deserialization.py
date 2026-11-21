@@ -82,26 +82,31 @@ def _parse_enum[E: Enum](
     raw = _require(data, key, context, object)
     try:
         return enum_type[str(raw)] if by_name else enum_type(raw)
-    except (KeyError, ValueError):
+    except KeyError, ValueError:
         raise ValueError(
             f"malformed pavement file: invalid {key} '{raw}' in {context}"
         ) from None
 
 
-def _wall_from_dict(data: WallDict) -> WallDefinition:
+def _wall_from_dict(data: WallDict | None) -> WallDefinition | None:
     """Rebuilds a wall definition from its serialized dict.
 
     Args:
-        data: The serialized wall mapping.
+        data: The serialized wall mapping, or None for a beam without a wall.
 
     Returns:
-        The reconstructed wall definition.
+        The reconstructed wall definition, or None without a wall.
 
     Raises:
-        ValueError: If a required key is missing.
+        ValueError: If a required key is missing or the removed 'structural' key is present.
     """
+    if data is None:
+        return None
+    if "structural" in data:
+        raise ValueError(
+            f"malformed pavement file: 'structural' in {WALL_CONTEXT} is no longer supported (structural masonry was removed)"
+        )
     return WallDefinition(
-        structural=_require(data, "structural", WALL_CONTEXT, bool),
         masonry_type=_require(data, "masonry_type", WALL_CONTEXT, str),
         nominal_thickness=_require(data, "nominal_thickness", WALL_CONTEXT, float),
         coating_thickness=_require(data, "coating_thickness", WALL_CONTEXT, int),
@@ -147,7 +152,9 @@ def _beam_from_dict(data: BeamDict, remap: Callable[[str], str]) -> ContinuousBe
     Raises:
         ValueError: If a required key is missing, the alignment is invalid, or a pillar reference is unknown.
     """
-    wall = _wall_from_dict(cast(WallDict, _require(data, "wall", BEAM_CONTEXT, dict)))
+    wall = _wall_from_dict(
+        cast(WallDict | None, _require(data, "wall", BEAM_CONTEXT, object))
+    )
     alignment_value = _require(data, "alignment", BEAM_CONTEXT, str)
 
     try:

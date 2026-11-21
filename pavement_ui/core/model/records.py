@@ -32,13 +32,11 @@ class WallRecord:
     """The wall standing on a beam
 
     Attributes:
-        structural: Whether it is structural masonry (selects the NBR 6120 Table 2 list).
         masonry_key: Engine description of the masonry type.
         nominal_thickness_cm: Nominal wall thickness (cm), one of the masonry's values.
         coating_cm: Coating thickness per face (cm), one of the thickness' values.
     """
 
-    structural: bool
     masonry_key: str
     nominal_thickness_cm: float
     coating_cm: int
@@ -53,6 +51,7 @@ class BeamRecord:
         reference_id: Pillar the alignment refers to.
         width_cm: Beam width bw (cm).
         alignment_key: Engine alignment key (e.g. "CENTER").
+        wall: The wall on the beam; None for a beam without wall (zero wall load).
     """
 
     id: str
@@ -60,7 +59,7 @@ class BeamRecord:
     reference_id: str
     width_cm: float
     alignment_key: str
-    wall: WallRecord
+    wall: WallRecord | None
 
 
 @dataclass(frozen=True, slots=True)

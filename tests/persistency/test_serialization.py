@@ -35,7 +35,6 @@ def _build_pavement() -> Pavement:
         pavement.add_pillar(pillar)
 
     wall = WallDefinition(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,
         coating_thickness=1,
@@ -131,17 +130,25 @@ class TestPavementToDict:
         assert "wall" in beam, "beam dict should contain nested 'wall'"
         wall = beam["wall"]
         for key in (
-            "structural",
             "masonry_type",
             "nominal_thickness",
             "coating_thickness",
         ):
             assert key in wall, f"wall dict should contain '{key}'"
 
+    def test_beam_without_wall_serializes_none(self) -> None:
+        pavement = _build_pavement()
+        for beam in pavement.beams.values():
+            beam.wall = None
+        result = pavement_to_dict(pavement)
+        assert result["beams"][0]["wall"] is None, (
+            "a beam without wall should emit None"
+        )
+
     def test_beam_wall_values(self) -> None:
         result = pavement_to_dict(_build_pavement())
         wall = result["beams"][0]["wall"]
-        assert wall["structural"] is False, "wall should not be structural"
+        assert wall is not None, "the example beam should have a wall"
         assert wall["masonry_type"] == "hollow concrete block", (
             "masonry type should match"
         )

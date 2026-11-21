@@ -73,9 +73,8 @@ def build_pavement() -> Pavement:
     for pillar in pillars:
         pavement.add_pillar(pillar)
 
-    # --- Perimeter walls sitting on the beams (non-structural masonry) --------
+    # --- Perimeter walls sitting on the beams --------
     wall = WallDefinition(
-        structural=False,
         masonry_type="hollow concrete block",
         nominal_thickness=14,  # cm
         coating_thickness=1,  # cm per face

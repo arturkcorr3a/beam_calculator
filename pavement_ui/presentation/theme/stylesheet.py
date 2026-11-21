@@ -61,6 +61,14 @@ QSpinBox, QDoubleSpinBox {{
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{
     border-color: {t.ACCENT};
 }}
+QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {{
+    background: {t.CHROME_BG};
+    border-color: {t.BORDER};
+    color: {t.TEXT_MUTED};
+}}
+QLabel:disabled {{
+    color: {t.TEXT_MUTED};
+}}
 QPushButton {{
     background: {t.SURFACE};
     border: 1px solid {t.BORDER_INPUT};

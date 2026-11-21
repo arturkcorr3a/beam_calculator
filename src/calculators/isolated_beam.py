@@ -16,14 +16,6 @@ from src.pavement_elements.pillar import Pillar
 
 _CM2_PER_M2 = 10_000.0
 
-# Never loaded: the beam's loads come only from the given load list.
-_UNUSED_WALL = WallDefinition(
-    structural=False,
-    masonry_type="",
-    nominal_thickness=0.0,
-    coating_thickness=0,
-)
-
 
 @dataclass(frozen=True, slots=True)
 class IsolatedPillar:
@@ -125,9 +117,7 @@ def build_isolated_beam(
         for index, (x, pillar) in enumerate(zip(positions, pillars, strict=True), 1)
     }
     ids = list(registry)
-    beam = ContinuousBeam(
-        ids, ids[0], width, Alignment.CENTER, _UNUSED_WALL, id=beam_id
-    )
+    beam = ContinuousBeam(ids, ids[0], width, Alignment.CENTER, None, id=beam_id)
     beam.height = height
     beam.resolve_and_validate(registry)
     for load in loads:

@@ -54,7 +54,6 @@ def _span(index: int | None) -> _Doc:
 def _wall_to_dict(wall: WallRecord) -> _Doc:
     """Same keys as a pavement beam's wall"""
     return {
-        "structural": wall.structural,
         "masonry_type": wall.masonry_key,
         "nominal_thickness": wall.nominal_thickness_cm,
         "coating_thickness": wall.coating_cm,
@@ -165,11 +164,12 @@ def _span_index(load: _Doc, span_count: int, field: str) -> int | None:
 
 def _wall_from(value: object, field: str) -> WallRecord:
     data = _mapping(value, field)
+    if "structural" in data:  # structural masonry was removed
+        raise _invalid(f"{field}.structural")
     coating = _get(data, "coating_thickness", field)
     if isinstance(coating, bool) or not isinstance(coating, int):
         raise _invalid(f"{field}.coating_thickness")
     record = WallRecord(
-        structural=_flag(_get(data, "structural", field), f"{field}.structural"),
         masonry_key=str(_get(data, "masonry_type", field)),
         nominal_thickness_cm=_number(
             _get(data, "nominal_thickness", field), f"{field}.nominal_thickness"

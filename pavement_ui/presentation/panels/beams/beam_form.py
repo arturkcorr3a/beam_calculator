@@ -1,6 +1,6 @@
 """Fields of a new continuous beam."""
 
-from PySide6.QtWidgets import QComboBox, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QVBoxLayout, QWidget
 
 from pavement_ui.core.options import EngineOptions
 from pavement_ui.core.session import ProjectSession
@@ -39,12 +39,17 @@ class BeamForm(ElementForm):
             options.alignments,
             lambda k: label(OptionKind.ALIGNMENT, k),
         )
+        self._has_wall = QCheckBox(s.WALL_PRESENT)
+        self._has_wall.setObjectName("beamHasWall")
+        self._has_wall.setChecked(True)
         self.wall = WallForm(options)
+        self._has_wall.toggled.connect(self.wall.setEnabled)
         section = FormSection(s.BEAM_FORM, _LABEL_WIDTH_PX)
         section.add_row(s.BEAM_PILLARS, self._pillar_ids, s.BEAM_PILLARS_HINT)
         section.add_row(s.BEAM_REFERENCE, self._reference)
         section.add_row(s.BEAM_WIDTH, self._width)
         section.add_row(s.BEAM_ALIGNMENT, self._alignment)
+        section.add_widget(self._has_wall)
         section.add_widget(self.wall)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -58,7 +63,7 @@ class BeamForm(ElementForm):
             self._reference.text(),
             self._width.value(),
             selected_key(self._alignment) or "",
-            self.wall.record(),
+            self.wall.record() if self._has_wall.isChecked() else None,
         )
         return record.id
 
