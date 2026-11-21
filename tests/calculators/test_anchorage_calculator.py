@@ -244,11 +244,9 @@ class TestDiameterCoefficient:
 
     def test_below_one_for_large_diameter(self) -> None:
         """eta_3 < 1.0 for a large bar (dimensionless)."""
-        # phi=40 mm → (132-40)/100=0.92
-        layer_40 = _make_layer(40.0, good_adherence=True)
-        ac_40 = _make_ac(layer_40, required_area=2.0, area=2.0)
+        # phi=40 mm → (132-40)/100=0.92; no available bar is above 32 mm, so the rule is tested directly
         assert_approx(
-            ac_40.diameter_coefficient,
+            AnchorageCalculator.diameter_coefficient_for(40.0),
             0.92,
             "eta_3 should be 0.92 for 40 mm bar (dimensionless)",
         )
@@ -374,11 +372,11 @@ class TestMinAnchorageLength:
 
     def test_0_3_lb_leg_wins(self) -> None:
         """l_b_min = 0.3*l_b when 0.3*l_b > 10*phi and 0.3*l_b > 10 (cm)."""
-        # Use 40 mm bar so 10*phi_cm = 4 cm and pick a concrete where 0.3*l_b > 4 and > 10
-        layer = _make_layer(40.0, good_adherence=True)
+        # Use 32 mm bar (the thickest available) so 10*phi_cm = 32 cm
+        layer = _make_layer(32.0, good_adherence=True)
         ac = _make_ac(layer, required_area=2.0, area=2.0)
         l_b = ac.basic_anchorage_length
-        expected = max(0.3 * l_b, 10 * (40.0 / 10), 10)
+        expected = max(0.3 * l_b, 10 * (32.0 / 10), 10)
         assert_approx(
             ac.min_anchorage_length,
             expected,
@@ -387,13 +385,13 @@ class TestMinAnchorageLength:
 
     def test_10_phi_leg_wins(self) -> None:
         """l_b_min = 10*phi when 10*phi is the largest of the three terms (cm)."""
-        # Use 40mm bar: 10*4=40 cm; 0.3*l_b is also large but 10*phi wins for 40mm
-        layer = _make_layer(40.0, good_adherence=True)
-        ac_40 = _make_ac(layer, required_area=2.0, area=2.0)
-        phi_cm = 40.0 / 10
-        l_b = ac_40.basic_anchorage_length
+        # Use 32mm bar: 10*3.2=32 cm; 0.3*l_b is also large but 10*phi wins for 32mm
+        layer = _make_layer(32.0, good_adherence=True)
+        ac_32 = _make_ac(layer, required_area=2.0, area=2.0)
+        phi_cm = 32.0 / 10
+        l_b = ac_32.basic_anchorage_length
         expected = max(0.3 * l_b, 10 * phi_cm, 10)
-        assert_approx(ac_40.min_anchorage_length, expected, "l_b_min for 40mm bar (cm)")
+        assert_approx(ac_32.min_anchorage_length, expected, "l_b_min for 32mm bar (cm)")
 
     def test_absolute_10_wins(self) -> None:
         """l_b_min >= 10 cm always (cm)."""

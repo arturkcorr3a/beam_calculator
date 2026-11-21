@@ -38,16 +38,27 @@ class Steel(Enum, metaclass=_SteelMeta):
 
     @cached_property
     def available_sizes(self) -> list[float]:
-        """
-        Returns a list of available rebar sizes (diameters in mm) for the given steel type, based on ABNT NBR 7480.
+        """Return the rebar sizes the engine may choose for the steel type
+
+        The list is the subset of the ABNT NBR 7480 sizes that have a price in SINAPI (inputs, Brazil average, 10/2026), so the budget covers every size the engine can pick. The sizes below were left out because SINAPI has no input for them and they are not common:
+
+        - CA-25 and CA-50: φ22 and φ40;
+        - CA-60: φ3.4, φ3.8, φ4.6, φ5.5, φ6.4 and φ10.
+
+        Returns:
+            Diameters φ in mm, thinnest first.
+
+        References:
+            ABNT NBR 7480:2024 — Section 4.4, Tables B.1 and B.2
+            SINAPI — Inputs, family 43055, 10/2026, Brazil average.
         """
         match self:
             case Steel.CA25:
-                return [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
+                return [6.3, 8, 10, 12.5, 16, 20, 25, 32]
             case Steel.CA50:
-                return [6.3, 8, 10, 12.5, 16, 20, 22, 25, 32, 40]
+                return [6.3, 8, 10, 12.5, 16, 20, 25, 32]
             case Steel.CA60:
-                return [3.4, 3.8, 4.2, 4.6, 5.0, 5.5, 6.0, 6.4, 7.0, 8.0, 9.5, 10.0]
+                return [4.2, 5.0, 6.0, 7.0, 8.0, 9.5]
         return []
 
     @cached_property
