@@ -181,3 +181,27 @@ COL_MASS: Final = "Massa (kg)"
 COL_STEEL: Final = "Aço (kg)"
 COL_CONCRETE: Final = "Concreto (m³)"
 COL_FORMWORK: Final = "Fôrma (m²)"
+
+# --- budget -------------------------------------------------------------------
+BUDGET_REPORT_TITLE: Final = "Orçamento das vigas — {name}"
+BUDGET_FILE_NAME: Final = "orcamento_{name}.pdf"
+BUDGET_TEXT: Final = (
+    "Custo de material só das vigas, em valores líquidos: sem perdas, lajes, "
+    "pilares, fôrma e mão de obra."
+)
+BUDGET_REFERENCES: Final = "Referências de preço"
+STEEL_REFERENCE: Final = "{reference}"
+CONCRETE_REFERENCE: Final = "Preço informado pelo usuário em {date}"
+BUDGET_STEEL: Final = "Aço {grade}"
+BUDGET_STEEL_TEXT: Final = (
+    "Insumo dobrado e cortado quando o SINAPI o tem para a bitola; senão, vergalhão."
+)
+BUDGET_CONCRETE: Final = "Concreto"
+BUDGET_SUMMARY: Final = "Resumo"
+COL_SINAPI: Final = "Insumo SINAPI"
+COL_PRICE_KG: Final = "R$/kg"
+COL_PRICE_M3: Final = "R$/m³"
+COL_COST: Final = "Custo (R$)"
+COL_CLASS: Final = "Classe"
+COL_VOLUME: Final = "Volume (m³)"
+DATE_TIME_FORMAT: Final = "%d/%m/%Y %H:%M"

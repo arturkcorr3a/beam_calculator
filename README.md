@@ -9,6 +9,8 @@ according to the Brazilian standard ABNT NBR 6118. You draw the floor plan
 - analyses each continuous beam and designs its longitudinal reinforcement and
   stirrups, with anchorage, lap splices and support bars;
 - details the bars and computes steel, concrete and formwork quantities;
+- prices the beams' steel (SINAPI, 10/2026) and concrete (price given by the
+  user) in a net budget, exportable to PDF;
 - exports the beam drawings (PDF and DXF) and the design report (PDF), and keeps
   a calculation log of every run.
 

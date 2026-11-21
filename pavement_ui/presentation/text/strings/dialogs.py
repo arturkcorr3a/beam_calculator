@@ -26,6 +26,9 @@ STRUCTURE_VALID_DETAIL: Final = (
 DESIGN_TITLE: Final = "Dimensionar"
 DESIGN_INTERRUPTED: Final = "O dimensionamento foi interrompido."
 DESIGN_UNEXPECTED: Final = "Ocorreu um erro inesperado no cálculo."
+BUDGET_TITLE: Final = "Orçamento"
+BUDGET_FAILED: Final = "Não foi possível calcular o orçamento."
+BUDGET_PRICE_LABEL: Final = "Preço do concreto (R$/m³):"
 
 # --- confirmations ------------------------------------------------------------
 CLEAR_TITLE: Final = "Apagar pavimento"

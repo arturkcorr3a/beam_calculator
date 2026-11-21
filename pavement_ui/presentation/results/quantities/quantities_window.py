@@ -1,8 +1,10 @@
 """QuantitiesWindow: bar schedule and net quantities of the beams."""
 
 from collections.abc import Sequence
+from datetime import datetime
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -12,13 +14,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from pavement_ui.core.errors import EngineRuleError
+from pavement_ui.core.ports import BudgetCalculator
+from pavement_ui.core.results.materials import MaterialsInfo
 from pavement_ui.core.results.quantities import (
     BeamQuantity,
     QuantitiesResult,
     ScheduleEntry,
     SteelByDiameter,
 )
+from pavement_ui.presentation.dialogs.messages import show_budget_error
+from pavement_ui.presentation.dialogs.price_dialog import ask_concrete_price
 from pavement_ui.presentation.formatting.numbers import fmt_number
+from pavement_ui.presentation.results.budget.budget_window import BudgetWindow
 from pavement_ui.presentation.results.quantities.quantities_columns import (
     BEAM_COLUMNS,
     SCHEDULE_COLUMNS,
@@ -49,12 +57,23 @@ def _table[T](
 
 
 class QuantitiesWindow(QWidget):
-    """Steel by diameter and quantities per beam, beside the bar schedule; Fechar"""
+    """Steel by diameter and quantities per beam, beside the bar schedule; Orçamento… and Fechar
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    Orçamento… asks the concrete price and opens the budget, priced at that
+    moment. New results close the budget, which no longer matches them.
+    """
+
+    def __init__(
+        self, budget_calculator: BudgetCalculator, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent, Qt.WindowType.Window)
         self.setObjectName("quantitiesWindow")
         self.resize(*_SIZE_PX)
+        self._budget_calculator = budget_calculator
+        self._budget: BudgetWindow | None = None
+        self._quantities: QuantitiesResult | None = None
+        self._materials: MaterialsInfo | None = None
+        self._file_name = ""
         self._steel_group, self._steel = _table(STEEL_COLUMNS, "quantitiesSteelTable")
         self._beams_group, self._beams = _table(BEAM_COLUMNS, "quantitiesBeamTable")
         self._schedule_group, self._schedule = _table(
@@ -68,10 +87,14 @@ class QuantitiesWindow(QWidget):
         tables.addWidget(self._schedule_group, 1)
         hint = QLabel(s.QUANTITIES_HINT)
         hint.setObjectName("hint")
+        budget = QPushButton(s.QUANTITIES_BUDGET)
+        budget.setObjectName("quantitiesBudgetButton")
+        budget.clicked.connect(self._open_budget)
         close = QPushButton(s.CLOSE)
         close.clicked.connect(self.close)
         footer = QHBoxLayout()
         footer.addWidget(hint, 1)
+        footer.addWidget(budget)
         footer.addWidget(close)
         layout = QVBoxLayout(self)
         margin = tokens.MARGIN_PX * 2
@@ -79,7 +102,12 @@ class QuantitiesWindow(QWidget):
         layout.addLayout(tables, 1)
         layout.addLayout(footer)
 
-    def set_results(self, quantities: QuantitiesResult, file_name: str) -> None:
+    def set_results(
+        self, quantities: QuantitiesResult, materials: MaterialsInfo, file_name: str
+    ) -> None:
+        self._close_budget()
+        self._quantities, self._materials = quantities, materials
+        self._file_name = file_name
         self.setWindowTitle(s.QUANTITIES_TITLE.format(file=file_name))
         self._steel_group.setTitle(
             s.QUANTITIES_STEEL.format(
@@ -103,3 +131,35 @@ class QuantitiesWindow(QWidget):
         self._steel.set_rows(steel)
         self._beams.set_rows(beams)
         self._schedule.set_rows(schedule)
+
+    def _open_budget(self) -> None:
+        """Ask the concrete price, price the quantities now and show the budget"""
+        if self._quantities is None or self._materials is None:
+            return
+        price = ask_concrete_price(self)
+        if price is None:
+            return
+        try:
+            budget = self._budget_calculator.budget(
+                self._quantities, self._materials, price, datetime.now()
+            )
+        except EngineRuleError as error:
+            show_budget_error(self, error.message)
+            return
+        if self._budget is None:
+            self._budget = BudgetWindow(budget, self._file_name, self)
+        else:
+            self._budget.set_budget(budget, self._file_name)
+        self._budget.show()
+        self._budget.raise_()
+        self._budget.activateWindow()
+
+    def _close_budget(self) -> None:
+        if self._budget is not None:
+            self._budget.close()
+            self._budget.deleteLater()
+            self._budget = None
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self._close_budget()
+        super().closeEvent(event)

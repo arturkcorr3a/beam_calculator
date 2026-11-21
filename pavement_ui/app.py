@@ -6,6 +6,7 @@ import sys
 from PySide6.QtCore import QLocale
 from PySide6.QtWidgets import QApplication
 
+from pavement_ui.core.engine.budget_engine import SinapiBudgetCalculator
 from pavement_ui.core.engine.drawing_exporter import DxfDrawingExporter
 from pavement_ui.core.engine.isolated_beam_engine import IsolatedBeamCalculator
 from pavement_ui.core.engine.isolated_beam_store import YamlIsolatedBeamStore
@@ -52,6 +53,7 @@ def build_main_window() -> MainWindow:
         IsolatedBeamCalculator(),
         DxfDrawingExporter(),
         YamlIsolatedBeamStore(),
+        SinapiBudgetCalculator(),
     )
     bridge.setParent(window)
     executor.setParent(window)

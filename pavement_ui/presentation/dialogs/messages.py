@@ -89,6 +89,13 @@ def show_design_rule_error(parent: QWidget | None, message: str) -> None:
     ).exec()
 
 
+def show_budget_error(parent: QWidget | None, message: str) -> None:
+    """The engine refused the budget, e.g. a diameter without a SINAPI price"""
+    _box(
+        parent, _Icon.Critical, s.BUDGET_TITLE, s.BUDGET_FAILED, translate(message)
+    ).exec()
+
+
 def show_design_unexpected(parent: QWidget | None, failure: UnexpectedFailure) -> None:
     """An unexpected error; the traceback goes to the expandable details"""
     box = _box(
