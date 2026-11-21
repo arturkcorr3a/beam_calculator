@@ -80,7 +80,7 @@ class ProjectSession:
         reference_text: str,
         width_cm: float,
         alignment_key: str,
-        wall: WallRecord,
+        wall: WallRecord | None,
     ) -> BeamRecord:
         """Register a beam with the next ID; raises EngineRuleError if refused
 
@@ -88,6 +88,8 @@ class ProjectSession:
             pillar_ids_text: Pillar IDs as typed (see ``parse_id_list``).
             reference_text: Reference pillar ID as typed.
             width_cm: Beam width bw (cm).
+            alignment_key: Engine alignment key.
+            wall: The wall on the beam; None for a beam without wall.
         """
         self._ensure_idle()
         record = BeamRecord(

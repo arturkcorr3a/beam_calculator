@@ -30,15 +30,13 @@ def _thickness_option(thickness: Thickness) -> ThicknessOption:
     return ThicknessOption(thickness.nominal_cm, coatings)
 
 
-def _masonry_option(masonry: MasonryType, structural: bool) -> MasonryOption:
+def _masonry_option(masonry: MasonryType) -> MasonryOption:
     thicknesses = tuple(_thickness_option(t) for t in masonry.thicknesses)
-    return MasonryOption(masonry.type_description, structural, thicknesses)
+    return MasonryOption(masonry.type_description, thicknesses)
 
 
 def _masonry() -> tuple[MasonryOption, ...]:
-    non_bearing = (_masonry_option(m, False) for m in TABLE_2.non_bearing_masonry)
-    structural = (_masonry_option(m, True) for m in TABLE_2.structural_masonry)
-    return (*non_bearing, *structural)
+    return tuple(_masonry_option(m) for m in TABLE_2.masonry)
 
 
 def _usages_by_category() -> tuple[tuple[str, tuple[str, ...]], ...]:

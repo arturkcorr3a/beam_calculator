@@ -26,12 +26,10 @@ class MasonryOption:
 
     Attributes:
         key: Engine description of the masonry type.
-        structural: Whether it is in the structural list.
         thicknesses: Tabulated nominal thicknesses.
     """
 
     key: str
-    structural: bool
     thicknesses: tuple[ThicknessOption, ...]
 
 
@@ -56,10 +54,6 @@ class EngineOptions:
     masonry: tuple[MasonryOption, ...] = ()
     usages_by_category: tuple[tuple[str, tuple[str, ...]], ...] = ()
     log_dir: str = ""
-
-    def masonry_for(self, structural: bool) -> tuple[MasonryOption, ...]:
-        """Return the masonry types of the structural or the non-bearing list"""
-        return tuple(m for m in self.masonry if m.structural == structural)
 
     def usages_for(self, category_key: str) -> tuple[str, ...]:
         """Return the slab usages of a building category (empty if it has none)"""
