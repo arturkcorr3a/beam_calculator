@@ -609,6 +609,15 @@ class Reinforcement:
         """Return the distance (cm) from the section face to the stirrup's inner face."""
         return self.effective_covering() + self._stirrup_diameter()
 
+    def face_extent(self) -> float:
+        """Return the distance from the section face to the inner edge of the bars on it (cm)
+
+        Without chosen bars, the face still gets construction bars in the stirrup corners, with the stirrup's diameter (see ``add_construction_bars``).
+        """
+        if not any(layer.bars for layer in self.chosen_bars):
+            return self._face_offset() + self._stirrup_diameter()
+        return self._face_offset() + self.stack_top()[0]
+
     @property
     def stirrup_inner_width(self) -> float:
         """Return the width between the stirrup's inner faces (cm)"""

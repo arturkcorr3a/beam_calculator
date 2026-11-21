@@ -21,6 +21,7 @@ from src.drawing.layers import (
     DIMENSION,
     LAP,
     MAIN_BAR,
+    SKIN_BAR,
     STIRRUP,
     TABLE,
     layer_style,
@@ -32,7 +33,16 @@ SUMMARY_COLUMNS_MM: tuple[tuple[str, float], ...] = (
     ("COMPR. (m)", 15.0),
     ("MASSA (kg)", 15.0),
 )
-LEGEND_LAYERS = (MAIN_BAR, CONSTRUCTION_BAR, STIRRUP, CLAMP, AXIS, DIMENSION, LAP)
+LEGEND_LAYERS = (
+    MAIN_BAR,
+    CONSTRUCTION_BAR,
+    SKIN_BAR,
+    STIRRUP,
+    CLAMP,
+    AXIS,
+    DIMENSION,
+    LAP,
+)
 
 _HEADER_MM = 5.0
 _CELL_PADDING_MM = 1.0  # least room on each side of a cell's text

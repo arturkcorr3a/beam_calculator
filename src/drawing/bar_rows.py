@@ -1,4 +1,4 @@
-"""Bar rows under the elevation: every bar run and clamp set redrawn on its own row (spec §6.5, §6.6)
+"""Bar rows under the elevation: every bar run, clamp set and skin bar set redrawn on its own row (spec §6.5, §6.6)
 
 The rows keep the elevation's x, so each run sits under its place on the beam. Runs that
 overlap on the elevation, such as the two bars of a lap, land on different rows, and the
@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from src.detailing.detailed_bar import BarRole, DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.drawing.annotations import (
     DIMENSION_TEXT_GAP_MM,
@@ -17,17 +18,19 @@ from src.drawing.annotations import (
     bar_layer,
     clamp_hover,
     dimension,
+    skin_hover,
 )
 from src.drawing.config import DrawingConfig
 from src.drawing.formatting import (
     CLAMP_MARK,
+    SKIN_MARK,
     bar_paper_mark,
     fmt_len,
     piece_label,
     text_width,
 )
 from src.drawing.geometry import HookPath, bar_path, hook_path, overlap_pairs
-from src.drawing.layers import AXIS, CLAMP, DIMENSION, LAP, TEXT
+from src.drawing.layers import AXIS, CLAMP, DIMENSION, LAP, SKIN_BAR, TEXT
 from src.drawing.primitives import (
     Circle,
     Drawing,
@@ -64,7 +67,7 @@ _LAP_TEXT_SIDE_GAP_MM = 2.0  # from the lap's end to a text set beside it
 
 @dataclass(frozen=True)
 class RowItem:
-    """A bar run or a clamp set to place on a row
+    """A bar run, a clamp set or a span's skin bars to place on a row
 
     Attributes:
         group: Packing group; lower groups get the upper rows.
@@ -77,6 +80,7 @@ class RowItem:
     end: float
     bar: DetailedBar | None = None
     clamps: DetailedClamps | None = None
+    skin: DetailedSkinBars | None = None
 
 
 @dataclass(frozen=True)
@@ -104,6 +108,7 @@ class BarRows:
         top, bottom: The placed items of each face, in placing order.
         separator_y: Height of the line between the faces (cm).
         lowest: Lowest height reached by the rows (cm).
+        skin: The placed skin bars, under the bottom face; empty without them.
     """
 
     drawing: Drawing
@@ -111,6 +116,7 @@ class BarRows:
     bottom: tuple[PlacedItem, ...]
     separator_y: float
     lowest: float
+    skin: tuple[PlacedItem, ...] = ()
 
 
 def row_items(beam: DetailingBeam, is_bottom: bool) -> list[RowItem]:
@@ -141,6 +147,14 @@ def row_items(beam: DetailingBeam, is_bottom: bool) -> list[RowItem]:
     return sorted(items, key=lambda item: (item.group, item.start, item.end))
 
 
+def skin_items(beam: DetailingBeam) -> list[RowItem]:
+    """Return the skin bars of a beam as row items, left to right"""
+    return [
+        RowItem(0, skin.start, skin.end, skin=skin)
+        for skin in sorted(beam.skin_bars, key=lambda skin: skin.start)
+    ]
+
+
 def _clamp_tip(clamps: DetailedClamps) -> float:
     """Return the x of a clamp's leg tips (cm)"""
     return clamps.position + (clamps.leg_length if clamps.left else -clamps.leg_length)
@@ -152,7 +166,9 @@ def draw_item(
     """Return an item drawn on a row at height y (cm)"""
     if item.bar is not None:
         return draw_bar(beam, item.bar, y, config)
-    assert item.clamps is not None  # a row item holds a bar or clamps
+    if item.skin is not None:
+        return draw_skin(item.skin, y, config)
+    assert item.clamps is not None  # a row item holds a bar, clamps or skin bars
     return draw_clamps(item.clamps, y, config)
 
 
@@ -274,6 +290,38 @@ def _label_x(
     return leg_x - gap - width / 2
 
 
+def draw_skin(skin: DetailedSkinBars, y: float, config: DrawingConfig) -> Drawing:
+    """Return a span's skin bars drawn on a row: one straight bar, its length, label and the (PELE) mark"""
+    heights = config.text_heights_mm
+    small = config.paper(heights.small)
+    label_height = config.paper(heights.label)
+    middle = (skin.start + skin.end) / 2
+    baseline = y - config.paper(_LABEL_DROP_MM)
+    label = piece_label(
+        skin.quantity, str(skin.mark), skin.diameter_mm, skin.total_length
+    )
+    return Drawing(
+        [
+            Line((skin.start, y), (skin.end, y), SKIN_BAR, skin_hover(skin)),
+            Text(
+                (middle, y + config.paper(DIMENSION_TEXT_GAP_MM)),
+                fmt_len(skin.straight_length),
+                small,
+                DIMENSION,
+                HAlign.CENTER,
+            ),
+            Text((middle, baseline), label, label_height, TEXT, HAlign.CENTER),
+            Text(
+                (middle, baseline - config.paper(_PAPER_MARK_DROP_MM)),
+                SKIN_MARK,
+                small,
+                TEXT,
+                HAlign.CENTER,
+            ),
+        ]
+    )
+
+
 def draw_clamps(clamps: DetailedClamps, y: float, config: DrawingConfig) -> Drawing:
     """Return a clamp set drawn on a row: a U lying down, its leg and width, label and paper mark
 
@@ -391,13 +439,24 @@ def pack_face(
     Args:
         top_y: Height of the face's first row (cm).
     """
+    return _pack(beam, row_items(beam, is_bottom), top_y, config)
+
+
+def _pack(
+    beam: DetailingBeam, items: Sequence[RowItem], top_y: float, config: DrawingConfig
+) -> list[PlacedItem]:
+    """Place some items on rows, first free row first (see ``pack_face``)
+
+    Args:
+        top_y: Height of the first row (cm).
+    """
     pitch = config.paper(config.row_pitch_mm)
     clearance = config.paper(config.row_clearance_mm)
     placed: list[PlacedItem] = []
     opened = 0
     group: int | None = None
     first_row = 0
-    for item in row_items(beam, is_bottom):
+    for item in items:
         if item.group != group:
             group, first_row = item.group, opened
         row = first_row
@@ -430,7 +489,7 @@ def _highest(placed: Sequence[PlacedItem], default: float) -> float:
 
 
 def bar_rows(beam: DetailingBeam, y_bot: float, config: DrawingConfig) -> BarRows:
-    """Return the bar rows of a beam: the top face, a separator, then the bottom face
+    """Return the bar rows of a beam: the top face, a separator, the bottom face and, when the beam has them, another separator and the skin bars
 
     Args:
         y_bot: Height where the pillars end below the beam (cm).
@@ -448,22 +507,35 @@ def bar_rows(beam: DetailingBeam, y_bot: float, config: DrawingConfig) -> BarRow
     excess = _highest(bottom, bottom_y) - (separator_y - paper(_SEPARATOR_CLEARANCE_MM))
     if excess > 0:  # a hook leg of the first bottom row reaches the separator
         bottom = pack_face(beam, True, bottom_y - excess, config)
+    separators = [separator_y]
+    skin: list[PlacedItem] = []
+    items = skin_items(beam)
+    if items:
+        last_bottom_row = min((item.y for item in bottom), default=bottom_y)
+        skin_separator_y = min(
+            last_bottom_row - paper(_SEPARATOR_GAP_MM),
+            _lowest(bottom, bottom_y) - paper(_SEPARATOR_CLEARANCE_MM),
+        )
+        separators.append(skin_separator_y)
+        skin = _pack(beam, items, skin_separator_y - paper(_SEPARATOR_GAP_MM), config)
     drawing = Drawing()
-    for item in (*top, *bottom):
+    for item in (*top, *bottom, *skin):
         drawing.extend(item.drawing)
     overrun = paper(_SEPARATOR_OVERRUN_MM)
-    drawing.add(
-        Line(
-            (beam.start - overrun, separator_y), (beam.end + overrun, separator_y), AXIS
-        )
-    )
-    for placed, name in ((top, "SUPERIOR"), (bottom, "INFERIOR")):
+    for y in separators:
+        drawing.add(Line((beam.start - overrun, y), (beam.end + overrun, y), AXIS))
+    for placed, name in ((top, "SUPERIOR"), (bottom, "INFERIOR"), (skin, "PELE")):
         if placed:
             drawing.add(_face_legend(beam, placed, name, config))
     for is_bottom, placed in ((False, top), (True, bottom)):
         drawing.extend(lap_marks(beam, is_bottom, placed, config))
-    lowest = min(_lowest(bottom, bottom_y), bottom_y, drawing.bounds()[1])
-    return BarRows(drawing, tuple(top), tuple(bottom), separator_y, lowest)
+    lowest = min(
+        _lowest(skin, bottom_y),
+        _lowest(bottom, bottom_y),
+        bottom_y,
+        drawing.bounds()[1],
+    )
+    return BarRows(drawing, tuple(top), tuple(bottom), separator_y, lowest, tuple(skin))
 
 
 def _face_legend(

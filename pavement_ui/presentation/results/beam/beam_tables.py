@@ -1,4 +1,4 @@
-"""The two beam result tables: spans (loads, shear, stirrups) and design points."""
+"""The two beam result tables: spans (loads, shear, stirrups, skin bars) and design points."""
 
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
@@ -11,6 +11,7 @@ from pavement_ui.presentation.formatting.numbers import fmt_number, fmt_signed
 from pavement_ui.presentation.formatting.reinforcement import (
     fmt_clamps_cell,
     fmt_hooks_cell,
+    fmt_skin,
     fmt_stirrup,
     fmt_tension_cell,
 )
@@ -33,6 +34,7 @@ SPAN_COLUMNS: tuple[ColumnSpec[SpanResult], ...] = (
     ColumnSpec(s.COL_VK, lambda r: fmt_number(r.vk_kn, 1), numeric=True),
     ColumnSpec(s.COL_VSD, lambda r: fmt_number(r.vsd_kn, 1), numeric=True),
     ColumnSpec(s.COL_STIRRUPS, lambda r: fmt_stirrup(r.stirrup)),
+    ColumnSpec(s.COL_SKIN, lambda r: fmt_skin(r.skin_design)),
 )
 
 POINT_COLUMNS: tuple[ColumnSpec[DesignPoint], ...] = (

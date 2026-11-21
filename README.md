@@ -6,8 +6,9 @@ according to the Brazilian standard ABNT NBR 6118. You draw the floor plan
 
 - distributes the slab loads to the beams (loads from ABNT NBR 6120);
 - pre-sizes slabs and beams and checks slab and beam deflections;
-- analyses each continuous beam and designs its longitudinal reinforcement and
-  stirrups, with anchorage, lap splices and support bars;
+- analyses each continuous beam and designs its longitudinal reinforcement,
+  stirrups and, in beams taller than 60 cm, skin reinforcement, with anchorage,
+  lap splices and support bars;
 - details the bars and computes steel, concrete and formwork quantities;
 - prices the beams' steel (SINAPI, 10/2026) and concrete (price given by the
   user) in a net budget, exportable to PDF;
@@ -82,8 +83,13 @@ python -m pavement_ui
 - **Rectangular beams.** The flange (T-beam) contribution of the slab is not
   considered, and the bending moments are not redistributed.
 - **Ultimate limit state in bending and shear**, with normal combinations only
-  (ABNT NBR 6118, Table 11.1). Torsion, skin reinforcement and crack width
-  (ELS-W) are not checked.
+  (ABNT NBR 6118, Table 11.1). Torsion and crack width (ELS-W) are not
+  checked.
+- **Skin bars stop at the pillar faces.** Beams taller than 60 cm get their
+  minimum skin bars per span (ABNT NBR 6118, 17.3.5.2.3), detailed, drawn and
+  counted in the quantities, marked "(PELE)". The bars of each span run in its
+  clear span only, from pillar face to pillar face, with no anchorage length
+  into the supports.
 - **Deflection (ELS-DEF)** is checked against the visual acceptability limit
   l/250 only.
 - **One steel and one concrete class per project**, passive reinforcement only

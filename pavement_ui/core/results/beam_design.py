@@ -62,6 +62,32 @@ class StirrupDesign:
 
 
 @dataclass(frozen=True, slots=True)
+class SkinDesign:
+    """Skin reinforcement of a span, on each face of the web
+
+    Attributes:
+        required_area_cm2: Minimum area per face (cm²).
+        provided_area_cm2: Area of the chosen bars per face (cm²).
+        diameter_mm: Bar diameter (mm).
+        bars_per_face: Number of bars on each face.
+        spacing_cm: Distance between the bars (cm).
+        band_start_cm: Band edge on the bottom bars, from the bottom face (cm).
+        band_end_cm: Band edge on the top bars, from the bottom face (cm).
+
+    References:
+        ABNT NBR 6118:2026 — Sections 17.3.5.2.3 and 18.3.5
+    """
+
+    required_area_cm2: float
+    provided_area_cm2: float
+    diameter_mm: float
+    bars_per_face: int
+    spacing_cm: float
+    band_start_cm: float
+    band_end_cm: float
+
+
+@dataclass(frozen=True, slots=True)
 class AnchorageEntry:
     """Anchorage lengths of one tensioned layer towards one side
 
@@ -89,11 +115,12 @@ class BarEntry:
         mark: Bar mark (N1, N2, …).
         quantity: Number of bars in the run.
         diameter_mm: Bar diameter (mm).
-        bottom: Whether the bars are at the bottom face.
+        bottom: Whether the bars are at the bottom face; False for skin bars.
         layer: Layer number; 1 is the closest to the face.
         construction: Whether these are construction bars (no design point).
+        skin: Whether these are skin bars, on the side faces of the web.
         center_m: Design point the bars were laid out from, from the beam start (m);
-            the first of them after a merge; the run's middle for construction bars.
+            the first of them after a merge; the run's middle for construction and skin bars.
         start_m: Left end of the straight segment (m).
         end_m: Right end of the straight segment (m).
         left_hook_cm: Extra cut length of the left hook (cm); zero without one.
@@ -107,6 +134,7 @@ class BarEntry:
     bottom: bool
     layer: int
     construction: bool
+    skin: bool
     center_m: float
     start_m: float
     end_m: float

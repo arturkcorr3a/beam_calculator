@@ -4,11 +4,13 @@ from dataclasses import replace
 
 from src.detailing.detailed_bar import BarRole, DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.mark_registry import (
     MarkRegistry,
     bar_key,
     clamp_key,
+    skin_key,
     stirrup_key,
 )
 from src.detailing.span_stirrups import SpanStirrups
@@ -220,3 +222,58 @@ class TestAssign:
         assert [stirrups.mark for stirrups in beam.stirrups] == ["N1", "N1", "N2"], (
             "Spacing zones do not change the stirrup; the diameter does"
         )
+
+
+def _skin(
+    start: float = 10.0,
+    end: float = 235.0,
+    diameter_mm: float = 8,
+    mark: str | None = None,
+) -> DetailedSkinBars:
+    """Build the skin bars of span P1–P2: two rows, at 15 and 25 cm"""
+    return DetailedSkinBars(
+        start_pillar_id="P1",
+        end_pillar_id="P2",
+        diameter_mm=diameter_mm,
+        steel=Steel.CA50,
+        heights=(15.0, 25.0),
+        start=start,
+        end=end,
+        mark=mark,
+    )
+
+
+class TestSkinMarks:
+    """Skin bars get marks of their own, after the face bars."""
+
+    def test_skin_after_bars_before_clamps(self) -> None:
+        beam = _beam()
+        bar = _bar(0, 225)
+        beam.bars = [bar]
+        beam.skin_bars = [_skin()]
+        beam.clamps = [_clamps()]
+        MarkRegistry().assign(beam)
+        assert bar.mark == "N1", "face bars first"
+        assert beam.skin_bars[0].mark == "N2", "skin bars next"
+        assert beam.clamps[0].mark == "N3", "clamps after the skin bars"
+
+    def test_skin_never_shares_a_bar_mark(self) -> None:
+        """A straight φ8 face bar as long as the skin bars still gets its own mark"""
+        beam = _beam()
+        bar = _bar(10, 235, diameter_mm=8)
+        beam.bars = [bar]
+        beam.skin_bars = [_skin()]
+        MarkRegistry().assign(beam)
+        assert bar.mark != beam.skin_bars[0].mark, "skin has a key of its own"
+
+    def test_identical_skin_bars_share_a_mark(self) -> None:
+        beam = _beam()
+        beam.skin_bars = [_skin(), _skin(265.0, 490.0)]
+        MarkRegistry().assign(beam)
+        assert beam.skin_bars[0].mark == beam.skin_bars[1].mark, (
+            "same diameter and length"
+        )
+
+    def test_skin_key(self) -> None:
+        key = skin_key(_skin())
+        assert (key.diameter_mm, key.length) == (8, 225.0), "diameter and length"

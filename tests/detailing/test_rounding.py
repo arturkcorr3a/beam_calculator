@@ -6,6 +6,7 @@ import pytest
 
 from src.detailing.detailed_bar import BarRole, DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.post_processor import _STEPS  # pyright: ignore[reportPrivateUsage]
 from src.detailing.rounding import (
@@ -15,6 +16,7 @@ from src.detailing.rounding import (
     round_clamps,
     round_detailing,
     round_down,
+    round_skin_bars,
     round_stirrups,
     round_up,
 )
@@ -297,3 +299,42 @@ class TestRoundDetailing:
 
     def test_registered_as_first_step(self) -> None:
         assert _STEPS[0] is round_detailing, "Rounding should be the first step"
+
+
+def _skin(
+    start: float = 10.0,
+    end: float = 235.0,
+    diameter_mm: float = 8,
+    mark: str | None = None,
+) -> DetailedSkinBars:
+    """Build the skin bars of span P1–P2: two rows, at 15 and 25 cm"""
+    return DetailedSkinBars(
+        start_pillar_id="P1",
+        end_pillar_id="P2",
+        diameter_mm=diameter_mm,
+        steel=Steel.CA50,
+        heights=(15.0, 25.0),
+        start=start,
+        end=end,
+        mark=mark,
+    )
+
+
+class TestRoundSkinBars:
+    """Skin bar ends round inward, so they never enter the pillars."""
+
+    def test_ends_round_inward(self) -> None:
+        rounded = round_skin_bars(_skin(10.4, 234.6))
+        assert (rounded.start, rounded.end) == (11.0, 234.0), "inward (cm)"
+
+    def test_whole_ends_kept(self) -> None:
+        rounded = round_skin_bars(_skin(10.0, 235.0))
+        assert (rounded.start, rounded.end) == (10.0, 235.0), "already whole (cm)"
+
+    def test_round_detailing_rounds_skin_bars(self) -> None:
+        beam = _beam()
+        beam.skin_bars = [_skin(10.4, 234.6)]
+        round_detailing(beam)
+        assert (beam.skin_bars[0].start, beam.skin_bars[0].end) == (11.0, 234.0), (
+            "the step rounds the skin bars too (cm)"
+        )

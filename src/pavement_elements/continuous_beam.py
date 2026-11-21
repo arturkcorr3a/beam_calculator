@@ -30,6 +30,7 @@ from src.pavement_elements.geometry_utils import (
 from src.pavement_elements.pillar import Pillar
 from src.reinforcement.clamps import Clamps
 from src.reinforcement.reinforcement import Reinforcement
+from src.reinforcement.skin_reinforcement import SkinReinforcement
 from src.reinforcement.stirrups import Stirrups
 from src.structural_elements.rebar import Rebar
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -278,7 +279,7 @@ class ContinuousBeam:
         pillar_registry: dict[str, Pillar],
         span_ranges: list[tuple[Span, float, float]],
     ) -> list[str]:
-        """Tabulate each span's range, lengths, loads and stirrups."""
+        """Tabulate each span's range, lengths, loads, stirrups and skin reinforcement."""
         rows: list[list[str]] = []
         for span, start, end in span_ranges:
             stirrups = span.stirrups
@@ -299,6 +300,7 @@ class ContinuousBeam:
                     f"{span.permanent_load + span.variable_load:.2f}",
                     stirrups_description,
                     required_ratio,
+                    self._describe_skin(span.skin_reinforcement),
                 ]
             )
         headers = [
@@ -311,6 +313,7 @@ class ContinuousBeam:
             "g+q (kN/m)",
             "Stirrups",
             "A_sw/s req (cm²/cm)",
+            "Skin (per face)",
         ]
         return format_table(headers, rows, "  ")
 
@@ -327,6 +330,16 @@ class ContinuousBeam:
             for zone in stirrups.zones
         )  # cm
         return f"{diameter} {zones}"
+
+    @staticmethod
+    def _describe_skin(skin: SkinReinforcement | None) -> str:
+        """Describe a span's skin reinforcement on each face, e.g. "3 φ8 c/9.5"; "—" when not required."""
+        if skin is None or skin.layout is None:
+            return "—"
+        layout = skin.layout
+        return (
+            f"{layout.bars_per_face} φ{layout.diameter_mm:g} c/{layout.spacing:g}"  # cm
+        )
 
     def _report_reinforcement(self, start: float, end: float) -> list[str]:
         """Describe the longitudinal reinforcement centered within [start, end] (cm), left to right."""

@@ -4,6 +4,7 @@ from math import sqrt
 
 from src.detailing.detailed_bar import BarRole, DetailedBar
 from src.detailing.detailed_clamps import DetailedClamps
+from src.detailing.detailed_skin_bars import DetailedSkinBars
 from src.detailing.detailing_beam import DetailingBeam
 from src.drawing.config import DrawingConfig
 from src.drawing.formatting import PHI, fmt_diam, fmt_len, fmt_steel
@@ -45,6 +46,20 @@ def bar_hover(beam: DetailingBeam, bar: DetailedBar) -> HoverInfo:
         f"{bar.mark} · {bar.quantity} {PHI}{fmt_diam(bar.diameter_mm)} "
         f"{fmt_steel(bar.steel.name)}",
         tuple(lines),
+    )
+
+
+def skin_hover(skin: DetailedSkinBars) -> HoverInfo:
+    """Return the tooltip of a span's skin bars: mark, cut length, extent and row heights"""
+    heights = ", ".join(fmt_len(y) for y in skin.heights)
+    return HoverInfo(
+        f"{skin.mark} · {skin.quantity} {PHI}{fmt_diam(skin.diameter_mm)} "
+        f"{fmt_steel(skin.steel.name)} (pele)",
+        (
+            f"C = {fmt_len(skin.total_length)} cm",
+            f"x = {fmt_len(skin.start)} → {fmt_len(skin.end)} · vão {skin.span_name}",
+            f"2 faces laterais · y = {heights}",
+        ),
     )
 
 

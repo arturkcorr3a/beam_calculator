@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Sequence
 
+from pavement_ui.core.results.beam_design import SkinDesign
 from pavement_ui.core.results.reinforcement import (
     BarGroup,
     BarLayer,
@@ -110,6 +111,18 @@ def fmt_clamps_cell(
 def fmt_hooks_cell(tension: Sequence[BarLayer], compression: Sequence[BarLayer]) -> str:
     """Format every layer's hooks for a table cell, e.g. "Camada 1: esq. 11,5 cm · dir. 11,5 cm" """
     return _fmt_sides_cell(tension, compression, _fmt_hook_sides)
+
+
+def fmt_skin(skin: SkinDesign | None) -> str:
+    """Format a span's skin bars on each face, e.g. "6Φ6,3 c/8,8 cm (PELE)"; "—" when not required"""
+    if skin is None:
+        return s.NONE
+    return s.SKIN.format(
+        count=skin.bars_per_face,
+        phi=s.PHI,
+        diameter=fmt_bar_diameter(skin.diameter_mm),
+        spacing=fmt_length_cm(skin.spacing_cm),
+    )
 
 
 def fmt_stirrup(stirrup: StirrupSpec, prefixed: bool = False) -> str:

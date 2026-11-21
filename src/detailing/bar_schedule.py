@@ -15,7 +15,7 @@ class ScheduleRow:
     """One mark of a bar schedule
 
     Attributes:
-        kind: "bar", "clamp" or "stirrup".
+        kind: "bar", "skin", "clamp" or "stirrup".
         diameter_mm: Bar diameter φ (mm).
         quantity: Number of pieces.
         unit_length: Cut length of one piece (cm).
@@ -34,7 +34,7 @@ class ScheduleRow:
 
 
 def build_schedule(beams: Iterable[DetailingBeam]) -> list[ScheduleRow]:
-    """Add up the marked bars, clamps and stirrups of some beams, one row per mark
+    """Add up the marked bars, skin bars, clamps and stirrups of some beams, one row per mark
 
     Items without a mark are left out.
 
@@ -54,7 +54,7 @@ def build_schedule(beams: Iterable[DetailingBeam]) -> list[ScheduleRow]:
 
 
 def _beam_rows(beam: DetailingBeam) -> list[ScheduleRow]:
-    """List one row for each marked bar run, clamp set and stirrup set of a beam"""
+    """List one row for each marked bar run, skin bar set, clamp set and stirrup set of a beam"""
     rows: list[ScheduleRow] = []
     for bar in beam.bars:
         if bar.mark is not None:
@@ -65,6 +65,17 @@ def _beam_rows(beam: DetailingBeam) -> list[ScheduleRow]:
                     diameter_mm=bar.diameter_mm,
                     quantity=bar.quantity,
                     unit_length=bar.total_length,
+                )
+            )
+    for skin in beam.skin_bars:
+        if skin.mark is not None:
+            rows.append(
+                ScheduleRow(
+                    mark=skin.mark,
+                    kind="skin",
+                    diameter_mm=skin.diameter_mm,
+                    quantity=skin.quantity,
+                    unit_length=skin.total_length,
                 )
             )
     for clamps in beam.clamps:

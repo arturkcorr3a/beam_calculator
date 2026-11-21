@@ -11,6 +11,8 @@ _CM_PER_M = 100.0
 
 
 def _face(bar: BarEntry) -> str:
+    if bar.skin:
+        return s.FACE_SKIN
     face = s.FACE_BOTTOM if bar.bottom else s.FACE_TOP
     if bar.construction:
         return s.FACE_CONSTRUCTION.format(face=face)
@@ -43,7 +45,7 @@ def _row(bar: BarEntry) -> list[str]:
 
 
 def write_bars(builder: ReportBuilder, bars: tuple[BarEntry, ...]) -> None:
-    """Append the table of the beam's longitudinal bar runs; nothing before detailing"""
+    """Append the table of the beam's longitudinal bar runs and skin bars; nothing before detailing"""
     if not bars:
         return
     builder.heading(s.BARS, 3)
