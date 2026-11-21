@@ -55,3 +55,15 @@ class TestPriceFor:
     def test_unpriced_diameter_raises(self, steel: Steel, diameter_mm: float) -> None:
         with pytest.raises(ValueError, match="No SINAPI price"):
             STEEL_PRICES.price_for(steel, diameter_mm)
+
+
+class TestCoversAvailableSizes:
+    """The budget prices every size the engine can choose."""
+
+    @pytest.mark.parametrize(
+        ("steel", "diameter_mm"),
+        [(steel, size) for steel in Steel for size in steel.available_sizes],
+    )
+    def test_available_size_has_a_price(self, steel: Steel, diameter_mm: float) -> None:
+        item = STEEL_PRICES.price_for(steel, diameter_mm)
+        assert item.price_per_kg > 0, f"{steel.name} φ{diameter_mm:g} needs a price"

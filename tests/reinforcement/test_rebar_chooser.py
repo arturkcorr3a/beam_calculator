@@ -90,7 +90,7 @@ class TestCache:
         monkeypatch.setattr(APP_CONFIG, "max_bar_types", 1)
         chooser.ranked_solutions(Steel.CA50, 2.0)
         assert chooser.tables is not tables, "A max bar types change should rebuild"
-        assert len(chooser.tables) == 10, "One combination per available size"
+        assert len(chooser.tables) == 8, "One combination per available size"
 
     @pytest.mark.parametrize("area", [0.5, 2.0, 4.02, 7.3])
     def test_warm_matches_cold(self, area: float) -> None:
@@ -179,13 +179,13 @@ class TestPossibleDiameterCombinations:
     """Tests for the generated diameter-combination set."""
 
     def test_count_default_config(self) -> None:
-        assert len(RebarChooser.possible_diameter_combinations(Steel.CA50)) == 175, (
-            "Ten sizes across up to three bar types yield 175 combinations"
+        assert len(RebarChooser.possible_diameter_combinations(Steel.CA50)) == 92, (
+            "Eight sizes across up to three bar types yield 92 combinations"
         )
 
     def test_respects_max_bar_types(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(APP_CONFIG, "max_bar_types", 1)
-        assert len(RebarChooser.possible_diameter_combinations(Steel.CA50)) == 10, (
+        assert len(RebarChooser.possible_diameter_combinations(Steel.CA50)) == 8, (
             "Limiting to one bar type yields one combination per available size"
         )
 
