@@ -1,32 +1,18 @@
-"""Sequential element IDs (P1, V1, L1…) that are never reused in a session."""
+"""Element IDs (P1, V1, L1…): the lowest number not in use is handed out next."""
+
+from itertools import count
 
 from pavement_ui.core.model.element_kind import ElementKind
-from pavement_ui.core.model.pavement_records import ElementCounts
+from pavement_ui.core.model.pavement_records import PavementRecords
 
 
-class IdGenerator:
-    """Hand out the next ID of each element kind
+def next_id(kind: ElementKind, records: PavementRecords) -> str:
+    """Return the smallest unused ID of a kind (e.g. "P2" after removing P2)
 
-    An ID is only consumed by ``commit`` (after a successful inclusion), so a
-    refused inclusion does not skip a number. Numbers are never reused after a
-    removal or after clearing the pavement [Manual §2.1].
+    Numbers freed by a removal or by clearing the pavement are reused, so the
+    ID depends only on the current records.
     """
-
-    def __init__(self) -> None:
-        self._next: dict[ElementKind, int] = dict.fromkeys(ElementKind, 1)
-
-    def peek(self, kind: ElementKind) -> str:
-        """Return the next ID of a kind without consuming it (e.g. "P4")"""
-        return f"{kind.prefix}{self._next[kind]}"
-
-    def commit(self, kind: ElementKind) -> None:
-        """Consume the ID returned by ``peek``"""
-        self._next[kind] += 1
-
-    def reset_after(self, counts: ElementCounts) -> None:
-        """Restart the numbering right after the given counts
-
-        Used by "new project" (all zero) and "open" (the file's elements are
-        renumbered 1…n in file order).
-        """
-        self._next = {kind: counts.of(kind) + 1 for kind in ElementKind}
+    used = records.ids_of(kind)
+    return next(
+        element_id for n in count(1) if (element_id := f"{kind.prefix}{n}") not in used
+    )

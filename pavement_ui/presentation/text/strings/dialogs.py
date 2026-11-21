@@ -6,6 +6,7 @@ from typing import Final
 CANCEL: Final = "Cancelar"
 CLEAR: Final = "Apagar"
 NEW: Final = "Novo"
+REMOVE: Final = "Excluir"
 SAVE: Final = "Salvar"
 
 # --- inclusion ----------------------------------------------------------------
@@ -35,7 +36,12 @@ CLEAR_TITLE: Final = "Apagar pavimento"
 CLEAR_QUESTION: Final = "Apagar todos os pilares, vigas e lajes?"
 CLEAR_DETAIL: Final = (
     "Esta ação não pode ser desfeita. "
-    "A numeração dos novos elementos continua de onde parou."
+    "A numeração dos novos elementos recomeça em P1, V1 e L1."
+)
+REMOVE_PILLAR_TITLE: Final = "Excluir pilar"
+REMOVE_PILLAR_QUESTION: Final = "Excluir {pillar}?"
+REMOVE_PILLAR_DETAIL: Final = (
+    "Também serão excluídos os elementos que usam este pilar: {ids}."
 )
 NEW_TITLE: Final = "Novo projeto"
 NEW_QUESTION: Final = "Começar um novo projeto?"

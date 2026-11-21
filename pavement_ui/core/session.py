@@ -5,7 +5,7 @@ from pathlib import Path
 from pavement_ui.core.errors import EngineRuleError, SessionBusyError
 from pavement_ui.core.events import EventBus, SessionEvent
 from pavement_ui.core.model.element_kind import ElementKind
-from pavement_ui.core.model.id_generator import IdGenerator
+from pavement_ui.core.model.id_generator import next_id
 from pavement_ui.core.model.id_parsing import parse_id_list
 from pavement_ui.core.model.pavement_records import PavementRecords
 from pavement_ui.core.model.records import (
@@ -40,12 +40,10 @@ class ProjectSession:
         engine: PavementEngine,
         store: ProjectStore,
         bus: EventBus,
-        ids: IdGenerator | None = None,
     ) -> None:
         self._engine = engine
         self._store = store
         self._bus = bus
-        self._ids = ids or IdGenerator()
         self.records = PavementRecords()
         self.config = ConfigValues()
         self.log = LogValues()
@@ -68,10 +66,10 @@ class ProjectSession:
         """Register a pillar with the next ID; raises EngineRuleError if refused"""
         self._ensure_idle()
         record = PillarRecord(
-            self._ids.peek(ElementKind.PILLAR), x_m, y_m, width_cm, depth_cm
+            next_id(ElementKind.PILLAR, self.records), x_m, y_m, width_cm, depth_cm
         )
         self._engine.check_pillar(record)
-        self._commit(ElementKind.PILLAR, self.records.with_pillar(record))
+        self._set_records(self.records.with_pillar(record))
         return record
 
     def add_beam(
@@ -93,7 +91,7 @@ class ProjectSession:
         """
         self._ensure_idle()
         record = BeamRecord(
-            self._ids.peek(ElementKind.BEAM),
+            next_id(ElementKind.BEAM, self.records),
             parse_id_list(pillar_ids_text),
             reference_text.strip().upper(),
             width_cm,
@@ -101,7 +99,7 @@ class ProjectSession:
             wall,
         )
         self._engine.check_beam(record)
-        self._commit(ElementKind.BEAM, self.records.with_beam(record))
+        self._set_records(self.records.with_beam(record))
         return record
 
     def add_slab(
@@ -115,17 +113,17 @@ class ProjectSession:
         """
         self._ensure_idle()
         record = SlabRecord(
-            self._ids.peek(ElementKind.SLAB),
+            next_id(ElementKind.SLAB, self.records),
             parse_id_list(corner_ids_text),
             usage_key,
             lowered_cm,
         )
         self._engine.check_slab(record)
-        self._commit(ElementKind.SLAB, self.records.with_slab(record))
+        self._set_records(self.records.with_slab(record))
         return record
 
     def remove(self, kind: ElementKind, element_id: str) -> None:
-        """Remove one element; its dependents are kept [Manual]"""
+        """Remove one element; a pillar takes the beams and slabs that reference it"""
         self._ensure_idle()
         match kind:
             case ElementKind.PILLAR:
@@ -137,7 +135,7 @@ class ProjectSession:
         self._set_records(records)
 
     def clear_pavement(self) -> None:
-        """Remove every element; settings and the ID numbering are kept"""
+        """Remove every element; settings are kept and the numbering restarts at 1"""
         self._ensure_idle()
         self._set_records(PavementRecords())
 
@@ -244,10 +242,6 @@ class ProjectSession:
         if self.design.running:
             raise SessionBusyError("A design is running.")
 
-    def _commit(self, kind: ElementKind, records: PavementRecords) -> None:
-        self._ids.commit(kind)
-        self._set_records(records)
-
     def _set_records(self, records: PavementRecords) -> None:
         self.records = records
         self.validation = ValidationState()
@@ -262,6 +256,5 @@ class ProjectSession:
         self.current_path = path
         self.validation = ValidationState()
         self.design = DesignState()
-        self._ids.reset_after(records.counts())
         for event in _ALL_EVENTS_BUT_START:
             self._bus.publish(event)
