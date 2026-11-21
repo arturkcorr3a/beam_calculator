@@ -113,10 +113,29 @@ class TestChooseFor:
         assert_approx(layout.band_end, 70.0 - _CORNER_EXTENT, "band end (cm)")
         assert layout.diameter_mm == 6.3, "φ6.3 gives the least area"
         assert layout.bars_per_face == 6, "the spacing limit adds a bar"
-        assert_approx(layout.spacing, 60.4 / 7, "spacing over the band (cm)")
-        assert layout.spacing <= SkinReinforcement.max_spacing(65.0, 6.3), (
-            "spacing within s_max"
+        assert layout.spacing == 9, "60.4 / 7 = 8.6 rounds to 9 cm, within 15φ"
+
+    def test_bars_are_centered_in_the_band(self, skin: SkinReinforcement) -> None:
+        """6φ6.3 c/9 in the 60.4 cm band leave (60.4 - 45) / 2 = 7.7 cm at each edge"""
+        layout = skin.choose_for(
+            effective_depth=65.0,
+            bottom_extent=_LAYER_EXTENT,
+            top_extent=_CORNER_EXTENT,
         )
+        assert_approx(layout.edge_gap, 7.7, "gap at each band edge (cm)")
+        expected = [12.8 + 9.0 * row for row in range(6)]  # cm
+        for actual, height in zip(layout.heights, expected, strict=True):
+            assert_approx(actual, height, "row height from the bottom face (cm)")
+
+    def test_wide_edge_gaps_add_a_bar(self, skin: SkinReinforcement) -> None:
+        """Band 55 cm: 5φ6.3 would need s ≥ (55 - 2 x 9.45) / 4 = 9.03 > 9 cm, so 6φ6.3 c/8 (7.5 cm edges)"""
+        layout = skin.choose_for(
+            effective_depth=65.0, bottom_extent=5.0, top_extent=10.0
+        )
+        assert layout.diameter_mm == 6.3, "φ6.3 gives the least area"
+        assert layout.bars_per_face == 6, "no whole spacing fits five bars"
+        assert layout.spacing == 8, "55 / 7 = 7.9 rounds to 8 cm"
+        assert_approx(layout.edge_gap, 7.5, "edge gap within 15φ (cm)")
 
     def test_least_area_wins(self, skin: SkinReinforcement) -> None:
         """Band 20-40 cm: 3φ8 (1.51 cm²) beats 5φ6.3, 2φ10 and 2φ12.5"""
@@ -129,6 +148,13 @@ class TestChooseFor:
         assert_approx(
             layout.area_per_face, 3 * 0.502655, "3φ8 per face (cm²)", abs_tol=1e-4
         )
+
+    def test_band_too_narrow_for_whole_spacing_raises(
+        self, skin: SkinReinforcement
+    ) -> None:
+        """A 2 cm band cannot hold the bars at a spacing of at least 1 cm"""
+        with pytest.raises(ValueError, match="whole-centimeter spacing"):
+            skin.choose_for(effective_depth=65.0, bottom_extent=34.0, top_extent=34.0)
 
     def test_no_band_raises(self, skin: SkinReinforcement) -> None:
         """Bars 40 cm from the bottom and 35 cm from the top overlap in a 70 cm web"""

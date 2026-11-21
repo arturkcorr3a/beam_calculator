@@ -339,7 +339,9 @@ class ContinuousBeam:
         if skin is None or skin.layout is None:
             return "—"
         layout = skin.layout
-        return f"{layout.bars_per_face} φ{layout.diameter_mm:g} c/{layout.spacing:.1f}"  # cm
+        return (
+            f"{layout.bars_per_face} φ{layout.diameter_mm:g} c/{layout.spacing:g}"  # cm
+        )
 
     def _report_reinforcement(self, start: float, end: float) -> list[str]:
         """Describe the longitudinal reinforcement centered within [start, end] (cm), left to right."""

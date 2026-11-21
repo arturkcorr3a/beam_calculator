@@ -267,7 +267,7 @@ def _skin_bars(
 ) -> list[DetailedSkinBars]:
     """Lay each span's skin bars between the inner faces of its pillars
 
-    The bars stay in the clear span, without entering the pillars. The rows are evenly spaced in the band between the bottom and top bars: the first one a spacing above the band's start. Spans without skin reinforcement get none.
+    The bars stay in the clear span, without entering the pillars. The rows are the layout's, centered in the band between the bottom and top bars. Spans without skin reinforcement get none.
 
     References:
         ABNT NBR 6118:2026 — Section 17.3.5.2.3
@@ -284,10 +284,7 @@ def _skin_bars(
                 end_pillar_id=span.end_pillar_id,
                 diameter_mm=layout.diameter_mm,
                 steel=skin.steel,
-                heights=tuple(
-                    layout.band_start + row * layout.spacing
-                    for row in range(1, layout.bars_per_face + 1)
-                ),
+                heights=layout.heights,
                 start=start.right,
                 end=end.left,
             )

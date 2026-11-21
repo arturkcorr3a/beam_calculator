@@ -95,10 +95,22 @@ STIRRUP_ZONES: Final = "Zonas de estribos"
 COL_STRETCH: Final = "Trecho (m)"
 COL_SPACING: Final = "s (cm)"
 STRETCH: Final = "{start} – {end}"
-BARS: Final = "4.6 Resumo das armaduras longitudinais"
+SKIN: Final = "4.6 Armadura de pele"
+SKIN_NOT_REQUIRED: Final = (
+    "Dispensada: a viga tem altura de até 60 cm (NBR 6118 §17.3.5.2.3)."
+)
+SKIN_TEXT: Final = (
+    "Barras em cada face lateral da alma, entre as barras inferiores e as "
+    "superiores, no vão livre (PELE)."
+)
+COL_SKIN_REQ: Final = "A_s,pele,nec (cm²/face)"
+COL_SKIN_BARS: Final = "Barras por face"
+COL_SKIN_EF: Final = "A_s,pele,ef (cm²/face)"
+COL_SKIN_BAND: Final = "Faixa y (cm)"
+BARS: Final = "4.7 Resumo das armaduras longitudinais"
 BARS_TEXT: Final = (
     "Comprimentos da parte reta, medidos do ponto central (ponto de "
-    "dimensionamento; meio da barra, nas de montagem) até cada ponta. "
+    "dimensionamento; meio da barra, nas de montagem e de pele) até cada ponta. "
     "Os ganchos somam ao comprimento de corte."
 )
 COL_MARK: Final = "Posição"
@@ -113,6 +125,7 @@ FACE_BOTTOM: Final = "inferior"
 FACE_TOP: Final = "superior"
 FACE_LAYER: Final = "{face} · camada {layer}"
 FACE_CONSTRUCTION: Final = "{face} · montagem"
+FACE_SKIN: Final = "laterais (PELE)"
 
 # --- beam: 5 consumption ------------------------------------------------------
 CONSUMPTION: Final = "5. Consumo de materiais"
