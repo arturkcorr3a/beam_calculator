@@ -79,8 +79,12 @@ python -m pavement_ui
 - **Vigas retangulares.** A contribuição da laje como mesa (viga T) não é
   considerada, e os momentos fletores não são redistribuídos.
 - **Estado-limite último na flexão e no cisalhamento**, só com combinações
-  normais (ABNT NBR 6118, Tabela 11.1). Torção, armadura de pele e abertura de
-  fissuras (ELS-W) não são verificadas.
+  normais (ABNT NBR 6118, Tabela 11.1). Torção e abertura de fissuras (ELS-W)
+  não são verificadas.
+- **Armadura de pele só calculada.** Vigas com mais de 60 cm de altura recebem
+  a armadura de pele mínima de cada vão (ABNT NBR 6118, 17.3.5.2.3), listada no
+  relatório da viga; ela ainda não é detalhada, desenhada nem entra nos
+  quantitativos.
 - **A flecha (ELS-DEF)** é verificada só contra o limite de aceitabilidade
   sensorial visual, l/250.
 - **Um aço e uma classe de concreto por projeto**, só armadura passiva (sem

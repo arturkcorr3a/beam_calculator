@@ -80,8 +80,11 @@ python -m pavement_ui
 - **Rectangular beams.** The flange (T-beam) contribution of the slab is not
   considered, and the bending moments are not redistributed.
 - **Ultimate limit state in bending and shear**, with normal combinations only
-  (ABNT NBR 6118, Table 11.1). Torsion, skin reinforcement and crack width
-  (ELS-W) are not checked.
+  (ABNT NBR 6118, Table 11.1). Torsion and crack width (ELS-W) are not
+  checked.
+- **Skin reinforcement is computed only.** Beams taller than 60 cm get their
+  minimum skin bars per span (ABNT NBR 6118, 17.3.5.2.3), listed in the beam
+  report; they are not yet detailed, drawn or counted in the quantities.
 - **Deflection (ELS-DEF)** is checked against the visual acceptability limit
   l/250 only.
 - **One steel and one concrete class per project**, passive reinforcement only
