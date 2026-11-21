@@ -11,6 +11,7 @@ from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.post_processor import detail_beam
+from src.errors import BeamCalculatorError, BeamDesignError, BeamDetailingError
 from src.loading.forces import almost_permanent_combination_els
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
@@ -183,13 +184,20 @@ class ContinuousBeam:
         """Runs structural dimensioning: builds the model, calculates reinforcement, and exports the report.
 
         Raises:
-            ValueError: If the dimensioning fails; the message is prefixed with
-                the beam id, since the calculators' messages do not name it.
+            BeamDesignError: If the beam cannot be designed, with ``beam_id`` set,
+                since the calculators' messages do not name the beam.
+            BeamCalculatorError: Any other engine error, with its type and text kept.
+            ValueError: If a library fails; the message is prefixed with the beam id.
         """
         log_general("Start calculation process...")
         self.detailing = None
         try:
             BeamCalculator(self, pillar_registry).run()
+        except (BeamDesignError, BeamDetailingError) as error:
+            self._name_beam(error)
+            raise
+        except BeamCalculatorError:
+            raise
         except ValueError as error:
             raise ValueError(f"Beam '{self.id}': {error}") from error
         log_element(f"dimensioned {self.width:.0f} x {self.height:.0f} cm")
@@ -203,14 +211,26 @@ class ContinuousBeam:
             The new detailing, also kept in ``detailing``.
 
         Raises:
-            ValueError: If the beam has not been dimensioned or a post-processing step fails; the message is prefixed with the beam id.
+            BeamDetailingError: If a post-processing step fails, with ``beam_id`` set.
+            BeamCalculatorError: Any other engine error, with its type and text kept.
+            ValueError: If a library fails; the message is prefixed with the beam id.
         """
         try:
             self.detailing = detail_beam(self)
+        except (BeamDesignError, BeamDetailingError) as error:
+            self._name_beam(error)
+            raise
+        except BeamCalculatorError:
+            raise
         except ValueError as error:
             raise ValueError(f"Beam '{self.id}': {error}") from error
         log_element(f"detailed with {len(self.detailing.bars)} bar run(s)")
         return self.detailing
+
+    def _name_beam(self, error: BeamDesignError | BeamDetailingError) -> None:
+        """Set this beam as the error's ``beam_id``, unless an inner beam already did"""
+        if error.beam_id is None:
+            error.beam_id = self.id
 
     def report(self, pillar_registry: dict[str, Pillar]) -> str:
         """Describe the beam's final state after dimensioning

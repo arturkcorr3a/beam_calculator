@@ -25,7 +25,8 @@ from types import ModuleType
 import matplotlib.pyplot as plt
 
 from src.config import APP_CONFIG
-from src.drawing.api import DrawingError, save_pavement, show_pavement
+from src.drawing.api import save_pavement, show_pavement
+from src.errors import DrawingError
 from src.examples.simple_example import SimpleExample
 from src.logger import LogLevel, LogOutput, configure_logger
 from src.pavement_elements.pavement import Pavement

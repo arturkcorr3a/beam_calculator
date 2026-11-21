@@ -54,7 +54,6 @@ from src.drawing.sections import section_cuts, sections_block
 from src.drawing.sheet import (
     FORMATS,
     BlockContent,
-    SheetFitError,
     SheetPlacement,
     build_sheet,
     check_materials,
@@ -63,6 +62,7 @@ from src.drawing.sheet import (
     sheet_title,
 )
 from src.drawing.sheet_info import SheetInfo, read_sheet_info
+from src.errors import SheetFitError
 
 logger = logging.getLogger(__name__)
 

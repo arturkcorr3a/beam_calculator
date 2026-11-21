@@ -11,7 +11,7 @@ import pytest
 
 import src.main as runner
 from src.config import APP_CONFIG
-from src.drawing.api import DrawingError
+from src.errors import DrawingError
 from src.examples.simple_example import SimpleExample
 from src.logger import LogLevel, LogOutput
 

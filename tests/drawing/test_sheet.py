@@ -10,7 +10,6 @@ from src.drawing.sheet import (
     BLOCK_WIDTH_MM,
     FORMATS,
     BlockContent,
-    SheetFitError,
     build_block,
     build_sheet,
     check_materials,
@@ -19,6 +18,7 @@ from src.drawing.sheet import (
     sheet_number,
     sheet_title,
 )
+from src.errors import SheetFitError
 from tests.drawing.helpers import close
 
 CONFIG = DrawingConfig()

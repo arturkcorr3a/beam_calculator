@@ -10,6 +10,7 @@ from src.analysis.beam_analysis import BeamAnalysis
 from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.detailing.detailing_beam import DetailingBeam
+from src.errors import BeamDesignError, BeamDetailingError, DesignError
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
@@ -739,6 +740,76 @@ class TestDimension:
             "the calculator's error should be chained as the cause"
         )
 
+    def test_dimension_keeps_engine_error_type(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class _FailingCalc:
+            def __init__(
+                self, beam: ContinuousBeam, registry: dict[str, Pillar]
+            ) -> None:
+                pass
+
+            def run(self) -> None:
+                raise BeamDesignError("No valid reinforcement combination found.")
+
+        monkeypatch.setattr(_cb_module, "BeamCalculator", _FailingCalc)
+        with pytest.raises(BeamDesignError) as raised:
+            horizontal_beam.dimension(registry_horizontal)
+        assert raised.value.beam_id == horizontal_beam.id, (
+            "the engine error should name the beam"
+        )
+        assert str(raised.value) == (
+            f"Beam '{horizontal_beam.id}': No valid reinforcement combination found."
+        ), "the text should match the old prefixed message"
+
+    def test_dimension_keeps_inner_beam_id(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class _FailingCalc:
+            def __init__(
+                self, beam: ContinuousBeam, registry: dict[str, Pillar]
+            ) -> None:
+                pass
+
+            def run(self) -> None:
+                error = BeamDesignError("No valid reinforcement combination found.")
+                error.beam_id = "V99"
+                raise error
+
+        monkeypatch.setattr(_cb_module, "BeamCalculator", _FailingCalc)
+        with pytest.raises(BeamDesignError) as raised:
+            horizontal_beam.dimension(registry_horizontal)
+        assert raised.value.beam_id == "V99", "an inner beam id should be kept"
+
+    def test_dimension_passes_other_engine_errors_unchanged(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class _FailingCalc:
+            def __init__(
+                self, beam: ContinuousBeam, registry: dict[str, Pillar]
+            ) -> None:
+                pass
+
+            def run(self) -> None:
+                raise DesignError("Slab pre-sizing did not converge.")
+
+        monkeypatch.setattr(_cb_module, "BeamCalculator", _FailingCalc)
+        with pytest.raises(DesignError) as raised:
+            horizontal_beam.dimension(registry_horizontal)
+        assert type(raised.value) is DesignError, "the type should be kept"
+        assert str(raised.value) == "Slab pre-sizing did not converge.", (
+            "a non-beam engine error should not be prefixed"
+        )
+
     def test_dimension_drops_previous_detailing(
         self,
         horizontal_beam: ContinuousBeam,
@@ -786,6 +857,19 @@ class TestDetail:
             horizontal_beam.detail()
         assert isinstance(raised.value.__cause__, ValueError), (
             "the builder's error should be chained as the cause"
+        )
+
+    def test_keeps_engine_error_type(
+        self, horizontal_beam: ContinuousBeam, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def detail_beam(beam: ContinuousBeam) -> DetailingBeam:
+            raise BeamDetailingError("Stirrup spacing is too small.")
+
+        monkeypatch.setattr(_cb_module, "detail_beam", detail_beam)
+        with pytest.raises(BeamDetailingError) as raised:
+            horizontal_beam.detail()
+        assert raised.value.beam_id == horizontal_beam.id, (
+            "the engine error should name the beam"
         )
 
 

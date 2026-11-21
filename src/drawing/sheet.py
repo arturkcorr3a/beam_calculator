@@ -32,6 +32,7 @@ from src.drawing.primitives import (
     Text,
     VAlign,
 )
+from src.errors import SheetFitError
 
 logger = logging.getLogger(__name__)
 
@@ -147,10 +148,6 @@ FORMATS = (
     SheetFormat("A0", LANDSCAPE, 1189, 841, 1.0),
 )
 _FIT_TOLERANCE_MM = 1e-6
-
-
-class SheetFitError(ValueError):
-    """The drawing does not fit in the requested sheet"""
 
 
 @dataclass(frozen=True)
