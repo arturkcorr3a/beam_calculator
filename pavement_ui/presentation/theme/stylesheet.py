@@ -52,6 +52,17 @@ QLineEdit, QComboBox {{
     padding: 3px 6px;
     min-height: 20px;
 }}
+QListWidget {{
+    background: {t.SURFACE};
+    border: 1px solid {t.BORDER_INPUT};
+    border-radius: {t.RADIUS_PX}px;
+}}
+QListWidget:focus {{
+    border-color: {t.ACCENT};
+}}
+QListWidget::item:disabled {{
+    color: {t.TEXT_MUTED};
+}}
 QSpinBox, QDoubleSpinBox {{
     background: {t.SURFACE};
     border: 1px solid {t.BORDER_INPUT};
