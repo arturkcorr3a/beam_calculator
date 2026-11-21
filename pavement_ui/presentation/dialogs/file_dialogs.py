@@ -1,4 +1,4 @@
-"""Choose project and isolated beam files to open or save (*.yaml / *.viga.yaml), examples to open, and report files to export (*.pdf)."""
+"""Choose project and isolated beam files to open or save (*.pavement.yaml / *.beam.yaml), examples to open, and report files to export (*.pdf)."""
 
 import sys
 from pathlib import Path
@@ -13,7 +13,7 @@ _SOURCE_EXAMPLES = Path(__file__).parents[3] / "resources" / "examples"
 
 
 def examples_dir() -> Path:
-    """Folder of the example pavement files and template.yaml
+    """Folder of the example pavement and isolated beam files and their templates
 
     The packaged app (PyInstaller sets sys.frozen) has it next to its
     executable; resolve() follows the RPM's /usr/bin link to /opt.
@@ -40,15 +40,18 @@ def ask_example_path(parent: QWidget | None) -> Path | None:
 
 
 def ask_save_path(parent: QWidget | None, current: Path | None) -> Path | None:
-    """Ask where to save; ".yaml" is added when no extension is given. None if cancelled"""
-    start = str(current) if current is not None else ""
-    name, _ = QFileDialog.getSaveFileName(
-        parent, s.SAVE_FILE_TITLE, start, s.FILE_FILTER
+    """Ask where to save a pavement; the name always ends in ".pavement.yaml"
+
+    A plain ".yaml" / ".yml" ending is replaced. None if cancelled.
+    """
+    return _ask_typed_save_path(
+        parent,
+        s.SAVE_FILE_TITLE,
+        current,
+        s.FILE_FILTER,
+        s.FILE_EXTENSION,
+        s.FILE_EXTENSIONS,
     )
-    if not name:
-        return None
-    path = Path(name)
-    return path if path.suffix else path.with_suffix(s.FILE_EXTENSION)
 
 
 def ask_beam_open_path(parent: QWidget | None) -> Path | None:
@@ -60,22 +63,42 @@ def ask_beam_open_path(parent: QWidget | None) -> Path | None:
 
 
 def ask_beam_save_path(parent: QWidget | None, current: Path | None) -> Path | None:
-    """Ask where to save an isolated beam; the name always ends in ".viga.yaml"
+    """Ask where to save an isolated beam; the name always ends in ".beam.yaml"
 
     A plain ".yaml" / ".yml" ending is replaced. None if cancelled.
     """
-    start = str(current) if current is not None else ""
-    name, _ = QFileDialog.getSaveFileName(
-        parent, s.SAVE_BEAM_TITLE, start, s.BEAM_FILE_FILTER
+    return _ask_typed_save_path(
+        parent,
+        s.SAVE_BEAM_TITLE,
+        current,
+        s.BEAM_FILE_FILTER,
+        s.BEAM_FILE_EXTENSION,
+        s.BEAM_FILE_EXTENSIONS,
     )
+
+
+def _ask_typed_save_path(
+    parent: QWidget | None,
+    title: str,
+    current: Path | None,
+    filter_: str,
+    extension: str,
+    extensions: tuple[str, ...],
+) -> Path | None:
+    """Ask where to save; the name always ends in one of extensions
+
+    A plain ".yaml" / ".yml" ending is replaced by extension. None if cancelled.
+    """
+    start = str(current) if current is not None else ""
+    name, _ = QFileDialog.getSaveFileName(parent, title, start, filter_)
     if not name:
         return None
     path = Path(name)
-    if path.name.lower().endswith(s.BEAM_FILE_EXTENSIONS):
+    if path.name.lower().endswith(extensions):
         return path
     if path.suffix.lower() in (".yaml", ".yml"):
         path = path.with_suffix("")
-    return path.with_name(path.name + s.BEAM_FILE_EXTENSION)
+    return path.with_name(path.name + extension)
 
 
 def _ask_export_path(

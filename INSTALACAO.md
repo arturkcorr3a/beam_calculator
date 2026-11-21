@@ -86,13 +86,13 @@ colando o caminho na barra de endereço do Explorador de Arquivos.
 **Ctrl + L**, cole `~/.local/state/beam_calculator/log` e pressione **Enter**.
 A pasta `.local` é oculta; por isso é mais fácil chegar a ela pelo caminho.
 
-Os arquivos de projeto (`.yaml`), os PDFs e os DXFs são salvos onde você
+Os arquivos de projeto (`.pavement.yaml`), os PDFs e os DXFs são salvos onde você
 escolher, nas janelas de salvar e exportar do programa.
 
 ## 4. Pavimentos de exemplo
 
 O programa vem com pavimentos prontos para abrir e um modelo comentado
-(`template.yaml`), que explica cada campo do arquivo de projeto. Para abrir um
+(`template.pavement.yaml`), que explica cada campo do arquivo de projeto. Para abrir um
 deles, use **Arquivo → Abrir exemplo…**. O exemplo abre como projeto sem
 título: ao salvar, o programa pergunta onde gravar a sua cópia, e o original
 não é alterado.

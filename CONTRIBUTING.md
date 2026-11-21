@@ -15,7 +15,7 @@ calculation errors.
 Open an issue with the *Calculation error* form, which asks for:
 
 1. **Input data**: the values you entered or, better, the project file
-   (`.yaml`, saved with *Arquivo → Salvar*) attached to the issue.
+   (`.pavement.yaml`, saved with *Arquivo → Salvar*) attached to the issue.
 2. **Obtained result**: what the program gave, with the element (e.g. beam V3,
    span 2) and, if possible, the relevant part of the calculation log
    (`beam_calculator_<date-time>.log`; see [INSTALACAO.md](INSTALACAO.md) for

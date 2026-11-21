@@ -52,7 +52,7 @@ def _example_class(module_name: str, log: list[str]) -> type[SimpleExample]:
 @pytest.fixture
 def pavements_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Point the runner's pavement folder at a temp dir holding one YAML file"""
-    (tmp_path / "demo.yaml").write_text("", encoding="utf-8")
+    (tmp_path / "demo.pavement.yaml").write_text("", encoding="utf-8")
     monkeypatch.setattr(runner, "PAVEMENTS_DIR", tmp_path)
     return tmp_path
 
@@ -98,15 +98,16 @@ class TestBuildParser:
 class TestResolvePavement:
     """Tests for mapping --load values to files in resources/examples/."""
 
-    def test_adds_yaml_extension(self, pavements_dir: Path) -> None:
-        assert runner.resolve_pavement("demo") == pavements_dir / "demo.yaml", (
-            "A bare name should get the .yaml extension"
-        )
+    def test_adds_pavement_extension(self, pavements_dir: Path) -> None:
+        assert (
+            runner.resolve_pavement("demo") == pavements_dir / "demo.pavement.yaml"
+        ), "A bare name should get the .pavement.yaml extension"
 
-    def test_keeps_yaml_extension(self, pavements_dir: Path) -> None:
-        assert runner.resolve_pavement("demo.yaml") == pavements_dir / "demo.yaml", (
-            "A name with .yaml should be used as-is"
-        )
+    def test_keeps_pavement_extension(self, pavements_dir: Path) -> None:
+        assert (
+            runner.resolve_pavement("demo.pavement.yaml")
+            == pavements_dir / "demo.pavement.yaml"
+        ), "A name with .pavement.yaml should be used as-is"
 
 
 class TestAvailableExamples:
@@ -168,7 +169,9 @@ class TestMain:
             ["--load", "demo", "--log-level", "general", "--log-output", "console"]
         )
 
-        assert loader.calls == [(pavements_dir / "demo.yaml",)], "Should load demo.yaml"
+        assert loader.calls == [(pavements_dir / "demo.pavement.yaml",)], (
+            "Should load demo.pavement.yaml"
+        )
         assert resolved == [True], "The loaded pavement should be resolved"
         assert APP_CONFIG.log_level == LogLevel.GENERAL, "Level should be applied"
         assert APP_CONFIG.log_output == LogOutput.CONSOLE, "Output should be applied"
@@ -187,7 +190,7 @@ class TestMain:
         )
         level, output = APP_CONFIG.log_level, APP_CONFIG.log_output
 
-        runner.main(["--load", "demo.yaml"])
+        runner.main(["--load", "demo.pavement.yaml"])
 
         assert logger_calls.calls == [(level, output)], (
             "Omitted flags should keep the APP_CONFIG log settings"

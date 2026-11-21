@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from pavement_ui.core.model.project_name import project_name
 from pavement_ui.core.ports import DrawingExporter
 from pavement_ui.core.results.beam_result import BeamResult
 from pavement_ui.core.results.outcomes import DesignSuccess
@@ -168,7 +169,7 @@ class ResultsWindow(QWidget):
         success = self._success
         if success is None:
             return
-        name = Path(self._file_name).stem
+        name = project_name(Path(self._file_name))
 
         def write(builder: ReportBuilder) -> None:
             write_pavement_report(builder, success, name)
@@ -185,6 +186,6 @@ class ResultsWindow(QWidget):
             export_bundle(
                 self,
                 self._success,
-                Path(self._file_name).stem,
+                project_name(Path(self._file_name)),
                 self._drawing_exporter,
             )
