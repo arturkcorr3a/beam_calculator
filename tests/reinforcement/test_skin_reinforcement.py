@@ -7,6 +7,7 @@ from typing import cast
 import pytest
 
 from src.calculators.rebar_calculator import RebarCalculator
+from src.errors import SkinReinforcementNoRoomError
 from src.properties.steel import Steel
 from src.reinforcement.skin_reinforcement import SkinReinforcement
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -153,13 +154,23 @@ class TestChooseFor:
         self, skin: SkinReinforcement
     ) -> None:
         """A 2 cm band cannot hold the bars at a spacing of at least 1 cm"""
-        with pytest.raises(ValueError, match="whole-centimeter spacing"):
+        with pytest.raises(
+            SkinReinforcementNoRoomError, match="whole-centimeter spacing"
+        ) as raised:
             skin.choose_for(effective_depth=65.0, bottom_extent=34.0, top_extent=34.0)
+        assert_approx(raised.value.band_height, 2.0, "band left between the bars (cm)")
+        assert raised.value.bars_per_face is not None, (
+            "the error should keep the bars that did not fit"
+        )
 
     def test_no_band_raises(self, skin: SkinReinforcement) -> None:
         """Bars 40 cm from the bottom and 35 cm from the top overlap in a 70 cm web"""
-        with pytest.raises(ValueError, match="No room for skin reinforcement"):
+        with pytest.raises(
+            SkinReinforcementNoRoomError, match="No room for skin reinforcement"
+        ) as raised:
             skin.choose_for(effective_depth=65.0, bottom_extent=40.0, top_extent=35.0)
+        assert_approx(raised.value.band_height, -5.0, "the bars overlap by 5 cm (cm)")
+        assert raised.value.bars_per_face is None, "no bars were tried"
 
 
 class TestChoose:

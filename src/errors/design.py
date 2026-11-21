@@ -167,3 +167,26 @@ class SlabPreSizingDivergedError(DesignError):
         )
         self.passes = passes
         self.slab_ids = slab_ids
+
+
+class SkinReinforcementNoRoomError(BeamDesignError):
+    """The bottom and top bars leave no room for the skin reinforcement on the web
+
+    A taller section is the usual fix.
+
+    Attributes:
+        band_height: Height of the web between the bottom and top bars (cm);
+            zero or negative when they overlap.
+        bars_per_face: Bars per face that did not fit, or None when there is no
+            band at all.
+
+    References:
+        ABNT NBR 6118:2026 — Section 17.3.5.2.3
+    """
+
+    def __init__(
+        self, message: str, *, band_height: float, bars_per_face: int | None = None
+    ) -> None:
+        super().__init__(message)
+        self.band_height = band_height
+        self.bars_per_face = bars_per_face

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from math import ceil, floor
 from typing import TYPE_CHECKING
 
+from src.errors import SkinReinforcementNoRoomError
 from src.logger import log_element, log_operation, logger_label
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -190,7 +191,7 @@ class SkinReinforcement:
             top_extent: Distance from the top face to the inner edge of the last top bars (cm).
 
         Raises:
-            ValueError: If the bottom and top bars leave no band between them, or too little for whole-centimeter spacing.
+            SkinReinforcementNoRoomError: If the bottom and top bars leave no band between them, or too little for whole-centimeter spacing.
 
         References:
             ABNT NBR 6118:2026 — Section 17.3.5.2.3
@@ -200,9 +201,10 @@ class SkinReinforcement:
         band_end = self.beam.height - top_extent  # cm
         band_height = band_end - band_start  # cm
         if band_height <= 0:
-            raise ValueError(
+            raise SkinReinforcementNoRoomError(
                 f"No room for skin reinforcement: the bottom bars ({bottom_extent:.2f} cm) "
-                f"and the top bars ({top_extent:.2f} cm) fill the {self.beam.height:g} cm web."
+                f"and the top bars ({top_extent:.2f} cm) fill the {self.beam.height:g} cm web.",
+                band_height=band_height,
             )
         required_area = self.required_area  # cm²
         options: list[SkinLayout] = []
@@ -226,9 +228,11 @@ class SkinReinforcement:
                 band_end=band_end,
             )
             if layout.edge_gap <= 0:
-                raise ValueError(
+                raise SkinReinforcementNoRoomError(
                     f"No room for skin reinforcement: {bars} bars per face do not fit "
-                    f"in the {band_height:.2f} cm band at whole-centimeter spacing."
+                    f"in the {band_height:.2f} cm band at whole-centimeter spacing.",
+                    band_height=band_height,
+                    bars_per_face=bars,
                 )
             options.append(layout)
         layout = min(

@@ -8,6 +8,7 @@ from src.errors.design import (
     EffectiveDepthDivergedError,
     NoReinforcementLayoutError,
     ReinforcementAreaExceededError,
+    SkinReinforcementNoRoomError,
     SlabDesignError,
     SlabPreSizingDivergedError,
     SlabThicknessExceededError,
@@ -127,3 +128,11 @@ class TestLeafMessages:
         assert str(error) == (
             "Slab pre-sizing did not converge after 3 passes; still resizing: L1, L2."
         ), "the text should match the engine's message"
+
+    def test_skin_reinforcement_no_room(self) -> None:
+        message = "No room for skin reinforcement: 3 bars per face do not fit."
+        error = SkinReinforcementNoRoomError(message, band_height=2.0, bars_per_face=3)
+        assert isinstance(error, BeamDesignError), "it is a beam design error"
+        assert str(error) == message, "the text should be the engine's message"
+        assert error.band_height == 2.0, "the band height should be kept (cm)"
+        assert error.bars_per_face == 3, "the bars that did not fit should be kept"
