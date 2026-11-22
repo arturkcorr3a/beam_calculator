@@ -1,4 +1,4 @@
-"""A slab: the region between its corner pillars, with its ID, usage and lowering."""
+"""A slab: the region out to its supporting beams, with its ID, usage and lowering."""
 
 from collections.abc import Sequence
 

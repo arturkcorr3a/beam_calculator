@@ -37,10 +37,11 @@ class BeamShape:
 
 @dataclass(frozen=True, slots=True)
 class SlabShape:
-    """A slab region between its corner pillar centers
+    """A slab region out to the centerlines of its supporting beams
 
     Attributes:
-        polygon_m: Corners counter-clockwise, or None if a corner pillar is missing.
+        polygon_m: Corners counter-clockwise (an edge without a resolved beam runs
+            through the pillar centers), or None if a corner pillar is missing.
         usage_key: Engine usage description.
         lowered_cm: Lowering below the floor level (cm); 0 when not lowered.
     """
