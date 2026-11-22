@@ -40,7 +40,9 @@ class Table7:
         query = description.lower()
         for material in self.materials:
             if query in material.description.lower():
-                log_property(f"fill material: '{material.description}', avg={material.weight_avg} kN/m³")
+                log_property(
+                    f"fill material: '{material.description}', avg={material.weight_avg} kN/m³"
+                )
                 return material
         raise TableLookupError(
             f"No material matching '{description}' was found.",

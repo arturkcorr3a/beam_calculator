@@ -103,7 +103,9 @@ class Table7:
         for entry in self.entries:
             if math.isclose(lambda_val, entry.aspect_ratio, rel_tol=1e-9):
                 result = entry.get_mu(case)
-                log_property(f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}")
+                log_property(
+                    f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}"
+                )
                 return result
 
         # No exact match — interpolate within [1.0, 2.0) or use infinity entry
@@ -111,9 +113,13 @@ class Table7:
             result = self._interpolate_linear(lambda_val, case)
         else:
             # lambda_val >= 2.0 (or >= 100): behaves as a beam, use the infinity entry.
-            result = next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_mu(case)
+            result = next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_mu(
+                case
+            )
 
-        log_property(f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}")
+        log_property(
+            f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}"
+        )
         return result
 
     def get_mu_x(self, lambda_val: float, case: int) -> float:
@@ -139,7 +145,9 @@ class Table7:
     def _interpolate_linear(self, lambda_val: float, case: int) -> MomentCoefficients:
         """Performs standard linear interpolation between adjacent keys below 2.0."""
         discrete_entries = [e for e in self.entries if not math.isinf(e.aspect_ratio)]
-        entry_lower, entry_upper, t = find_bracket_and_fraction(discrete_entries, lambda_val)
+        entry_lower, entry_upper, t = find_bracket_and_fraction(
+            discrete_entries, lambda_val
+        )
         mu_lower = entry_lower.get_mu(case)
         mu_upper = entry_upper.get_mu(case)
         return MomentCoefficients(

@@ -79,13 +79,11 @@ class TestCrackedSectionMomentOfInertia:
         tension_reinforcement_area_cm2 = 10.0
         modular_ratio = 10.0
         expected_i_ii = 175_326.45827  # cm⁴
-        actual_i_ii = (
-            SectionPropertiesCalculator.cracked_section_moment_of_inertia(
-                width_cm,
-                effective_depth_cm,
-                tension_reinforcement_area_cm2,
-                modular_ratio,
-            )
+        actual_i_ii = SectionPropertiesCalculator.cracked_section_moment_of_inertia(
+            width_cm,
+            effective_depth_cm,
+            tension_reinforcement_area_cm2,
+            modular_ratio,
         )
         assert_approx(
             actual_i_ii,
@@ -102,15 +100,13 @@ class TestCrackedSectionMomentOfInertia:
         compression_reinforcement_area_cm2 = 3.0
         compression_distance_cm = 5.0
         expected_i_ii = 180_318.67793  # cm⁴
-        actual_i_ii = (
-            SectionPropertiesCalculator.cracked_section_moment_of_inertia(
-                width_cm,
-                effective_depth_cm,
-                tension_reinforcement_area_cm2,
-                modular_ratio,
-                compression_reinforcement_area_cm2,
-                compression_distance_cm,
-            )
+        actual_i_ii = SectionPropertiesCalculator.cracked_section_moment_of_inertia(
+            width_cm,
+            effective_depth_cm,
+            tension_reinforcement_area_cm2,
+            modular_ratio,
+            compression_reinforcement_area_cm2,
+            compression_distance_cm,
         )
         assert_approx(
             actual_i_ii,

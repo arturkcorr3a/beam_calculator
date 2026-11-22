@@ -28,7 +28,9 @@ class BuildingCategory:
         query = description.lower()
         for loc in self.locations:
             if query in loc.description.lower():
-                log_property(f"live load for '{description}' = {loc.distributed_load:.2f} kN/m²")
+                log_property(
+                    f"live load for '{description}' = {loc.distributed_load:.2f} kN/m²"
+                )
                 return loc.distributed_load
         raise TableLookupError(
             f"No location matching '{description}' was found.",

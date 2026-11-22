@@ -91,7 +91,9 @@ class Table72:
             result = self._interpolate_linear(lambda_val, case)
         else:
             # lambda_val >= 2.0 (or >= 100): behaves as a beam, use the infinity entry.
-            result = next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_alpha(case)
+            result = next(
+                e for e in self.entries if math.isinf(e.aspect_ratio)
+            ).get_alpha(case)
 
         log_property(f"α(λ={lambda_val:.4f}, case={case}) = {result:.6f}")
         return result

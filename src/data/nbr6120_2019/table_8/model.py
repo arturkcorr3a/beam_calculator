@@ -38,7 +38,9 @@ class Table8:
         query = description.lower()
         for material in self.materials:
             if query in material.description.lower():
-                log_property(f"ceiling/duct material: '{material.description}', weight={material.weight} kN/m²")
+                log_property(
+                    f"ceiling/duct material: '{material.description}', weight={material.weight} kN/m²"
+                )
                 return material
         raise TableLookupError(
             f"No material matching '{description}' was found.",

@@ -108,8 +108,8 @@ def effective_span(
         )
 
     # NOTE the 0.3 * h cap is disabled for now; phrasing on NBR 6118 allows for it to not be applies (can x have to); I am disabling it for now to avoid mismatching between structural beam and real beam
-    a1 = support_width_1 / 2 # min(support_width_1 / 2, 0.3 * height)
-    a2 = support_width_2 / 2 # min(support_width_2 / 2, 0.3 * height)
+    a1 = support_width_1 / 2  # min(support_width_1 / 2, 0.3 * height)
+    a2 = support_width_2 / 2  # min(support_width_2 / 2, 0.3 * height)
     return clear_span + a1 + a2
 
 
