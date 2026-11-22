@@ -78,6 +78,9 @@ def _make_beam_double(
     beam.pre_size = lambda registry: calls.append(f"pre_size:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
     beam.load_spans = lambda: calls.append(f"load_spans:{beam_id}")
     beam.dimension = lambda registry: calls.append(f"dimension:{beam_id}")  # pyright: ignore[reportUnknownLambdaType]
+    beam.dimension_raising_height = lambda registry: calls.append(  # pyright: ignore[reportUnknownLambdaType]
+        f"dimension_raising_height:{beam_id}"
+    )
 
     def detail() -> DetailingBeam:
         calls.append(f"detail:{beam_id}")
@@ -490,9 +493,9 @@ class TestUnloadSlabsOnBeams:
 
 
 class TestDimensionBeams:
-    """dimension_beams invokes beam.dimension on every beam."""
+    """dimension_beams dimensions every beam, raising its height where that helps."""
 
-    def test_calls_dimension_on_all_beams(self) -> None:
+    def test_calls_dimension_raising_height_on_all_beams(self) -> None:
         p = Pavement()
         beam1 = _make_beam_double("VA")
         beam2 = _make_beam_double("VB")
@@ -501,8 +504,12 @@ class TestDimensionBeams:
 
         p.dimension_beams()
 
-        assert "dimension:VA" in beam1.calls, "dimension should be called on beam VA"  # type: ignore[attr-defined]
-        assert "dimension:VB" in beam2.calls, "dimension should be called on beam VB"  # type: ignore[attr-defined]
+        assert beam1.calls == ["dimension_raising_height:VA"], (  # type: ignore[attr-defined]
+            "beam VA should be dimensioned through the height retry"
+        )
+        assert beam2.calls == ["dimension_raising_height:VB"], (  # type: ignore[attr-defined]
+            "beam VB should be dimensioned through the height retry"
+        )
 
 
 class TestDetailBeams:
@@ -675,7 +682,7 @@ class TestResolve:
         beam.resolve_and_validate = lambda r: log.append("resolve_and_validate")  # type: ignore[attr-defined]
         beam.pre_size = lambda r: log.append("pre_size_beam")  # type: ignore[attr-defined]
         beam.load_spans = lambda: log.append("load_spans")  # type: ignore[attr-defined]
-        beam.dimension = lambda r: log.append("dimension")  # type: ignore[attr-defined]
+        beam.dimension_raising_height = lambda r: log.append("dimension")  # type: ignore[attr-defined]
 
         def detail() -> DetailingBeam:
             log.append("detail")

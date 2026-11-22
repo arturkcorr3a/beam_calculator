@@ -160,6 +160,33 @@ class Span:
         if psi_2 is not None:
             self.add_load(component.variable, permanent=False, psi_2=psi_2)
 
+    def replace_component(self, component: LoadComponent) -> None:
+        """Swap the permanent load component of the same kind and source, in place
+
+        The span's permanent load changes by the difference, and the report keeps
+        the component in its original order. Used for the loads that follow the
+        beam height (own weight and wall) when the height changes.
+
+        Args:
+            component: New load; its kind and source_id pick the one replaced.
+
+        Raises:
+            EnginePreconditionError: If the component has a variable part, or if
+                the span has no component of that kind and source.
+        """
+        if component.variable:
+            raise EnginePreconditionError(
+                "Only permanent load components can be replaced."
+            )
+        for index, old in enumerate(self.load_components):
+            if old.kind == component.kind and old.source_id == component.source_id:
+                self.load_components[index] = component
+                self.permanent_load += component.permanent - old.permanent
+                return
+        raise EnginePreconditionError(
+            f"The span has no {component.kind} load to replace."
+        )
+
     def set_stirrups(self, stirrups: Stirrups) -> None:
         """Sets the stirrups for this span."""
         self.stirrups = stirrups

@@ -15,12 +15,19 @@ from src.errors import (
     BeamDetailingError,
     BeamInputError,
     BeamTooNarrowError,
+    DeformationLimitExceededError,
     DesignError,
+    EffectiveDepthDivergedError,
     EnginePreconditionError,
 )
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
-from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
+from src.pavement_elements.continuous_beam import (
+    HEIGHT_RETRY_STEP,
+    ContinuousBeam,
+    HeightRaise,
+    WallDefinition,
+)
 from src.pavement_elements.geometry_utils import Alignment, Axis
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
@@ -865,6 +872,206 @@ class TestDimension:
         )
 
 
+# ---------------------------------------------------------------------------
+# TestDimensionRaisingHeight
+# ---------------------------------------------------------------------------
+
+
+def _deflection_error() -> DeformationLimitExceededError:
+    return DeformationLimitExceededError(
+        position=100.0,
+        immediate_deflection=1.0,
+        long_term_deflection=2.0,
+        acceptable_deflection=1.0,
+    )
+
+
+def _calculator_failing_below(height: float, error: Exception) -> type:
+    """Fake BeamCalculator that raises ``error`` while the beam is lower than ``height``"""
+
+    class _Calc:
+        def __init__(self, beam: ContinuousBeam, registry: dict[str, Pillar]) -> None:
+            self._beam = beam
+
+        def run(self) -> None:
+            if self._beam.height < height:
+                raise error
+
+    return _Calc
+
+
+@pytest.fixture
+def loaded_beam(
+    horizontal_beam: ContinuousBeam,
+    registry_horizontal: dict[str, Pillar],
+    monkeypatch: pytest.MonkeyPatch,
+) -> ContinuousBeam:
+    """Pre-sized horizontal beam with its own weight and wall on the spans"""
+    monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
+    horizontal_beam.resolve_and_validate(registry_horizontal)
+    horizontal_beam.pre_size(registry_horizontal)
+    horizontal_beam.load_spans()
+    return horizontal_beam
+
+
+class TestDimensionRaisingHeight:
+    """dimension_raising_height raises the height while a taller section can help."""
+
+    def test_raises_height_until_the_design_passes(
+        self,
+        loaded_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        start = loaded_beam.height
+        target = start + 2 * HEIGHT_RETRY_STEP
+        monkeypatch.setattr(
+            _cb_module,
+            "BeamCalculator",
+            _calculator_failing_below(target, _deflection_error()),
+        )
+        loaded_beam.dimension_raising_height(registry_horizontal)
+
+        assert loaded_beam.height == target, "the height should stop where it passes"
+        reason = "DeformationLimitExceededError"
+        assert loaded_beam.height_raises == [
+            HeightRaise(start, start + HEIGHT_RETRY_STEP, reason),
+            HeightRaise(start + HEIGHT_RETRY_STEP, target, reason),
+        ], "each raise should be recorded with its reason"
+
+    def test_height_loads_follow_the_new_height(
+        self,
+        loaded_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        target = loaded_beam.height + HEIGHT_RETRY_STEP
+        monkeypatch.setattr(
+            _cb_module,
+            "BeamCalculator",
+            _calculator_failing_below(target, _deflection_error()),
+        )
+        loaded_beam.dimension_raising_height(registry_horizontal)
+
+        own_weight = LinearLoads.get_concrete_element_own_weight(
+            loaded_beam.width / 100 * target / 100
+        )
+        wall_weight = LinearLoads.get_wall_load(
+            *cast(WallDefinition, loaded_beam.wall).get_parameters_for_load(),
+            2.5 - target / 100,
+        )
+        for span in loaded_beam.spans:
+            kinds = [component.kind for component in span.load_components]
+            assert kinds == [LoadKind.OWN_WEIGHT, LoadKind.WALL], (
+                "the loads should be replaced, not added again"
+            )
+            assert_approx(
+                span.load_components[0].permanent, own_weight, "own weight (kN/m)"
+            )
+            assert_approx(span.load_components[1].permanent, wall_weight, "wall (kN/m)")
+            assert_approx(
+                span.permanent_load, own_weight + wall_weight, "permanent total (kN/m)"
+            )
+
+    def test_reraises_at_the_maximum_height(
+        self,
+        loaded_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            _cb_module,
+            "BeamCalculator",
+            _calculator_failing_below(float("inf"), _deflection_error()),
+        )
+        with pytest.raises(DeformationLimitExceededError) as raised:
+            loaded_beam.dimension_raising_height(registry_horizontal)
+
+        max_height = loaded_beam.max_height(registry_horizontal)
+        assert loaded_beam.height <= max_height, "the height should not pass the cap"
+        assert loaded_beam.height + HEIGHT_RETRY_STEP > max_height, (
+            "every step up to the cap should have been tried"
+        )
+        assert loaded_beam.height_raises[-1].to_height == loaded_beam.height, (
+            "the last raise should end at the final height"
+        )
+        assert raised.value.beam_id == loaded_beam.id, "the error should name the beam"
+
+    def test_other_errors_are_not_retried(
+        self,
+        loaded_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        start = loaded_beam.height
+        monkeypatch.setattr(
+            _cb_module,
+            "BeamCalculator",
+            _calculator_failing_below(
+                float("inf"), EffectiveDepthDivergedError(max_iterations=10)
+            ),
+        )
+        with pytest.raises(EffectiveDepthDivergedError):
+            loaded_beam.dimension_raising_height(registry_horizontal)
+        assert loaded_beam.height == start, "the height should be left as it was"
+        assert loaded_beam.height_raises == [], "nothing should be recorded"
+
+    def test_a_new_call_forgets_the_old_raises(
+        self,
+        loaded_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        loaded_beam.height_raises = [HeightRaise(20, 25, "StrutCrushingError")]
+        monkeypatch.setattr(
+            _cb_module,
+            "BeamCalculator",
+            _calculator_failing_below(0.0, _deflection_error()),
+        )
+        loaded_beam.dimension_raising_height(registry_horizontal)
+        assert loaded_beam.height_raises == [], "the old raises should be dropped"
+
+
+class TestMaxHeight:
+    """max_height is the lower of a third of the shortest span and of the ceiling."""
+
+    def test_shortest_span_governs(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 10.0)
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+        shortest = min(
+            span.get_effective_length(registry_horizontal)
+            for span in horizontal_beam.spans
+        )
+        assert_approx(
+            horizontal_beam.max_height(registry_horizontal),
+            shortest / 3,
+            "a third of the shortest effective span (cm)",
+        )
+
+    def test_ceiling_governs(
+        self,
+        horizontal_beam: ContinuousBeam,
+        registry_horizontal: dict[str, Pillar],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(APP_CONFIG, "ceiling_height", 1.5)
+        horizontal_beam.resolve_and_validate(registry_horizontal)
+        assert_approx(
+            horizontal_beam.max_height(registry_horizontal),
+            50.0,
+            "a third of a 1.5 m ceiling (cm)",
+        )
+
+    def test_unresolved_beam_raises(self, horizontal_beam: ContinuousBeam) -> None:
+        with pytest.raises(EnginePreconditionError, match="no spans"):
+            horizontal_beam.max_height({})
+
+
 class TestDetail:
     """detail() keeps the post-processed detailing and names the beam on errors."""
 
@@ -921,6 +1128,11 @@ class TestClearResolved:
         assert horizontal_beam.rebar_calculators == [], (
             "rebar_calculators should be cleared"
         )
+
+    def test_resets_height_raises(self, horizontal_beam: ContinuousBeam) -> None:
+        horizontal_beam.height_raises = [HeightRaise(20, 25, "StrutCrushingError")]
+        horizontal_beam.clear_resolved()
+        assert horizontal_beam.height_raises == [], "height_raises should be cleared"
 
 
 # ---------------------------------------------------------------------------

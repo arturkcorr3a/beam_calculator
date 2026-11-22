@@ -6,6 +6,10 @@ pavimento tipo segundo a ABNT NBR 6118. Você desenha a planta do pavimento
 
 - distribui as cargas das lajes para as vigas (cargas da ABNT NBR 6120);
 - pré-dimensiona lajes e vigas e verifica as flechas de lajes e vigas;
+- aumenta a altura de uma viga do pavimento de 5 em 5 cm quando ela falha
+  numa verificação que uma seção mais alta resolve (flecha, armadura máxima,
+  biela comprimida, arranjo de barras ou de estribos), até um terço do menor
+  vão e do pé-direito;
 - analisa cada viga contínua e dimensiona as armaduras longitudinais, os
   estribos e, nas vigas com mais de 60 cm de altura, a armadura de pele, com
   ancoragem, emendas por traspasse e barras de apoio;

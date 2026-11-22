@@ -108,7 +108,8 @@ class Pavement:
         """
         Main entry point for sizing the pavement. Validates the structure, then
         pre-sizes beams and slabs, transfers slab loads onto beams, dimensions
-        all beams and finally post-processes their bars into the detailing.
+        all beams (raising the height of a beam that fails where that helps) and
+        finally post-processes their bars into the detailing.
         """
         self.validate()
         self.pre_size_beams()
@@ -178,12 +179,13 @@ class Pavement:
             slab.unload_on_supporting_spans(self.pillars)
 
     def dimension_beams(self) -> None:
-        """
-        Dimensions all beams based on the loads applied to their spans.
+        """Dimension every beam, raising a beam's height where a taller section solves a design failure
+
+        See ``ContinuousBeam.dimension_raising_height``.
         """
         log_general("Beams' calculation process starting")
         for beam in self.beams.values():
-            beam.dimension(self.pillars)
+            beam.dimension_raising_height(self.pillars)
 
     def detail_beams(self) -> None:
         """Post-process every dimensioned beam's bars into its detailing, then mark them

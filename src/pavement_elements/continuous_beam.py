@@ -17,8 +17,15 @@ from src.errors import (
     BeamDetailingError,
     BeamInputError,
     BeamTooNarrowError,
+    DeformationLimitExceededError,
     EnginePreconditionError,
+    MaxLayersExceededError,
+    NoReinforcementLayoutError,
+    NoStirrupLayoutError,
+    ReinforcementAreaExceededError,
+    SkinReinforcementNoRoomError,
     SkinSteelError,
+    StrutCrushingError,
     UnknownPillarError,
 )
 from src.loading.forces import almost_permanent_combination_els
@@ -53,6 +60,22 @@ _MIN_BEAM_WIDTH_CM = 12.0  # cm — ABNT NBR 6118 §13.2.2
 
 _MAX_PRE_SIZE_ITERATIONS = 10  # guard for the height ↔ effective span fixed point
 
+HEIGHT_RETRY_STEP = 5  # cm, same step as the pre-sizing rounding
+# ℓ/h below it makes a continuous deep beam — ABNT NBR 6118:2026 §22.4.1
+DEEP_BEAM_SPAN_RATIO = 3
+CEILING_HEIGHT_FRACTION = 1 / 3  # largest share of the ceiling height the beam may take
+
+# Design failures that a taller section solves: the beam is redesigned with more height
+HEIGHT_RETRY_ERRORS = (
+    DeformationLimitExceededError,
+    ReinforcementAreaExceededError,
+    StrutCrushingError,
+    NoReinforcementLayoutError,
+    MaxLayersExceededError,
+    NoStirrupLayoutError,
+    SkinReinforcementNoRoomError,
+)
+
 
 @dataclass
 class WallDefinition:
@@ -67,6 +90,21 @@ class WallDefinition:
             self.nominal_thickness,
             self.coating_thickness,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class HeightRaise:
+    """One height raise of a beam that failed design
+
+    Attributes:
+        from_height: Height that failed (cm).
+        to_height: Height tried next (cm).
+        reason: Class name of the design error that caused the raise.
+    """
+
+    from_height: float
+    to_height: float
+    reason: str
 
 
 @logger_label("{id}")
@@ -100,6 +138,9 @@ class ContinuousBeam:
     detailing: DetailingBeam | None = field(
         default=None, init=False
     )  # bars as built, post-processed from the last dimensioning
+    height_raises: list[HeightRaise] = field(
+        default_factory=list[HeightRaise], init=False
+    )  # raises made by the last dimension_raising_height, in order
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 
@@ -159,6 +200,7 @@ class ContinuousBeam:
         self.analysis = None
         self.rebar_calculators = []
         self.detailing = None
+        self.height_raises = []
 
     # PAPER find reference for this method
     def pre_size(self, pillar_registry: dict[str, Pillar]) -> float:
@@ -213,6 +255,64 @@ class ContinuousBeam:
         except ValueError as error:
             raise ValueError(f"Beam '{self.id}': {error}") from error
         log_element(f"dimensioned {self.width:.0f} x {self.height:.0f} cm")
+
+    def dimension_raising_height(self, pillar_registry: dict[str, Pillar]) -> None:
+        """Dimension the beam, raising its height while a taller section can solve the failure
+
+        On a design error of ``HEIGHT_RETRY_ERRORS`` the height grows by
+        ``HEIGHT_RETRY_STEP``, the loads that follow the height are recomputed and
+        the beam is dimensioned again, up to ``max_height``. Each raise is kept in
+        ``height_raises``.
+
+        Raises:
+            BeamDesignError: The last design error, when the next height would pass
+                ``max_height``, with ``beam_id`` set.
+            BeamCalculatorError: Any other error of ``dimension``, at once.
+        """
+        self.height_raises = []
+        while True:
+            try:
+                self.dimension(pillar_registry)
+                return
+            except HEIGHT_RETRY_ERRORS as error:
+                new_height = self.height + HEIGHT_RETRY_STEP
+                max_height = self.max_height(pillar_registry)
+                if new_height > max_height:
+                    log_operation(
+                        f"{type(error).__name__}: {new_height:.0f} cm passes the beam's "
+                        f"maximum height of {max_height:.2f} cm; the beam fails."
+                    )
+                    raise
+                log_operation(
+                    f"{type(error).__name__}: raising the beam height from "
+                    f"{self.height:.0f} to {new_height:.0f} cm and dimensioning again."
+                )
+                self.height_raises.append(
+                    HeightRaise(self.height, new_height, type(error).__name__)
+                )
+                self.height = new_height
+                self._reload_height_loads()
+
+    def max_height(self, pillar_registry: dict[str, Pillar]) -> float:
+        """Return the greatest height the design may raise the beam to (cm)
+
+        The lower of a third of the shortest effective span, which keeps every
+        span from being a deep beam, and a third of the ceiling height.
+
+        References:
+            ABNT NBR 6118:2026 — Section 22.4.1
+        """
+        if not self.spans:
+            raise EnginePreconditionError(
+                f"Beam '{self.id}' has no spans to bound its height."
+            )
+        shortest_span = min(
+            span.get_effective_length(pillar_registry) for span in self.spans
+        )  # cm
+        return min(
+            shortest_span / DEEP_BEAM_SPAN_RATIO,
+            APP_CONFIG.ceiling_height * 100 * CEILING_HEIGHT_FRACTION,
+        )
 
     def detail(self) -> DetailingBeam:
         """Post-process the dimensioned beam's bars into its detailing (see ``detail_beam``)
@@ -531,6 +631,20 @@ class ContinuousBeam:
 
     def load_spans(self) -> None:
         """Loads all spans based on the loads applied to their supported slabs."""
+        own_weight, wall = self._height_loads()
+        for span in self.spans:
+            span.add_component(own_weight)
+            span.add_component(wall)
+
+    def _reload_height_loads(self) -> None:
+        """Replace the own weight and wall loads of every span after a height change"""
+        own_weight, wall = self._height_loads()
+        for span in self.spans:
+            span.replace_component(own_weight)
+            span.replace_component(wall)
+
+    def _height_loads(self) -> tuple[LoadComponent, LoadComponent]:
+        """Return the own weight and wall loads, which follow the beam height"""
         area_m2 = self.width / 100 * self.height / 100
         own_weight = LinearLoads.get_concrete_element_own_weight(area_m2)  # kN/m
         # Wall occupies the clear height below the beam: ceiling height - beam height.
@@ -543,9 +657,10 @@ class ContinuousBeam:
         log_operation(
             f"Loads: self-weight {own_weight:.2f} kN/m, wall {wall_weight:.2f} kN/m"
         )
-        for span in self.spans:
-            span.add_component(LoadComponent(LoadKind.OWN_WEIGHT, None, own_weight))
-            span.add_component(LoadComponent(LoadKind.WALL, None, wall_weight))
+        return (
+            LoadComponent(LoadKind.OWN_WEIGHT, None, own_weight),
+            LoadComponent(LoadKind.WALL, None, wall_weight),
+        )
 
     def get_most_loaded_span_for_els(self) -> Span:
         """Returns the span with the highest total load (permanent + variable)."""
