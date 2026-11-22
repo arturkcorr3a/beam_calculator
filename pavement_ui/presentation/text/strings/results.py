@@ -27,6 +27,7 @@ SUMMARY_HINT: Final = "Duplo clique numa linha também abre o resultado detalhad
 COL_ID: Final = "ID"
 COL_BW: Final = "bw (cm)"
 COL_H: Final = "h (cm)"
+HEIGHT_RAISED_MARK: Final = "{value} ↑"  # h cell of a beam raised past its pre-sizing
 COL_PILLARS: Final = "Pilares"
 COL_SPAN_COUNT: Final = "Nº de vãos"
 COL_DIMENSIONS: Final = "Dimensões (cm)"

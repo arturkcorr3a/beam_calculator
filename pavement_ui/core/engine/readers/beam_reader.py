@@ -11,7 +11,12 @@ from pavement_ui.core.engine.readers.reinforcement_reader import read_stirrup
 from pavement_ui.core.engine.readers.skin_design_reader import read_skin_design
 from pavement_ui.core.engine.readers.stirrup_design_reader import read_stirrup_design
 from pavement_ui.core.results.beam_design import LoadEntry, LoadSource
-from pavement_ui.core.results.beam_result import BeamResult, SpanResult, SupportMark
+from pavement_ui.core.results.beam_result import (
+    BeamResult,
+    HeightRaiseInfo,
+    SpanResult,
+    SupportMark,
+)
 from pavement_ui.core.results.vector_drawing import VectorDrawing
 from src.analysis.beam_analysis import BeamAnalysis
 from src.drawing.layout import build_beam_drawing
@@ -141,4 +146,8 @@ def read_beam(
         section=section,
         bars=read_bars(beam.detailing) if beam.detailing is not None else (),
         sheet=_sheet(beam, name, sheet_number, sheet_total),
+        height_raises=tuple(
+            HeightRaiseInfo(raise_.from_height, raise_.to_height, raise_.reason)
+            for raise_ in beam.height_raises
+        ),
     )

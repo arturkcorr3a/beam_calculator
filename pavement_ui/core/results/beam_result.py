@@ -34,6 +34,21 @@ class SupportMark:
 
 
 @dataclass(frozen=True, slots=True)
+class HeightRaiseInfo:
+    """One height raise of a pavement beam that failed design at the lower height
+
+    Attributes:
+        from_cm: Height that failed (cm).
+        to_cm: Height tried next (cm).
+        reason: Class name of the engine error that caused the raise.
+    """
+
+    from_cm: float
+    to_cm: float
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class SpanResult:
     """Loads, shear and stirrups of one span
 
@@ -148,6 +163,8 @@ class BeamResult:
         bars: Detailed longitudinal bar runs, in mark order; empty before detailing.
         sheet: Detailing sheet at 1:50 (elevation, bar rows, sections, bar
             schedule, notes and title block); None before detailing.
+        height_raises: Raises of the pre-sized height made to pass the design,
+            in order; empty when the beam passed at its pre-sized height.
     """
 
     beam_id: str
@@ -165,6 +182,12 @@ class BeamResult:
     section: VectorDrawing | None = None
     bars: tuple[BarEntry, ...] = ()
     sheet: VectorDrawing | None = None
+    height_raises: tuple[HeightRaiseInfo, ...] = ()
+
+    @property
+    def pre_sized_height_cm(self) -> float:
+        """Height before any raise (cm)"""
+        return self.height_raises[0].from_cm if self.height_raises else self.height_cm
 
     @property
     def pillar_ids(self) -> tuple[str, ...]:

@@ -18,6 +18,17 @@ FIG_GEOMETRY: Final = (
     "Elevação da viga com os pilares e seção transversal (cotas em cm)."
 )
 ROW_SECTION: Final = "Seção b × h"
+ROW_PRE_SIZED_HEIGHT: Final = "Altura pré-dimensionada"
+HEIGHT_RAISED: Final = "Altura elevada de {from_} para {to} cm: {reason}."
+HEIGHT_RAISE_REASONS: Final[dict[str, str]] = {
+    "DeformationLimitExceededError": "flecha diferida acima do limite (ELS-DEF)",
+    "ReinforcementAreaExceededError": "armadura longitudinal acima da máxima",
+    "StrutCrushingError": "esmagamento da biela comprimida",
+    "NoReinforcementLayoutError": "nenhum arranjo de barras cabe e ancora na seção",
+    "MaxLayersExceededError": "barras exigem mais camadas que o máximo",
+    "NoStirrupLayoutError": "nenhum estribo atende a armadura transversal",
+    "SkinReinforcementNoRoomError": "sem espaço para a armadura de pele",
+}  # by engine error class name; an unknown name is shown as it is
 ROW_PILLARS: Final = "Pilares"
 ROW_COVER: Final = "Cobrimento nominal"
 ROW_CONCRETE: Final = "Concreto"
