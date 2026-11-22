@@ -90,6 +90,45 @@ def _counter_clockwise(points: list[Point]) -> tuple[Point, ...]:
     return tuple(sorted(points, key=lambda p: math.atan2(p[1] - cy, p[0] - cx)))
 
 
+def _edge_coordinate(
+    first: Pillar,
+    second: Pillar,
+    axis_key: str,
+    beams: list[tuple[ContinuousBeam, BeamShape]],
+) -> float:
+    """Where a slab edge is drawn (m): the centerline of the resolved beam on `axis_key`
+    ("X" for a top/bottom edge, "Y" for a left/right one) holding both corner pillars,
+    otherwise the line through the pillar centers."""
+    for beam, shape in beams:
+        if (
+            shape.rect_m is not None
+            and shape.axis_key == axis_key
+            and beam.contains_pillar(first.id)
+            and beam.contains_pillar(second.id)
+        ):
+            x0, y0, x1, y1 = shape.rect_m
+            return (y0 + y1) / 2 if axis_key == "X" else (x0 + x1) / 2
+    centers = (first.y, second.y) if axis_key == "X" else (first.x, second.x)
+    return m_from_cm(sum(centers) / 2)
+
+
+def _slab_polygon(
+    corners: list[Pillar], beams: list[tuple[ContinuousBeam, BeamShape]]
+) -> tuple[Point, ...]:
+    """The slab out to the centerlines of its supporting beams, so it meets the beam
+    bands even when they are aligned to a pillar face instead of its center."""
+    by_height = sorted(corners, key=lambda p: p.y, reverse=True)
+    top_left, top_right = sorted(by_height[:2], key=lambda p: p.x)
+    bottom_left, bottom_right = sorted(by_height[2:], key=lambda p: p.x)
+    y_top = _edge_coordinate(top_left, top_right, "X", beams)
+    y_bottom = _edge_coordinate(bottom_left, bottom_right, "X", beams)
+    x_left = _edge_coordinate(top_left, bottom_left, "Y", beams)
+    x_right = _edge_coordinate(top_right, bottom_right, "Y", beams)
+    return _counter_clockwise(
+        [(x_left, y_top), (x_right, y_top), (x_right, y_bottom), (x_left, y_bottom)]
+    )
+
+
 def read_plan(records: PavementRecords, pavement: Pavement) -> PlanGeometry:
     """Build the plan of the records, using a freshly built, unresolved pavement
 
@@ -98,17 +137,16 @@ def read_plan(records: PavementRecords, pavement: Pavement) -> PlanGeometry:
         pavement: Built from records; its beams are resolved here, one by one.
     """
     pillars = pavement.pillars
+    beams = [(beam, _beam_shape(beam, pillars)) for beam in pavement.beams.values()]
     slabs: list[SlabShape] = []
     for record in records.slabs:
         corners = [pillars[c] for c in record.corner_ids if c in pillars]
         polygon = None
         if len(corners) == 4 == len(record.corner_ids):
-            polygon = _counter_clockwise(
-                [(m_from_cm(p.x), m_from_cm(p.y)) for p in corners]
-            )
+            polygon = _slab_polygon(corners, beams)
         slabs.append(SlabShape(record.id, polygon, record.usage_key, record.lowered_cm))
     return PlanGeometry(
         pillars=tuple(_pillar_shape(r) for r in records.pillars),
-        beams=tuple(_beam_shape(b, pillars) for b in pavement.beams.values()),
+        beams=tuple(shape for _, shape in beams),
         slabs=tuple(slabs),
     )
