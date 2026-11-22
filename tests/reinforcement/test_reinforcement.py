@@ -1,6 +1,7 @@
 """Unit tests for the Reinforcement longitudinal-bar orchestration."""
 
 import types
+from collections.abc import Callable
 from typing import cast
 from unittest.mock import PropertyMock, patch
 
@@ -8,7 +9,11 @@ import pytest
 
 from src.config import APP_CONFIG
 from src.errors import (
+    AnchorageLengthError,
+    BeamCalculatorError,
+    BendPinUndefinedError,
     EnginePreconditionError,
+    HookDoesNotFitError,
     MaxLayersExceededError,
     NoReinforcementLayoutError,
 )
@@ -1141,3 +1146,66 @@ class TestEnforceStaggeredLengths:
         for bar in first.bars:
             assert_approx(bar.left_length, 0.0, "end support side left as it is (cm)")
             assert_approx(bar.right_length, 80.0, "interior side raised (cm)")
+
+
+# ---------------------------------------------------------------------------
+# TestTryLayoutFailures
+# ---------------------------------------------------------------------------
+
+
+def _anchorage_failing_with(error: Exception) -> Callable[[Reinforcement, bool], None]:
+    """Stand-in for _run_anchorage_calculation that always raises ``error``"""
+
+    def run(self: Reinforcement, allow_clamp: bool) -> None:
+        raise error
+
+    return run
+
+
+class TestTryLayoutFailures:
+    """_try_layout rules out an option only for the layout failures it expects."""
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            AnchorageLengthError("Short.", available_length=10.0, required_length=40.0),
+            HookDoesNotFitError(hook_height=20.0, room=10.0),
+            MaxLayersExceededError("Too many layers.", max_layers=3),
+            BendPinUndefinedError(diameter_mm=20),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_expected_failure_rules_out_the_option(
+        self,
+        reinforcement: Reinforcement,
+        monkeypatch: pytest.MonkeyPatch,
+        error: BeamCalculatorError,
+    ) -> None:
+        monkeypatch.setattr(
+            Reinforcement, "_run_anchorage_calculation", _anchorage_failing_with(error)
+        )
+        option = (Rebar(diameter_mm=10, steel=Steel.CA50),) * 2
+        assert not reinforcement._try_layout(option, allow_clamp=False), (  # pyright: ignore[reportPrivateUsage]
+            "the option should be ruled out"
+        )
+        assert all(not layer.bars for layer in reinforcement.chosen_bars), (
+            "the layers should be left empty"
+        )
+
+    @pytest.mark.parametrize(
+        "error",
+        [EnginePreconditionError("Bug."), ValueError("Library failure.")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_other_errors_propagate(
+        self,
+        reinforcement: Reinforcement,
+        monkeypatch: pytest.MonkeyPatch,
+        error: Exception,
+    ) -> None:
+        monkeypatch.setattr(
+            Reinforcement, "_run_anchorage_calculation", _anchorage_failing_with(error)
+        )
+        option = (Rebar(diameter_mm=10, steel=Steel.CA50),) * 2
+        with pytest.raises(type(error), match=str(error)):
+            reinforcement._try_layout(option, allow_clamp=False)  # pyright: ignore[reportPrivateUsage]

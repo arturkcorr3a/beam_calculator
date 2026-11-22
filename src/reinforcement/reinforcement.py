@@ -7,6 +7,8 @@ from typing import cast
 from src.calculators.anchorage_calculator import AnchorageCalculator
 from src.config import APP_CONFIG
 from src.errors import (
+    AnchorageError,
+    BendPinUndefinedError,
     EnginePreconditionError,
     MaxLayersExceededError,
     NoReinforcementLayoutError,
@@ -30,6 +32,9 @@ DEFAULT_STIRRUP_DIAMETER_FOR_D_CALCULATION = 1.0  # cm
 END_SUPPORT_TOLERANCE = 1e-3  # cm
 # Buildable options within this fraction of the smallest buildable area are tied
 AREA_TOLERANCE_RATIO = 0.05
+
+# Failures that rule out one bar combination; any other error is a bug and propagates
+_LAYOUT_FAILURES = (AnchorageError, MaxLayersExceededError, BendPinUndefinedError)
 
 
 @logger_label("Longitudinal Reinforcement - {id}")
@@ -290,6 +295,11 @@ class Reinforcement:
 
         Returns:
             Whether the option fits; on failure the layers are left empty.
+
+        Raises:
+            BeamCalculatorError: Any engine error other than ``_LAYOUT_FAILURES``
+                (the anchorage, layer and bending pin failures), which only rule
+                out this option.
         """
         combo_label = ", ".join(f"{bar.diameter_mm}mm" for bar in option)
         log_iteration(f"Trying reinforcement combination: {combo_label}")
@@ -299,9 +309,9 @@ class Reinforcement:
             self.arrange_bars()
             self._update_layers_y_centroids()
             self._run_anchorage_calculation(allow_clamp)
-        except ValueError:
+        except _LAYOUT_FAILURES as error:
             log_iteration(
-                "Combination failed due to spacing or anchorage constraints. Trying next combination."
+                f"Combination failed ({type(error).__name__}): {error} Trying next combination."
             )
             self.clear_chosen_bars()
             return False
