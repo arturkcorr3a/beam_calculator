@@ -5,6 +5,7 @@ from typing import cast
 
 import pytest
 
+from src.errors import EnginePreconditionError, InputError
 from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
@@ -106,7 +107,9 @@ class TestGetLength:
         p1, p2, _ = pillars
         beam = types.SimpleNamespace(axis=None)
         span = Span(cast(ContinuousBeam, beam), p1.id, p2.id)
-        with pytest.raises(ValueError, match="Invalid axis for length calculation"):
+        with pytest.raises(
+            EnginePreconditionError, match="Invalid axis for length calculation"
+        ):
             span.get_length(registry)
 
 
@@ -234,7 +237,7 @@ class TestAddSupportedSlab:
         slab_c = cast(Slab, types.SimpleNamespace(id="LC", thickness=14))
         x_span.add_supported_slab(slab_a)
         x_span.add_supported_slab(slab_b)
-        with pytest.raises(ValueError, match="already supports two slabs"):
+        with pytest.raises(InputError, match="already supports two slabs"):
             x_span.add_supported_slab(slab_c)
 
 
@@ -268,7 +271,9 @@ class TestGetOtherSupportedSlab:
         x_span.add_supported_slab(slab_a)
         x_span.add_supported_slab(slab_b)
         unknown = cast(Slab, types.SimpleNamespace(id="L99", thickness=10))
-        with pytest.raises(ValueError, match="is not supported by this span"):
+        with pytest.raises(
+            EnginePreconditionError, match="is not supported by this span"
+        ):
             x_span.get_other_supported_slab(unknown)
 
     def test_same_data_different_slab_raises(self, x_span: Span) -> None:
@@ -278,7 +283,9 @@ class TestGetOtherSupportedSlab:
         copy = Slab(("P1", "P2", "P3", "P4"), "Bedrooms", id="L1")
         x_span.add_supported_slab(supported)
         x_span.add_supported_slab(neighbor)
-        with pytest.raises(ValueError, match="is not supported by this span"):
+        with pytest.raises(
+            EnginePreconditionError, match="is not supported by this span"
+        ):
             x_span.get_other_supported_slab(copy)
 
 
@@ -323,7 +330,7 @@ class TestAddLoad:
         assert_approx(x_span.psi_2, 0.0, "a permanent load must not set psi_2")
 
     def test_variable_load_without_psi_2_raises(self, x_span: Span) -> None:
-        with pytest.raises(ValueError, match="psi_2"):
+        with pytest.raises(EnginePreconditionError, match="psi_2"):
             x_span.add_load(5.0, permanent=False)
 
 
@@ -357,6 +364,40 @@ class TestAddComponent:
         assert_approx(x_span.psi_2, 0.3, "psi_2 should be set even for q = 0")
 
     def test_variable_part_without_psi_2_raises(self, x_span: Span) -> None:
-        with pytest.raises(ValueError, match="psi_2"):
+        with pytest.raises(EnginePreconditionError, match="psi_2"):
             x_span.add_component(LoadComponent(LoadKind.SLAB, "L1", 4.0, 1.5))
         assert x_span.load_components == [], "a rejected component is not kept"
+
+
+# ---------------------------------------------------------------------------
+# TestReplaceComponent
+# ---------------------------------------------------------------------------
+
+
+class TestReplaceComponent:
+    """replace_component swaps a permanent load in place and updates the total."""
+
+    def test_swaps_in_place_and_updates_total(self, x_span: Span) -> None:
+        own = LoadComponent(LoadKind.OWN_WEIGHT, None, 2.0)
+        slab = LoadComponent(LoadKind.SLAB, "L1", 4.0, 1.5)
+        wall = LoadComponent(LoadKind.WALL, None, 3.0)
+        x_span.add_component(own)
+        x_span.add_component(slab, psi_2=0.3)
+        x_span.add_component(wall)
+        new_own = LoadComponent(LoadKind.OWN_WEIGHT, None, 2.5)
+        x_span.replace_component(new_own)
+        assert x_span.load_components == [new_own, slab, wall], (
+            "the new component should take the old one's place"
+        )
+        assert_approx(x_span.permanent_load, 9.5, "permanent total (kN/m)")
+        assert_approx(x_span.variable_load, 1.5, "variable total is untouched")
+
+    def test_missing_kind_raises(self, x_span: Span) -> None:
+        x_span.add_component(LoadComponent(LoadKind.OWN_WEIGHT, None, 2.0))
+        with pytest.raises(EnginePreconditionError, match="no wall load"):
+            x_span.replace_component(LoadComponent(LoadKind.WALL, None, 3.0))
+
+    def test_variable_part_raises(self, x_span: Span) -> None:
+        x_span.add_component(LoadComponent(LoadKind.SLAB, "L1", 4.0, 1.5), psi_2=0.3)
+        with pytest.raises(EnginePreconditionError, match="permanent"):
+            x_span.replace_component(LoadComponent(LoadKind.SLAB, "L1", 4.0, 2.0))

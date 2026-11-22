@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from src.errors import UnknownNameError
+
 CONTINUOUS = "CONTINUOUS"
 AXIS_LINETYPE = "EIXO"
 DASHED_LINETYPE = "TRACEJADA"
@@ -108,9 +110,9 @@ def layer_style(name: str) -> LayerStyle:
     """Return the style of a layer
 
     Raises:
-        KeyError: If the layer is not in the table.
+        UnknownNameError: If the layer is not in the table.
     """
     try:
         return LAYERS[name]
     except KeyError:
-        raise KeyError(f"Unknown drawing layer '{name}'.") from None
+        raise UnknownNameError(f"Unknown drawing layer '{name}'.", name=name) from None

@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 
 from src.data.carvalho.utils import find_bracket_and_fraction
+from src.errors import EnginePreconditionError
 from src.logger import log_property, logger_label
 from src.pavement_elements.slab_edge import Edges, SupportCondition
 
@@ -31,7 +32,7 @@ class SlabMomentEntry:
     def get_mu(self, case: int) -> MomentCoefficients:
         """Return the moment coefficients (mu_x, mu_y) for the specified case (1 to 9)."""
         if case not in range(1, 10):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Invalid case: {case}. Must be an integer between 1 and 9."
             )
         result = self.cases[case - 1]
@@ -94,7 +95,7 @@ class Table7:
             MomentCoefficients with the interpolated mu_x and mu_y values.
 
         Raises:
-            ValueError: If case is not in [1, 9] or lambda_val < 1.0.
+            EnginePreconditionError: If case is not in [1, 9] or lambda_val < 1.0.
         """
         self._validate_inputs(lambda_val, case)
 
@@ -102,7 +103,9 @@ class Table7:
         for entry in self.entries:
             if math.isclose(lambda_val, entry.aspect_ratio, rel_tol=1e-9):
                 result = entry.get_mu(case)
-                log_property(f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}")
+                log_property(
+                    f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}"
+                )
                 return result
 
         # No exact match — interpolate within [1.0, 2.0) or use infinity entry
@@ -110,9 +113,13 @@ class Table7:
             result = self._interpolate_linear(lambda_val, case)
         else:
             # lambda_val >= 2.0 (or >= 100): behaves as a beam, use the infinity entry.
-            result = next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_mu(case)
+            result = next(e for e in self.entries if math.isinf(e.aspect_ratio)).get_mu(
+                case
+            )
 
-        log_property(f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}")
+        log_property(
+            f"μ(λ={lambda_val:.4f}, case={case}) = mu_x={result.mu_x:.6f}, mu_y={result.mu_y:.6f}"
+        )
         return result
 
     def get_mu_x(self, lambda_val: float, case: int) -> float:
@@ -126,11 +133,11 @@ class Table7:
     def _validate_inputs(self, lambda_val: float, case: int) -> None:
         """Helper to validate constraints on input parameters."""
         if case not in range(1, 10):
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Invalid case: {case}. Must be an integer between 1 and 9."
             )
         if lambda_val < 1.0:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Invalid aspect ratio (lambda) = {lambda_val:.3f}. "
                 "Aspect ratio (ly/lx) must be >= 1.0. Verify your span assignments (ly >= lx)."
             )
@@ -138,7 +145,9 @@ class Table7:
     def _interpolate_linear(self, lambda_val: float, case: int) -> MomentCoefficients:
         """Performs standard linear interpolation between adjacent keys below 2.0."""
         discrete_entries = [e for e in self.entries if not math.isinf(e.aspect_ratio)]
-        entry_lower, entry_upper, t = find_bracket_and_fraction(discrete_entries, lambda_val)
+        entry_lower, entry_upper, t = find_bracket_and_fraction(
+            discrete_entries, lambda_val
+        )
         mu_lower = entry_lower.get_mu(case)
         mu_upper = entry_upper.get_mu(case)
         return MomentCoefficients(
@@ -212,6 +221,6 @@ class Table7:
         if num_fixed == 4:
             return 9
 
-        raise ValueError(
+        raise EnginePreconditionError(
             f"Could not determine Table 7 case from support conditions: {support_conditions}"
         )

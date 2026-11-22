@@ -3,6 +3,7 @@
 import math
 from dataclasses import dataclass
 
+from src.errors import TableLookupError
 from src.logger import log_property, logger_label
 
 THICKNESS_TOLERANCE_CM = 1e-9  # cm — absorbs float drift from unit conversions
@@ -26,13 +27,17 @@ class Thickness:
             2: self.two_cm,
         }
         if coating_cm not in mapping:
-            raise ValueError(
-                f"Coating thickness must be 0, 1, or 2 cm. Got: {coating_cm}"
+            raise TableLookupError(
+                f"Coating thickness must be 0, 1, or 2 cm. Got: {coating_cm}",
+                table="ABNT NBR 6120:2019 — Table 2",
+                value=coating_cm,
             )
         weight = mapping[coating_cm]
         if weight is None:
-            raise ValueError(
-                f"Weight for coating thickness {coating_cm} cm is not defined for nominal thickness {self.nominal_cm} cm."
+            raise TableLookupError(
+                f"Weight for coating thickness {coating_cm} cm is not defined for nominal thickness {self.nominal_cm} cm.",
+                table="ABNT NBR 6120:2019 — Table 2",
+                value=coating_cm,
             )
         log_property(f"masonry weight({coating_cm} cm coating) = {weight:.2f} kN/m²")
         return weight
@@ -56,8 +61,10 @@ class MasonryType:
                     f"'{self.type_description}' @ {nominal_cm} cm nominal → found"
                 )
                 return thickness
-        raise ValueError(
-            f"Nominal thickness {nominal_cm} cm not found for '{self.type_description}'"
+        raise TableLookupError(
+            f"Nominal thickness {nominal_cm} cm not found for '{self.type_description}'",
+            table="ABNT NBR 6120:2019 — Table 2",
+            value=nominal_cm,
         )
 
 
@@ -89,4 +96,8 @@ class Table2:
             if query in masonry.type_description.lower():
                 log_property(f"masonry: '{masonry.type_description}'")
                 return masonry
-        raise KeyError(f"No masonry type matching '{description}' was found.")
+        raise TableLookupError(
+            f"No masonry type matching '{description}' was found.",
+            table="ABNT NBR 6120:2019 — Table 2",
+            value=description,
+        )

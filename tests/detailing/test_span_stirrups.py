@@ -3,6 +3,7 @@
 import pytest
 
 from src.detailing.span_stirrups import SpanStirrups
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import StirrupZone
 
@@ -65,17 +66,17 @@ class TestValidation:
     """Zones must exist, have length and touch each other."""
 
     def test_no_zones_raise(self) -> None:
-        with pytest.raises(ValueError, match="at least one zone"):
+        with pytest.raises(EnginePreconditionError, match="at least one zone"):
             _stirrups()
 
     def test_zone_without_length_raises(self) -> None:
-        with pytest.raises(ValueError, match="must end after it starts"):
+        with pytest.raises(EnginePreconditionError, match="must end after it starts"):
             _stirrups(StirrupZone(60.0, 60.0, 12.0))
 
     def test_gap_between_zones_raises(self) -> None:
-        with pytest.raises(ValueError, match="must touch"):
+        with pytest.raises(EnginePreconditionError, match="must touch"):
             _stirrups(StirrupZone(10.0, 60.0, 12.0), StirrupZone(61.0, 235.0, 24.0))
 
     def test_overlapping_zones_raise(self) -> None:
-        with pytest.raises(ValueError, match="must touch"):
+        with pytest.raises(EnginePreconditionError, match="must touch"):
             _stirrups(StirrupZone(10.0, 60.0, 12.0), StirrupZone(55.0, 235.0, 24.0))

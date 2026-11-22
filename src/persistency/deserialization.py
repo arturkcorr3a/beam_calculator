@@ -8,6 +8,7 @@ from typing import cast
 
 from src.config import AppConfig
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
+from src.errors import MalformedFileError
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
 from src.pavement_elements.pavement import Pavement
@@ -49,10 +50,10 @@ def _require[T](
         The value stored at key, typed as T.
 
     Raises:
-        ValueError: If key is missing from data.
+        MalformedFileError: If key is missing from data.
     """
     if key not in data:
-        raise ValueError(f"malformed pavement file: missing '{key}' in {context}")
+        raise MalformedFileError(f"missing '{key}' in {context}")
     return cast(T, data[key])
 
 
@@ -77,15 +78,13 @@ def _parse_enum[E: Enum](
         The enum member matching the stored value.
 
     Raises:
-        ValueError: If key is missing from data or its value matches no member.
+        MalformedFileError: If key is missing from data or its value matches no member.
     """
     raw = _require(data, key, context, object)
     try:
         return enum_type[str(raw)] if by_name else enum_type(raw)
     except KeyError, ValueError:
-        raise ValueError(
-            f"malformed pavement file: invalid {key} '{raw}' in {context}"
-        ) from None
+        raise MalformedFileError(f"invalid {key} '{raw}' in {context}") from None
 
 
 def _wall_from_dict(data: WallDict | None) -> WallDefinition | None:
@@ -98,13 +97,13 @@ def _wall_from_dict(data: WallDict | None) -> WallDefinition | None:
         The reconstructed wall definition, or None without a wall.
 
     Raises:
-        ValueError: If a required key is missing or the removed 'structural' key is present.
+        MalformedFileError: If a required key is missing or the removed 'structural' key is present.
     """
     if data is None:
         return None
     if "structural" in data:
-        raise ValueError(
-            f"malformed pavement file: 'structural' in {WALL_CONTEXT} is no longer supported (structural masonry was removed)"
+        raise MalformedFileError(
+            f"'structural' in {WALL_CONTEXT} is no longer supported (structural masonry was removed)"
         )
     return WallDefinition(
         masonry_type=_require(data, "masonry_type", WALL_CONTEXT, str),
@@ -126,7 +125,7 @@ def _pillar_from_dict(data: PillarDict) -> Pillar:
         The reconstructed pillar.
 
     Raises:
-        ValueError: If a required key is missing.
+        MalformedFileError: If a required key is missing.
     """
     return Pillar(
         x=_require(data, "x", PILLAR_CONTEXT, float),
@@ -150,7 +149,7 @@ def _beam_from_dict(data: BeamDict, remap: Callable[[str], str]) -> ContinuousBe
         The reconstructed continuous beam.
 
     Raises:
-        ValueError: If a required key is missing, the alignment is invalid, or a pillar reference is unknown.
+        MalformedFileError: If a required key is missing, the alignment is invalid, or a pillar reference is unknown.
     """
     wall = _wall_from_dict(
         cast(WallDict | None, _require(data, "wall", BEAM_CONTEXT, object))
@@ -160,8 +159,8 @@ def _beam_from_dict(data: BeamDict, remap: Callable[[str], str]) -> ContinuousBe
     try:
         alignment = Alignment(alignment_value)
     except ValueError:
-        raise ValueError(
-            f"malformed pavement file: invalid beam alignment '{alignment_value}'"
+        raise MalformedFileError(
+            f"invalid beam alignment '{alignment_value}'"
         ) from None
 
     return ContinuousBeam(
@@ -193,7 +192,7 @@ def _slab_from_dict(data: SlabDict, remap: Callable[[str], str]) -> Slab:
         lowered key (older files) defaults to 0 cm.
 
     Raises:
-        ValueError: If a required key is missing or a pillar reference is unknown.
+        MalformedFileError: If a required key is missing or a pillar reference is unknown.
     """
     corners = tuple(
         remap(pid)
@@ -222,7 +221,7 @@ def pavement_from_dict(data: PavementDict) -> Pavement:
         The reconstructed, unresolved pavement.
 
     Raises:
-        ValueError: If a required key is missing, an enum value is invalid, or a beam/slab references an unknown pillar.
+        MalformedFileError: If a required key is missing, an enum value is invalid, or a beam/slab references an unknown pillar.
     """
     pavement = Pavement()
     id_map: dict[str, str] = {}  # saved pillar id -> newly generated pillar id
@@ -245,14 +244,12 @@ def pavement_from_dict(data: PavementDict) -> Pavement:
             The id of the freshly reconstructed pillar.
 
         Raises:
-            ValueError: If old_id was not among the file's pillars.
+            MalformedFileError: If old_id was not among the file's pillars.
         """
         try:
             return id_map[old_id]
         except KeyError:
-            raise ValueError(
-                f"malformed pavement file: references unknown pillar '{old_id}'"
-            ) from None
+            raise MalformedFileError(f"references unknown pillar '{old_id}'") from None
 
     for beam_data in cast(
         list[BeamDict], _require(data, "beams", DOCUMENT_CONTEXT, list)
@@ -277,7 +274,7 @@ def config_from_dict(data: ConfigDict) -> AppConfig:
         The reconstructed AppConfig.
 
     Raises:
-        ValueError: If a required key is missing or a choice field holds an
+        MalformedFileError: If a required key is missing or a choice field holds an
             unknown option.
     """
     return AppConfig(

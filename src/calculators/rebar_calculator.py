@@ -9,6 +9,7 @@ from src.calculators.layout_selection import (
     select_layout,
 )
 from src.config import APP_CONFIG
+from src.errors import EnginePreconditionError, ReinforcementAreaExceededError
 from src.loading.forces import (
     design_effort_elu,
     max_design_bending_moment,
@@ -271,15 +272,20 @@ class RebarCalculator:
     def calculate_and_set_required_tensioned_rebar_area(self) -> None:
         """
         Calculate the required rebar area for a rectangular beam, ensuring it falls within the allowable limits.
+
+        Raises:
+            ReinforcementAreaExceededError: If the tension plus compression area exceeds the section's maximum.
         """
         self.tensioned_rebar_area = max(
             self.tensioned_rebar_area, self.min_tension_rebar_area
         )
         total_area = self.tensioned_rebar_area + self.compressed_rebar_area
         if total_area > self.max_rebar_area:
-            error_message = f"Required rebar area ({total_area:.3f} cm²) exceeds maximum allowable limit ({self.max_rebar_area:.3f} cm²)."
-            log_operation(error_message)
-            raise ValueError(error_message)
+            error = ReinforcementAreaExceededError(
+                required_area=total_area, max_area=self.max_rebar_area
+            )
+            log_operation(error.message)
+            raise error
 
     @property
     def min_tension_rebar_area(self) -> float:
@@ -469,7 +475,7 @@ class RebarCalculator:
             Effective covering (cm).
 
         Raises:
-            ValueError: If the reinforcement is chosen but its first layer has
+            EnginePreconditionError: If the reinforcement is chosen but its first layer has
                 no bars.
         """
         if not reinforcement.is_chosen:
@@ -477,7 +483,7 @@ class RebarCalculator:
 
         first_layer = reinforcement.chosen_bars[0]
         if not first_layer.bars:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"{kind} reinforcement is marked chosen, but no bars have been set in the first layer. Cannot calculate effective depth ({depth_name})."
             )
         covering = reinforcement.effective_covering()  # cm

@@ -3,6 +3,7 @@
 import pytest
 
 from src.data.sinapi_2026_10.steel_prices.data import STEEL_PRICES
+from src.errors import SteelPriceNotFoundError
 from src.properties.steel import Steel
 
 
@@ -53,7 +54,7 @@ class TestPriceFor:
         [(Steel.CA50, 22.0), (Steel.CA50, 40.0), (Steel.CA60, 10.0)],
     )
     def test_unpriced_diameter_raises(self, steel: Steel, diameter_mm: float) -> None:
-        with pytest.raises(ValueError, match="No SINAPI price"):
+        with pytest.raises(SteelPriceNotFoundError, match="No SINAPI price"):
             STEEL_PRICES.price_for(steel, diameter_mm)
 
 

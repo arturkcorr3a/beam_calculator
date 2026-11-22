@@ -8,6 +8,12 @@ from src.checkers.deformation_check_result import DeformationCheckResult
 from src.checkers.slab_deformation_checker import SlabDeformationChecker
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.errors import (
+    SlabInputError,
+    SlabLoweredTooMuchError,
+    SlabThicknessExceededError,
+    UnknownPillarError,
+)
 from src.loading.superficial_loads import SuperficialLoads
 from src.logger import (
     log_element,
@@ -160,22 +166,26 @@ class Slab(metaclass=_SlabMeta):
 
     def _validate_lowered_not_negative(self) -> None:
         if self.lowered < 0:
-            raise ValueError(
-                f"Slab '{self.id}': lowered must be >= 0 cm, got {self.lowered}."
+            raise SlabInputError(
+                f"Slab '{self.id}': lowered must be >= 0 cm, got {self.lowered}.",
+                slab_id=self.id,
             )
 
     def validate_lowered(self) -> None:
         """Check that the lowering fits within the shortest supporting beam
 
         Raises:
-            ValueError: If lowered exceeds max_lowered.
+            SlabLoweredTooMuchError: If lowered exceeds max_lowered.
         """
         if self.lowered > self.max_lowered:
             beam = self._shortest_supporting_beam()
-            raise ValueError(
-                f"Slab '{self.id}' is lowered {self.lowered} cm, but the maximum is "
-                f"{self.max_lowered:.0f} cm (beam '{beam.id}' height {beam.height:.0f} cm "
-                f"minus slab thickness {self.thickness} cm)."
+            raise SlabLoweredTooMuchError(
+                slab_id=self.id,
+                lowered=self.lowered,
+                max_lowered=self.max_lowered,
+                beam_id=beam.id,
+                beam_height=beam.height,
+                thickness=self.thickness,
             )
 
     def resolve_support_conditions(self, pillar_registry: dict[str, Pillar]) -> None:
@@ -252,7 +262,9 @@ class Slab(metaclass=_SlabMeta):
 
     def _validate_pillar_count(self) -> None:
         if len(self.corner_pillar_ids) != 4:
-            raise ValueError(f"Slab '{self.id}' must have exactly 4 corner pillars.")
+            raise SlabInputError(
+                f"Slab '{self.id}' must have exactly 4 corner pillars.", slab_id=self.id
+            )
 
     def pre_size(self, pillar_registry: dict[str, Pillar]) -> bool:
         """Set the slab's thickness to the minimum value that passes ELS-DEF verification.
@@ -289,8 +301,8 @@ class Slab(metaclass=_SlabMeta):
             log_iteration(f"h = {self.thickness} cm: fail")
             self.thickness += 1
             if self.thickness > self.max_thickness:
-                raise ValueError(
-                    f"Slab '{self.id}' cannot be stabilized; required thickness exceeds {self.max_thickness} cm."
+                raise SlabThicknessExceededError(
+                    slab_id=self.id, max_thickness=self.max_thickness
                 )
             # The effective spans depend on the thickness (0.3 h cap)
             checker.lx, checker.ly = self.effective_dimensions
@@ -576,8 +588,8 @@ class Slab(metaclass=_SlabMeta):
         """Ensures all pillar_ids exist in the provided pillar_registry."""
         for pillar_id in self.corner_pillar_ids:
             if pillar_id not in pillar_registry:
-                raise ValueError(
-                    f"Slab '{self.id}': pillar '{pillar_id}' does not exist in the registry."
+                raise UnknownPillarError(
+                    owner_kind="Slab", owner_id=self.id, pillar_id=pillar_id
                 )
 
     def _map_pillars_to_corners(self, pillar_registry: dict[str, Pillar]) -> None:
@@ -607,9 +619,9 @@ class Slab(metaclass=_SlabMeta):
         """Find the beam (and respective spans) that supports a given edge of the slab
 
         Raises:
-            ValueError: If no beam contains both corner pillars of the edge, or
-                if the beam has no span between them (e.g. both corners are the
-                same pillar).
+            SlabInputError: If no beam contains both corner pillars of the edge,
+                or if the beam has no span between them (e.g. both corners are
+                the same pillar).
         """
         corner_1, corner_2 = CORNER_EDGE_DICT[edge]
         corner_pillar_1 = self.corners_pillar_dict[corner_1]
@@ -621,14 +633,16 @@ class Slab(metaclass=_SlabMeta):
             ):
                 spans = beam.get_spans_between(corner_pillar_1.id, corner_pillar_2.id)
                 if not spans:
-                    raise ValueError(
-                        f"Slab '{self.id}': {edge.value} edge has no span between pillars '{corner_pillar_1.id}' and '{corner_pillar_2.id}' on beam '{beam.id}'."
+                    raise SlabInputError(
+                        f"Slab '{self.id}': {edge.value} edge has no span between pillars '{corner_pillar_1.id}' and '{corner_pillar_2.id}' on beam '{beam.id}'.",
+                        slab_id=self.id,
                     )
                 self.edges[edge].resolve_beam(beam)
                 self.edges[edge].resolve_spans(spans)
                 return beam
-        raise ValueError(
-            f"Slab '{self.id}': No valid beam found for {edge.value} edge."
+        raise SlabInputError(
+            f"Slab '{self.id}': No valid beam found for {edge.value} edge.",
+            slab_id=self.id,
         )
 
     def _add_slab_to_spans(self) -> None:

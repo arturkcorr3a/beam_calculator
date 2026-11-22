@@ -15,14 +15,11 @@ from src.drawing.layout import build_beam_drawing
 from src.drawing.render_dxf import write_dxf
 from src.drawing.render_mpl import make_figure
 from src.drawing.sheet_info import read_sheet_info
+from src.errors import DrawingError
 from src.pavement_elements.pavement import Pavement
 
 MISSING_MARKS = "Detalhamento sem posições: rode pavement.resolve() antes de desenhar."
 PNG_DPI = 200
-
-
-class DrawingError(ValueError):
-    """The beam or pavement cannot be drawn as it is"""
 
 
 def check_detailing(detailing: DetailingBeam) -> None:

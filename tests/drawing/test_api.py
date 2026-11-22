@@ -9,13 +9,13 @@ import pytest
 
 from src.detailing.detailing_beam import DetailingBeam
 from src.drawing.api import (
-    DrawingError,
     beam_figure,
     export_beam_dxf,
     pavement_figures,
     save_pavement,
     show_beam,
 )
+from src.errors import DrawingError
 from tests.drawing.helpers import fake_pavement, read_dxf
 
 

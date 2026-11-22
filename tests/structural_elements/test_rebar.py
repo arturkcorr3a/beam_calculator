@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.errors import InputError
 from src.properties.steel import Steel
 from src.structural_elements.rebar import HookGeometry, Rebar
 from tests.helpers import assert_approx
@@ -21,7 +22,7 @@ class TestPostInit:
         assert rebar.diameter_mm == 10, "A 10 mm bar is available for CA50"
 
     def test_invalid_diameter_raises(self) -> None:
-        with pytest.raises(ValueError, match="not available"):
+        with pytest.raises(InputError, match="not available"):
             Rebar(diameter_mm=7.5, steel=Steel.CA50)
 
 

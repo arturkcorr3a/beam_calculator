@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from src.errors import EnginePreconditionError, SupportBarsShortError
 from src.logger import log_operation, log_property
 from src.reinforcement.reinforcement import END_SUPPORT_TOLERANCE, Reinforcement
 
@@ -63,7 +64,8 @@ def carry_span_bars_to_supports(
         spans: The beam's spans, left to right.
 
     Raises:
-        ValueError: If a span's layers cannot reach the share even when all are extended, or propagated from the anchorage inside a support.
+        SupportBarsShortError: If a span's layers cannot reach the share even when all are extended.
+        AnchorageError: Propagated from the anchorage inside a support.
 
     References:
         ABNT NBR 6118:2026 — Sections 18.3.2.4-c and 18.3.2.4.1
@@ -101,10 +103,11 @@ def _carry_to_support(
     """Extend the reinforcement's layers into one support, in order, until the share is met
 
     Raises:
-        ValueError: If the required area is not set, or the share is not met even with every layer extended.
+        EnginePreconditionError: If the required area is not set.
+        SupportBarsShortError: If the share is not met even with every layer extended.
     """
     if reinforcement.required_area is None or reinforcement.span_moment is None:
-        raise ValueError(
+        raise EnginePreconditionError(
             f"Reinforcement at {reinforcement.center_position:.2f} cm has no required area or span moment."
         )
     support_moment = reinforcement.support_moment(support_index)  # kN.m
@@ -144,6 +147,11 @@ def _carry_to_support(
         carried += reinforcement.chosen_bars[index].area
 
     if carried < required:
-        error_message = f"Bars carried to support {support_index} ({carried:.3f} cm²) are below {share:.3f} of the span's area ({required:.3f} cm²)."
-        log_operation(error_message)
-        raise ValueError(error_message)
+        error = SupportBarsShortError(
+            support_index=support_index,
+            carried_area=carried,
+            share=share,
+            required_area=required,
+        )
+        log_operation(error.message)
+        raise error

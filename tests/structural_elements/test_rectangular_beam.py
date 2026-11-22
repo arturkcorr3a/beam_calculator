@@ -4,6 +4,7 @@ import pytest
 
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.errors import BeamTooNarrowError, EnginePreconditionError, InputError
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import RectangularBeam
@@ -50,7 +51,7 @@ class TestValidateWidth:
     """Tests for the ABNT NBR 6118 minimum beam width enforcement."""
 
     def test_below_minimum_raises(self) -> None:
-        with pytest.raises(ValueError, match="at least 12.0 cm"):
+        with pytest.raises(BeamTooNarrowError, match="at least 12.0 cm"):
             RectangularBeam(
                 length=500.0,
                 width=10.0,
@@ -100,7 +101,7 @@ class TestSupports:
         assert centers == [0.0, 300.0, 600.0], "Supports should be stored as given"
 
     def test_overlapping_supports_raise(self) -> None:
-        with pytest.raises(ValueError, match="without overlapping"):
+        with pytest.raises(InputError, match="without overlapping"):
             RectangularBeam(
                 length=500.0,
                 width=20.0,
@@ -113,7 +114,7 @@ class TestSupports:
             )
 
     def test_unordered_supports_raise(self) -> None:
-        with pytest.raises(ValueError, match="without overlapping"):
+        with pytest.raises(InputError, match="without overlapping"):
             RectangularBeam(
                 length=500.0,
                 width=20.0,
@@ -158,13 +159,17 @@ class TestGetSupportFace:
     def test_no_face_to_the_left_raises(
         self, three_support_beam: RectangularBeam
     ) -> None:
-        with pytest.raises(ValueError, match="No support face to the left"):
+        with pytest.raises(
+            EnginePreconditionError, match="No support face to the left"
+        ):
             three_support_beam.get_support_face(-20.0, left=True)
 
     def test_no_face_to_the_right_raises(
         self, three_support_beam: RectangularBeam
     ) -> None:
-        with pytest.raises(ValueError, match="No support face to the right"):
+        with pytest.raises(
+            EnginePreconditionError, match="No support face to the right"
+        ):
             three_support_beam.get_support_face(620.0, left=False)
 
 

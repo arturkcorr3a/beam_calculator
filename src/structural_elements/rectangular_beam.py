@@ -3,6 +3,7 @@ from typing import assert_never
 
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.errors import BeamTooNarrowError, EnginePreconditionError, InputError
 from src.logger import log_element, logger_label
 from src.properties.section_properties_calculator import SectionPropertiesCalculator
 from src.properties.steel import Steel
@@ -70,7 +71,8 @@ class RectangularBeam(metaclass=_BeamMeta):
                 to zero-width supports at both ends (0 and ``length``).
 
         Raises:
-            ValueError: If the supports are out of order or overlap.
+            BeamTooNarrowError: If width is below 12 cm.
+            InputError: If the supports are out of order or overlap.
         """
         self.label = label
         self.width = width
@@ -93,27 +95,24 @@ class RectangularBeam(metaclass=_BeamMeta):
         """Enforce ABNT NBR 6118 minimum beam width requirement.
 
         Raises:
-            ValueError: If width is below 12 cm.
+            BeamTooNarrowError: If width is below 12 cm.
 
         References:
             ABNT NBR 6118:2014 — Section 13.2.2
         """
         if self.width < _MIN_BEAM_WIDTH_CM:
-            raise ValueError(
-                f"Beam width must be at least {_MIN_BEAM_WIDTH_CM} cm. "
-                f"Got {self.width} cm."
-            )
+            raise BeamTooNarrowError(width=self.width, min_width=_MIN_BEAM_WIDTH_CM)
 
     def _validate_supports(self) -> None:
         """Enforce that supports are ordered left to right without overlapping
 
         Raises:
-            ValueError: If a support's left face lies before the previous
+            InputError: If a support's left face lies before the previous
                 support's right face.
         """
         for previous, current in pairwise(self.supports):
             if current.left < previous.right:
-                raise ValueError(
+                raise InputError(
                     "Supports must be ordered left to right without overlapping. "
                     f"Support at {current.center} cm starts at {current.left} cm, "
                     f"before the previous one ends at {previous.right} cm."
@@ -135,7 +134,7 @@ class RectangularBeam(metaclass=_BeamMeta):
             Position of the nearest face along the beam (cm).
 
         Raises:
-            ValueError: If there is no support face on the requested side.
+            EnginePreconditionError: If there is no support face on the requested side.
         """
         faces = [face for s in self.supports for face in (s.left, s.right)]
         if left:
@@ -147,7 +146,7 @@ class RectangularBeam(metaclass=_BeamMeta):
 
         if nearest is None:
             side = "left" if left else "right"
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"No support face to the {side} of position {position} cm."
             )
         return nearest

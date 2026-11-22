@@ -34,18 +34,14 @@ _MATERIALS = (
             "Internal raised floor with steel plates, without coating "
             "(up to 30 cm height)"
         ),
-        thicknesses=(
-            ThicknessWeight(None, 0.5),
-        ),
+        thicknesses=(ThicknessWeight(None, 0.5),),
     ),
     CoveringMaterial(
         description=(
             "Internal raised floor with polypropylene plates, without coating "
             "(up to 30 cm height)"
         ),
-        thicknesses=(
-            ThicknessWeight(None, 0.15),
-        ),
+        thicknesses=(ThicknessWeight(None, 0.15),),
     ),
     CoveringMaterial(
         description=(
@@ -59,8 +55,7 @@ _MATERIALS = (
     ),
     CoveringMaterial(
         description=(
-            "Floor coverings of industrial buildings "
-            "(gamma_{ap-m} = 34 kN/m³)"
+            "Floor coverings of industrial buildings (gamma_{ap-m} = 34 kN/m³)"
         ),
         thicknesses=(
             ThicknessWeight(5.0, 1.7),

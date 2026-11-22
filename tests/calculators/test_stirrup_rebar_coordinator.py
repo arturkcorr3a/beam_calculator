@@ -8,6 +8,7 @@ import pytest
 
 from src.calculators import stirrup_rebar_coordinator
 from src.calculators.stirrup_rebar_coordinator import coordinate_span
+from src.errors import EffectiveDepthDivergedError, EnginePreconditionError
 from tests.helpers import assert_approx
 
 _DESIGN_SHEAR = 150.0  # kN, V_d returned by the stirrups' calculator
@@ -130,7 +131,9 @@ class TestCoordinateSpan:
         """No calculators raises ValueError."""
         stirrups = _make_stirrups_stub(lambda depth: 0.5)
 
-        with pytest.raises(ValueError, match="At least one rebar calculator"):
+        with pytest.raises(
+            EnginePreconditionError, match="At least one rebar calculator"
+        ):
             coordinate_span([], stirrups)  # type: ignore[arg-type]
 
     def test_raises_when_not_converging(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -146,7 +149,9 @@ class TestCoordinateSpan:
         calculator.calculate_for = drifting_calculate_for
         stirrups = _make_stirrups_stub(lambda depth: 0.5)
 
-        with pytest.raises(ValueError, match="did not converge within 5"):
+        with pytest.raises(
+            EffectiveDepthDivergedError, match="did not converge within 5"
+        ):
             coordinate_span([calculator], stirrups)  # type: ignore[list-item]
 
     def test_same_stirrups_with_moving_d_is_not_a_cycle(self) -> None:

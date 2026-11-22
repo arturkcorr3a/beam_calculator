@@ -10,6 +10,7 @@ from src.calculators.stirrup_calculator import (
     REDUCED_SPACING_SHEAR_RATIO,
     StirrupCalculator,
 )
+from src.errors import NoStirrupLayoutError
 from src.loading.forces import LOAD_FACTOR, design_effort_elu
 from src.logger import log_element, log_operation, log_property, logger_label
 from src.properties.steel import Steel
@@ -84,7 +85,7 @@ class Stirrups:
         Choose the diameter and spacing of stirrup bars based on the required reinforcement ratio, minimum spacing, and maximum diameter.
 
         Raises:
-            ValueError: If no diameter and spacing combination meets the
+            NoStirrupLayoutError: If no diameter and spacing combination meets the
                 required ratio (infeasible shear design).
         """
         options: list[tuple[float, float]] = []
@@ -98,10 +99,12 @@ class Stirrups:
             spacing -= 1
 
         if not options:
-            raise ValueError(
-                f"No stirrup meets A_sw/s = {cast(float, self.required_ratio):.4f} cm²/cm "
-                f"with diameters from {MIN_DIAMETER * 10:.1f} to {self.max_diameter * 10:.1f} mm "
-                f"and spacings from {MIN_SPACING:.1f} cm up to s_max = {self.calculator.max_spacing:.1f} cm."
+            raise NoStirrupLayoutError(
+                required_ratio=cast(float, self.required_ratio),
+                min_diameter_mm=MIN_DIAMETER * 10,
+                max_diameter_mm=self.max_diameter * 10,
+                min_spacing=MIN_SPACING,
+                max_spacing=self.calculator.max_spacing,
             )
 
         best_option = self._pick_best_option(options)
@@ -243,7 +246,7 @@ class Stirrups:
             steel: Steel of the bar, for the bend diameter.
 
         Raises:
-            ValueError: Propagated from the bend diameter if the norm gives none for the bar.
+            StirrupBendUndefinedError: Propagated from the bend diameter if the norm gives none for the bar.
 
         References:
             ABNT NBR 6118:2026 — Section 9.4.6.1, Table 9.2

@@ -13,6 +13,7 @@ import pytest
 from src.calculators.rebar_calculator import RebarCalculator
 from src.config import APP_CONFIG
 from src.config_options import Aggregate, ExposureClass
+from src.errors import EnginePreconditionError, ReinforcementAreaExceededError
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.structural_elements.rectangular_beam import (
@@ -488,7 +489,7 @@ class TestCalculateAndSetRequiredTensionedRebarArea:
         calculator.calculate_and_set_required_tensioned_rebar_area()
 
     def test_raises_when_area_exceeds_max(self, beam_mock: Mock) -> None:
-        """ValueError when total area > max_rebar_area (cm²)."""
+        """ReinforcementAreaExceededError when total area > max_rebar_area (cm²)."""
         # Shrink beam area so max_rebar_area = 0.04 * 400 = 16 < 23 cm²
         beam_mock.area = 400
         calc = RebarCalculator(
@@ -499,8 +500,14 @@ class TestCalculateAndSetRequiredTensionedRebarArea:
         )
         calc.d = 56
         calc.d_compressed = 4
-        with pytest.raises(ValueError, match="exceeds maximum allowable limit"):
+        with pytest.raises(
+            ReinforcementAreaExceededError, match="exceeds maximum allowable limit"
+        ) as raised:
             calc.calculate_and_set_required_tensioned_rebar_area()
+        assert_approx(raised.value.max_area, 16.0, "max area = 4% of 400 cm² (cm²)")
+        assert raised.value.required_area > raised.value.max_area, (
+            "the required area should exceed the maximum"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -543,7 +550,7 @@ class TestEffectiveDepthErrors:
         # Mark the tensioned reinforcement as chosen but leave bars empty
         calc.tensioned_reinforcement.is_chosen = True
         # chosen_bars[0].bars is already [] from construction
-        with pytest.raises(ValueError, match="no bars have been set"):
+        with pytest.raises(EnginePreconditionError, match="no bars have been set"):
             _ = calc.d
 
 

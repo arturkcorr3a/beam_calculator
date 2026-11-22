@@ -3,6 +3,7 @@
 import pytest
 
 from src.config import APP_CONFIG
+from src.errors import PillarTooSmallError
 from src.pavement_elements.geometry_utils import Axis
 from src.pavement_elements.pillar import Pillar
 from src.properties.concrete import Concrete
@@ -86,16 +87,16 @@ class TestValidateDimensions:
     """Pillar raises ValueError for dimensions below the minimum requirements."""
 
     def test_width_below_14_raises(self) -> None:
-        with pytest.raises(ValueError, match="must be at least 14.0 cm"):
+        with pytest.raises(PillarTooSmallError, match="must be at least 14.0 cm"):
             Pillar(x=0, y=0, width=13, depth=20)
 
     def test_depth_below_14_raises(self) -> None:
-        with pytest.raises(ValueError, match="must be at least 14.0 cm"):
+        with pytest.raises(PillarTooSmallError, match="must be at least 14.0 cm"):
             Pillar(x=0, y=0, width=20, depth=13)
 
     def test_14x14_fails_area_check(self) -> None:
         # 14×14 = 196 cm² < 360 cm² (passes dimension but fails area)
-        with pytest.raises(ValueError, match="gross area must be at least"):
+        with pytest.raises(PillarTooSmallError, match="gross area must be at least"):
             Pillar(x=0, y=0, width=14, depth=14)
 
     def test_20x20_valid(self) -> None:
@@ -104,7 +105,7 @@ class TestValidateDimensions:
 
     def test_area_below_minimum_raises(self) -> None:
         # 14×25 = 350 cm² < 360 cm²
-        with pytest.raises(ValueError, match="gross area must be at least"):
+        with pytest.raises(PillarTooSmallError, match="gross area must be at least"):
             Pillar(x=0, y=0, width=14, depth=25)
 
 

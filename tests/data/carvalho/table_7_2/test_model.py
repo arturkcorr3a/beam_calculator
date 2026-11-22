@@ -6,6 +6,7 @@ import pytest
 
 from src.data.carvalho.table_7_2.data import TABLE_7_2
 from src.data.carvalho.table_7_2.model import Table72
+from src.errors import EnginePreconditionError
 from src.pavement_elements.slab_edge import Edges
 from tests.helpers import assert_approx
 
@@ -44,13 +45,13 @@ class TestSlabDeflectionEntryGetAlpha:
     def test_case_zero_raises_value_error(self, table: Table72) -> None:
         """Case 0 raises ValueError."""
         entry = table.entries[0]
-        with pytest.raises(ValueError, match="1 and 9"):
+        with pytest.raises(EnginePreconditionError, match="1 and 9"):
             entry.get_alpha(0)
 
     def test_case_ten_raises_value_error(self, table: Table72) -> None:
         """Case 10 raises ValueError."""
         entry = table.entries[0]
-        with pytest.raises(ValueError, match="1 and 9"):
+        with pytest.raises(EnginePreconditionError, match="1 and 9"):
             entry.get_alpha(10)
 
 
@@ -147,22 +148,22 @@ class TestTable72ValidateInputs:
 
     def test_lambda_below_one_raises_value_error(self, table: Table72) -> None:
         """λ < 1.0 raises ValueError mentioning 'aspect ratio'."""
-        with pytest.raises(ValueError, match="aspect ratio"):
+        with pytest.raises(EnginePreconditionError, match="aspect ratio"):
             table.get_alpha(0.99, case=1)
 
     def test_lambda_zero_raises_value_error(self, table: Table72) -> None:
         """λ=0 raises ValueError."""
-        with pytest.raises(ValueError, match="aspect ratio"):
+        with pytest.raises(EnginePreconditionError, match="aspect ratio"):
             table.get_alpha(0.0, case=1)
 
     def test_invalid_case_zero_raises_value_error(self, table: Table72) -> None:
         """Case 0 raises ValueError."""
-        with pytest.raises(ValueError, match="1 and 9"):
+        with pytest.raises(EnginePreconditionError, match="1 and 9"):
             table.get_alpha(1.0, case=0)
 
     def test_invalid_case_ten_raises_value_error(self, table: Table72) -> None:
         """Case 10 raises ValueError."""
-        with pytest.raises(ValueError, match="1 and 9"):
+        with pytest.raises(EnginePreconditionError, match="1 and 9"):
             table.get_alpha(1.0, case=10)
 
 

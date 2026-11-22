@@ -10,7 +10,6 @@ from src.drawing.sheet import (
     BLOCK_WIDTH_MM,
     FORMATS,
     BlockContent,
-    SheetFitError,
     build_block,
     build_sheet,
     check_materials,
@@ -19,6 +18,7 @@ from src.drawing.sheet import (
     sheet_number,
     sheet_title,
 )
+from src.errors import DrawingError, SheetFitError
 from tests.drawing.helpers import close
 
 CONFIG = DrawingConfig()
@@ -137,9 +137,9 @@ class TestChoice:
             choose_sheet(300, 100, "A4")
 
     def test_unknown(self) -> None:
-        with pytest.raises(ValueError, match="A5"):
+        with pytest.raises(DrawingError, match="A5"):
             choose_sheet(10, 10, "A5")
-        with pytest.raises(ValueError, match="retrato"):
+        with pytest.raises(DrawingError, match="retrato"):
             choose_sheet(10, 10, "A3", "retrato")
 
 
@@ -163,7 +163,7 @@ class TestNotes:
         assert notes[1] == "Aço: CA-50 (fyk = 500 MPa)."
 
     def test_unknown_steel(self) -> None:
-        with pytest.raises(ValueError, match="CA-40"):
+        with pytest.raises(DrawingError, match="CA-40"):
             general_notes(25, "CA-40", "CA-50", "II", 3.0)
 
     def test_title(self) -> None:

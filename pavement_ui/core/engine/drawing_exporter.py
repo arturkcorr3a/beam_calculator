@@ -20,7 +20,8 @@ from src.drawing.primitives import (
     Text,
     VAlign,
 )
-from src.drawing.render_dxf import DxfAuditError, write_dxf
+from src.drawing.render_dxf import write_dxf
+from src.errors import DxfAuditError
 
 
 def _polyline(shape: PolylineShape) -> Polyline:

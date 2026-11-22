@@ -29,6 +29,7 @@ from src.drawing.primitives import (
     Text,
     VAlign,
 )
+from src.errors import DxfAuditError
 
 TEXT_STYLE = "ARIAL"
 _TEXT_FONT = "arial.ttf"
@@ -49,10 +50,6 @@ _ALIGNMENTS: dict[tuple[VAlign, HAlign], TextEntityAlignment] = {
     (VAlign.TOP, HAlign.CENTER): TextEntityAlignment.TOP_CENTER,
     (VAlign.TOP, HAlign.RIGHT): TextEntityAlignment.TOP_RIGHT,
 }
-
-
-class DxfAuditError(RuntimeError):
-    """The DXF document failed ezdxf's audit"""
 
 
 def new_document(config: DrawingConfig = DEFAULT_CONFIG) -> DxfDocument:

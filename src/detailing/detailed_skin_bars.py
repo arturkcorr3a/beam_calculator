@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 
 SIDES = 2  # one bar on each side face of the web
@@ -37,12 +38,12 @@ class DetailedSkinBars:
         """Validate the rows and the extent
 
         Raises:
-            ValueError: If there are no rows or the bars end before they start.
+            EnginePreconditionError: If there are no rows or the bars end before they start.
         """
         if not self.heights:
-            raise ValueError("Skin bars need at least one row.")
+            raise EnginePreconditionError("Skin bars need at least one row.")
         if self.end < self.start:
-            raise ValueError(
+            raise EnginePreconditionError(
                 f"Skin bars cannot end before they start. Got start={self.start}, end={self.end} cm."
             )
 

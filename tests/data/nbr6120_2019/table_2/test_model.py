@@ -4,6 +4,7 @@ import pytest
 
 from src.data.nbr6120_2019.table_2.data import TABLE_2
 from src.data.nbr6120_2019.table_2.model import Table2, Thickness
+from src.errors import TableLookupError
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -82,21 +83,21 @@ class TestThicknessGetWeight:
         masonry = hollow_concrete_block
         assert isinstance(masonry, MasonryType)
         thickness = masonry.get_thickness(9.0)
-        with pytest.raises(ValueError, match="0, 1, or 2"):
+        with pytest.raises(TableLookupError, match="0, 1, or 2"):
             thickness.get_weight(3)
 
     def test_none_weight_at_one_cm_raises_value_error(
         self, glass_block: Thickness
     ) -> None:
         """1 cm coating on glass block (None weight) raises ValueError."""
-        with pytest.raises(ValueError, match="not defined"):
+        with pytest.raises(TableLookupError, match="not defined"):
             glass_block.get_weight(1)
 
     def test_none_weight_at_two_cm_raises_value_error(
         self, glass_block: Thickness
     ) -> None:
         """2 cm coating on glass block (None weight) raises ValueError."""
-        with pytest.raises(ValueError, match="not defined"):
+        with pytest.raises(TableLookupError, match="not defined"):
             glass_block.get_weight(2)
 
 
@@ -128,7 +129,7 @@ class TestMasonryTypeGetThickness:
     def test_missing_nominal_thickness_raises_value_error(self, table: Table2) -> None:
         """A nominal_cm not in the entry raises ValueError."""
         masonry = table.find_masonry_type("Hollow concrete block")
-        with pytest.raises(ValueError):
+        with pytest.raises(TableLookupError):
             masonry.get_thickness(999.0)
 
 
@@ -155,12 +156,12 @@ class TestTable2FindMasonryType:
 
     def test_structural_masonry_is_not_listed(self, table: Table2) -> None:
         """Structural-only masonry types are not part of the table."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             table.find_masonry_type("Solid ceramic brick")
 
     def test_no_match_raises_key_error(self, table: Table2) -> None:
         """Description that matches nothing raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             table.find_masonry_type("nonexistent material xyz")
 
     def test_first_match_returned_when_multiple_candidates(self, table: Table2) -> None:

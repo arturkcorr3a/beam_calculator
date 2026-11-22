@@ -8,6 +8,7 @@ import pytest
 
 from src.config import APP_CONFIG, AppConfig
 from src.config_options import Aggregate, ExposureClass, OccupancyCategory
+from src.errors import MalformedFileError
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -244,7 +245,9 @@ class TestConfigFromDict:
     def test_missing_key_raises(self, missing_key: str) -> None:
         data: dict[str, object] = dict(_minimal_config())
         del data[missing_key]
-        with pytest.raises(ValueError, match=f"missing '{missing_key}' in Config"):
+        with pytest.raises(
+            MalformedFileError, match=f"missing '{missing_key}' in Config"
+        ):
             config_from_dict(data)  # type: ignore[arg-type]
 
     def test_parses_choice_fields_into_enum_members(self) -> None:
@@ -278,7 +281,9 @@ class TestConfigFromDict:
     def test_invalid_choice_raises(self, key: str, invalid_value: object) -> None:
         data: dict[str, object] = dict(_minimal_config())
         data[key] = invalid_value
-        with pytest.raises(ValueError, match=f"invalid {key} '{invalid_value}'"):
+        with pytest.raises(
+            MalformedFileError, match=f"invalid {key} '{invalid_value}'"
+        ):
             config_from_dict(data)  # type: ignore[arg-type]
 
 
@@ -398,15 +403,15 @@ class TestMissingTopLevelKey:
     """Missing 'pillars', 'beams', or 'slabs' raises a clear ValueError."""
 
     def test_missing_pillars_key(self) -> None:
-        with pytest.raises(ValueError, match="missing 'pillars' in Document"):
+        with pytest.raises(MalformedFileError, match="missing 'pillars' in Document"):
             pavement_from_dict({"beams": [], "slabs": []})  # type: ignore[typeddict-item]
 
     def test_missing_beams_key(self) -> None:
-        with pytest.raises(ValueError, match="missing 'beams' in Document"):
+        with pytest.raises(MalformedFileError, match="missing 'beams' in Document"):
             pavement_from_dict({"pillars": [], "slabs": []})  # type: ignore[typeddict-item]
 
     def test_missing_slabs_key(self) -> None:
-        with pytest.raises(ValueError, match="missing 'slabs' in Document"):
+        with pytest.raises(MalformedFileError, match="missing 'slabs' in Document"):
             pavement_from_dict({"pillars": [], "beams": []})  # type: ignore[typeddict-item]
 
 
@@ -424,7 +429,7 @@ class TestMalformedPillar:
             "beams": [],
             "slabs": [],
         }
-        with pytest.raises(ValueError, match="missing 'id' in Pillar"):
+        with pytest.raises(MalformedFileError, match="missing 'id' in Pillar"):
             pavement_from_dict(document)
 
     @pytest.mark.parametrize("missing_key", ["x", "y", "width", "depth"])
@@ -436,7 +441,9 @@ class TestMalformedPillar:
             "beams": [],
             "slabs": [],
         }
-        with pytest.raises(ValueError, match=f"missing '{missing_key}' in Pillar"):
+        with pytest.raises(
+            MalformedFileError, match=f"missing '{missing_key}' in Pillar"
+        ):
             pavement_from_dict(document)
 
     def test_pillar_below_min_dimension_raises(self) -> None:
@@ -486,7 +493,9 @@ class TestMalformedWall:
             "beams": [beam],  # type: ignore[list-item]
             "slabs": [],
         }
-        with pytest.raises(ValueError, match=f"missing '{missing_key}' in Wall"):
+        with pytest.raises(
+            MalformedFileError, match=f"missing '{missing_key}' in Wall"
+        ):
             pavement_from_dict(document)
 
 
@@ -512,7 +521,7 @@ class TestOptionalWall:
 
     def test_structural_key_is_rejected(self) -> None:
         wall = {**_minimal_wall(), "structural": False}
-        with pytest.raises(ValueError, match="'structural' in Wall"):
+        with pytest.raises(MalformedFileError, match="'structural' in Wall"):
             pavement_from_dict(self._document(wall))
 
 
@@ -539,7 +548,9 @@ class TestMalformedBeam:
             "beams": [beam],  # type: ignore[list-item]
             "slabs": [],
         }
-        with pytest.raises(ValueError, match=f"missing '{missing_key}' in Beam"):
+        with pytest.raises(
+            MalformedFileError, match=f"missing '{missing_key}' in Beam"
+        ):
             pavement_from_dict(document)
 
     def test_invalid_alignment_raises(self) -> None:
@@ -553,7 +564,9 @@ class TestMalformedBeam:
             "beams": [beam],  # type: ignore[list-item]
             "slabs": [],
         }
-        with pytest.raises(ValueError, match="invalid beam alignment 'diagonal'"):
+        with pytest.raises(
+            MalformedFileError, match="invalid beam alignment 'diagonal'"
+        ):
             pavement_from_dict(document)
 
     def test_unknown_pillar_reference_in_beam_raises(self) -> None:
@@ -562,7 +575,7 @@ class TestMalformedBeam:
             "beams": [_minimal_beam("P1", "P99")],
             "slabs": [],
         }
-        with pytest.raises(ValueError, match="references unknown pillar 'P99'"):
+        with pytest.raises(MalformedFileError, match="references unknown pillar 'P99'"):
             pavement_from_dict(document)
 
     def test_beam_with_single_pillar_raises(self) -> None:
@@ -618,7 +631,9 @@ class TestMalformedSlab:
             "beams": [],
             "slabs": [slab],  # type: ignore[list-item]
         }
-        with pytest.raises(ValueError, match=f"missing '{missing_key}' in Slab"):
+        with pytest.raises(
+            MalformedFileError, match=f"missing '{missing_key}' in Slab"
+        ):
             pavement_from_dict(document)
 
     def test_unknown_pillar_reference_in_slab_raises(self) -> None:
@@ -627,7 +642,7 @@ class TestMalformedSlab:
             "beams": [],
             "slabs": [_minimal_slab(["P1", "P2", "P3", "P4"])],
         }
-        with pytest.raises(ValueError, match="references unknown pillar 'P2'"):
+        with pytest.raises(MalformedFileError, match="references unknown pillar 'P2'"):
             pavement_from_dict(document)
 
     def test_slab_wrong_corner_count_raises(self) -> None:

@@ -4,6 +4,7 @@ import pytest
 
 from src.data.nbr6120_2019.table_7.data import TABLE_7
 from src.data.nbr6120_2019.table_7.model import FillMaterial, Table7
+from src.errors import TableLookupError
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -39,7 +40,7 @@ class TestTable7FindMaterial:
 
     def test_no_match_raises_key_error(self, table: Table7) -> None:
         """A description that matches nothing raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             table.find_material("nonexistent fill material xyz")
 
     def test_none_min_max_for_single_value_material(self, table: Table7) -> None:

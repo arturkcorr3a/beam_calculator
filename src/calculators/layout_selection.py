@@ -2,6 +2,8 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from src.errors import EnginePreconditionError
+
 type LayerDiameters = tuple[tuple[float, ...], ...]  # bar diameters (mm) per layer
 type LayoutSignature = tuple[LayerDiameters, LayerDiameters]  # tensioned, compressed
 
@@ -69,10 +71,10 @@ def select_layout(
         The kept pass, and whether it is safe.
 
     Raises:
-        ValueError: If ``passes`` is empty.
+        EnginePreconditionError: If ``passes`` is empty.
     """
     if not passes:
-        raise ValueError("At least one pass is needed to select a layout.")
+        raise EnginePreconditionError("At least one pass is needed to select a layout.")
 
     own_requirements = [
         (following.tensioned_required, following.compressed_required)

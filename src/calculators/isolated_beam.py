@@ -6,6 +6,7 @@ from itertools import accumulate
 
 from src.detailing.detailing_beam import DetailingBeam
 from src.detailing.mark_registry import MarkRegistry
+from src.errors import InputError
 from src.loading.linear_loads import LinearLoads
 from src.loading.load_component import LoadComponent, LoadKind
 from src.logger import log_general, log_operation
@@ -104,7 +105,7 @@ def build_isolated_beam(
         The beam and its pillar registry.
 
     Raises:
-        ValueError: If the inputs are inconsistent (pillar count, lengths,
+        InputError: If the inputs are inconsistent (pillar count, lengths,
             height, span index, ψ2), or propagated from the beam and pillar
             validations (minimum dimensions, pillar depth not covering the
             beam, no clear span).
@@ -132,7 +133,7 @@ def detail_isolated_beam(beam: ContinuousBeam) -> DetailingBeam:
     with this beam alone.
 
     Raises:
-        ValueError: Propagated from ``ContinuousBeam.detail``.
+        BeamCalculatorError: Propagated from ``ContinuousBeam.detail``.
     """
     detailing = beam.detail()
     MarkRegistry().assign(detailing)
@@ -145,26 +146,26 @@ def _validate(
     pillars: Sequence[IsolatedPillar],
     loads: Sequence[IsolatedLoad],
 ) -> None:
-    """Raise ValueError on inputs the beam and pillar classes do not check."""
+    """Raise InputError on inputs the beam and pillar classes do not check."""
     if not span_lengths:
-        raise ValueError("The beam must have at least one span.")
+        raise InputError("The beam must have at least one span.")
     if len(pillars) != len(span_lengths) + 1:
-        raise ValueError(
+        raise InputError(
             f"A beam with {len(span_lengths)} span(s) needs {len(span_lengths) + 1} "
             f"pillars. Got {len(pillars)}."
         )
     if any(length <= 0 for length in span_lengths):
-        raise ValueError(f"Span lengths must be positive. Got {list(span_lengths)} cm.")
+        raise InputError(f"Span lengths must be positive. Got {list(span_lengths)} cm.")
     if height <= 0:
-        raise ValueError(f"Beam height must be positive. Got {height} cm.")
+        raise InputError(f"Beam height must be positive. Got {height} cm.")
     for load in loads:
         index = load.span_index
         if index is not None and not 0 <= index < len(span_lengths):
-            raise ValueError(
+            raise InputError(
                 f"Load on span {index + 1}, but the beam has {len(span_lengths)} span(s)."
             )
         if isinstance(load, CustomLoad) and not 0.0 <= load.psi_2 <= 1.0:
-            raise ValueError(f"psi_2 must be between 0 and 1. Got {load.psi_2}.")
+            raise InputError(f"psi_2 must be between 0 and 1. Got {load.psi_2}.")
 
 
 def _spans(beam: ContinuousBeam, span_index: int | None) -> list[Span]:

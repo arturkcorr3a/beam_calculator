@@ -11,6 +11,7 @@ import pytest
 
 from src.checkers.deformation_checker import DeformationChecker
 from src.config import APP_CONFIG
+from src.errors import EnginePreconditionError
 from src.properties.concrete import Concrete
 from src.properties.section_properties_calculator import (
     SectionPropertiesCalculator as section,
@@ -297,7 +298,7 @@ class TestResult:
     """result() snapshots the verification at the last verified height."""
 
     def test_raises_before_verify(self, base_checker: _StubChecker) -> None:
-        with pytest.raises(ValueError, match="not been verified"):
+        with pytest.raises(EnginePreconditionError, match="not been verified"):
             base_checker.result()
 
     def test_reflects_last_verify(self, base_checker: _StubChecker) -> None:

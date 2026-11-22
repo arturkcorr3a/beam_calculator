@@ -11,7 +11,7 @@ from pavement_ui.core.results.quantities import BeamQuantity
 from pavement_ui.presentation.formatting.elements import fmt_pillar_chain
 from pavement_ui.presentation.formatting.numbers import fmt_length_cm, fmt_number
 from pavement_ui.presentation.report.beam_design_section import write_design
-from pavement_ui.presentation.report.labels import span_name
+from pavement_ui.presentation.report.labels import height_raise_lines, span_name
 from pavement_ui.presentation.report.painters.load_painter import paint_loads
 from pavement_ui.presentation.report.painters.vector_painter import vector_figure
 from pavement_ui.presentation.report.report_builder import Paint, ReportBuilder
@@ -95,14 +95,22 @@ def _write_geometry(
     if figures:
         builder.figure_row(figures, _GEOMETRY_HEIGHT_MM, s.FIG_GEOMETRY)
     section = f"{fmt_length_cm(result.width_cm)} × {fmt_length_cm(result.height_cm)} cm"
+    pre_sized = (
+        [(s.ROW_PRE_SIZED_HEIGHT, f"{fmt_length_cm(result.pre_sized_height_cm)} cm")]
+        if result.height_raises
+        else []
+    )
     builder.key_values(
         [
             (s.ROW_SECTION, section),
+            *pre_sized,
             (s.ROW_PILLARS, fmt_pillar_chain(result.pillar_ids)),
             (s.ROW_COVER, f"{fmt_number(result.cover_cm, 1)} cm"),
             *_materials(materials),
         ]
     )
+    for line in height_raise_lines(result):
+        builder.paragraph(line)
 
 
 def _write_loads(builder: ReportBuilder, result: BeamResult) -> None:

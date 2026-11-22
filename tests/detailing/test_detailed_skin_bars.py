@@ -3,6 +3,7 @@
 import pytest
 
 from src.detailing.detailed_skin_bars import DetailedSkinBars
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 from tests.helpers import assert_approx
 
@@ -39,9 +40,9 @@ class TestDetailedSkinBars:
         assert _skin().span_name == "P1–P2", "named after its pillars"
 
     def test_no_rows_raises(self) -> None:
-        with pytest.raises(ValueError, match="at least one row"):
+        with pytest.raises(EnginePreconditionError, match="at least one row"):
             _skin(heights=())
 
     def test_reversed_extent_raises(self) -> None:
-        with pytest.raises(ValueError, match="cannot end before"):
+        with pytest.raises(EnginePreconditionError, match="cannot end before"):
             _skin(start=235.0, end=10.0)

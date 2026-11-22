@@ -3,6 +3,7 @@
 import math
 from dataclasses import dataclass
 
+from src.errors import TableLookupError
 from src.logger import log_property, logger_label
 
 THICKNESS_TOLERANCE_CM = 1e-9  # cm — absorbs float drift from unit conversions
@@ -39,8 +40,10 @@ class CoveringMaterial:
                     f"covering weight({thickness_cm} cm) = {tw.weight:.2f} kN/m²"
                 )
                 return tw.weight
-        raise ValueError(
-            f"Thickness {thickness_cm} cm not found for '{self.description}'"
+        raise TableLookupError(
+            f"Thickness {thickness_cm} cm not found for '{self.description}'",
+            table="ABNT NBR 6120:2019 — Table 4",
+            value=thickness_cm,
         )
 
 
@@ -72,4 +75,8 @@ class Table4:
             if query in material.description.lower():
                 log_property(f"covering material: '{material.description}'")
                 return material
-        raise KeyError(f"No material matching '{description}' was found.")
+        raise TableLookupError(
+            f"No material matching '{description}' was found.",
+            table="ABNT NBR 6120:2019 — Table 4",
+            value=description,
+        )

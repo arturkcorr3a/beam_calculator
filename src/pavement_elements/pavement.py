@@ -9,6 +9,7 @@ from src.detailing.quantities import (
     build_quantities,
     quantities_table,
 )
+from src.errors import DuplicateElementError, SlabPreSizingDivergedError
 from src.logger import log_element, log_general, log_iteration, logger_label
 from src.pavement_elements.continuous_beam import ContinuousBeam
 from src.pavement_elements.pillar import Pillar
@@ -60,13 +61,13 @@ class Pavement:
 
     def add_pillar(self, pillar: Pillar) -> None:
         if pillar.id in self.pillars:
-            raise ValueError(f"Pillar '{pillar.id}' already exists.")
+            raise DuplicateElementError(kind="Pillar", element_id=pillar.id)
         self.pillars[pillar.id] = pillar
         log_element(f"Added pillar '{pillar.id}' at ({pillar.x}, {pillar.y})")
 
     def add_beam(self, beam: ContinuousBeam) -> None:
         if beam.id in self.beams:
-            raise ValueError(f"Beam '{beam.id}' already exists.")
+            raise DuplicateElementError(kind="Beam", element_id=beam.id)
         self.beams[beam.id] = beam
         log_element(
             f"Added beam '{beam.id}' from {(beam.pillar_ids[0])} to {(beam.pillar_ids[-1])}"
@@ -74,7 +75,7 @@ class Pavement:
 
     def add_slab(self, slab: Slab) -> None:
         if slab.id in self.slabs:
-            raise ValueError(f"Slab '{slab.id}' already exists.")
+            raise DuplicateElementError(kind="Slab", element_id=slab.id)
         self.slabs[slab.id] = slab
         log_element(
             f"Added slab '{slab.id}' between {', '.join(slab.corner_pillar_ids)}"
@@ -82,7 +83,7 @@ class Pavement:
 
     def validate(self) -> None:
         """
-        Performs validations and resolutions for its elements (pillars, beams, slabs). Raises ValueError on any validation failure, including a pavement concrete below the minimum for the configured exposure class.
+        Performs validations and resolutions for its elements (pillars, beams, slabs). Raises an InputError on any validation failure, including a pavement concrete below the minimum for the configured exposure class.
         """
 
         APP_CONFIG.validate_concrete_class()
@@ -107,7 +108,8 @@ class Pavement:
         """
         Main entry point for sizing the pavement. Validates the structure, then
         pre-sizes beams and slabs, transfers slab loads onto beams, dimensions
-        all beams and finally post-processes their bars into the detailing.
+        all beams (raising the height of a beam that fails where that helps) and
+        finally post-processes their bars into the detailing.
         """
         self.validate()
         self.pre_size_beams()
@@ -133,7 +135,7 @@ class Pavement:
         A slab's thickness depends on its neighbors' (through the support conditions), so passes repeat until no slab is resized.
 
         Raises:
-            ValueError: If slabs are still being resized after MAX_SLAB_PRE_SIZE_PASSES passes (the sizing does not converge).
+            SlabPreSizingDivergedError: If slabs are still being resized after MAX_SLAB_PRE_SIZE_PASSES passes (the sizing does not converge).
         """
         log_general("Pre-sizing slabs...")
 
@@ -146,10 +148,7 @@ class Pavement:
                     for slab, is_stable in zip(self.slabs.values(), stable, strict=True)
                     if is_stable is not True
                 ]
-                raise ValueError(
-                    f"Slab pre-sizing did not converge after {pass_num} passes; "
-                    f"still resizing: {', '.join(unstable_ids)}."
-                )
+                raise SlabPreSizingDivergedError(passes=pass_num, slab_ids=unstable_ids)
             pass_num += 1
             log_iteration(f"Passing {pass_num} starting...", "Slabs Pre-sizing")
             for i, slab in enumerate(self.slabs.values()):
@@ -180,12 +179,13 @@ class Pavement:
             slab.unload_on_supporting_spans(self.pillars)
 
     def dimension_beams(self) -> None:
-        """
-        Dimensions all beams based on the loads applied to their spans.
+        """Dimension every beam, raising a beam's height where a taller section solves a design failure
+
+        See ``ContinuousBeam.dimension_raising_height``.
         """
         log_general("Beams' calculation process starting")
         for beam in self.beams.values():
-            beam.dimension(self.pillars)
+            beam.dimension_raising_height(self.pillars)
 
     def detail_beams(self) -> None:
         """Post-process every dimensioned beam's bars into its detailing, then mark them
@@ -193,7 +193,7 @@ class Pavement:
         The marks are numbered from N1 across the whole pavement, beam by beam, once every beam is detailed: identical bars get the same mark in any beam.
 
         Raises:
-            ValueError: Propagated from ContinuousBeam.detail if a beam has not been dimensioned or its post-processing fails.
+            BeamCalculatorError: Propagated from ContinuousBeam.detail if a beam has not been dimensioned or its post-processing fails.
         """
         log_general("Beams' detailing starting")
         detailings = [beam.detail() for beam in self.beams.values()]
@@ -224,7 +224,7 @@ class Pavement:
         A detailed beam's report is followed by its detailing report, and the last one by the pavement's bar schedule and quantities.
 
         Raises:
-            ValueError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
+            EnginePreconditionError: If any beam has not been dimensioned (propagated from ContinuousBeam.report).
         """
         for beam in self.beams.values():
             print(beam.report(self.pillars))

@@ -14,6 +14,7 @@ from src.detailing.span_stirrups import SpanStirrups
 from src.drawing.config import MM_PER_CM, DrawingConfig
 from src.drawing.formatting import PHI, fmt_diam, fmt_len
 from src.drawing.primitives import Point
+from src.errors import EnginePreconditionError
 from src.reinforcement.reinforcement import Reinforcement
 from src.reinforcement.stirrups import HOOK_TIP_RATIO, MIN_HOOK_TIP
 
@@ -95,7 +96,7 @@ def clamp_rows_y(beam: DetailingBeam, clamps: DetailedClamps) -> list[float]:
     The rows are stacked past the last layer of the anchored bars, with the minimum vertical spacing, as the calculation does.
 
     Raises:
-        ValueError: If no bar on the clamps' face comes from their interest point.
+        EnginePreconditionError: If no bar on the clamps' face comes from their interest point.
 
     References:
         ABNT NBR 6118:2026 — Section 18.3.2.2
@@ -108,7 +109,7 @@ def clamp_rows_y(beam: DetailingBeam, clamps: DetailedClamps) -> list[float]:
         and bar.is_bottom == clamps.is_bottom
     ]
     if not bars:
-        raise ValueError(
+        raise EnginePreconditionError(
             f"Beam '{beam.beam_id}': no bar anchored by the clamps {clamps.mark} "
             f"at {clamps.source_position} cm."
         )

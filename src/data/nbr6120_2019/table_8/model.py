@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from src.errors import TableLookupError
 from src.logger import log_property, logger_label
 
 
@@ -37,6 +38,12 @@ class Table8:
         query = description.lower()
         for material in self.materials:
             if query in material.description.lower():
-                log_property(f"ceiling/duct material: '{material.description}', weight={material.weight} kN/m²")
+                log_property(
+                    f"ceiling/duct material: '{material.description}', weight={material.weight} kN/m²"
+                )
                 return material
-        raise KeyError(f"No material matching '{description}' was found.")
+        raise TableLookupError(
+            f"No material matching '{description}' was found.",
+            table="ABNT NBR 6120:2019 — Table 8",
+            value=description,
+        )

@@ -6,6 +6,10 @@ according to the Brazilian standard ABNT NBR 6118. You draw the floor plan
 
 - distributes the slab loads to the beams (loads from ABNT NBR 6120);
 - pre-sizes slabs and beams and checks slab and beam deflections;
+- raises a floor beam's height in 5 cm steps when the beam fails a design
+  check a taller section solves (deflection, maximum steel, compressed strut,
+  bar or stirrup layout), up to a third of its shortest span and of the
+  ceiling height;
 - analyses each continuous beam and designs its longitudinal reinforcement,
   stirrups and, in beams taller than 60 cm, skin reinforcement, with anchorage,
   lap splices and support bars;

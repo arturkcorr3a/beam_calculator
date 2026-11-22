@@ -25,7 +25,8 @@ from types import ModuleType
 import matplotlib.pyplot as plt
 
 from src.config import APP_CONFIG
-from src.drawing.api import DrawingError, save_pavement, show_pavement
+from src.drawing.api import save_pavement, show_pavement
+from src.errors import DrawingError, EnginePreconditionError
 from src.examples.simple_example import SimpleExample
 from src.logger import LogLevel, LogOutput, configure_logger
 from src.pavement_elements.pavement import Pavement
@@ -119,7 +120,7 @@ def find_example(module: ModuleType) -> SimpleExample:
     Subclasses that are only imported into the module are ignored.
 
     Raises:
-        ValueError: If the module defines no subclass or more than one.
+        EnginePreconditionError: If the module defines no subclass or more than one.
     """
     classes = [
         member
@@ -130,7 +131,7 @@ def find_example(module: ModuleType) -> SimpleExample:
     ]
     if len(classes) != 1:
         names = [cls.__name__ for cls in classes]
-        raise ValueError(
+        raise EnginePreconditionError(
             f"{module.__name__} must define exactly one SimpleExample subclass, "
             f"found {len(classes)}: {names}"
         )

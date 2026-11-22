@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.errors import BeamInputError, InputError
 from src.pavement_elements.geometry_utils import (
     TOLERANCE,
     Alignment,
@@ -55,11 +56,11 @@ class TestAlignmentValidate:
         Alignment.CENTER.validate(Axis.Y)  # must not raise
 
     def test_left_invalid_on_x_axis(self) -> None:
-        with pytest.raises(ValueError, match="not valid for horizontal"):
+        with pytest.raises(BeamInputError, match="not valid for horizontal"):
             Alignment.LEFT.validate(Axis.X)
 
     def test_bottom_invalid_on_y_axis(self) -> None:
-        with pytest.raises(ValueError, match="not valid for vertical"):
+        with pytest.raises(BeamInputError, match="not valid for vertical"):
             Alignment.BOTTOM.validate(Axis.Y)
 
 
@@ -280,9 +281,9 @@ class TestEffectiveSpan:
         assert_approx(result, 469, "t/2 should govern when below 0.3h")
 
     def test_non_positive_height_raises(self) -> None:
-        with pytest.raises(ValueError, match="Height must be positive"):
+        with pytest.raises(InputError, match="Height must be positive"):
             effective_span(400, 20, 20, 0)
 
     def test_overlapping_supports_raise(self) -> None:
-        with pytest.raises(ValueError, match="no clear span"):
+        with pytest.raises(InputError, match="no clear span"):
             effective_span(40, 40, 40, 30)

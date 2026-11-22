@@ -8,6 +8,7 @@ import pytest
 import src.pavement_elements.slab_edge as slab_edge_module
 from src.config import APP_CONFIG
 from src.config_options import OccupancyCategory
+from src.errors import EnginePreconditionError
 from src.loading.load_component import LoadComponent, LoadKind
 from src.pavement_elements.beam_span import Span
 from src.pavement_elements.continuous_beam import ContinuousBeam
@@ -98,11 +99,15 @@ class TestBeamProperty:
     """beam property raises before resolution, returns the beam after."""
 
     def test_unresolved_raises(self, bottom_edge: SlabEdge) -> None:
-        with pytest.raises(ValueError, match="has no resolved supporting beam"):
+        with pytest.raises(
+            EnginePreconditionError, match="has no resolved supporting beam"
+        ):
             _ = bottom_edge.beam
 
     def test_unresolved_message_uses_edge_value(self, bottom_edge: SlabEdge) -> None:
-        with pytest.raises(ValueError, match=r"^Slab edge 'bottom' has no"):
+        with pytest.raises(
+            EnginePreconditionError, match=r"^Slab edge 'bottom' has no"
+        ):
             _ = bottom_edge.beam
 
     def test_resolved_returns_beam(
@@ -152,7 +157,9 @@ class TestResolveSupportCondition:
         self, bottom_edge: SlabEdge, pillar_registry: dict[str, Pillar]
     ) -> None:
         """An edge without spans fails with a clear message, not a ZeroDivisionError"""
-        with pytest.raises(ValueError, match=r"bottom edge has no supporting spans"):
+        with pytest.raises(
+            EnginePreconditionError, match=r"bottom edge has no supporting spans"
+        ):
             bottom_edge.resolve_support_condition(pillar_registry)
 
     def test_all_spans_no_other_slab_stays_pinned(
@@ -401,5 +408,7 @@ class TestUnloadOnSpans:
     ) -> None:
         """An edge without spans fails with a clear message, not a ZeroDivisionError"""
         bottom_edge.influence_area = 6.25  # m²
-        with pytest.raises(ValueError, match=r"bottom edge has no supporting spans"):
+        with pytest.raises(
+            EnginePreconditionError, match=r"bottom edge has no supporting spans"
+        ):
             bottom_edge.unload_on_spans(pillar_registry)

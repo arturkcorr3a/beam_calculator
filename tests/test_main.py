@@ -11,7 +11,7 @@ import pytest
 
 import src.main as runner
 from src.config import APP_CONFIG
-from src.drawing.api import DrawingError
+from src.errors import DrawingError, EnginePreconditionError
 from src.examples.simple_example import SimpleExample
 from src.logger import LogLevel, LogOutput
 
@@ -138,7 +138,7 @@ class TestFindExample:
 
     def test_rejects_module_without_subclass(self) -> None:
         module = _module_with("fake_example", SimpleExample=SimpleExample)
-        with pytest.raises(ValueError, match="exactly one"):
+        with pytest.raises(EnginePreconditionError, match="exactly one"):
             runner.find_example(module)
 
     def test_rejects_module_with_two_subclasses(self) -> None:
@@ -147,7 +147,7 @@ class TestFindExample:
             First=_example_class("fake_example", []),
             Second=_example_class("fake_example", []),
         )
-        with pytest.raises(ValueError, match="exactly one"):
+        with pytest.raises(EnginePreconditionError, match="exactly one"):
             runner.find_example(module)
 
 

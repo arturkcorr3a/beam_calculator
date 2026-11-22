@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.errors import EnginePreconditionError
 from src.structural_elements.support import Support
 
 
@@ -19,11 +20,11 @@ class TestValidation:
         assert support.left == support.right, "A point support has coincident faces"
 
     def test_left_face_after_center_raises(self) -> None:
-        with pytest.raises(ValueError, match="left <= center <= right"):
+        with pytest.raises(EnginePreconditionError, match="left <= center <= right"):
             Support(center=100.0, left=101.0, right=110.0)
 
     def test_center_after_right_face_raises(self) -> None:
-        with pytest.raises(ValueError, match="left <= center <= right"):
+        with pytest.raises(EnginePreconditionError, match="left <= center <= right"):
             Support(center=100.0, left=90.0, right=99.0)
 
 

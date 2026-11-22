@@ -1,12 +1,22 @@
 """Unit tests for the Reinforcement longitudinal-bar orchestration."""
 
 import types
+from collections.abc import Callable
 from typing import cast
 from unittest.mock import PropertyMock, patch
 
 import pytest
 
 from src.config import APP_CONFIG
+from src.errors import (
+    AnchorageLengthError,
+    BeamCalculatorError,
+    BendPinUndefinedError,
+    EnginePreconditionError,
+    HookDoesNotFitError,
+    MaxLayersExceededError,
+    NoReinforcementLayoutError,
+)
 from src.properties.concrete import Concrete
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
@@ -318,7 +328,9 @@ class TestValidateLayerIndex:
 
     def test_out_of_range_raises(self, reinforcement: Reinforcement) -> None:
         reinforcement.set_required_area(4.02)
-        with pytest.raises(ValueError, match="Layer index must be between 0 and"):
+        with pytest.raises(
+            EnginePreconditionError, match="Layer index must be between 0 and"
+        ):
             reinforcement._validate_layer_index(99)  # pyright: ignore[reportPrivateUsage]
 
 
@@ -551,7 +563,9 @@ class TestEndSupportAnchorage:
         reinforcement.design_shear = 100.0  # kN
         with (
             patch.object(Rebar, "hook_height", new_callable=PropertyMock) as height,
-            pytest.raises(ValueError, match="No valid reinforcement combination"),
+            pytest.raises(
+                NoReinforcementLayoutError, match="No valid reinforcement combination"
+            ),
         ):
             height.return_value = 100.0  # cm, taller than the 60 cm section
             reinforcement.set_required_area(4.02)
@@ -721,7 +735,9 @@ class TestClampPass:
             Support(_SHORT_BEAM_LENGTH, _SHORT_BEAM_LENGTH, _SHORT_BEAM_LENGTH),
         ]
         reinforcement = _make_clamp_ready_reinforcement(_make_short_beam(supports))
-        with pytest.raises(ValueError, match="No valid reinforcement combination"):
+        with pytest.raises(
+            NoReinforcementLayoutError, match="No valid reinforcement combination"
+        ):
             reinforcement.set_required_area(2.0)
 
     def test_clamp_pass_requires_depth_and_shear(
@@ -731,7 +747,9 @@ class TestClampPass:
         reinforcement = _make_reinforcement(
             _make_short_beam(wide_supports), center_position=_SHORT_BEAM_LENGTH / 2
         )
-        with pytest.raises(ValueError, match="Effective depth and design shear"):
+        with pytest.raises(
+            EnginePreconditionError, match="Effective depth and design shear"
+        ):
             reinforcement.set_required_area(2.0)
 
 
@@ -831,7 +849,7 @@ class TestLayerReachesSupport:
         )
 
     def test_empty_layer_raises(self, two_span_reinforcement: Reinforcement) -> None:
-        with pytest.raises(ValueError, match="no bars"):
+        with pytest.raises(EnginePreconditionError, match="no bars"):
             two_span_reinforcement.layer_reaches_support(1, 1, left=False)
 
 
@@ -993,7 +1011,7 @@ class TestStackedReinforcement:
         self, two_span_reinforcement: Reinforcement, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(APP_CONFIG, "max_layers", 1)
-        with pytest.raises(ValueError, match="No layer left"):
+        with pytest.raises(MaxLayersExceededError, match="No layer left"):
             _support_point(two_span_reinforcement, stacked=True)
 
 
@@ -1065,7 +1083,7 @@ class TestLayerMomentBand:
 
     def test_empty_layer_raises(self, beam_double: RectangularBeam) -> None:
         reinforcement = _staggered(beam_double)
-        with pytest.raises(ValueError, match="no bars"):
+        with pytest.raises(EnginePreconditionError, match="no bars"):
             reinforcement.layer_moment_band(2)
 
 
@@ -1128,3 +1146,66 @@ class TestEnforceStaggeredLengths:
         for bar in first.bars:
             assert_approx(bar.left_length, 0.0, "end support side left as it is (cm)")
             assert_approx(bar.right_length, 80.0, "interior side raised (cm)")
+
+
+# ---------------------------------------------------------------------------
+# TestTryLayoutFailures
+# ---------------------------------------------------------------------------
+
+
+def _anchorage_failing_with(error: Exception) -> Callable[[Reinforcement, bool], None]:
+    """Stand-in for _run_anchorage_calculation that always raises ``error``"""
+
+    def run(self: Reinforcement, allow_clamp: bool) -> None:
+        raise error
+
+    return run
+
+
+class TestTryLayoutFailures:
+    """_try_layout rules out an option only for the layout failures it expects."""
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            AnchorageLengthError("Short.", available_length=10.0, required_length=40.0),
+            HookDoesNotFitError(hook_height=20.0, room=10.0),
+            MaxLayersExceededError("Too many layers.", max_layers=3),
+            BendPinUndefinedError(diameter_mm=20),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_expected_failure_rules_out_the_option(
+        self,
+        reinforcement: Reinforcement,
+        monkeypatch: pytest.MonkeyPatch,
+        error: BeamCalculatorError,
+    ) -> None:
+        monkeypatch.setattr(
+            Reinforcement, "_run_anchorage_calculation", _anchorage_failing_with(error)
+        )
+        option = (Rebar(diameter_mm=10, steel=Steel.CA50),) * 2
+        assert not reinforcement._try_layout(option, allow_clamp=False), (  # pyright: ignore[reportPrivateUsage]
+            "the option should be ruled out"
+        )
+        assert all(not layer.bars for layer in reinforcement.chosen_bars), (
+            "the layers should be left empty"
+        )
+
+    @pytest.mark.parametrize(
+        "error",
+        [EnginePreconditionError("Bug."), ValueError("Library failure.")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_other_errors_propagate(
+        self,
+        reinforcement: Reinforcement,
+        monkeypatch: pytest.MonkeyPatch,
+        error: Exception,
+    ) -> None:
+        monkeypatch.setattr(
+            Reinforcement, "_run_anchorage_calculation", _anchorage_failing_with(error)
+        )
+        option = (Rebar(diameter_mm=10, steel=Steel.CA50),) * 2
+        with pytest.raises(type(error), match=str(error)):
+            reinforcement._try_layout(option, allow_clamp=False)  # pyright: ignore[reportPrivateUsage]

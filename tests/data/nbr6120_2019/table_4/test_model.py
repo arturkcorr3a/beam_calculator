@@ -4,6 +4,7 @@ import pytest
 
 from src.data.nbr6120_2019.table_4.data import TABLE_4
 from src.data.nbr6120_2019.table_4.model import Table4
+from src.errors import TableLookupError
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -65,13 +66,13 @@ class TestCoveringMaterialGetWeight:
     def test_thickness_query_does_not_match_none_entry(self, table: Table4) -> None:
         """A numeric thickness never matches an entry without a thickness."""
         material = table.find_material("steel plates")  # only a None-thickness entry
-        with pytest.raises(ValueError):
+        with pytest.raises(TableLookupError):
             material.get_weight(0.3)
 
     def test_missing_thickness_raises_value_error(self, table: Table4) -> None:
         """A thickness_cm not in the entry raises ValueError."""
         material = table.find_material("asphalt felt")
-        with pytest.raises(ValueError):
+        with pytest.raises(TableLookupError):
             material.get_weight(99.9)
 
 
@@ -98,7 +99,7 @@ class TestTable4FindMaterial:
 
     def test_no_match_raises_key_error(self, table: Table4) -> None:
         """Description that matches nothing raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             table.find_material("nonexistent material xyz")
 
     def test_first_match_is_returned(self, table: Table4) -> None:

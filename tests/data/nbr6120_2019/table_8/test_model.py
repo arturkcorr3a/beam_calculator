@@ -4,6 +4,7 @@ import pytest
 
 from src.data.nbr6120_2019.table_8.data import TABLE_8
 from src.data.nbr6120_2019.table_8.model import CeilingDuctSprinklerMaterial, Table8
+from src.errors import TableLookupError
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -39,7 +40,7 @@ class TestTable8FindMaterial:
 
     def test_no_match_raises_key_error(self, table: Table8) -> None:
         """A description that matches nothing raises KeyError."""
-        with pytest.raises(KeyError):
+        with pytest.raises(TableLookupError):
             table.find_material("nonexistent ceiling xyz")
 
     def test_first_match_returned_for_ambiguous_query(self, table: Table8) -> None:

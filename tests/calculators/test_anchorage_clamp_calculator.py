@@ -9,6 +9,7 @@ from src.calculators.anchorage_clamp_calculator import (
     AnchorageClampCalculatorLabel,
 )
 from src.config import APP_CONFIG
+from src.errors import ClampsDoNotFitError
 from src.properties.steel import Steel
 from src.reinforcement.clamps import Clamps
 from tests.helpers import assert_approx
@@ -93,7 +94,7 @@ class TestChooseClamps:
 
     def test_raises_when_nothing_fits(self) -> None:
         calculator = _make_calculator(clamps_fit=lambda d, n: False)
-        with pytest.raises(ValueError, match="No clamp arrangement fits"):
+        with pytest.raises(ClampsDoNotFitError, match="No clamp arrangement fits"):
             calculator._choose_clamps(1.0)  # pyright: ignore[reportPrivateUsage]
 
 

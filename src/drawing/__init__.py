@@ -1,7 +1,6 @@
 """Detailing drawings of the beams: on screen (matplotlib) and in DXF (ezdxf)"""
 
 from src.drawing.api import (
-    DrawingError,
     beam_figure,
     export_beam_dxf,
     pavement_figures,
@@ -10,6 +9,7 @@ from src.drawing.api import (
     show_pavement,
 )
 from src.drawing.config import DrawingConfig
+from src.errors import DrawingError
 
 __all__ = [
     "DrawingConfig",

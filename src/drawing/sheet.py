@@ -32,6 +32,7 @@ from src.drawing.primitives import (
     Text,
     VAlign,
 )
+from src.errors import DrawingError, SheetFitError
 
 logger = logging.getLogger(__name__)
 
@@ -149,10 +150,6 @@ FORMATS = (
 _FIT_TOLERANCE_MM = 1e-6
 
 
-class SheetFitError(ValueError):
-    """The drawing does not fit in the requested sheet"""
-
-
 @dataclass(frozen=True)
 class SheetPlacement:
     """The sheet chosen for a drawing
@@ -238,11 +235,11 @@ def choose_sheet(
         summary_mm: Width and height of the summary placed above the block; zero for none.
 
     Raises:
-        ValueError: If the format or orientation is unknown, or the portrait is asked for another format than A4.
+        DrawingError: If the format or orientation is unknown, or the portrait is asked for another format than A4.
         SheetFitError: If a fixed format does not hold the drawing.
     """
     if orientation not in (LANDSCAPE, PORTRAIT):
-        raise ValueError(f"Unknown sheet orientation '{orientation}'.")
+        raise DrawingError(f"Unknown sheet orientation '{orientation}'.")
     if requested == AUTO:
         for fmt in FORMATS:
             if fmt.orientation == PORTRAIT and orientation != PORTRAIT:
@@ -253,10 +250,10 @@ def choose_sheet(
         return SheetPlacement(FORMATS[-1], "A", overflow=True)
     matches = [fmt for fmt in FORMATS if fmt.name == requested]
     if not matches:
-        raise ValueError(f"Unknown sheet format '{requested}'.")
+        raise DrawingError(f"Unknown sheet format '{requested}'.")
     chosen = [fmt for fmt in matches if fmt.orientation == orientation]
     if not chosen:
-        raise ValueError(f"The {requested} has no {orientation} orientation.")
+        raise DrawingError(f"The {requested} has no {orientation} orientation.")
     fmt = chosen[0]
     region = _region_fitting(fmt, width_mm, height_mm, boxes, summary_mm)
     if region is None:
@@ -325,11 +322,11 @@ def general_notes(
         cover_cm: Nominal cover (cm).
 
     Raises:
-        ValueError: If a steel is not CA-25, CA-50 or CA-60.
+        DrawingError: If a steel is not CA-25, CA-50 or CA-60.
     """
     for steel in (steel_longitudinal, steel_stirrup):
         if steel not in FYK_MPA:
-            raise ValueError(f"Unknown steel '{steel}' for the sheet's notes.")
+            raise DrawingError(f"Unknown steel '{steel}' for the sheet's notes.")
     if steel_longitudinal == steel_stirrup:
         steel_note = (
             f"Aço: {steel_longitudinal} (fyk = {FYK_MPA[steel_longitudinal]} MPa)."

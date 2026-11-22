@@ -29,7 +29,8 @@ def detail_beam(beam: ContinuousBeam) -> DetailingBeam:
     The beam's design objects are only read; every step works on the detailing beam.
 
     Raises:
-        ValueError: Propagated from the builder if the beam has not been dimensioned, or from a step that cannot be carried out.
+        EnginePreconditionError: Propagated from the builder if the beam has not been dimensioned.
+        BeamDetailingError: Propagated from a step that cannot be carried out.
     """
     detailing = build_detailing_beam(beam)
     log_operation(

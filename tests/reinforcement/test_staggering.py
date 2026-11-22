@@ -2,6 +2,7 @@
 
 import pytest
 
+from src.errors import EnginePreconditionError
 from src.reinforcement.staggering import layer_moment_bands, nearest_distance
 from tests.helpers import assert_approx
 
@@ -40,7 +41,7 @@ class TestLayerMomentBands:
         assert_approx(bands[1][1], -40.0, "second band top (kN.m)")
 
     def test_no_area_raises(self) -> None:
-        with pytest.raises(ValueError, match="positive total area"):
+        with pytest.raises(EnginePreconditionError, match="positive total area"):
             layer_moment_bands([], 10.0)
 
 

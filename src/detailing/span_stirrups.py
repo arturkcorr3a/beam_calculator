@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from math import ceil
 
+from src.errors import EnginePreconditionError
 from src.properties.steel import Steel
 from src.reinforcement.stirrups import StirrupZone
 
@@ -36,18 +37,18 @@ class SpanStirrups:
         """Validate that the zones are ordered, have length and touch each other
 
         Raises:
-            ValueError: If there are no zones, a zone has no length, or two neighboring zones leave a gap or overlap.
+            EnginePreconditionError: If there are no zones, a zone has no length, or two neighboring zones leave a gap or overlap.
         """
         if not self.zones:
-            raise ValueError("Span stirrups need at least one zone.")
+            raise EnginePreconditionError("Span stirrups need at least one zone.")
         for zone in self.zones:
             if zone.end <= zone.start:
-                raise ValueError(
+                raise EnginePreconditionError(
                     f"A stirrup zone must end after it starts. Got start={zone.start}, end={zone.end} cm."
                 )
         for left, right in zip(self.zones, self.zones[1:], strict=False):
             if abs(right.start - left.end) > _CONTIGUITY_TOLERANCE:
-                raise ValueError(
+                raise EnginePreconditionError(
                     f"Stirrup zones must touch. Got one ending at {left.end} cm and the next starting at {right.start} cm."
                 )
 

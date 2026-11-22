@@ -15,6 +15,7 @@ import yaml
 
 from src.config import APP_CONFIG, AppConfig
 from src.config_options import ExposureClass
+from src.errors import MalformedFileError
 from src.loading.superficial_loads import SuperficialLoads
 from src.pavement_elements.continuous_beam import ContinuousBeam, WallDefinition
 from src.pavement_elements.geometry_utils import Alignment
@@ -214,7 +215,7 @@ def test_unknown_pillar_reference_raises() -> None:
         ],
         "slabs": [],
     }
-    with pytest.raises(ValueError, match="unknown pillar 'P99'"):
+    with pytest.raises(MalformedFileError, match="unknown pillar 'P99'"):
         pavement_from_dict(document)
 
 
@@ -432,5 +433,7 @@ class TestLoadMalformed:
     def test_non_mapping_top_level_raises(self, tmp_path: Path, content: str) -> None:
         path = tmp_path / "bad.yaml"
         path.write_text(content, encoding="utf-8")
-        with pytest.raises(ValueError, match="expected a mapping at the top level"):
+        with pytest.raises(
+            MalformedFileError, match="expected a mapping at the top level"
+        ):
             load_pavement(path)
