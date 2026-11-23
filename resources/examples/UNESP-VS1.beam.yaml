@@ -12,12 +12,13 @@ pillars:
 - {width: 30.0, depth: 19.0}
 
 loads:
-- {type: custom, label: Carga do Exemplo, value: 22.62, variable: false, psi_2: 0.3}
+- {type: custom, label: Carga permanente, value: 17.39, variable: false, psi_2: 0.3}
+- {type: custom, label: Carga variável, value: 5.23, variable: true, psi_2: 0.3}
 
 config:
-  aggregate: granite
-  max_aggregate_size: 2.5
-  max_bar_types: 3
+  aggregate: basalt
+  max_aggregate_size: 1.9
+  max_bar_types: 1
   max_layers: 3
   pavement_concrete: C30
   pavement_steel: CA50
