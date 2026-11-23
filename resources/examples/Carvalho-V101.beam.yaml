@@ -2,7 +2,7 @@
 # Unidades: seção e pilares em cm, vãos e altura de parede em m, cargas em kN/m.
 # O vão de uma carga começa em 1 (V1); sem 'span', vale para todos os vãos.
 
-section: {width: 18.0, height: 95.0}
+section: {width: 18.0, height: 90.0}
 
 spans: [8.0, 8.0]
 
