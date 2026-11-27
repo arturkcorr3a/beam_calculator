@@ -1,4 +1,4 @@
-"""Scheme of the continuous beam: pillars, loads per span and span lengths."""
+"""Scheme of the continuous beam: pillars, hinges, loads per span and span lengths."""
 
 from collections.abc import Sequence
 from itertools import accumulate
@@ -17,6 +17,7 @@ _BEAM_PX = 14.0
 _PILLAR_ABOVE_PX = 10.0
 _PILLAR_BELOW_PX = 34.0
 _MIN_PILLAR_PX = 6.0
+_HINGE_RADIUS_PX = 4.0
 _LOAD_MAX_PX = 40.0
 _LOAD_MIN_PX = 10.0
 _ARROW_GAP_PX = 24.0
@@ -26,7 +27,10 @@ _CM_PER_M = 100.0
 
 
 class BeamSchemeWidget(QWidget):
-    """The beam to scale over its pillars, each span's g and q and its length"""
+    """The beam to scale over its pillars, each span's g and q and its length
+
+    A hollow circle on the beam axis marks a simple support (pinned pillar).
+    """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -34,6 +38,7 @@ class BeamSchemeWidget(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._lengths: tuple[float, ...] = ()
         self._pillar_widths_cm: tuple[float, ...] = ()
+        self._pinned: tuple[bool, ...] = ()
         self._loads: tuple[LoadValues, ...] = ()
 
     def set_values(
@@ -41,10 +46,12 @@ class BeamSchemeWidget(QWidget):
         span_lengths_m: Sequence[float],
         pillar_widths_cm: Sequence[float],
         span_loads: Sequence[LoadValues],
+        pinned: Sequence[bool] = (),
     ) -> None:
-        """Show spans (m), pillar widths along the beam (cm) and the loads per span"""
+        """Show spans (m), pillar widths along the beam (cm), the loads per span and the pinned pillars"""
         self._lengths = tuple(span_lengths_m)
         self._pillar_widths_cm = tuple(pillar_widths_cm)
+        self._pinned = tuple(pinned)
         self._loads = tuple(span_loads)
         self.update()
 
@@ -71,6 +78,7 @@ class BeamSchemeWidget(QWidget):
         painter.setPen(QPen(QColor(tokens.PLAN_BEAM_OUTLINE), 1.2))
         painter.setBrush(QBrush(QColor(tokens.PLAN_BEAM_FILL)))
         painter.drawRect(beam)
+        self._draw_hinges(painter, axes, beam)
         self._draw_loads(painter, axes, beam)
         self._draw_lengths(
             painter, axes, beam.bottom() + _PILLAR_BELOW_PX + _TEXT_PX + 12
@@ -95,6 +103,15 @@ class BeamSchemeWidget(QWidget):
                 Qt.AlignmentFlag.AlignHCenter,
                 s.PILLAR_NAME.format(n=index + 1),
             )
+
+    def _draw_hinges(self, painter: QPainter, axes: list[float], beam: QRectF) -> None:
+        painter.setPen(QPen(QColor(tokens.PLAN_BEAM_OUTLINE), 1.2))
+        painter.setBrush(QBrush(QColor(tokens.PLAN_BEAM_FILL)))
+        for x, pinned in zip(axes, self._pinned, strict=False):
+            if pinned:
+                painter.drawEllipse(
+                    QPointF(x, beam.center().y()), _HINGE_RADIUS_PX, _HINGE_RADIUS_PX
+                )
 
     def _draw_loads(self, painter: QPainter, axes: list[float], beam: QRectF) -> None:
         peak = max((v.g_kn_m + v.q_kn_m for v in self._loads), default=0.0)

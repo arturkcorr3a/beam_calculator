@@ -25,10 +25,12 @@ class IsolatedPillar:
     Attributes:
         width: Extent along the beam axis (cm).
         depth: Extent perpendicular to the beam axis (cm); must cover the beam width.
+        pinned: Whether the support is simple, without the pillar's rotational stiffness.
     """
 
     width: float
     depth: float
+    pinned: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,7 +116,9 @@ def build_isolated_beam(
     log_general(f"Isolated beam {beam_id}: {len(span_lengths)} span(s)")
     positions = [0.0, *accumulate(span_lengths)]  # cm
     registry = {
-        f"P{index}": Pillar(x, 0.0, pillar.width, pillar.depth, id=f"P{index}")
+        f"P{index}": Pillar(
+            x, 0.0, pillar.width, pillar.depth, id=f"P{index}", pinned=pillar.pinned
+        )
         for index, (x, pillar) in enumerate(zip(positions, pillars, strict=True), 1)
     }
     ids = list(registry)

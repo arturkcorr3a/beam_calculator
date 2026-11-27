@@ -12,10 +12,12 @@ class IsolatedPillarInput:
     Attributes:
         width_cm: Extent along the beam (cm); the engine requires ≥ 14.
         depth_cm: Extent across the beam (cm); must cover the beam width b.
+        pinned: Simple support, without the pillar's rotational stiffness.
     """
 
     width_cm: float
     depth_cm: float
+    pinned: bool = False
 
 
 @dataclass(frozen=True, slots=True)

@@ -29,6 +29,7 @@ class Pillar:
         y: Physical y-coordinate (cm)
         width: Cross-section width (cm)
         depth: Cross-section depth (cm)
+        pinned: Whether the beams rest on it without rotational restraint (simple support)
     """
 
     x: float
@@ -36,6 +37,7 @@ class Pillar:
     width: float
     depth: float
     id: str = field(default="", kw_only=True)  # empty: generated from the counter
+    pinned: bool = field(default=False, kw_only=True)
 
     _counter = count(1)  # Class-level counter for auto-generating IDs
 

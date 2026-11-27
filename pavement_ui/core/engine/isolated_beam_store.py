@@ -2,6 +2,7 @@
 
 The file holds the beam (section, spans, pillars, loads) and the project
 settings in the engine's ``config`` format, so it reopens exactly as saved.
+A pillar marked ``pinned: true`` is a simple support.
 Load spans are written 1-based (V1, V2…); a load without ``span`` acts on
 every span.
 """
@@ -60,6 +61,12 @@ def _wall_to_dict(wall: WallRecord) -> _Doc:
     }
 
 
+def _pillar_to_dict(pillar: IsolatedPillarInput) -> _Doc:
+    """``pinned`` only on simple supports"""
+    doc: _Doc = {"width": pillar.width_cm, "depth": pillar.depth_cm}
+    return {**doc, "pinned": True} if pillar.pinned else doc
+
+
 def _load_to_dict(load: IsolatedLoadInput) -> _Doc:
     match load:
         case OwnWeightLoad():
@@ -99,7 +106,7 @@ def _render(data: IsolatedBeamInput, config: ConfigValues) -> str:
         _dump("spans", list(data.span_lengths_m), None),
         _dump(
             "pillars",
-            [{"width": p.width_cm, "depth": p.depth_cm} for p in data.pillars],
+            [_pillar_to_dict(p) for p in data.pillars],
             None,
         ),
         _dump("loads", [_load_to_dict(load) for load in data.loads], None),
@@ -228,6 +235,7 @@ def _from_document(document: object) -> LoadedIsolatedBeam:
             IsolatedPillarInput(
                 width_cm=_number(_get(pillar, "width", field), f"{field}.width"),
                 depth_cm=_number(_get(pillar, "depth", field), f"{field}.depth"),
+                pinned=_flag(pillar.get("pinned", False), f"{field}.pinned"),
             )
         )
     loads = tuple(

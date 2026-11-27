@@ -1,4 +1,4 @@
-"""Vãos e pilares: span lengths and the pillar under each support."""
+"""Vãos e pilares: span lengths and the pillar under each support, pinned or not."""
 
 from collections.abc import Sequence
 
@@ -44,7 +44,10 @@ class SpansPillarsGroup(QGroupBox):
         )
         self._spans.setObjectName("isoSpans")
         self._pillars = SpinTable(
-            s.COL_PILLAR, _PILLARS, lambda i: s.PILLAR_NAME.format(n=i + 1)
+            s.COL_PILLAR,
+            _PILLARS,
+            lambda i: s.PILLAR_NAME.format(n=i + 1),
+            s.COL_PILLAR_PINNED,
         )
         self._pillars.setObjectName("isoPillars")
         self._add = QPushButton(s.ADD_SPAN)
@@ -77,7 +80,12 @@ class SpansPillarsGroup(QGroupBox):
         return tuple(row[0] for row in self._spans.values())
 
     def pillars(self) -> tuple[IsolatedPillarInput, ...]:
-        return tuple(IsolatedPillarInput(w, d) for w, d in self._pillars.values())
+        return tuple(
+            IsolatedPillarInput(w, d, pinned)
+            for (w, d), pinned in zip(
+                self._pillars.values(), self._pillars.checks(), strict=True
+            )
+        )
 
     def set_values(
         self,
@@ -88,6 +96,7 @@ class SpansPillarsGroup(QGroupBox):
         self._set_span_count(len(span_lengths_m))
         self._spans.set_values([(length,) for length in span_lengths_m])
         self._pillars.set_values([(p.width_cm, p.depth_cm) for p in pillars])
+        self._pillars.set_checks([p.pinned for p in pillars])
 
     def _set_span_count(self, count: int) -> None:
         count = max(1, min(MAX_SPANS, count))
