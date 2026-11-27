@@ -56,7 +56,7 @@ def _build(data: model.IsolatedBeamInput) -> tuple[ContinuousBeam, dict[str, Pil
         [cm_from_m(length) for length in data.span_lengths_m],
         data.width_cm,
         data.height_cm,
-        [engine.IsolatedPillar(p.width_cm, p.depth_cm) for p in data.pillars],
+        [engine.IsolatedPillar(p.width_cm, p.depth_cm, p.pinned) for p in data.pillars],
         [_load(load) for load in data.loads],
     )
 

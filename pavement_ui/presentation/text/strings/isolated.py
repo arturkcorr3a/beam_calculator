@@ -39,12 +39,14 @@ COL_LENGTH: Final = "Comprimento"
 COL_PILLAR: Final = "Pilar"
 COL_PILLAR_WIDTH: Final = "Largura (ao longo)"
 COL_PILLAR_DEPTH: Final = "Profundidade"
+COL_PILLAR_PINNED: Final = "Apoio simples"
 SPAN_NAME: Final = "V{n}"
 PILLAR_NAME: Final = "P{n}"
 ADD_SPAN: Final = "+ Vão"
 REMOVE_SPAN: Final = "− Vão"
 SPANS_HINT: Final = (
-    "Comprimento entre os eixos dos pilares. A profundidade do pilar deve cobrir b."
+    "Comprimento entre os eixos dos pilares. A profundidade do pilar deve cobrir b. "
+    "Apoio simples: sem a rigidez do pilar à rotação."
 )
 
 # --- loads ----------------------------------------------------------------------

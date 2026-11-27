@@ -51,6 +51,9 @@ spans: [4.5, 3.2]
 #   width  dimensão do pilar ao longo da viga (cm); pelo menos 14 cm
 #   depth  dimensão do pilar na direção transversal (cm); deve cobrir a
 #          largura da viga
+#   pinned opcional: "pinned: true" torna o apoio simples (articulado), sem a
+#          rigidez do pilar à rotação; sem "pinned", o pilar restringe a
+#          rotação da viga
 pillars:
   - width: 20
     depth: 30

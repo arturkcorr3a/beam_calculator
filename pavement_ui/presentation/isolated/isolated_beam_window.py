@@ -168,10 +168,12 @@ class IsolatedBeamWindow(QWidget):
 
     def _on_inputs_changed(self) -> None:
         self._loads.set_section(self._inputs.width_cm, self._inputs.height_cm)
+        pillars = self._spans.pillars()
         self._scheme.set_values(
             self._spans.span_lengths_m(),
-            [pillar.width_cm for pillar in self._spans.pillars()],
+            [pillar.width_cm for pillar in pillars],
             self._loads.span_totals(),
+            [pillar.pinned for pillar in pillars],
         )
         self._results.clear()
 

@@ -19,9 +19,10 @@ pavimento tipo segundo a ABNT NBR 6118. Você desenha a planta do pavimento
 - exporta os desenhos das vigas (PDF e DXF) e o relatório de cálculo (PDF), e
   grava um memorial de cálculo a cada execução.
 
-Também há uma calculadora de viga contínua isolada, fora da planta. As vigas
-dela podem ser salvas e abertas em arquivos `.beam.yaml`, junto com as
-configurações do projeto.
+Também há uma calculadora de viga contínua isolada, fora da planta. Cada apoio
+dela é um pilar que restringe a rotação da viga, ou pode ser marcado como apoio
+simples (articulado, sem a rigidez do pilar). As vigas dela podem ser salvas e
+abertas em arquivos `.beam.yaml`, junto com as configurações do projeto.
 
 **Idioma:** por enquanto, a interface, os relatórios e os desenhos estão
 disponíveis **somente em português (pt-BR)**.

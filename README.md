@@ -20,8 +20,10 @@ according to the Brazilian standard ABNT NBR 6118. You draw the floor plan
   a calculation log of every run.
 
 An isolated continuous beam calculator is also available, outside the floor plan.
-Its beams can be saved and opened as `.beam.yaml` files, together with the
-project settings.
+Each of its supports is a pillar that restrains the beam's rotation, or can be
+marked as a simple support (pinned, without the pillar's stiffness). Its beams
+can be saved and opened as `.beam.yaml` files, together with the project
+settings.
 
 **Language:** the interface, the reports and the drawings are currently
 available in **Portuguese (pt-BR) only**.
