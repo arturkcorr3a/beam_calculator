@@ -450,13 +450,16 @@ class Reinforcement:
     def _available_space(self, left: bool) -> float:
         """Return the length from the section to the beam's end minus the nominal covering (cm)
 
+        The beam ends at the end supports' outer faces, not at their axes (x = 0 and x = L).
+
         Args:
             left: Whether to measure towards the left end; otherwise the right.
         """
         covering = RectangularBeam.nominal_covering  # cm
+        supports = self.beam.supports
         if left:
-            return self.center_position - covering
-        return self.beam.length - covering - self.center_position
+            return self.center_position - supports[0].left - covering
+        return supports[-1].right - covering - self.center_position
 
     def _layer_anchorage_calculator(self, layer_index: int) -> AnchorageCalculator:
         """Build the anchorage calculator of one chosen layer
