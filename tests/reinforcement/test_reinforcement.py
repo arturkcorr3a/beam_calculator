@@ -1106,14 +1106,16 @@ class TestEnforceStaggeredLengths:
         _set_lengths(first, left=50.0, right=50.0)
         _set_lengths(innermost, left=400.0, right=50.0)
         _enforce(reinforcement)
-        space = 250.0 - RectangularBeam.nominal_covering  # cm
+        space = 250.0 + 10.0 - RectangularBeam.nominal_covering  # cm, to the outer face
         for bar in first.bars:
-            assert_approx(bar.left_length, space, "capped at the beam's end (cm)")
+            assert_approx(
+                bar.left_length, space, "capped at the pillar's outer face (cm)"
+            )
 
     def test_hooked_raise_keeps_the_hook_cover(
         self, beam_double: RectangularBeam
     ) -> None:
-        """Hooked 16 mm bars keep max(c_nom, 3φ) to the beam's end"""
+        """Hooked 16 mm bars keep max(c_nom, 3φ) to the pillar's outer face"""
         reinforcement = _staggered(beam_double)
         first, innermost = reinforcement.chosen_bars[:2]
         first.set_hooks(left=True, enable=True)
@@ -1121,7 +1123,7 @@ class TestEnforceStaggeredLengths:
         _set_lengths(innermost, left=400.0, right=50.0)
         _enforce(reinforcement)
         covering = RectangularBeam.nominal_covering  # cm
-        expected = 250.0 - max(covering, 3 * 1.6)  # cm
+        expected = 250.0 + 10.0 - max(covering, 3 * 1.6)  # cm, to the outer face
         for bar in first.bars:
             assert_approx(bar.left_length, expected, "capped before the hook (cm)")
 

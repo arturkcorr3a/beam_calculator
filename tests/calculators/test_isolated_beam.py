@@ -12,6 +12,7 @@ from src.calculators.isolated_beam import (
 )
 from src.config import APP_CONFIG
 from src.config_options import ExposureClass
+from src.detailing.rounding import left_end_limit
 from src.errors import (
     BeamInputError,
     BeamTooNarrowError,
@@ -317,3 +318,31 @@ class TestStaggering:
         for lower, upper in zip(span_bars, span_bars[1:], strict=False):
             assert upper[0] <= lower[0], "no layer longer than the one below (left)"
             assert upper[1] <= lower[1], "no layer longer than the one below (right)"
+
+
+class TestEndPillarAnchorage:
+    """Span bottom bars anchor up to the end pillar's outer face, not its axis."""
+
+    def test_bottom_bars_reach_the_outer_face(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Spans of 4.00 + 5.00 m with 15 kN/m: the first span's bars start at the left pillar's outer face plus the cover, without clamps"""
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+        beam, pillars = _two_spans([OwnWeightLoad(), CustomLoad("q", 15.0)])
+        beam.dimension(pillars)
+        detailing = detail_isolated_beam(beam)
+        first = min(
+            (bar for bar in detailing.bars if bar.is_bottom),
+            key=lambda bar: bar.start,
+        )
+        limit = left_end_limit(
+            detailing, first.diameter_mm, first.left_hook is not None
+        )  # cm
+        assert first.start == limit, "the bars should run to the outer face (cm)"
+        assert first.start < detailing.supports[0].center, (
+            "the bars should run past the pillar's axis"
+        )
+        assert not any(
+            clamps.left and clamps.is_bottom for clamps in detailing.clamps
+        ), "the room up to the outer face should anchor the bars without clamps"
