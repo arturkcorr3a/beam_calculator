@@ -418,7 +418,7 @@ class BeamCalculator:
     def _build_supports(self) -> list[BeamSupport]:
         """Builds a support on each pillar along the beam.
 
-        Each support restrains horizontal and vertical translation. Its rotation is restrained by the pillar's rotational stiffness (see ``Pillar.calculate_stiffness_for_beam_supporting``), as NBR 6118:2026 item 14.6.6.1-c allows. An interior support wider than a quarter of the pillar's equivalent height is rigid instead (``math.inf``, see ``Pillar.is_rigid_inner_support``), so its hogging moment is the fixed-end moment (item 14.6.6.1-b). Positions accumulate the spans' effective lengths (cm).
+        Each support restrains horizontal and vertical translation. Its rotation is restrained by the pillar's rotational stiffness (see ``Pillar.calculate_stiffness_for_beam_supporting``), as NBR 6118:2026 item 14.6.6.1-c allows. An interior support wider than a quarter of the pillar's equivalent height is rigid instead (``math.inf``, see ``Pillar.is_rigid_inner_support``), so its hogging moment is the fixed-end moment (item 14.6.6.1-b). A pinned pillar (``Pillar.pinned``) is a simple support: no rotational restraint (``0.0``), and the rigid check is skipped. Positions accumulate the spans' effective lengths (cm).
 
         Returns:
             One support per span boundary, ordered left to right.
@@ -436,7 +436,12 @@ class BeamCalculator:
         ):
             pillar = self._pillar_registry[pillar_id]
             is_interior = 0 < index < last
-            if is_interior and pillar.is_rigid_inner_support(axis):
+            if pillar.pinned:
+                stiffness = 0.0
+                log_operation(
+                    f"Pillar {pillar.id}: simple support, no rotational restraint"
+                )
+            elif is_interior and pillar.is_rigid_inner_support(axis):
                 stiffness = math.inf
             else:
                 stiffness = pillar.calculate_stiffness_for_beam_supporting(axis)

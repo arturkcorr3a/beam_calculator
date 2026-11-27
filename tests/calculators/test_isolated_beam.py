@@ -57,6 +57,15 @@ class TestGeometry:
             ("P3", 900.0, 0.0),
         ], "pillars should sit at the cumulative span lengths (cm)"
 
+    def test_pinned_flag_reaches_the_pillars(self) -> None:
+        pinned = IsolatedPillar(20.0, 20.0, pinned=True)
+        _, pillars = build_isolated_beam(
+            [400.0, 500.0], 15.0, 40.0, [pinned, _PILLAR, pinned], []
+        )
+        assert [p.pinned for p in pillars.values()] == [True, False, True], (
+            "each pillar should keep its simple-support flag"
+        )
+
     def test_span_count(self) -> None:
         beam, _ = _two_spans([])
         assert len(beam.spans) == 2, "two lengths should give two spans"
@@ -199,6 +208,59 @@ class TestDimensioning:
             (_OWN_WEIGHT_KN_M + 3.0) * 9.0,
             "reactions should add up to (g + q) × total length (kN)",
             abs_tol=1e-3,
+        )
+
+
+class TestSimpleSupports:
+    """Pinned pillars carry no moment: a single span behaves as simply supported."""
+
+    @staticmethod
+    def _single_span(monkeypatch: pytest.MonkeyPatch, pinned: bool) -> ContinuousBeam:
+        """Dimension a 15 × 40 cm beam over 4.00 m with g = 1.5 + 10 kN/m."""
+        monkeypatch.setattr(APP_CONFIG, "exposure_class", ExposureClass.MODERATE)
+        monkeypatch.setattr(APP_CONFIG, "pavement_concrete", Concrete.C30)
+        pillar = IsolatedPillar(20.0, 20.0, pinned=pinned)
+        beam, pillars = build_isolated_beam(
+            [400.0],
+            15.0,
+            40.0,
+            [pillar, pillar],
+            [OwnWeightLoad(), CustomLoad("revestimento", 10.0)],
+        )
+        beam.dimension(pillars)
+        return beam
+
+    def test_no_moment_on_pinned_supports(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        analysis = self._single_span(monkeypatch, pinned=True).analysis
+        assert analysis is not None, "the analysis should be kept"
+        for x in (0.0, 400.0):
+            assert_approx(
+                analysis.bending_moment(x),
+                0.0,
+                f"a pinned support at {x} cm should carry no moment (kN.m)",
+                abs_tol=1e-6,
+            )
+
+    def test_midspan_moment_is_ql2_over_8(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        analysis = self._single_span(monkeypatch, pinned=True).analysis
+        assert analysis is not None, "the analysis should be kept"
+        assert_approx(
+            analysis.bending_moment(200.0),
+            (_OWN_WEIGHT_KN_M + 10.0) * 4.0**2 / 8,
+            "midspan moment should be q·l²/8 (kN.m)",
+        )
+
+    def test_pillar_springs_hog_at_the_ends(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        analysis = self._single_span(monkeypatch, pinned=False).analysis
+        assert analysis is not None, "the analysis should be kept"
+        assert analysis.bending_moment(0.0, from_right=True) < 0, (
+            "without the flag the pillar's spring should hog at the end support"
         )
 
 

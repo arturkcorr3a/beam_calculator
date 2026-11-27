@@ -173,7 +173,9 @@ class TestBuildSupports:
 
     @staticmethod
     def _three_support_stiffnesses(
-        monkeypatch: pytest.MonkeyPatch, widths: dict[str, float]
+        monkeypatch: pytest.MonkeyPatch,
+        widths: dict[str, float],
+        pinned: frozenset[str] = frozenset(),
     ) -> list[float]:
         """Rotational stiffness of the supports on P1, P2 and P3 of a two-span X beam, H = 2.5 m (e/4 = 62.5 cm)."""
         monkeypatch.setattr(APP_CONFIG, "ceiling_height", 2.5)
@@ -181,6 +183,8 @@ class TestBuildSupports:
         spans[1].start_pillar_id = "P2"
         spans[1].end_pillar_id = "P3"
         registry = _make_registry({"P3": 20.0, **widths})
+        for pillar_id in pinned:
+            registry[pillar_id].pinned = True
         bc = BeamCalculator(_make_beam_stub(spans=spans), registry)  # type: ignore[arg-type]
         return [s.rotational_stiffness for s in bc._build_supports()]  # pyright: ignore[reportPrivateUsage]
 
@@ -214,6 +218,27 @@ class TestBuildSupports:
         )
         assert math.isfinite(stiffnesses[0]), "Wide start pillar keeps its spring"
         assert math.isfinite(stiffnesses[2]), "Wide end pillar keeps its spring"
+
+    def test_pinned_pillars_have_no_spring(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pinned end and interior pillars are simple supports (0 kN.m/rad); the others keep their spring."""
+        stiffnesses = self._three_support_stiffnesses(
+            monkeypatch, {}, frozenset({"P1", "P2"})
+        )
+        assert stiffnesses[:2] == [0.0, 0.0], "Pinned supports should have no spring"
+        assert stiffnesses[2] > 0, "The unpinned end support keeps its spring"
+
+    def test_pinned_wide_interior_pillar_is_not_rigid(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """b_int = 70 cm > e/4, but a pinned pillar skips the rigid check (NBR 6118 14.6.6.1-b)."""
+        stiffnesses = self._three_support_stiffnesses(
+            monkeypatch, {"P2": 70.0}, frozenset({"P2"})
+        )
+        assert stiffnesses[1] == 0.0, (
+            "A pinned wide pillar should stay a simple support"
+        )
 
     def test_rigid_interior_support_uncouples_the_spans(
         self, monkeypatch: pytest.MonkeyPatch
